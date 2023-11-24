@@ -102,9 +102,13 @@ const WatermarkEditor: React.FC<{
       const height = (backgroundImage.naturalHeight / backgroundImage.naturalWidth) * backgroundFixWidth;
       const scale = backgroundFixWidth / backgroundImage.naturalWidth;
       setBackgroundImageSize({ width: backgroundFixWidth, height });
-      setWatermarkImageSize({ width: watermarkImage.naturalWidth * scale, height: watermarkImage.naturalHeight * scale });
+      if (watermarkImage) {
+        setWatermarkImageSize({ width: watermarkImage.naturalWidth * scale, height: watermarkImage.naturalHeight * scale });
+      }
+      // setWatermarkImageSize({ width: watermarkImage.naturalWidth * scale, height: watermarkImage.naturalHeight * scale });
       // console.log(backgroundImage.naturalHeight, backgroundImage.naturalWidth, '背景大小', height, backgroundFixWidth, '比例', height / backgroundImage.naturalHeight)
     }
+
   }, [backgroundImage])
 
   // useEffect(() => {
