@@ -6,6 +6,13 @@ import { Stage, Layer, Image as KonvaImage, Transformer } from 'react-konva';
 import useImage from 'use-image';
 import './App.css';
 
+interface Position {
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+}
+
 interface ImageWithFixedWidthProps {
   src: string;
   fixedWidth: number;
