@@ -1,17 +1,31 @@
 import React, { useState } from 'react';
+import { saveAs } from 'file-saver';
 import { Progress } from 'antd';
 import ImageUploader from './ImageUploader';
 import WatermarkEditor from './WatermarkEditor';
+import applyWatermark from './applyWatermark';
+import { Position, WatermarkData, ProcessedImageData } from './imageProcessTypes';
 import './App.css';
+// const worker = new Worker(new URL('./imageProcessorWorker.ts', import.meta.url));
 
-interface Position {
-  x: number;
-  y: number;
-  scaleX: number;
-  scaleY: number;
-}
+// worker.onmessage = function(e: MessageEvent<ProcessedImageData>) {
+//   const { file, blob } = e.data;
+//   const url = URL.createObjectURL(blob);
 
-function App() {
+//   const downloadLink = document.createElement('a');
+//   downloadLink.href = url;
+//   downloadLink.download = file.name;
+//   document.body.appendChild(downloadLink);
+//   downloadLink.click();
+//   document.body.removeChild(downloadLink);
+//   URL.revokeObjectURL(url);
+// };
+
+// worker.onerror = function(e: ErrorEvent) {
+//   console.error('Worker Error:', e.message);
+// };
+
+const App: React.FC = () => {
   const [images, setImages] = useState<File[]>([]);
   const [watermarkUrl, setWatermarkUrl] = useState('');
   // 支持定制每一个水印
@@ -22,7 +36,6 @@ function App() {
     scaleY: 1,
     rotation: 0,
   });
-  const [positionArr, setPositionArr] = useState<Position[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,16 +44,6 @@ function App() {
 
   const handleImagesUpload = (files: File[]) => {
     setImages(files);
-    // 初始化水印位置数组
-    setPositionArr([
-      ...new Array(files.length).fill({
-        x: 0,
-        y: 0,
-        scaleX: 1,
-        scaleY: 1,
-        rotation: 0,
-      })
-    ])
     if (files[0]) {
       // Update the original image dimensions when a new image is uploaded
       const image = new Image();
@@ -68,7 +71,6 @@ function App() {
     scaleY: number;
     rotation: number;
   }) => {
-    // console.log(position)
     setWatermarkPosition(position);
   };
 
@@ -92,7 +94,7 @@ function App() {
           const watermarkY = position.y * image.height;
           const watermarkWidth = watermarkImage.width * position.scaleX;
           const watermarkHeight = watermarkImage.height * position.scaleY;
-          // console.log(watermarkX, watermarkY, watermarkWidth, watermarkHeight)
+          console.log(watermarkX, watermarkY, watermarkWidth, watermarkHeight)
           ctx.drawImage(
             watermarkImage,
             watermarkX,
@@ -160,57 +162,8 @@ function App() {
     }
   }
 
-  function downloadImagesWithWatermark(files, watermarkImage, position) {
-    files.forEach((file, index) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const image = new Image();
-        image.onload = () => {
-          // 创建一个canvas元素
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = image.width;
-          canvas.height = image.height;
-
-          // 绘制原始图片
-          ctx.drawImage(image, 0, 0, image.width, image.height);
-
-          // 应用水印位置和变换
-          const watermarkX = position.x * image.width;
-          const watermarkY = position.y * image.height;
-          const watermarkWidth = watermarkImage.width * position.scaleX;
-          const watermarkHeight = watermarkImage.height * position.scaleY;
-          // console.log(watermarkX, watermarkY, watermarkWidth, watermarkHeight)
-          ctx.drawImage(
-            watermarkImage,
-            watermarkX,
-            watermarkY,
-            watermarkWidth,
-            watermarkHeight,
-          );
-
-          // ctx.restore();
-
-          // 将canvas内容转换为DataURL
-          const dataURL = canvas.toDataURL('image/png');
-
-          // 创建下载链接并触发下载
-          const downloadLink = document.createElement('a');
-          downloadLink.href = dataURL;
-          downloadLink.download = `watermarked-${index}.png`;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-        };
-        image.src = e.target.result as string;
-      };
-      reader.readAsDataURL(file);
-    });
-  }
 
   const handleApplyWatermark = () => {
-    console.log(111111);
-    console.trace();
     if (!watermarkUrl) {
       setError('Please upload a watermark image.');
       return;
@@ -305,7 +258,7 @@ function App() {
         <Progress percent={imgProcess} />
       </div>
     </div>
-  ); 
-}
+  );
+};
 
 export default App;
