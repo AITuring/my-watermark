@@ -12,3 +12,9 @@ This is a [Vite](https://vitejs.dev) project together with React.
 - [CodeSandbox — Discord](https://discord.gg/Ggarp3pX5H)
 - [Vite — GitHub](https://github.com/vitejs/vite)
 - [Vite — Docs](https://vitejs.dev/guide/)
+
+## TODO
+TODO 
+- 下载太慢，多图只处理前几个，后面不处理
+- 挪动水印应该增加辅助线，帮助对齐
+- 界面优化
