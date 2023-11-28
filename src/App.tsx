@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
-import { saveAs } from 'file-saver';
 import { Progress } from 'antd';
 import ImageUploader from './ImageUploader';
 import WatermarkEditor from './WatermarkEditor';
-import applyWatermark from './applyWatermark';
-import { Position, WatermarkData, ProcessedImageData } from './imageProcessTypes';
 import './App.css';
 // const worker = new Worker(new URL('./imageProcessorWorker.ts', import.meta.url));
 
