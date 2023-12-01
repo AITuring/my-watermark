@@ -7,7 +7,7 @@ import "./App.css";
 const App: React.FC = () => {
   const [images, setImages] = useState<File[]>([]);
   const [watermarkUrl, setWatermarkUrl] = useState("");
-  // 支持定制每一个水印
+  // TODO支持定制每一个水印
   const [watermarkPosition, setWatermarkPosition] = useState({
     x: 0,
     y: 0,
@@ -17,7 +17,6 @@ const App: React.FC = () => {
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   // 图片处理进度
   const [imgProgress, setImgProgress] = useState<number>(0);
 
@@ -138,33 +137,32 @@ const App: React.FC = () => {
       const imageBlobs = await Promise.all(promises);
 
       imageBlobs.forEach(({ url, name }, index) => {
-        message.success(`第${index}张图下载完成！`);
+        message.success(`图${i + index + 1}下载成功！`);
+        const progress = ((i + index + 1) / files.length) * 100;
+        setImgProgress(Math.min(progress, 100));
         downloadLink.href = url;
-        downloadLink.download = `watermarked-${i + index}.png`;
+        downloadLink.download = `watermarked-${i + index + 1}.png`;
         downloadLink.click();
         URL.revokeObjectURL(url);
       });
-      const progress = ((i + batchSize) / files.length) * 100;
-      setImgProgress(Math.min(progress, 100));
 
       // 等待一会儿，让浏览器有时间回收内存
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     document.body.removeChild(downloadLink);
+    setLoading(false);
+    setImgProgress(0);
   }
 
   const handleApplyWatermark = () => {
     if (!watermarkUrl) {
-      setError("Please upload a watermark image.");
       return;
     }
     setLoading(true);
-    setError(null);
     const watermarkImage = new Image();
     watermarkImage.onload = () => {
       message.success("水印下载开始！");
-      const count: number = 0;
       downloadImagesWithWatermarkBatch(
         images,
         watermarkImage,
@@ -174,7 +172,6 @@ const App: React.FC = () => {
 
     watermarkImage.onerror = () => {
       message.error("Failed to load the watermark image.");
-      setError("Failed to load the watermark image.");
       setLoading(false);
     };
     watermarkImage.src = watermarkUrl;
@@ -197,38 +194,38 @@ const App: React.FC = () => {
 
   return (
     <div className="App">
-      {images.length === 0 && (
-        <ImageUploader onUpload={handleImagesUpload} fileType="背景" />
-      )}
-      {images.length > 0 && (
-        <div className="img-gallery">
-          {images.map((image, index) => (
-            <img
-              key={index}
-              src={URL.createObjectURL(image)}
-              alt="bg"
-              className="bg-img"
+      {loading ? (
+        <Progress percent={imgProgress} type="circle" />
+      ) : (
+        <>
+          {images.length === 0 && (
+            <ImageUploader onUpload={handleImagesUpload} fileType="背景" />
+          )}
+          {images.length > 0 && (
+            <div className="img-gallery">
+              {images.map((image, index) => (
+                <img
+                  key={index}
+                  src={URL.createObjectURL(image)}
+                  alt="bg"
+                  className="bg-img"
+                />
+              ))}
+            </div>
+          )}
+          <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
+          {watermarkUrl && (
+            <WatermarkEditor
+              watermarkUrl={watermarkUrl}
+              backgroundImageFile={images[0]}
+              onTransform={handleWatermarkTransform}
             />
-          ))}
-        </div>
+          )}
+          <button onClick={handleApplyWatermarkDebounced} className="button">
+            水印生成
+          </button>
+        </>
       )}
-      <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
-      {loading && <p className="loading">Processing images...</p>}
-      {error && <p className="error">{error}</p>}
-      {watermarkUrl && (
-        <WatermarkEditor
-          watermarkUrl={watermarkUrl}
-          backgroundImageFile={images[0]}
-          onTransform={handleWatermarkTransform}
-        />
-      )}
-      <button onClick={handleApplyWatermarkDebounced} className="button">
-        Apply Watermark
-      </button>
-      <div className="progress">
-        <h4>图片处理进度</h4>
-        <Progress percent={imgProgress} />
-      </div>
     </div>
   );
 };
