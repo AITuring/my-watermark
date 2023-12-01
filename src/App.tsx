@@ -1,30 +1,12 @@
-import React, { useState } from 'react';
-import { Progress } from 'antd';
-import ImageUploader from './ImageUploader';
-import WatermarkEditor from './WatermarkEditor';
-import './App.css';
-// const worker = new Worker(new URL('./imageProcessorWorker.ts', import.meta.url));
-
-// worker.onmessage = function(e: MessageEvent<ProcessedImageData>) {
-//   const { file, blob } = e.data;
-//   const url = URL.createObjectURL(blob);
-
-//   const downloadLink = document.createElement('a');
-//   downloadLink.href = url;
-//   downloadLink.download = file.name;
-//   document.body.appendChild(downloadLink);
-//   downloadLink.click();
-//   document.body.removeChild(downloadLink);
-//   URL.revokeObjectURL(url);
-// };
-
-// worker.onerror = function(e: ErrorEvent) {
-//   console.error('Worker Error:', e.message);
-// };
+import React, { useState } from "react";
+import { Progress, message } from "antd";
+import ImageUploader from "./ImageUploader";
+import WatermarkEditor from "./WatermarkEditor";
+import "./App.css";
 
 const App: React.FC = () => {
   const [images, setImages] = useState<File[]>([]);
-  const [watermarkUrl, setWatermarkUrl] = useState('');
+  const [watermarkUrl, setWatermarkUrl] = useState("");
   // 支持定制每一个水印
   const [watermarkPosition, setWatermarkPosition] = useState({
     x: 0,
@@ -37,7 +19,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // 图片处理进度
-  const [imgProcess, setImgProcess] = useState<number>(0);
+  const [imgProgress, setImgProgress] = useState<number>(0);
 
   const handleImagesUpload = (files: File[]) => {
     setImages(files);
@@ -71,15 +53,36 @@ const App: React.FC = () => {
     setWatermarkPosition(position);
   };
 
+  // 使用canvas.toBlob提高性能
+  async function canvasToBlob(
+    canvas: HTMLCanvasElement,
+    fileType: string,
+    quality: number = 1,
+  ) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error("Canvas to Blob conversion failed"));
+          }
+        },
+        fileType,
+        quality,
+      );
+    });
+  }
+
   async function processImage(file, watermarkImage, position) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const image = new Image();
-        image.onload = () => {
+        image.onload = async () => {
           // 创建一个canvas元素
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
           canvas.width = image.width;
           canvas.height = image.height;
 
@@ -91,7 +94,7 @@ const App: React.FC = () => {
           const watermarkY = position.y * image.height;
           const watermarkWidth = watermarkImage.width * position.scaleX;
           const watermarkHeight = watermarkImage.height * position.scaleY;
-          console.log(watermarkX, watermarkY, watermarkWidth, watermarkHeight)
+          console.log(watermarkX, watermarkY, watermarkWidth, watermarkHeight);
           ctx.drawImage(
             watermarkImage,
             watermarkX,
@@ -101,17 +104,13 @@ const App: React.FC = () => {
           );
 
           // ctx.restore();
-
-          // 将canvas内容转换为DataURL
-          const dataURL = canvas.toDataURL('image/png');
-
-          // 创建下载链接并触发下载
-          const downloadLink = document.createElement('a');
-          downloadLink.href = dataURL;
-          downloadLink.download = file.name;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
+          try {
+            const blob = await canvasToBlob(canvas, "image/png");
+            const url = URL.createObjectURL(blob as Blob);
+            resolve({ url, name: file.name });
+          } catch (error) {
+            reject(error);
+          }
         };
         image.onerror = reject;
         image.src = e.target.result as string;
@@ -121,83 +120,61 @@ const App: React.FC = () => {
     });
   }
 
-  async function downloadImagesWithWatermarkBatch(files, watermarkImage, position, batchSize = 5) {
+  async function downloadImagesWithWatermarkBatch(
+    files,
+    watermarkImage,
+    position,
+    batchSize = 5,
+  ) {
+    const downloadLink = document.createElement("a");
+    downloadLink.style.display = "none";
+    document.body.appendChild(downloadLink);
+
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
-      // 放弃web worker，实在太麻烦了
-      // batch.forEach((file) => {
-      //   const reader = new FileReader();
-      //   reader.onload = function(e: ProgressEvent<FileReader>) {
-      //     if (!e.target?.result) return;
+      const promises = batch.map((file) =>
+        processImage(file, watermarkImage, position),
+      );
+      const imageBlobs = await Promise.all(promises);
 
-      //     const imageData: WatermarkData = {
-      //       imageSrc: e.target.result as string,
-      //       file: file,
-      //       watermarkDataURL: watermarkImage.src,
-      //       position: position
-      //     };
-
-      //     worker.postMessage(imageData);
-      //   };
-      //   reader.readAsDataURL(file);
-      // });
-
-      const promises = batch.map((file, index) => processImage(file, watermarkImage, position));
-      const dataURLs = await Promise.all(promises);
-
-      dataURLs.forEach((dataURL, index) => {
-        const downloadLink = document.createElement('a');
-        downloadLink.href = dataURL;
+      imageBlobs.forEach(({ url, name }, index) => {
+        message.success(`第${index}张图下载完成！`);
+        downloadLink.href = url;
         downloadLink.download = `watermarked-${i + index}.png`;
-        document.body.appendChild(downloadLink);
         downloadLink.click();
-        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(url);
       });
+      const progress = ((i + batchSize) / files.length) * 100;
+      setImgProgress(Math.min(progress, 100));
 
       // 等待一会儿，让浏览器有时间回收内存
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-  }
 
+    document.body.removeChild(downloadLink);
+  }
 
   const handleApplyWatermark = () => {
     if (!watermarkUrl) {
-      setError('Please upload a watermark image.');
+      setError("Please upload a watermark image.");
       return;
     }
     setLoading(true);
     setError(null);
     const watermarkImage = new Image();
     watermarkImage.onload = () => {
-      let count: number = 0;
-      downloadImagesWithWatermarkBatch(images, watermarkImage, watermarkPosition);
-      // applyWatermark(
-      //   images,
-      //   watermarkImage,
-      //   watermarkPosition,
-      //   (blob, index, total) => {
-      //     count += 1;
-      //     console.log('dowloading', count);
-      //     // Update the progress bar
-      //     const newProgress = (count / total) * 100;
-      //     setImgProcess(newProgress);
-      //     // Handle the blob here for preview or download
-      //     if (index === total - 1) {
-      //       setLoading(false);
-      //     }
-      //     console.log(`Processed ${index + 1} of ${total} images.`);
-      //     saveAs(blob, `watermarked_image_${index}.png`);
-      //     console.log(`Download watermarked_image_${index}.png`);
-      //   },
-      //   (error) => {
-      //     setError(error);
-      //     setLoading(false);
-      //   },
-      // );
+      message.success("水印下载开始！");
+      const count: number = 0;
+      downloadImagesWithWatermarkBatch(
+        images,
+        watermarkImage,
+        watermarkPosition,
+      );
     };
 
     watermarkImage.onerror = () => {
-      setError('Failed to load the watermark image.');
+      message.error("Failed to load the watermark image.");
+      setError("Failed to load the watermark image.");
       setLoading(false);
     };
     watermarkImage.src = watermarkUrl;
@@ -219,14 +196,12 @@ const App: React.FC = () => {
   const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
 
   return (
-    <div className='App'>
-      {
-        images.length === 0 && (
-          <ImageUploader onUpload={handleImagesUpload} fileType="背景" />
-        )
-      }
+    <div className="App">
+      {images.length === 0 && (
+        <ImageUploader onUpload={handleImagesUpload} fileType="背景" />
+      )}
       {images.length > 0 && (
-        <div className='img-gallery'>
+        <div className="img-gallery">
           {images.map((image, index) => (
             <img
               key={index}
@@ -252,7 +227,7 @@ const App: React.FC = () => {
       </button>
       <div className="progress">
         <h4>图片处理进度</h4>
-        <Progress percent={imgProcess} />
+        <Progress percent={imgProgress} />
       </div>
     </div>
   );
