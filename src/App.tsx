@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Progress, message } from "antd";
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
+import EmojiBg from "./EmojiBg";
 import "./App.css";
 
 const App: React.FC = () => {
@@ -194,38 +195,41 @@ const App: React.FC = () => {
 
   return (
     <div className="App">
-      {loading ? (
-        <Progress percent={imgProgress} type="circle" />
-      ) : (
-        <>
-          {images.length === 0 && (
-            <ImageUploader onUpload={handleImagesUpload} fileType="背景" />
-          )}
-          {images.length > 0 && (
-            <div className="img-gallery">
-              {images.map((image, index) => (
-                <img
-                  key={index}
-                  src={URL.createObjectURL(image)}
-                  alt="bg"
-                  className="bg-img"
-                />
-              ))}
-            </div>
-          )}
-          <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
-          {watermarkUrl && (
-            <WatermarkEditor
-              watermarkUrl={watermarkUrl}
-              backgroundImageFile={images[0]}
-              onTransform={handleWatermarkTransform}
-            />
-          )}
-          <button onClick={handleApplyWatermarkDebounced} className="button">
-            水印生成
-          </button>
-        </>
-      )}
+      <EmojiBg direction="vertical" emojiSize={52} />
+      <div className="watermark">
+        {loading ? (
+          <Progress percent={imgProgress} type="circle" />
+        ) : (
+          <>
+            {images.length === 0 && (
+              <ImageUploader onUpload={handleImagesUpload} fileType="背景" />
+            )}
+            {images.length > 0 && (
+              <div className="img-gallery">
+                {images.map((image, index) => (
+                  <img
+                    key={index}
+                    src={URL.createObjectURL(image)}
+                    alt="bg"
+                    className="bg-img"
+                  />
+                ))}
+              </div>
+            )}
+            <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
+            {watermarkUrl && (
+              <WatermarkEditor
+                watermarkUrl={watermarkUrl}
+                backgroundImageFile={images[0]}
+                onTransform={handleWatermarkTransform}
+              />
+            )}
+            <button onClick={handleApplyWatermarkDebounced} className="button">
+              水印生成
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 };
