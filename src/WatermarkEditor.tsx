@@ -1,8 +1,8 @@
 /* eslint-disable react/display-name */
-import React, { useState, useEffect, useRef, forwardRef } from 'react';
-import Konva from 'konva';
-import { Stage, Layer, Image as KonvaImage, Transformer } from 'react-konva';
-import useImage from 'use-image';
+import React, { useState, useEffect, useRef, forwardRef } from "react";
+import Konva from "konva";
+import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
+import useImage from "use-image";
 interface ImageWithFixedWidthProps {
   src: string;
   fixedWidth: number;
@@ -33,13 +33,13 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
       onTransformEnd,
       ...otherProps
     },
-    ref,
+    ref
   ) => {
     const [image, status] = useImage(src);
     const [size, setSize] = useState({ width: fixedWidth, height: 0 });
 
     useEffect(() => {
-      if (image && status === 'loaded') {
+      if (image && status === "loaded") {
         const height = (image.naturalHeight / image.naturalWidth) * fixedWidth;
         setSize({ width: fixedWidth, height });
       }
@@ -63,7 +63,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
         height={size.height}
       />
     );
-  },
+  }
 );
 
 interface WatermarkEditorProps {
@@ -84,7 +84,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 }) => {
   // 还有问题，如果图片是竖屏，目前图片无法加载
   const backgroundFixWidth = 800;
-  const [backgroundImageUrl, setBackgroundImageUrl] = useState('');
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState("");
   const [backgroundImage, backgroundImageStatus] = useImage(backgroundImageUrl);
   // 背景图片的缩放比例
   const [backgroundScale, setBackgroundScale] = useState(1);
@@ -114,7 +114,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
   // 当背景图片加载完成时，更新背景图片的尺寸
   useEffect(() => {
-    if (backgroundImage && backgroundImageStatus === 'loaded') {
+    if (backgroundImage && backgroundImageStatus === "loaded") {
       const scaleWidth = backgroundFixWidth / backgroundImage.naturalWidth;
       const windowHeight = window.innerHeight;
       const scaleHeight = windowHeight / backgroundImage.naturalHeight;
@@ -245,49 +245,67 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     });
   };
 
+  const onBottomMid = () => {
+    setPosition({
+      x: backgroundImageSize.width * 0.5,
+      y: backgroundImageSize.height * 0.8,
+      scaleX: 1,
+      scaleY: 1,
+    });
+    onTransform({
+      x: 0.5,
+      y: 0.8,
+      scaleX: 1,
+      scaleY: 1,
+    });
+  }
+
   return (
-    <Stage
-      width={backgroundImageSize.width}
-      height={backgroundImageSize.height}
-    >
-      <Layer>
-        {backgroundImage && (
-          <KonvaImage
-            image={backgroundImage}
-            width={backgroundImageSize.width}
-            height={backgroundImageSize.height}
-          />
-        )}
-        {watermarkImage && (
-          <>
-            <ImageWithFixedWidth
-              src={watermarkUrl}
-              fixedWidth={watermarkImage.naturalWidth * backgroundScale} // 使用您想要的固定宽度
-              x={position.x}
-              y={position.y}
-              scaleX={position.scaleX}
-              scaleY={position.scaleY}
-              draggable
-              ref={watermarkRef}
-              onClick={onWatermarkClick}
-              onTap={onWatermarkClick}
-              onDragEnd={handleDragEnd}
-              onTransformEnd={handleTransform}
+    <div>
+      <button onClick={onBottomMid}>中下</button>
+      <Stage
+        width={backgroundImageSize.width}
+        height={backgroundImageSize.height}
+      >
+        <Layer>
+          {backgroundImage && (
+            <KonvaImage
+              image={backgroundImage}
+              width={backgroundImageSize.width}
+              height={backgroundImageSize.height}
             />
-            <Transformer
-              ref={transformerRef}
-              centeredScaling={false}
-              boundBoxFunc={(oldBox, newBox) => {
-                if (newBox.width < 5 || newBox.height < 5) {
-                  return oldBox;
-                }
-                return newBox;
-              }}
-            />
-          </>
-        )}
-      </Layer>
-    </Stage>
+          )}
+          {watermarkImage && (
+            <>
+              <ImageWithFixedWidth
+                src={watermarkUrl}
+                fixedWidth={watermarkImage.naturalWidth * backgroundScale} // 使用您想要的固定宽度
+                x={position.x}
+                y={position.y}
+                scaleX={position.scaleX}
+                scaleY={position.scaleY}
+                draggable
+                ref={watermarkRef}
+                onClick={onWatermarkClick}
+                onTap={onWatermarkClick}
+                onDragEnd={handleDragEnd}
+                onTransformEnd={handleTransform}
+              />
+              <Transformer
+                ref={transformerRef}
+                centeredScaling={false}
+                boundBoxFunc={(oldBox, newBox) => {
+                  if (newBox.width < 5 || newBox.height < 5) {
+                    return oldBox;
+                  }
+                  return newBox;
+                }}
+              />
+            </>
+          )}
+        </Layer>
+      </Stage>
+    </div>
   );
 };
 
