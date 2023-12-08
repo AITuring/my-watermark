@@ -1,4 +1,21 @@
-/* EmojiScroller.css */
+@keyframes scrollUp {
+  from {
+    top: 50%;
+  }
+  to {
+    top: -50%;
+  }
+}
+
+@keyframes scrollRight {
+  from {
+    left: 100%;
+  }
+  to {
+    left: -100%;
+  }
+}
+
 .emoji-scroller {
   position: absolute;
   top: 0;
@@ -9,12 +26,19 @@
   white-space: nowrap;
   font-size: 0; /* 移除内联元素间隙 */
   z-index: -1; /* 确保背景位于内容之下 */
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
-.emoji-scroller.vertical {
+.vertical {
   display: flex;
   flex-direction: column;
+  animation: scrollUp 20s linear infinite;
+}
+
+.horizontal {
+  display: flex;
+  flex-direction: column;
+  animation: scrollRight 20s linear infinite;
 }
 
 .emoji-row {
