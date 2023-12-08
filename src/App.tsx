@@ -195,7 +195,8 @@ const App: React.FC = () => {
 
   return (
     <div className="App">
-      <EmojiBg direction="vertical" emojiSize={52} />
+      {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
+      <img src="https://bing.img.run/rand_uhd.php" alt="bg" className="bg" />
       <div className="watermark">
         {loading ? (
           <Progress percent={imgProgress} type="circle" />
