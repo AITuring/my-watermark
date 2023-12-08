@@ -20,7 +20,6 @@ function uuid() {
 
 const App: React.FC = () => {
   const [images, setImages] = useState<ImageType[]>([]);
-  const [imagesSize, setImagesSize] = useState([]);
   const [watermarkUrl, setWatermarkUrl] = useState("");
   // TODO支持定制每一个水印
   const [watermarkPosition, setWatermarkPosition] = useState({
@@ -34,6 +33,8 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   // 图片处理进度
   const [imgProgress, setImgProgress] = useState<number>(0);
+  // 第一步：上传图片
+  const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
 
   const loadImages = (files) => {
     const promises = files.map((file) => {
@@ -68,6 +69,7 @@ const App: React.FC = () => {
 
   const handleImagesUpload = (files: File[]) => {
     loadImages(files);
+    setImageUploaderVisible(false);
 
     if (files[0]) {
       // Update the original image dimensions when a new image is uploaded
@@ -244,14 +246,15 @@ const App: React.FC = () => {
     <div className="App">
       {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
       <img src="https://bing.img.run/rand_uhd.php" alt="bg" className="bg" />
-      <div className="watermark">
-        {loading ? (
+      <div>
+        {imageUploaderVisible ? (
+          <div className="upbutton">
+            <ImageUploader onUpload={handleImagesUpload} fileType="背景" />
+          </div>
+        ) : loading ? (
           <Progress percent={imgProgress} type="circle" />
         ) : (
-          <>
-            {images.length === 0 && (
-              <ImageUploader onUpload={handleImagesUpload} fileType="背景" />
-            )}
+          <div className="watermark">
             {images.length > 0 && (
               <div className="img-gallery">
                 {images.map((image, index) => (
@@ -279,7 +282,7 @@ const App: React.FC = () => {
             <button onClick={handleApplyWatermarkDebounced} className="button">
               水印生成
             </button>
-          </>
+          </div>
         )}
       </div>
     </div>

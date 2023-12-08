@@ -23,13 +23,17 @@
 
 .watermark {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
+}
+
+.upbutton {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .img-gallery {
@@ -51,6 +55,7 @@
   padding: 20px;
   cursor: pointer;
   margin: 20px 0;
+  text-align: center;
 }
 
 .dropzone p {
