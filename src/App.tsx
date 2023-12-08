@@ -105,7 +105,7 @@ const App: React.FC = () => {
   async function canvasToBlob(
     canvas: HTMLCanvasElement,
     fileType: string,
-    quality: number = 1,
+    quality: number = 1
   ) {
     return new Promise((resolve, reject) => {
       canvas.toBlob(
@@ -117,7 +117,7 @@ const App: React.FC = () => {
           }
         },
         fileType,
-        quality,
+        quality
       );
     });
   }
@@ -148,7 +148,7 @@ const App: React.FC = () => {
             watermarkX,
             watermarkY,
             watermarkWidth,
-            watermarkHeight,
+            watermarkHeight
           );
 
           // ctx.restore();
@@ -172,7 +172,7 @@ const App: React.FC = () => {
     files,
     watermarkImage,
     position,
-    batchSize = 5,
+    batchSize = 5
   ) {
     const downloadLink = document.createElement("a");
     downloadLink.style.display = "none";
@@ -181,7 +181,7 @@ const App: React.FC = () => {
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
       const promises = batch.map((file) =>
-        processImage(file, watermarkImage, position),
+        processImage(file, watermarkImage, position)
       );
       const imageBlobs = await Promise.all(promises);
 
@@ -216,7 +216,7 @@ const App: React.FC = () => {
       downloadImagesWithWatermarkBatch(
         imageFiles,
         watermarkImage,
-        watermarkPosition,
+        watermarkPosition
       );
     };
 
@@ -251,37 +251,50 @@ const App: React.FC = () => {
           <div className="upbutton">
             <ImageUploader onUpload={handleImagesUpload} fileType="背景" />
           </div>
-        ) : loading ? (
-          <Progress percent={imgProgress} type="circle" />
         ) : (
           <div className="watermark">
-            {images.length > 0 && (
-              <div className="img-gallery">
-                {images.map((image, index) => (
-                  <img
-                    key={index}
-                    src={URL.createObjectURL(image.file)}
-                    style={{
-                      width: "200px",
-                      height: (image.height / image.width) * 200,
-                    }}
-                    alt="bg"
-                    className="bg-img"
-                  />
-                ))}
-              </div>
-            )}
-            <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
-            {watermarkUrl && (
-              <WatermarkEditor
-                watermarkUrl={watermarkUrl}
-                backgroundImageFile={images[0].file}
-                onTransform={handleWatermarkTransform}
+            <div className="image-part">
+              {images.length > 0 && (
+                <div className="img-gallery">
+                  {images.map((image, index) => (
+                    <img
+                      key={index}
+                      src={URL.createObjectURL(image.file)}
+                      style={{
+                        width: "16vw",
+                        height: `${(image.height / image.width) * 16}vw`,
+                      }}
+                      alt="bg"
+                      className="bg-img"
+                    />
+                  ))}
+                </div>
+              )}
+              {watermarkUrl && (
+                <WatermarkEditor
+                  watermarkUrl={watermarkUrl}
+                  backgroundImageFile={images[0].file}
+                  onTransform={handleWatermarkTransform}
+                />
+              )}
+            </div>
+            <div className="markButtons">
+              <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
+              <img
+                src={watermarkUrl}
+                alt="watermark"
+                style={{
+                  width: '16vw',
+                }}
+                className="watermark"
               />
-            )}
-            <button onClick={handleApplyWatermarkDebounced} className="button">
-              水印生成
-            </button>
+              <button
+                onClick={handleApplyWatermarkDebounced}
+                className="button"
+              >
+                水印生成
+              </button>
+            </div>
           </div>
         )}
       </div>
