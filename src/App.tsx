@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Progress, message } from "antd";
+import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
 import EmojiBg from "./EmojiBg";
@@ -244,6 +245,7 @@ const App: React.FC = () => {
 
   return (
     <div className="App">
+      <SpeedInsights />
       {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
       <img src="https://bing.img.run/rand_uhd.php" alt="bg" className="bg" />
       <div>
