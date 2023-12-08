@@ -5,8 +5,22 @@ import WatermarkEditor from "./WatermarkEditor";
 import EmojiBg from "./EmojiBg";
 import "./App.css";
 
+interface ImageType {
+  id: string;
+  file: File;
+  width: number;
+  height: number;
+}
+
+function uuid() {
+  let idStr = Date.now().toString(36);
+  idStr += Math.random().toString(36).substr(2);
+  return idStr;
+}
+
 const App: React.FC = () => {
-  const [images, setImages] = useState<File[]>([]);
+  const [images, setImages] = useState<ImageType[]>([]);
+  const [imagesSize, setImagesSize] = useState([]);
   const [watermarkUrl, setWatermarkUrl] = useState("");
   // TODO支持定制每一个水印
   const [watermarkPosition, setWatermarkPosition] = useState({
@@ -21,8 +35,40 @@ const App: React.FC = () => {
   // 图片处理进度
   const [imgProgress, setImgProgress] = useState<number>(0);
 
+  const loadImages = (files) => {
+    const promises = files.map((file) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = new Image();
+          img.onload = function () {
+            resolve({
+              id: uuid(),
+              width: img.width,
+              height: img.height,
+              file: file,
+            });
+          };
+          img.onerror = reject;
+          img.src = e.target.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(promises)
+      .then((images) => {
+        setImages(images); // 现在这里更新状态
+      })
+      .catch((error) => {
+        console.error("Error loading images: ", error);
+      });
+  };
+
   const handleImagesUpload = (files: File[]) => {
-    setImages(files);
+    loadImages(files);
+
     if (files[0]) {
       // Update the original image dimensions when a new image is uploaded
       const image = new Image();
@@ -164,8 +210,9 @@ const App: React.FC = () => {
     const watermarkImage = new Image();
     watermarkImage.onload = () => {
       message.success("水印下载开始！");
+      const imageFiles = images.map((image) => image.file);
       downloadImagesWithWatermarkBatch(
-        images,
+        imageFiles,
         watermarkImage,
         watermarkPosition,
       );
@@ -210,7 +257,11 @@ const App: React.FC = () => {
                 {images.map((image, index) => (
                   <img
                     key={index}
-                    src={URL.createObjectURL(image)}
+                    src={URL.createObjectURL(image.file)}
+                    style={{
+                      width: "200px",
+                      height: (image.height / image.width) * 200,
+                    }}
                     alt="bg"
                     className="bg-img"
                   />
@@ -221,7 +272,7 @@ const App: React.FC = () => {
             {watermarkUrl && (
               <WatermarkEditor
                 watermarkUrl={watermarkUrl}
-                backgroundImageFile={images[0]}
+                backgroundImageFile={images[0].file}
                 onTransform={handleWatermarkTransform}
               />
             )}

@@ -2,7 +2,7 @@
 
 .App {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   /* text-align: center; */
   /* padding: 20px; */
   position: relative;
@@ -38,7 +38,7 @@
 }
 
 .bg-img {
-  width: 200px;
+  /* width: 200px; */
   margin: 20px;
 }
 
