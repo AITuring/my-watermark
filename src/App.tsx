@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Progress, message } from "antd";
-import { SpeedInsights } from "@vercel/speed-insights/react"
+// import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
 import EmojiBg from "./EmojiBg";
@@ -106,7 +106,7 @@ const App: React.FC = () => {
   async function canvasToBlob(
     canvas: HTMLCanvasElement,
     fileType: string,
-    quality: number = 1
+    quality: number = 1,
   ) {
     return new Promise((resolve, reject) => {
       canvas.toBlob(
@@ -118,7 +118,7 @@ const App: React.FC = () => {
           }
         },
         fileType,
-        quality
+        quality,
       );
     });
   }
@@ -149,7 +149,7 @@ const App: React.FC = () => {
             watermarkX,
             watermarkY,
             watermarkWidth,
-            watermarkHeight
+            watermarkHeight,
           );
 
           // ctx.restore();
@@ -173,7 +173,7 @@ const App: React.FC = () => {
     files,
     watermarkImage,
     position,
-    batchSize = 5
+    batchSize = 5,
   ) {
     const downloadLink = document.createElement("a");
     downloadLink.style.display = "none";
@@ -182,7 +182,7 @@ const App: React.FC = () => {
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
       const promises = batch.map((file) =>
-        processImage(file, watermarkImage, position)
+        processImage(file, watermarkImage, position),
       );
       const imageBlobs = await Promise.all(promises);
 
@@ -217,7 +217,7 @@ const App: React.FC = () => {
       downloadImagesWithWatermarkBatch(
         imageFiles,
         watermarkImage,
-        watermarkPosition
+        watermarkPosition,
       );
     };
 
@@ -245,7 +245,7 @@ const App: React.FC = () => {
 
   return (
     <div className="App">
-      <SpeedInsights />
+      {/* <SpeedInsights /> */}
       {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
       <img src="https://bing.img.run/rand_uhd.php" alt="bg" className="bg" />
       <div>
@@ -282,14 +282,15 @@ const App: React.FC = () => {
             </div>
             <div className="markButtons">
               <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
-              <img
-                src={watermarkUrl}
-                alt="watermark"
-                style={{
-                  width: '16vw',
-                }}
-                className="watermark"
-              />
+              {watermarkUrl && (
+                <img
+                  src={watermarkUrl}
+                  alt="watermark"
+                  style={{
+                    width: "16vw",
+                  }}
+                />
+              )}
               <button
                 onClick={handleApplyWatermarkDebounced}
                 className="button"
