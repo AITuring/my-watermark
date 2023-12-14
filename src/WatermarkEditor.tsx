@@ -18,7 +18,7 @@ interface ImageWithFixedWidthProps {
 }
 
 const drawGuideLines = (layer, stageWidth, stageHeight) => {
-  const lineStroke = 'red';
+  const lineStroke = "red";
   const lineStrokeWidth = 1;
   const dash = [4, 6];
 
@@ -65,7 +65,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
       onTransformEnd,
       ...otherProps
     },
-    ref
+    ref,
   ) => {
     const [image, status] = useImage(src);
     const [size, setSize] = useState({ width: fixedWidth, height: 0 });
@@ -95,7 +95,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
         height={size.height}
       />
     );
-  }
+  },
 );
 
 interface WatermarkEditorProps {
@@ -140,7 +140,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
   const stageRef = useRef(null);
 
-
   // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
   useEffect(() => {
     if (backgroundImageFile) {
@@ -170,7 +169,11 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     if (!stage) return;
 
     const layer = stage.getLayers()[0]; // 假设只有一个图层
-    drawGuideLines(layer, backgroundImageSize.width, backgroundImageSize.height); // 绘制辅助线
+    drawGuideLines(
+      layer,
+      backgroundImageSize.width,
+      backgroundImageSize.height,
+    ); // 绘制辅助线
   }, [backgroundImageSize.width, backgroundImageSize.height]);
 
   // 清理背景图片的 URL
@@ -298,19 +301,36 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   };
 
   const onBottomMid = () => {
+    // 水印的宽度和高度
+    const watermarkWidth =
+      watermarkImage.naturalWidth * currentScaleX * backgroundScale;
+    const watermarkHeight =
+      watermarkImage.naturalHeight * currentScaleY * backgroundScale;
+
+    // 计算水印的新位置
+    const newX = (backgroundImageSize.width - watermarkWidth) / 2; // 水平居中
+    let newY = backgroundImageSize.height - watermarkHeight - 10; // 距离底部10像素的距离
+
+    // 确保水印不超出背景图片的底部
+    newY = Math.min(newY, backgroundImageSize.height - watermarkHeight);
+
+    // 确保水印不超出背景图片的顶部
+    newY = Math.max(newY, 0);
+
     setPosition({
-      x: backgroundImageSize.width * 0.45,
-      y: backgroundImageSize.height * 0.90,
+      x: newX,
+      y: newY,
       scaleX: currentScaleX,
       scaleY: currentScaleY,
     });
+
     onTransform({
-      x: 0.45,
-      y: 0.90,
+      x: newX / backgroundImageSize.width,
+      y: newY / backgroundImageSize.height,
       scaleX: currentScaleX,
       scaleY: currentScaleY,
     });
-  }
+  };
 
   return (
     <div>
