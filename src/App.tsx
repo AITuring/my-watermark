@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Progress, message } from "antd";
+import { Progress, message, Spin } from "antd";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
@@ -294,8 +294,9 @@ const App: React.FC = () => {
               <button
                 onClick={handleApplyWatermarkDebounced}
                 className="button"
+                disabled={loading}
               >
-                水印生成
+                {loading ? <Spin /> : "水印生成"}
               </button>
             </div>
           </div>

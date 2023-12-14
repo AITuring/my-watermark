@@ -257,13 +257,13 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   const onBottomMid = () => {
     setPosition({
       x: backgroundImageSize.width * 0.45,
-      y: backgroundImageSize.height * 0.8,
+      y: backgroundImageSize.height * 0.9,
       scaleX: currentScaleX,
       scaleY: currentScaleY,
     });
     onTransform({
       x: 0.45,
-      y: 0.8,
+      y: 0.9,
       scaleX: currentScaleX,
       scaleY: currentScaleY,
     });
