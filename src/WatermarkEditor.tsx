@@ -33,7 +33,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
       onTransformEnd,
       ...otherProps
     },
-    ref
+    ref,
   ) => {
     const [image, status] = useImage(src);
     const [size, setSize] = useState({ width: fixedWidth, height: 0 });
@@ -63,7 +63,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
         height={size.height}
       />
     );
-  }
+  },
 );
 
 interface WatermarkEditorProps {
@@ -99,6 +99,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     width: 0,
     height: 0,
   });
+  // 当前设置的比例，为了方便按钮操作
+  const [currentScaleX, setCurrentScaleX] = useState(1);
+  const [currentScaleY, setCurrentScaleY] = useState(1);
 
   const watermarkRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -178,6 +181,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       scaleY: node.scaleY(),
     });
 
+    setCurrentScaleX(node.scaleX());
+    setCurrentScaleY(node.scaleY());
+
     // 确保水印位置更新
     node.position({ x: newX, y: newY });
 
@@ -230,6 +236,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       scaleY: node.scaleY(),
     });
 
+    setCurrentScaleX(node.scaleX());
+    setCurrentScaleY(node.scaleY());
+
     // 计算水印在原图上的实际位置和尺寸
     const actualX = newX / backgroundImageSize.width;
     const actualY = newY / backgroundImageSize.height;
@@ -247,18 +256,18 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
   const onBottomMid = () => {
     setPosition({
-      x: backgroundImageSize.width * 0.5,
+      x: backgroundImageSize.width * 0.45,
       y: backgroundImageSize.height * 0.8,
-      scaleX: 1,
-      scaleY: 1,
+      scaleX: currentScaleX,
+      scaleY: currentScaleY,
     });
     onTransform({
-      x: 0.5,
+      x: 0.45,
       y: 0.8,
-      scaleX: 1,
-      scaleY: 1,
+      scaleX: currentScaleX,
+      scaleY: currentScaleY,
     });
-  }
+  };
 
   return (
     <div>
