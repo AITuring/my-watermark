@@ -17,6 +17,38 @@ interface ImageWithFixedWidthProps {
   onTransformEnd?: (e: Konva.KonvaEventObject<Event>) => void;
 }
 
+const drawGuideLines = (layer, stageWidth, stageHeight) => {
+  const lineStroke = 'red';
+  const lineStrokeWidth = 1;
+  const dash = [4, 6];
+
+  // 生成多条水平辅助线
+  for (let i = 1; i <= 3; i++) {
+    const yPos = (stageHeight / 4) * i;
+    const horizontalLine = new Konva.Line({
+      points: [0, yPos, stageWidth, yPos],
+      stroke: lineStroke,
+      strokeWidth: lineStrokeWidth,
+      dash: dash,
+    });
+    layer.add(horizontalLine);
+  }
+
+  // 生成多条垂直辅助线
+  for (let i = 1; i <= 3; i++) {
+    const xPos = (stageWidth / 4) * i;
+    const verticalLine = new Konva.Line({
+      points: [xPos, 0, xPos, stageHeight],
+      stroke: lineStroke,
+      strokeWidth: lineStrokeWidth,
+      dash: dash,
+    });
+    layer.add(verticalLine);
+  }
+
+  layer.batchDraw(); // 重新绘制图层以显示所有辅助线
+};
+
 const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
   (
     {
@@ -33,7 +65,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
       onTransformEnd,
       ...otherProps
     },
-    ref,
+    ref
   ) => {
     const [image, status] = useImage(src);
     const [size, setSize] = useState({ width: fixedWidth, height: 0 });
@@ -63,7 +95,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
         height={size.height}
       />
     );
-  },
+  }
 );
 
 interface WatermarkEditorProps {
@@ -106,6 +138,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   const watermarkRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
 
+  const stageRef = useRef(null);
+
+
   // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
   useEffect(() => {
     if (backgroundImageFile) {
@@ -129,6 +164,14 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       setBackgroundImageSize({ width, height });
     }
   }, [backgroundImage, backgroundImageStatus, backgroundFixWidth]);
+
+  useEffect(() => {
+    const stage = stageRef.current; // 获取Stage引用
+    if (!stage) return;
+
+    const layer = stage.getLayers()[0]; // 假设只有一个图层
+    drawGuideLines(layer, backgroundImageSize.width, backgroundImageSize.height); // 绘制辅助线
+  }, [backgroundImageSize.width, backgroundImageSize.height]);
 
   // 清理背景图片的 URL
   useEffect(() => {
@@ -257,17 +300,17 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   const onBottomMid = () => {
     setPosition({
       x: backgroundImageSize.width * 0.45,
-      y: backgroundImageSize.height * 0.9,
+      y: backgroundImageSize.height * 0.90,
       scaleX: currentScaleX,
       scaleY: currentScaleY,
     });
     onTransform({
       x: 0.45,
-      y: 0.9,
+      y: 0.90,
       scaleX: currentScaleX,
       scaleY: currentScaleY,
     });
-  };
+  }
 
   return (
     <div>
@@ -275,6 +318,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       <Stage
         width={backgroundImageSize.width}
         height={backgroundImageSize.height}
+        ref={stageRef}
       >
         <Layer>
           {backgroundImage && (
