@@ -332,9 +332,110 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     });
   };
 
+  // 左上
+  const onTopLeft = () => {
+    const newX = 10; // 距离左边界10像素
+    const newY = 10; // 距离上边界10像素
+    updateWatermarkPosition(newX, newY);
+  };
+
+  // 中上
+  const onTopMid = () => {
+    const watermarkWidth =
+      watermarkImage.naturalWidth * currentScaleX * backgroundScale;
+    const newX = (backgroundImageSize.width - watermarkWidth) / 2; // 水平居中
+    const newY = 10; // 距离上边界10像素
+    updateWatermarkPosition(newX, newY);
+  };
+
+  // 右上
+  const onTopRight = () => {
+    const watermarkWidth =
+      watermarkImage.naturalWidth * currentScaleX * backgroundScale;
+    const newX = backgroundImageSize.width - watermarkWidth - 10; // 距离右边界10像素
+    const newY = 10; // 距离上边界10像素
+    updateWatermarkPosition(newX, newY);
+  };
+
+  // 中左
+  const onMidLeft = () => {
+    const newX = 10; // 距离左边界10像素
+    const watermarkHeight =
+      watermarkImage.naturalHeight * currentScaleY * backgroundScale;
+    const newY = (backgroundImageSize.height - watermarkHeight) / 2; // 垂直居中
+    updateWatermarkPosition(newX, newY);
+  };
+
+  // 更新水印位置的辅助函数
+  const updateWatermarkPosition = (newX, newY) => {
+    setPosition({
+      x: newX,
+      y: newY,
+      scaleX: currentScaleX,
+      scaleY: currentScaleY,
+    });
+
+    onTransform({
+      x: newX / backgroundImageSize.width,
+      y: newY / backgroundImageSize.height,
+      scaleX: currentScaleX,
+      scaleY: currentScaleY,
+    });
+  };
+
+  // 中中
+  const onCenterMid = () => {
+    const watermarkWidth =
+      watermarkImage.naturalWidth * currentScaleX * backgroundScale;
+    const watermarkHeight =
+      watermarkImage.naturalHeight * currentScaleY * backgroundScale;
+    const newX = (backgroundImageSize.width - watermarkWidth) / 2; // 水平居中
+    const newY = (backgroundImageSize.height - watermarkHeight) / 2; // 垂直居中
+    updateWatermarkPosition(newX, newY);
+  };
+
+  // 中右
+  const onMidRight = () => {
+    const watermarkWidth =
+      watermarkImage.naturalWidth * currentScaleX * backgroundScale;
+    const newX = backgroundImageSize.width - watermarkWidth - 10; // 距离右边界10像素
+    const watermarkHeight =
+      watermarkImage.naturalHeight * currentScaleY * backgroundScale;
+    const newY = (backgroundImageSize.height - watermarkHeight) / 2; // 垂直居中
+    updateWatermarkPosition(newX, newY);
+  };
+
+  // 左下
+  const onBottomLeft = () => {
+    const newX = 10; // 距离左边界10像素
+    const watermarkHeight =
+      watermarkImage.naturalHeight * currentScaleY * backgroundScale;
+    const newY = backgroundImageSize.height - watermarkHeight - 10; // 距离底边界10像素
+    updateWatermarkPosition(newX, newY);
+  };
+
+  // 右下
+  const onBottomRight = () => {
+    const watermarkWidth =
+      watermarkImage.naturalWidth * currentScaleX * backgroundScale;
+    const newX = backgroundImageSize.width - watermarkWidth - 10; // 距离右边界10像素
+    const watermarkHeight =
+      watermarkImage.naturalHeight * currentScaleY * backgroundScale;
+    const newY = backgroundImageSize.height - watermarkHeight - 10; // 距离底边界10像素
+    updateWatermarkPosition(newX, newY);
+  };
+
   return (
     <div>
+      <button onClick={onTopLeft}>左上</button>
+      <button onClick={onTopMid}>中上</button>
+      <button onClick={onTopRight}>右上</button>
+      <button onClick={onMidLeft}>中左</button>
+      <button onClick={onCenterMid}>中中</button>
+      <button onClick={onMidRight}>中右</button>
+      <button onClick={onBottomLeft}>左下</button>
       <button onClick={onBottomMid}>中下</button>
+      <button onClick={onBottomRight}>右下</button>
       <Stage
         width={backgroundImageSize.width}
         height={backgroundImageSize.height}
