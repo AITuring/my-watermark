@@ -190,10 +190,30 @@ const App: React.FC = () => {
           StackBlur.canvasRGBA(tempCanvas, 0, 0, image.width, image.height, 20);
 
           // 应用水印位置和变换
-          const watermarkX = position.x * image.width;
-          const watermarkY = position.y * image.height;
+          let watermarkX = position.x * image.width;
+          let watermarkY = position.y * image.height;
           const watermarkWidth = watermarkImage.width * position.scaleX;
           const watermarkHeight = watermarkImage.height * position.scaleY;
+
+          // 检查水印是否超出图片的右边界
+          if (watermarkX + watermarkWidth > image.width) {
+            watermarkX = image.width - watermarkWidth;
+          }
+
+          // 检查水印是否超出图片的底边界
+          if (watermarkY + watermarkHeight > image.height) {
+            watermarkY = image.height - watermarkHeight;
+          }
+
+          // 检查水印是否超出图片的左边界
+          if (watermarkX < 0) {
+            watermarkX = 4;
+          }
+
+          // 检查水印是否超出图片的顶边界
+          if (watermarkY < 0) {
+            watermarkY = 4;
+          }
 
           // 创建径向渐变
           const centerX = watermarkX + watermarkWidth / 2;
