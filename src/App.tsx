@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Progress, message, Spin } from "antd";
+import { message, Spin } from "antd";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
-import EmojiBg from "./EmojiBg";
+// import EmojiBg from './EmojiBg';
+import * as StackBlur from "stackblur-canvas";
 import "./App.css";
 
 interface ImageType {
@@ -123,6 +124,46 @@ const App: React.FC = () => {
     });
   }
 
+  function applyGradientBlur(
+    ctx,
+    x,
+    y,
+    width,
+    height,
+    innerRadius,
+    outerRadius,
+  ) {
+    // 创建一个临时的 canvas 来绘制渐变效果
+    const tempCanvas = document.createElement("canvas");
+    const tempCtx = tempCanvas.getContext("2d");
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+
+    // 创建径向渐变
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const gradient = tempCtx.createRadialGradient(
+      centerX,
+      centerY,
+      innerRadius,
+      centerX,
+      centerY,
+      outerRadius,
+    );
+    gradient.addColorStop(0, "rgba(0, 0, 0, 1)"); // 中心完全不透明（不模糊）
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)"); // 边缘完全透明（模糊）
+
+    // 将渐变填充到临时 canvas
+    tempCtx.fillStyle = gradient;
+    tempCtx.fillRect(0, 0, width, height);
+
+    // 使用临时 canvas 来作为蒙版
+    ctx.save(); // 保存当前的 canvas 状态
+    ctx.globalCompositeOperation = "destination-in"; // 绘制的新内容仅在新内容与旧内容重叠的部分可见
+    ctx.drawImage(tempCanvas, x, y, width, height);
+    ctx.restore(); // 恢复保存的 canvas 状态
+  }
+
   async function processImage(file, watermarkImage, position) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -138,12 +179,49 @@ const App: React.FC = () => {
           // 绘制原始图片
           ctx.drawImage(image, 0, 0, image.width, image.height);
 
+          // 创建一个临时canvas来应用模糊效果
+          const tempCanvas = document.createElement("canvas");
+          const tempCtx = tempCanvas.getContext("2d");
+          tempCanvas.width = image.width;
+          tempCanvas.height = image.height;
+          tempCtx.drawImage(image, 0, 0, image.width, image.height);
+
+          // 应用全图高斯模糊
+          StackBlur.canvasRGBA(tempCanvas, 0, 0, image.width, image.height, 20);
+
           // 应用水印位置和变换
           const watermarkX = position.x * image.width;
           const watermarkY = position.y * image.height;
           const watermarkWidth = watermarkImage.width * position.scaleX;
           const watermarkHeight = watermarkImage.height * position.scaleY;
-          console.log(watermarkX, watermarkY, watermarkWidth, watermarkHeight);
+
+          // 创建径向渐变
+          const centerX = watermarkX + watermarkWidth / 2;
+          const centerY = watermarkY + watermarkHeight / 2;
+          const innerRadius = 0; // 从中心开始渐变
+          const outerRadius = Math.max(watermarkWidth, watermarkHeight); // 渐变扩散的半径
+          const gradient = ctx.createRadialGradient(
+            centerX,
+            centerY,
+            innerRadius,
+            centerX,
+            centerY,
+            outerRadius,
+          );
+          gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+          gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+          // 应用径向渐变作为蒙版
+          ctx.globalCompositeOperation = "destination-out";
+          ctx.fillStyle = gradient;
+          ctx.fillRect(watermarkX, watermarkY, watermarkWidth, watermarkHeight);
+
+          // 绘制模糊的背景图片
+          ctx.globalCompositeOperation = "destination-over";
+          ctx.drawImage(tempCanvas, 0, 0);
+
+          // 绘制清晰的水印
+          ctx.globalCompositeOperation = "source-over";
           ctx.drawImage(
             watermarkImage,
             watermarkX,
@@ -152,14 +230,15 @@ const App: React.FC = () => {
             watermarkHeight,
           );
 
-          // ctx.restore();
-          try {
-            const blob = await canvasToBlob(canvas, "image/png");
-            const url = URL.createObjectURL(blob as Blob);
-            resolve({ url, name: file.name });
-          } catch (error) {
-            reject(error);
-          }
+          // 导出最终的图片
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const url = URL.createObjectURL(blob);
+              resolve({ url, name: file.name });
+            } else {
+              reject(new Error("Canvas to Blob failed"));
+            }
+          }, "image/png");
         };
         image.onerror = reject;
         image.src = e.target.result as string;
