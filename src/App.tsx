@@ -197,12 +197,12 @@ const App: React.FC = () => {
 
           // 检查水印是否超出图片的右边界
           if (watermarkX + watermarkWidth > image.width) {
-            watermarkX = image.width - watermarkWidth;
+            watermarkX = image.width - watermarkWidth - 4;
           }
 
           // 检查水印是否超出图片的底边界
           if (watermarkY + watermarkHeight > image.height) {
-            watermarkY = image.height - watermarkHeight;
+            watermarkY = image.height - watermarkHeight - 4;
           }
 
           // 检查水印是否超出图片的左边界
