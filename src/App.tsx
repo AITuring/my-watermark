@@ -41,6 +41,8 @@ const App: React.FC = () => {
   // 第一步：上传图片
   const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
 
+  console.log(currentImg, images)
+
   const loadImages = (files) => {
     const promises = files.map((file) => {
       return new Promise((resolve, reject) => {
@@ -380,14 +382,14 @@ const App: React.FC = () => {
                       />
                       <CloseCircleOutlined
                         className="delete"
-                        // onClick={() => {
+                        onClick={() => {
                           // TODO 删除有大问题
-                        //   setImages([
-                        //     ...images.slice(0, index),
-                        //     ...images.slice(index + 1, images.length)
-                        //   ]);
-                        //   setCurrentImg(image[0])
-                        // }}
+                          // setImages([
+                          //   ...images.slice(0, index),
+                          //   ...images.slice(index + 1, images.length)
+                          // ]);
+                          // setCurrentImg(image[0])
+                        }}
                       />
                     </div>
                   ))}
