@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { message, Spin } from "antd";
+import { CloseCircleOutlined } from '@ant-design/icons';
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
@@ -22,6 +23,8 @@ function uuid() {
 
 const App: React.FC = () => {
   const [images, setImages] = useState<ImageType[]>([]);
+  // 当前照片
+  const [currentImg, setCurrentImg] = useState<ImageType | null>();
   const [watermarkUrl, setWatermarkUrl] = useState("");
   // TODO支持定制每一个水印
   const [watermarkPosition, setWatermarkPosition] = useState({
@@ -63,6 +66,7 @@ const App: React.FC = () => {
     Promise.all(promises)
       .then((images) => {
         setImages(images); // 现在这里更新状态
+        setCurrentImg(images[0]);
       })
       .catch((error) => {
         console.error("Error loading images: ", error);
@@ -107,7 +111,7 @@ const App: React.FC = () => {
   async function canvasToBlob(
     canvas: HTMLCanvasElement,
     fileType: string,
-    quality: number = 1,
+    quality: number = 1
   ) {
     return new Promise((resolve, reject) => {
       canvas.toBlob(
@@ -119,7 +123,7 @@ const App: React.FC = () => {
           }
         },
         fileType,
-        quality,
+        quality
       );
     });
   }
@@ -131,7 +135,7 @@ const App: React.FC = () => {
     width,
     height,
     innerRadius,
-    outerRadius,
+    outerRadius
   ) {
     // 创建一个临时的 canvas 来绘制渐变效果
     const tempCanvas = document.createElement("canvas");
@@ -148,7 +152,7 @@ const App: React.FC = () => {
       innerRadius,
       centerX,
       centerY,
-      outerRadius,
+      outerRadius
     );
     gradient.addColorStop(0, "rgba(0, 0, 0, 1)"); // 中心完全不透明（不模糊）
     gradient.addColorStop(1, "rgba(0, 0, 0, 0)"); // 边缘完全透明（模糊）
@@ -226,7 +230,7 @@ const App: React.FC = () => {
             innerRadius,
             centerX,
             centerY,
-            outerRadius,
+            outerRadius
           );
           gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
           gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
@@ -247,7 +251,7 @@ const App: React.FC = () => {
             watermarkX,
             watermarkY,
             watermarkWidth,
-            watermarkHeight,
+            watermarkHeight
           );
 
           // 导出最终的图片
@@ -272,7 +276,7 @@ const App: React.FC = () => {
     files,
     watermarkImage,
     position,
-    batchSize = 5,
+    batchSize = 5
   ) {
     const downloadLink = document.createElement("a");
     downloadLink.style.display = "none";
@@ -281,7 +285,7 @@ const App: React.FC = () => {
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
       const promises = batch.map((file) =>
-        processImage(file, watermarkImage, position),
+        processImage(file, watermarkImage, position)
       );
       const imageBlobs = await Promise.all(promises);
 
@@ -316,7 +320,7 @@ const App: React.FC = () => {
       downloadImagesWithWatermarkBatch(
         imageFiles,
         watermarkImage,
-        watermarkPosition,
+        watermarkPosition
       );
     };
 
@@ -358,23 +362,41 @@ const App: React.FC = () => {
               {images.length > 0 && (
                 <div className="img-gallery">
                   {images.map((image, index) => (
-                    <img
+                    <div
                       key={index}
-                      src={URL.createObjectURL(image.file)}
-                      style={{
-                        width: "16vw",
-                        height: `${(image.height / image.width) * 16}vw`,
-                      }}
-                      alt="bg"
-                      className="bg-img"
-                    />
+                      onClick={() => setCurrentImg(image)}
+                      className={
+                        currentImg.id === image.id ? 'select-img' : "img-cover"
+                      }
+                    >
+                      <img
+                        src={URL.createObjectURL(image?.file)}
+                        style={{
+                          width: `${(image.width / image.height) * 20}vh`,
+                          height: '20vh',
+                        }}
+                        alt="bg"
+                        className="bg-img"
+                      />
+                      <CloseCircleOutlined
+                        className="delete"
+                        // onClick={() => {
+                          // TODO 删除有大问题
+                        //   setImages([
+                        //     ...images.slice(0, index),
+                        //     ...images.slice(index + 1, images.length)
+                        //   ]);
+                        //   setCurrentImg(image[0])
+                        // }}
+                      />
+                    </div>
                   ))}
                 </div>
               )}
               {watermarkUrl && (
                 <WatermarkEditor
                   watermarkUrl={watermarkUrl}
-                  backgroundImageFile={images[0].file}
+                  backgroundImageFile={currentImg.file}
                   onTransform={handleWatermarkTransform}
                 />
               )}

@@ -39,8 +39,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  opacity: 1;
-  background: #fff;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  /* background: #fff; */
   box-shadow: -6px 0 16px 0 rgba(0, 0, 0, 0.08), -3px 0 6px -4px rgba(0, 0, 0, 0.12), -9px 0 28px 8px rgba(0, 0, 0, 0.05);
 }
 
@@ -56,9 +57,34 @@
   flex-wrap: wrap;
 }
 
+.img-cover {
+  cursor: pointer;
+  margin: 20px;
+  padding: 20px;
+  position: relative;
+}
+
+.img-cover:hover {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.select-img {
+  background-color: rgba(255,255,255, .5);
+  margin: 20px;
+  padding: 20px;
+  cursor: pointer;
+  position: absolute;
+}
+
+.delete {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+
 .bg-img {
   /* width: 200px; */
-  margin: 20px;
 }
 
 .dropzone {
