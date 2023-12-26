@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { message, Spin } from "antd";
+import { message, Spin, InputNumber } from "antd";
 import { CloseCircleOutlined } from "@ant-design/icons";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
@@ -40,6 +40,9 @@ const App: React.FC = () => {
   const [imgProgress, setImgProgress] = useState<number>(0);
   // 第一步：上传图片
   const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
+
+  // 水印占背景图片的最大比例
+  const [watermarkRatio, setWatermarkRatio] = useState<number>(0.12);
 
   console.log(currentImg, images);
 
@@ -170,6 +173,64 @@ const App: React.FC = () => {
     ctx.restore(); // 恢复保存的 canvas 状态
   }
 
+  function calculateWatermarkPosition(
+    watermarkImage,
+    imageWidth,
+    imageHeight,
+    position,
+  ) {
+    // 选择图片的较短边作为基准来计算水印的大小
+    const baseDimension = Math.min(imageWidth, imageHeight);
+
+    // 计算水印的宽度，这里假设 position.scale 是水印相对于较短边的比例,一般来说scaleX和scaleY是相等的，不一样就是水印被拉伸了
+    const scale = imageWidth < imageHeight ? position.scaleX : position.scaleY;
+    // 设置一个固定比例，如果scale比固定比例还要大，就改用固定比例
+    // 这里指的是水印的原始尺寸与图片尺寸的比值
+    const watermarkWidth =
+      scale > watermarkRatio
+        ? baseDimension * watermarkRatio
+        : baseDimension * scale;
+
+    // 保持水印的原始宽高比
+    const aspectRatio = watermarkImage.width / watermarkImage.height;
+    const watermarkHeight = watermarkWidth / aspectRatio;
+
+    console.log(
+      `baseDimension: ${baseDimension}, aspectRatio: ${aspectRatio}, x: ${position.x}, y: ${position.y}`,
+    );
+    console.log(
+      `watermarkWidth: ${watermarkWidth}, watermarkHeight: ${watermarkHeight}`,
+    );
+
+    // 根据水印的百分比位置计算水印的中心坐标，坐标原点在水印图片的左上角
+    // 请注意，我们需要将百分比位置转换为坐标，并且要考虑到水印尺寸
+    // const watermarkCenterX = position.x * imageWidth;
+    // const watermarkCenterY = position.y * imageHeight;
+
+    // 水印的左上角坐标
+    let watermarkX = position.x * imageWidth;
+    let watermarkY = position.y * imageHeight;
+
+    // 确保水印不会超出图片边界
+    watermarkX = Math.max(0, Math.min(watermarkX, imageWidth - watermarkWidth));
+    watermarkY = Math.max(
+      0,
+      Math.min(watermarkY, imageHeight - watermarkHeight),
+    );
+    // 原来的方式
+    // let watermarkX = position.x * image.width;
+    // let watermarkY = position.y * image.height;
+    // const watermarkWidth = watermarkImage.width * position.scaleX;
+    // const watermarkHeight = watermarkImage.height * position.scaleY;
+
+    return {
+      x: watermarkX,
+      y: watermarkY,
+      width: watermarkWidth,
+      height: watermarkHeight,
+    };
+  }
+
   async function processImage(file, watermarkImage, position) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -196,10 +257,16 @@ const App: React.FC = () => {
           StackBlur.canvasRGBA(tempCanvas, 0, 0, image.width, image.height, 20);
 
           // 应用水印位置和变换
-          let watermarkX = position.x * image.width;
-          let watermarkY = position.y * image.height;
-          const watermarkWidth = watermarkImage.width * position.scaleX;
-          const watermarkHeight = watermarkImage.height * position.scaleY;
+          const watermarkPosition = calculateWatermarkPosition(
+            watermarkImage,
+            image.width,
+            image.height,
+            position,
+          );
+          let watermarkX = watermarkPosition.x;
+          let watermarkY = watermarkPosition.y;
+          const watermarkWidth = watermarkPosition.width;
+          const watermarkHeight = watermarkPosition.height;
 
           // 检查水印是否超出图片的右边界
           if (watermarkX + watermarkWidth > image.width) {
@@ -316,6 +383,7 @@ const App: React.FC = () => {
 
   const handleApplyWatermark = () => {
     if (!watermarkUrl) {
+      message.error("请上传水印图片！");
       return;
     }
     setLoading(true);
@@ -421,6 +489,15 @@ const App: React.FC = () => {
             </div>
             <div className="markButtons">
               <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
+              水印最大比例
+              <InputNumber
+                placeholder="水印最大比例"
+                min={0.01}
+                max={1}
+                step={0.01}
+                value={watermarkRatio}
+                onChange={(e: number) => setWatermarkRatio(e)}
+              />
               {watermarkUrl && (
                 <img
                   src={watermarkUrl}
