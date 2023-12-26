@@ -27,6 +27,7 @@
   align-items: stretch;
   justify-content: space-between;
   min-height: 100vh;
+  background: #F1F2F5;
 }
 
 .image-part {
@@ -55,22 +56,24 @@
 .img-gallery {
   display: flex;
   flex-wrap: wrap;
+  background: #fff;
 }
 
 .img-cover {
   cursor: pointer;
   margin: 20px;
   padding: 20px;
+  border-radius: 4px;
   position: relative;
 }
 
 .img-cover:hover {
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background-color: #f2f2f2;
 }
 
 .select-img {
-  background-color: rgba(255,255,255, .5);
+  background-color: #268af8;
+  border-radius: 4px;
   margin: 20px;
   padding: 20px;
   cursor: pointer;
@@ -79,12 +82,17 @@
 
 .delete {
   position: absolute;
-  bottom: 4px;
-  right: 4px;
+  bottom: 6px;
+  right: 6px;
 }
 
-.bg-img {
-  /* width: 200px; */
+.editor {
+  background-color: #fff;
+  margin-top: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .dropzone {
@@ -126,4 +134,9 @@
 .loading {
   color: #007bff;
   margin-top: 10px;
+}
+
+/* watermarkEditor */
+.buttons {
+  margin-bottom: 20px;
 }

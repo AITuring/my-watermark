@@ -1,8 +1,10 @@
 /* eslint-disable react/display-name */
 import React, { useState, useEffect, useRef, forwardRef } from "react";
+import { Button } from "antd";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
+import "./App.css";
 interface ImageWithFixedWidthProps {
   src: string;
   fixedWidth: number;
@@ -309,7 +311,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     // 计算水印的新位置
     const newX = (backgroundImageSize.width - watermarkWidth) / 2; // 水平居中
-    let newY = backgroundImageSize.height - watermarkHeight - 10; // 距离底部10像素的距离
+    let newY = backgroundImageSize.height - watermarkHeight - 6; // 距离底部6像素的距离
 
     // 确保水印不超出背景图片的底部
     newY = Math.min(newY, backgroundImageSize.height - watermarkHeight);
@@ -317,25 +319,13 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 确保水印不超出背景图片的顶部
     newY = Math.max(newY, 0);
 
-    setPosition({
-      x: newX,
-      y: newY,
-      scaleX: currentScaleX,
-      scaleY: currentScaleY,
-    });
-
-    onTransform({
-      x: newX / backgroundImageSize.width,
-      y: newY / backgroundImageSize.height,
-      scaleX: currentScaleX,
-      scaleY: currentScaleY,
-    });
+    updateWatermarkPosition(newX, newY);
   };
 
   // 左上
   const onTopLeft = () => {
-    const newX = 10; // 距离左边界10像素
-    const newY = 10; // 距离上边界10像素
+    const newX = 6; // 距离左边界6像素
+    const newY = 6; // 距离上边界6像素
     updateWatermarkPosition(newX, newY);
   };
 
@@ -344,7 +334,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const watermarkWidth =
       watermarkImage.naturalWidth * currentScaleX * backgroundScale;
     const newX = (backgroundImageSize.width - watermarkWidth) / 2; // 水平居中
-    const newY = 10; // 距离上边界10像素
+    const newY = 6; // 距离上边界6像素
     updateWatermarkPosition(newX, newY);
   };
 
@@ -352,14 +342,14 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   const onTopRight = () => {
     const watermarkWidth =
       watermarkImage.naturalWidth * currentScaleX * backgroundScale;
-    const newX = backgroundImageSize.width - watermarkWidth - 10; // 距离右边界10像素
-    const newY = 10; // 距离上边界10像素
+    const newX = backgroundImageSize.width - watermarkWidth - 6; // 距离右边界6像素
+    const newY = 6; // 距离上边界6像素
     updateWatermarkPosition(newX, newY);
   };
 
   // 中左
   const onMidLeft = () => {
-    const newX = 10; // 距离左边界10像素
+    const newX = 6; // 距离左边界6像素
     const watermarkHeight =
       watermarkImage.naturalHeight * currentScaleY * backgroundScale;
     const newY = (backgroundImageSize.height - watermarkHeight) / 2; // 垂直居中
@@ -398,7 +388,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   const onMidRight = () => {
     const watermarkWidth =
       watermarkImage.naturalWidth * currentScaleX * backgroundScale;
-    const newX = backgroundImageSize.width - watermarkWidth - 10; // 距离右边界10像素
+    const newX = backgroundImageSize.width - watermarkWidth - 6; // 距离右边界6像素
     const watermarkHeight =
       watermarkImage.naturalHeight * currentScaleY * backgroundScale;
     const newY = (backgroundImageSize.height - watermarkHeight) / 2; // 垂直居中
@@ -407,10 +397,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
   // 左下
   const onBottomLeft = () => {
-    const newX = 10; // 距离左边界10像素
+    const newX = 6; // 距离左边界6像素
     const watermarkHeight =
       watermarkImage.naturalHeight * currentScaleY * backgroundScale;
-    const newY = backgroundImageSize.height - watermarkHeight - 10; // 距离底边界10像素
+    const newY = backgroundImageSize.height - watermarkHeight - 6; // 距离底边界6像素
     updateWatermarkPosition(newX, newY);
   };
 
@@ -418,24 +408,27 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   const onBottomRight = () => {
     const watermarkWidth =
       watermarkImage.naturalWidth * currentScaleX * backgroundScale;
-    const newX = backgroundImageSize.width - watermarkWidth - 10; // 距离右边界10像素
+    const newX = backgroundImageSize.width - watermarkWidth - 6; // 距离右边界6像素
     const watermarkHeight =
       watermarkImage.naturalHeight * currentScaleY * backgroundScale;
-    const newY = backgroundImageSize.height - watermarkHeight - 10; // 距离底边界10像素
+    const newY = backgroundImageSize.height - watermarkHeight - 6; // 距离底边界6像素
     updateWatermarkPosition(newX, newY);
   };
 
   return (
-    <div>
-      <button onClick={onTopLeft}>左上</button>
-      <button onClick={onTopMid}>中上</button>
-      <button onClick={onTopRight}>右上</button>
-      <button onClick={onMidLeft}>中左</button>
-      <button onClick={onCenterMid}>中中</button>
-      <button onClick={onMidRight}>中右</button>
-      <button onClick={onBottomLeft}>左下</button>
-      <button onClick={onBottomMid}>中下</button>
-      <button onClick={onBottomRight}>右下</button>
+    <div className="editor">
+      <h2>水印位置</h2>
+      <div className="buttons">
+        <Button onClick={onTopLeft}>左上</Button>
+        <Button onClick={onTopMid}>中上</Button>
+        <Button onClick={onTopRight}>右上</Button>
+        <Button onClick={onMidLeft}>中左</Button>
+        <Button onClick={onCenterMid}>中中</Button>
+        <Button onClick={onMidRight}>中右</Button>
+        <Button onClick={onBottomLeft}>左下</Button>
+        <Button onClick={onBottomMid}>中下</Button>
+        <Button onClick={onBottomRight}>右下</Button>
+      </div>
       <Stage
         width={backgroundImageSize.width}
         height={backgroundImageSize.height}

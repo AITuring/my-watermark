@@ -356,7 +356,11 @@ const App: React.FC = () => {
     <div className="App">
       {/* <SpeedInsights /> */}
       {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
-      <img src="https://bing.img.run/rand_uhd.php" alt="bg" className="bg" />
+      {imageUploaderVisible ? (
+        <img src="https://bing.img.run/rand_uhd.php" alt="bg" className="bg" />
+      ) : (
+        <></>
+      )}
       <div>
         {imageUploaderVisible ? (
           <div className="upbutton">
@@ -387,13 +391,19 @@ const App: React.FC = () => {
                       <CloseCircleOutlined
                         className="delete"
                         onClick={(e) => {
-                          e.stopPropagation(); // 阻止事件冒泡到图片的点击事件
-                          const newImages = images.filter(
-                            (_, imgIndex) => imgIndex !== index,
-                          );
-                          setImages(newImages);
-                          if (currentImg && currentImg.id === image.id) {
-                            setCurrentImg(newImages[0] || null); // 如果删除的是当前选中的图片，则更新当前图片为新数组的第一个，或者如果没有图片则设为 null
+                          if (images.length === 1) {
+                            // 只有一张图片，直接恢复上传按钮
+                            setImages([]);
+                            setImageUploaderVisible(true);
+                          } else {
+                            e.stopPropagation(); // 阻止事件冒泡到图片的点击事件
+                            const newImages = images.filter(
+                              (_, imgIndex) => imgIndex !== index,
+                            );
+                            setImages(newImages);
+                            if (currentImg && currentImg.id === image.id) {
+                              setCurrentImg(newImages[0] || null); // 如果删除的是当前选中的图片，则更新当前图片为新数组的第一个，或者如果没有图片则设为 null
+                            }
                           }
                         }}
                       />
