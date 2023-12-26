@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { message, Spin } from "antd";
-import { CloseCircleOutlined } from '@ant-design/icons';
+import { CloseCircleOutlined } from "@ant-design/icons";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
@@ -41,7 +41,7 @@ const App: React.FC = () => {
   // 第一步：上传图片
   const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
 
-  console.log(currentImg, images)
+  console.log(currentImg, images);
 
   const loadImages = (files) => {
     const promises = files.map((file) => {
@@ -113,7 +113,7 @@ const App: React.FC = () => {
   async function canvasToBlob(
     canvas: HTMLCanvasElement,
     fileType: string,
-    quality: number = 1
+    quality: number = 1,
   ) {
     return new Promise((resolve, reject) => {
       canvas.toBlob(
@@ -125,7 +125,7 @@ const App: React.FC = () => {
           }
         },
         fileType,
-        quality
+        quality,
       );
     });
   }
@@ -137,7 +137,7 @@ const App: React.FC = () => {
     width,
     height,
     innerRadius,
-    outerRadius
+    outerRadius,
   ) {
     // 创建一个临时的 canvas 来绘制渐变效果
     const tempCanvas = document.createElement("canvas");
@@ -154,7 +154,7 @@ const App: React.FC = () => {
       innerRadius,
       centerX,
       centerY,
-      outerRadius
+      outerRadius,
     );
     gradient.addColorStop(0, "rgba(0, 0, 0, 1)"); // 中心完全不透明（不模糊）
     gradient.addColorStop(1, "rgba(0, 0, 0, 0)"); // 边缘完全透明（模糊）
@@ -232,7 +232,7 @@ const App: React.FC = () => {
             innerRadius,
             centerX,
             centerY,
-            outerRadius
+            outerRadius,
           );
           gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
           gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
@@ -253,18 +253,22 @@ const App: React.FC = () => {
             watermarkX,
             watermarkY,
             watermarkWidth,
-            watermarkHeight
+            watermarkHeight,
           );
 
           // 导出最终的图片
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const url = URL.createObjectURL(blob);
-              resolve({ url, name: file.name });
-            } else {
-              reject(new Error("Canvas to Blob failed"));
-            }
-          }, "image/png");
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                resolve({ url, name: file.name });
+              } else {
+                reject(new Error("Canvas to Blob failed"));
+              }
+            },
+            "image/jpeg",
+            0.9,
+          );
         };
         image.onerror = reject;
         image.src = e.target.result as string;
@@ -278,7 +282,7 @@ const App: React.FC = () => {
     files,
     watermarkImage,
     position,
-    batchSize = 5
+    batchSize = 5,
   ) {
     const downloadLink = document.createElement("a");
     downloadLink.style.display = "none";
@@ -287,7 +291,7 @@ const App: React.FC = () => {
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
       const promises = batch.map((file) =>
-        processImage(file, watermarkImage, position)
+        processImage(file, watermarkImage, position),
       );
       const imageBlobs = await Promise.all(promises);
 
@@ -296,7 +300,7 @@ const App: React.FC = () => {
         const progress = ((i + index + 1) / files.length) * 100;
         setImgProgress(Math.min(progress, 100));
         downloadLink.href = url;
-        downloadLink.download = `watermarked-${i + index + 1}.png`;
+        downloadLink.download = `watermarked-${i + index + 1}.jpeg`;
         downloadLink.click();
         URL.revokeObjectURL(url);
       });
@@ -322,7 +326,7 @@ const App: React.FC = () => {
       downloadImagesWithWatermarkBatch(
         imageFiles,
         watermarkImage,
-        watermarkPosition
+        watermarkPosition,
       );
     };
 
@@ -368,27 +372,29 @@ const App: React.FC = () => {
                       key={index}
                       onClick={() => setCurrentImg(image)}
                       className={
-                        currentImg.id === image.id ? 'select-img' : "img-cover"
+                        currentImg.id === image.id ? "select-img" : "img-cover"
                       }
                     >
                       <img
                         src={URL.createObjectURL(image?.file)}
                         style={{
                           width: `${(image.width / image.height) * 20}vh`,
-                          height: '20vh',
+                          height: "20vh",
                         }}
                         alt="bg"
                         className="bg-img"
                       />
                       <CloseCircleOutlined
                         className="delete"
-                        onClick={() => {
-                          // TODO 删除有大问题
-                          // setImages([
-                          //   ...images.slice(0, index),
-                          //   ...images.slice(index + 1, images.length)
-                          // ]);
-                          // setCurrentImg(image[0])
+                        onClick={(e) => {
+                          e.stopPropagation(); // 阻止事件冒泡到图片的点击事件
+                          const newImages = images.filter(
+                            (_, imgIndex) => imgIndex !== index,
+                          );
+                          setImages(newImages);
+                          if (currentImg && currentImg.id === image.id) {
+                            setCurrentImg(newImages[0] || null); // 如果删除的是当前选中的图片，则更新当前图片为新数组的第一个，或者如果没有图片则设为 null
+                          }
                         }}
                       />
                     </div>
