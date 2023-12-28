@@ -1,5 +1,8 @@
 import { useCallback, useState, useRef } from "react";
 import { useDropzone } from "react-dropzone";
+import { useNavigate } from "react-router-dom";
+import { FloatButton } from "antd";
+import { PictureFilled } from "@ant-design/icons";
 import { PhotoAlbum, RenderContainer } from "react-photo-album";
 import html2canvas from "html2canvas";
 import { saveAs } from "file-saver";
@@ -11,6 +14,7 @@ interface ImgProp {
 }
 
 const Puzzle = () => {
+  const navigate = useNavigate();
   const galleryRef = useRef(null);
   const [files, setFiles] = useState([]);
   const [images, setImages] = useState<ImgProp[]>([]);
@@ -91,6 +95,11 @@ const Puzzle = () => {
         padding={0}
         spacing={0}
         renderContainer={renderContainer}
+      />
+      <FloatButton
+        icon={<PictureFilled />}
+        tooltip={<div>添加水印</div>}
+        onClick={() => navigate("/")}
       />
     </div>
   );

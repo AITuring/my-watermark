@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { message, Spin, InputNumber } from "antd";
-import { CloseCircleOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import { message, Spin, InputNumber, FloatButton } from "antd";
+import { CloseCircleOutlined, AppstoreFilled } from "@ant-design/icons";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
@@ -22,6 +23,7 @@ function uuid() {
 }
 
 const Watermark: React.FC = () => {
+  const navigate = useNavigate();
   const [images, setImages] = useState<ImageType[]>([]);
   // 当前照片
   const [currentImg, setCurrentImg] = useState<ImageType | null>();
@@ -518,6 +520,11 @@ const Watermark: React.FC = () => {
           </div>
         )}
       </div>
+      <FloatButton
+        icon={<AppstoreFilled />}
+        tooltip={<div>大图拼接</div>}
+        onClick={() => navigate("/puzzle")}
+      />
     </div>
   );
 };
