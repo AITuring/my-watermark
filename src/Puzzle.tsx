@@ -212,6 +212,7 @@ const Puzzle = () => {
     setSpinning(true);
     if (galleryElement) {
       const canvas = await html2canvas(galleryElement, { scale: 8 });
+
       // 导出最终的图片
       canvas.toBlob(
         (blob) => {
@@ -333,7 +334,8 @@ const Puzzle = () => {
           />
           <input {...getInputProps()} />
           <div {...getRootProps()} className="upload-button">
-            选择（或拖拽）图片
+            <div>选择（或拖拽）图片</div>
+            <div className="upload-desc">请不要上传太多图片，否则处理速度会很慢</div>
           </div>
         </div>
       )}
