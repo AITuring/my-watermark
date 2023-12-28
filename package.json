@@ -22,6 +22,7 @@
     "react-dropzone": "^14.2.3",
     "react-konva": "^18.2.10",
     "react-photo-album": "^2.3.0",
+    "react-router-dom": "^6.21.1",
     "stackblur-canvas": "^2.6.0",
     "use-image": "^1.1.1"
   },

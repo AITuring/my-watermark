@@ -4,7 +4,7 @@ import { Button } from "antd";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
-import "./App.css";
+import "./watermark.css";
 interface ImageWithFixedWidthProps {
   src: string;
   fixedWidth: number;
