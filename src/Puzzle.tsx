@@ -237,7 +237,7 @@ const Puzzle = () => {
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = url;
-            link.download = "my-image.png";
+            link.download = "my-image.jpeg";
             link.click();
             setSpinning(false);
           }
