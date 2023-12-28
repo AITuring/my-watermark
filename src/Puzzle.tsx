@@ -42,7 +42,6 @@ const Puzzle = () => {
     });
   }, []);
 
-  console.log(files);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -57,7 +56,6 @@ const Puzzle = () => {
       return;
     }
     const galleryElement = galleryRef.current;
-    console.log(galleryElement);
     setSpinning(true);
     if (galleryElement) {
       const canvas = await html2canvas(galleryElement, { scale: 8 });
@@ -109,7 +107,7 @@ const Puzzle = () => {
   );
 
   return (
-    <div {...getRootProps()} className="puzzle">
+    <div className="puzzle">
       {isUpload ? (
         <div className="album">
           <div className="tab">
@@ -144,7 +142,6 @@ const Puzzle = () => {
             photos={images}
             padding={0}
             spacing={0}
-            // TODO 增加定制
             columns={inputColumns}
             renderContainer={renderContainer}
           />
@@ -157,7 +154,7 @@ const Puzzle = () => {
             className="bg"
           />
           <input {...getInputProps()} />
-          <div className="upbutton">选择（或拖拽）图片</div>
+          <div {...getRootProps()} className="upload-button">选择（或拖拽）图片</div>
         </div>
       )}
       <FloatButton

@@ -15,7 +15,7 @@
   height: 100%;
 }
 
-.upbutton {
+.upload-button {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -29,7 +29,7 @@
   cursor: pointer;
 }
 
-.upbutton:hover {
+.upload-button:hover {
   background-color: #268af8;
   box-shadow:
     0 3px 6px -4px rgba(0, 0, 0, 0.12),
