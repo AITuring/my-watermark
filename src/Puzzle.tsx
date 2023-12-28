@@ -1,10 +1,11 @@
 import { useCallback, useState, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { useNavigate } from "react-router-dom";
-import { FloatButton, Spin, message } from "antd";
+import { FloatButton, Spin, message, Button, Slider } from "antd";
 import { PictureFilled } from "@ant-design/icons";
 import { PhotoAlbum, RenderContainer } from "react-photo-album";
 import html2canvas from "html2canvas";
+import "./puzzle.css";
 
 interface ImgProp {
   src: string;
@@ -18,6 +19,8 @@ const Puzzle = () => {
   const [files, setFiles] = useState([]);
   const [images, setImages] = useState<ImgProp[]>([]);
   const [spinning, setSpinning] = useState<boolean>(false);
+  const [isUpload, setIsUpload] = useState<boolean>(false);
+  const [inputColumns, setInputColumns] = useState<number>(3);
 
   const onDrop = useCallback((acceptedFiles) => {
     setFiles((prev) => [...prev, ...acceptedFiles]);
@@ -35,6 +38,7 @@ const Puzzle = () => {
           },
         ]);
       };
+      setIsUpload(true);
     });
   }, []);
 
@@ -105,25 +109,57 @@ const Puzzle = () => {
   );
 
   return (
-    <div>
-      <div {...getRootProps()}>
-        <input {...getInputProps()} />
-        {isDragActive ? (
-          <p>Drop the files here ...</p>
-        ) : (
-          <p>Drag and drop some files here, or click to select files</p>
-        )}
-      </div>
-      <button onClick={downloadImage}>Download Image</button>
-      <PhotoAlbum
-        layout="columns"
-        photos={images}
-        padding={0}
-        spacing={0}
-        // TODO 增加定制
-        columns={3}
-        renderContainer={renderContainer}
-      />
+    <div {...getRootProps()} className="puzzle">
+      {isUpload ? (
+        <div className="album">
+          <div className="tab">
+            <h2>大图生成</h2>
+            <div className="controls">
+              <Button type="primary" onClick={downloadImage}>
+                下载大图
+              </Button>
+              <div className="slide">
+                <div>图片列数:</div>
+                <Slider
+                  style={{ width: "100px", marginLeft: "20px" }}
+                  min={1}
+                  max={6}
+                  onChange={(value) => setInputColumns(value)}
+                  value={typeof inputColumns === "number" ? inputColumns : 0}
+                />
+              </div>
+              <Button
+                onClick={() => {
+                  setImages([]);
+                  setFiles([]);
+                  setIsUpload(false);
+                }}
+              >
+                清空
+              </Button>
+            </div>
+          </div>
+          <PhotoAlbum
+            layout="columns"
+            photos={images}
+            padding={0}
+            spacing={0}
+            // TODO 增加定制
+            columns={inputColumns}
+            renderContainer={renderContainer}
+          />
+        </div>
+      ) : (
+        <div className="upload">
+          <img
+            src="https://bing.img.run/rand_uhd.php"
+            alt="bg"
+            className="bg"
+          />
+          <input {...getInputProps()} />
+          <div className="upbutton">选择（或拖拽）图片</div>
+        </div>
+      )}
       <FloatButton
         icon={<PictureFilled />}
         tooltip={<div>添加水印</div>}
