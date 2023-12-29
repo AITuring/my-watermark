@@ -17,6 +17,7 @@
     "@vercel/speed-insights": "^1.0.1",
     "antd": "^5.11.1",
     "clsx": "^2.0.0",
+    "colorthief": "^2.4.0",
     "file-saver": "^2.0.5",
     "html2canvas": "^1.4.1",
     "konva": "^9.2.3",

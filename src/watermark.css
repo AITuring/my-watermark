@@ -7,9 +7,9 @@
   /* padding: 20px; */
   position: relative;
   /* display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center; */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; */
 }
 
 .bg {
@@ -142,4 +142,12 @@
 /* watermarkEditor */
 .buttons {
   margin-bottom: 20px;
+}
+
+.button-text {
+  margin: 10px 0;
+}
+
+.border-blur {
+  margin: 20px 0;
 }

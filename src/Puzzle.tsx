@@ -1,15 +1,7 @@
 import { forwardRef, useCallback, useState, useRef, memo } from "react";
 import { useDropzone } from "react-dropzone";
 import { useNavigate } from "react-router-dom";
-import {
-  FloatButton,
-  Spin,
-  message,
-  Button,
-  Slider,
-  Tooltip,
-  Select,
-} from "antd";
+import { FloatButton, Spin, message, Button, Slider, Tooltip, Select } from "antd";
 import {
   closestCenter,
   DndContext,
@@ -29,7 +21,7 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
-import { PictureFilled, QuestionCircleFilled } from "@ant-design/icons";
+import { PictureFilled,QuestionCircleFilled } from "@ant-design/icons";
 import clsx from "clsx";
 import {
   PhotoAlbum,
@@ -143,9 +135,7 @@ const Puzzle = () => {
   const [isUpload, setIsUpload] = useState<boolean>(false);
   const [inputColumns, setInputColumns] = useState<number>(3);
   const [inputScale, setInputScale] = useState<number>(6);
-  const [layout, setLayout] = useState<"rows" | "masonry" | "columns">(
-    "columns",
-  );
+  const [layout, setLayout] = useState<"rows" | "masonry" | "columns">("columns");
 
   const renderedPhotos = useRef<{ [key: string]: SortablePhotoProps }>({});
   const [activeId, setActiveId] = useState<UniqueIdentifier>();
@@ -281,18 +271,16 @@ const Puzzle = () => {
           <div className="tab">
             <h2>大图生成</h2>
             <div className="controls">
-              <div className="slide">
+            <div className="slide">
                 <div>布局方式:</div>
                 <Select
                   value={layout}
                   style={{ width: 100, marginLeft: "20px" }}
-                  onChange={(value) =>
-                    setLayout(value as "rows" | "masonry" | "columns")
-                  }
+                  onChange={(value) => setLayout(value as "rows" | "masonry" | "columns" )}
                   options={[
-                    { value: "rows", label: "行" },
-                    { value: "columns", label: "列" },
-                    { value: "masonry", label: "masonry" },
+                    { value: 'rows', label: '行' },
+                    { value: 'columns', label: '列' },
+                    { value: 'masonry', label: 'masonry' },
                   ]}
                 />
               </div>
@@ -315,9 +303,7 @@ const Puzzle = () => {
                   onChange={(value) => setInputScale(value)}
                   value={Number(inputScale)}
                 />
-                <Tooltip title="规模越大，导出图片尺寸越大，导出更加耗时">
-                  <QuestionCircleFilled />
-                </Tooltip>
+                <Tooltip title="规模越大，导出图片尺寸越大，导出更加耗时"><QuestionCircleFilled /></Tooltip>
               </div>
             </div>
             <div className="controls">
@@ -326,7 +312,7 @@ const Puzzle = () => {
                 size="large"
                 onClick={downloadImage}
                 style={{ margin: "0 30px" }}
-              >
+                >
                 下载大图
               </Button>
               <Button
@@ -351,7 +337,7 @@ const Puzzle = () => {
             <SortableContext items={images}>
               <div style={{ margin: 30 }}>
                 <PhotoAlbum
-                  layout={layout}
+                  layout= {layout}
                   photos={images}
                   padding={0}
                   spacing={0}

@@ -1,12 +1,17 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { message, Spin, InputNumber, FloatButton } from "antd";
-import { CloseCircleOutlined, AppstoreFilled } from "@ant-design/icons";
+import { message, Spin, InputNumber, FloatButton, Switch, Tooltip } from "antd";
+import {
+  CloseCircleOutlined,
+  AppstoreFilled,
+  QuestionCircleFilled,
+} from "@ant-design/icons";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
 // import EmojiBg from './EmojiBg';
 import * as StackBlur from "stackblur-canvas";
+import ColorThief from "colorthief";
 import "./watermark.css";
 
 interface ImageType {
@@ -45,6 +50,9 @@ const Watermark: React.FC = () => {
 
   // 水印占背景图片的最大比例
   const [watermarkRatio, setWatermarkRatio] = useState<number>(0.12);
+
+  // 是否添加模糊边框
+  const [isBlur, setIsBlur] = useState(false);
 
   console.log(currentImg, images);
 
@@ -113,67 +121,6 @@ const Watermark: React.FC = () => {
   }) => {
     setWatermarkPosition(position);
   };
-
-  // 使用canvas.toBlob提高性能
-  async function canvasToBlob(
-    canvas: HTMLCanvasElement,
-    fileType: string,
-    quality: number = 1,
-  ) {
-    return new Promise((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error("Canvas to Blob conversion failed"));
-          }
-        },
-        fileType,
-        quality,
-      );
-    });
-  }
-
-  function applyGradientBlur(
-    ctx,
-    x,
-    y,
-    width,
-    height,
-    innerRadius,
-    outerRadius,
-  ) {
-    // 创建一个临时的 canvas 来绘制渐变效果
-    const tempCanvas = document.createElement("canvas");
-    const tempCtx = tempCanvas.getContext("2d");
-    tempCanvas.width = width;
-    tempCanvas.height = height;
-
-    // 创建径向渐变
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const gradient = tempCtx.createRadialGradient(
-      centerX,
-      centerY,
-      innerRadius,
-      centerX,
-      centerY,
-      outerRadius,
-    );
-    gradient.addColorStop(0, "rgba(0, 0, 0, 1)"); // 中心完全不透明（不模糊）
-    gradient.addColorStop(1, "rgba(0, 0, 0, 0)"); // 边缘完全透明（模糊）
-
-    // 将渐变填充到临时 canvas
-    tempCtx.fillStyle = gradient;
-    tempCtx.fillRect(0, 0, width, height);
-
-    // 使用临时 canvas 来作为蒙版
-    ctx.save(); // 保存当前的 canvas 状态
-    ctx.globalCompositeOperation = "destination-in"; // 绘制的新内容仅在新内容与旧内容重叠的部分可见
-    ctx.drawImage(tempCanvas, x, y, width, height);
-    ctx.restore(); // 恢复保存的 canvas 状态
-  }
 
   function calculateWatermarkPosition(
     watermarkImage,
@@ -347,6 +294,88 @@ const Watermark: React.FC = () => {
     });
   }
 
+  function processBlurImage(file, watermarkImage, position) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const image = new Image();
+        image.onload = () => {
+          const colorThief = new ColorThief();
+          const dominantColor = colorThief.getColor(image);
+          const blurMargin = Math.floor(
+            Math.min(image.width, image.height) * 0.08,
+          );
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          canvas.width = image.width + blurMargin * 2;
+          canvas.height = image.height + blurMargin * 2;
+
+          // 使用提取的颜色填充画布
+          ctx.fillStyle = `rgb(${dominantColor.join(",")})`;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // 将原图先绘制在填充的背景上
+          ctx.globalCompositeOperation = "source-over";
+          ctx.drawImage(image, blurMargin, blurMargin);
+
+          // 应用高斯模糊来使整个画布模糊，但原图部分受 clip 区域保护，不会被模糊
+          // ctx.globalCompositeOperation = 'destination-over';
+          // ctx.save();
+          // ctx.beginPath();
+          // // 设置一个矩形区域，此区域内的内容不会受到模糊效果的影响
+          // ctx.rect(blurMargin, blurMargin, image.width, image.height);
+          // ctx.clip();
+          // // 用背景色填充模糊区域，防止黑边
+          // ctx.fillStyle = `rgb(${dominantColor.join(',')})`;
+          // ctx.fillRect(0, 0, canvas.width, canvas.height);
+          // ctx.restore();
+
+          // StackBlur.canvasRGB(canvas, 0, 0, canvas.width, canvas.height, blurMargin);
+
+          // // 再次绘制原始图片，确保最顶层的图片不受模糊影响
+          // ctx.globalCompositeOperation = 'source-over';
+          // ctx.drawImage(image, blurMargin, blurMargin);
+
+          // 添加水印
+          if (watermarkImage) {
+            const watermarkHeight = blurMargin - 20;
+            const watermarkWidth =
+              (watermarkImage.width / watermarkImage.height) * watermarkHeight;
+            // 水平居中水印
+            const watermarkX = (canvas.width - watermarkWidth) / 2;
+            // 置于底部边框内，水印的底部位于原始图片的底部
+            const watermarkY = canvas.height - watermarkHeight - 10;
+            ctx.drawImage(
+              watermarkImage,
+              watermarkX,
+              watermarkY,
+              watermarkWidth,
+              watermarkHeight,
+            );
+          }
+
+          // 导出处理后的图片
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                resolve({ url, name: file.name });
+              } else {
+                reject(new Error("Canvas to Blob failed"));
+              }
+            },
+            "image/jpeg",
+            0.9,
+          );
+        };
+        image.crossOrigin = "Anonymous";
+        image.src = event.target.result as string;
+      };
+      reader.onerror = () => reject(new Error("FileReader error"));
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function downloadImagesWithWatermarkBatch(
     files,
     watermarkImage,
@@ -359,9 +388,13 @@ const Watermark: React.FC = () => {
 
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
-      const promises = batch.map((file) =>
-        processImage(file, watermarkImage, position),
-      );
+      const promises = batch.map((file) => {
+        if (isBlur) {
+          return processBlurImage(file, watermarkImage, position);
+        } else {
+          return processImage(file, watermarkImage, position);
+        }
+      });
       const imageBlobs = await Promise.all(promises);
 
       imageBlobs.forEach(({ url, name }, index) => {
@@ -491,7 +524,7 @@ const Watermark: React.FC = () => {
             </div>
             <div className="markButtons">
               <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
-              水印最大比例
+              <div className="button-text">水印最大比例</div>
               <InputNumber
                 placeholder="水印最大比例"
                 min={0.01}
@@ -500,6 +533,22 @@ const Watermark: React.FC = () => {
                 value={watermarkRatio}
                 onChange={(e: number) => setWatermarkRatio(e)}
               />
+              <div className="border-blur">
+                <div className="button-text">
+                  边框水印
+                  <Tooltip
+                    title="开启边框水印后无须调整水印位置，边框水印默认添加在图片中下方"
+                    style={{ marginLeft: "6px" }}
+                  >
+                    <QuestionCircleFilled />
+                  </Tooltip>
+                </div>
+                <Switch
+                  checkedChildren="开启"
+                  unCheckedChildren="关闭"
+                  onChange={(checked) => setIsBlur(checked)}
+                />
+              </div>
               {watermarkUrl && (
                 <img
                   src={watermarkUrl}
