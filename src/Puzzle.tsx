@@ -1,7 +1,15 @@
 import { forwardRef, useCallback, useState, useRef, memo } from "react";
 import { useDropzone } from "react-dropzone";
 import { useNavigate } from "react-router-dom";
-import { FloatButton, Spin, message, Button, Slider } from "antd";
+import {
+  FloatButton,
+  Spin,
+  message,
+  Button,
+  Slider,
+  Tooltip,
+  Select,
+} from "antd";
 import {
   closestCenter,
   DndContext,
@@ -21,7 +29,7 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
-import { PictureFilled } from "@ant-design/icons";
+import { PictureFilled, QuestionCircleFilled } from "@ant-design/icons";
 import clsx from "clsx";
 import {
   PhotoAlbum,
@@ -97,11 +105,11 @@ const PhotoFrame = memo(
         />
       </div>
     );
-  })
+  }),
 );
 
 function SortablePhotoFrame(
-  props: SortablePhotoProps & { activeIndex?: number }
+  props: SortablePhotoProps & { activeIndex?: number },
 ) {
   const { photo, activeIndex } = props;
   const { attributes, listeners, isDragging, index, over, setNodeRef } =
@@ -134,6 +142,10 @@ const Puzzle = () => {
   const [spinning, setSpinning] = useState<boolean>(false);
   const [isUpload, setIsUpload] = useState<boolean>(false);
   const [inputColumns, setInputColumns] = useState<number>(3);
+  const [inputScale, setInputScale] = useState<number>(6);
+  const [layout, setLayout] = useState<"rows" | "masonry" | "columns">(
+    "columns",
+  );
 
   const renderedPhotos = useRef<{ [key: string]: SortablePhotoProps }>({});
   const [activeId, setActiveId] = useState<UniqueIdentifier>();
@@ -146,12 +158,14 @@ const Puzzle = () => {
     useSensor(TouchSensor, {
       activationConstraint: { delay: 50, tolerance: 10 },
     }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   const handleDragStart = useCallback(
     ({ active }: DragStartEvent) => setActiveId(active.id),
-    []
+    [],
   );
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -211,26 +225,9 @@ const Puzzle = () => {
     const galleryElement = galleryRef.current;
     setSpinning(true);
     if (galleryElement) {
-      const canvas = await html2canvas(galleryElement, { scale: 8 });
+      const canvas = await html2canvas(galleryElement, { scale: inputScale });
 
       // 导出最终的图片
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = "my-image.png";
-            link.click();
-            setSpinning(false);
-          }
-        },
-        "image/jpeg",
-        0.9
-      );
-    } else {
-      const galleryElement = document.getElementById("container");
-      const canvas = await html2canvas(galleryElement, { scale: 8 });
       canvas.toBlob(
         (blob) => {
           if (blob) {
@@ -243,7 +240,24 @@ const Puzzle = () => {
           }
         },
         "image/jpeg",
-        0.9
+        0.9,
+      );
+    } else {
+      const galleryElement = document.getElementById("container");
+      const canvas = await html2canvas(galleryElement, { scale: inputScale });
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "my-image.jpeg";
+            link.click();
+            setSpinning(false);
+          }
+        },
+        "image/jpeg",
+        0.9,
       );
     }
   };
@@ -267,9 +281,21 @@ const Puzzle = () => {
           <div className="tab">
             <h2>大图生成</h2>
             <div className="controls">
-              <Button type="primary" onClick={downloadImage}>
-                下载大图
-              </Button>
+              <div className="slide">
+                <div>布局方式:</div>
+                <Select
+                  value={layout}
+                  style={{ width: 100, marginLeft: "20px" }}
+                  onChange={(value) =>
+                    setLayout(value as "rows" | "masonry" | "columns")
+                  }
+                  options={[
+                    { value: "rows", label: "行" },
+                    { value: "columns", label: "列" },
+                    { value: "masonry", label: "masonry" },
+                  ]}
+                />
+              </div>
               <div className="slide">
                 <div>图片列数:</div>
                 <Slider
@@ -277,10 +303,35 @@ const Puzzle = () => {
                   min={1}
                   max={6}
                   onChange={(value) => setInputColumns(value)}
-                  value={typeof inputColumns === "number" ? inputColumns : 0}
+                  value={Number(inputColumns)}
                 />
               </div>
+              <div className="slide">
+                <div>导出图片规模:</div>
+                <Slider
+                  style={{ width: "100px", margin: "0 20px" }}
+                  min={1}
+                  max={10}
+                  onChange={(value) => setInputScale(value)}
+                  value={Number(inputScale)}
+                />
+                <Tooltip title="规模越大，导出图片尺寸越大，导出更加耗时">
+                  <QuestionCircleFilled />
+                </Tooltip>
+              </div>
+            </div>
+            <div className="controls">
               <Button
+                type="primary"
+                size="large"
+                onClick={downloadImage}
+                style={{ margin: "0 30px" }}
+              >
+                下载大图
+              </Button>
+              <Button
+                style={{ margin: "0 30px" }}
+                size="large"
                 onClick={() => {
                   setImages([]);
                   setFiles([]);
@@ -300,7 +351,7 @@ const Puzzle = () => {
             <SortableContext items={images}>
               <div style={{ margin: 30 }}>
                 <PhotoAlbum
-                  layout="columns"
+                  layout={layout}
                   photos={images}
                   padding={0}
                   spacing={0}
@@ -335,7 +386,9 @@ const Puzzle = () => {
           <input {...getInputProps()} />
           <div {...getRootProps()} className="upload-button">
             <div>选择（或拖拽）图片</div>
-            <div className="upload-desc">请不要上传太多图片，否则处理速度会很慢</div>
+            <div className="upload-desc">
+              请不要上传太多图片，否则处理速度会很慢
+            </div>
           </div>
         </div>
       )}
