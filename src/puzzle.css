@@ -1,81 +1,81 @@
 .puzzle {
-    width: 100vw;
-    min-height: 100vh;
-    /* text-align: center; */
-    /* padding: 20px; */
-    position: relative;
-    /* display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center; */
-  }
-  
-  .upload {
-    width: 100%;
-    height: 100%;
-  }
-  
-  .upload-button {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    padding: 20px 40px;
-    border-radius: 10px;
-    color: #fff;
-    font-size: 20px;
-    font-weight: 500;
-    background-color: rgba(38, 138, 248, 0.9);
-    cursor: pointer;
-    display: flex;
+  width: 100vw;
+  min-height: 100vh;
+  /* text-align: center; */
+  /* padding: 20px; */
+  position: relative;
+  /* display: flex;
     flex-direction: column;
     align-items: center;
-  }
-  
-  .upload-button:hover {
-    background-color: #268af8;
-    box-shadow:
-      0 3px 6px -4px rgba(0, 0, 0, 0.12),
-      0 6px 16px 0 rgba(0, 0, 0, 0.08),
-      0 9px 28px 8px rgba(0, 0, 0, 0.05);
-  }
-  
-  .upload-desc {
-    font-size: 16px;
-    font-weight: 400;
-    margin-top: 10px;
-  }
-  
-  .bg {
-    position: absolute; /* 绝对定位相对于.tab */
-    width: 100%; /* 宽度填满容器 */
-    height: 100%; /* 高度填满容器 */
-    object-fit: cover; /* 确保图片覆盖整个容器而不变形 */
-    z-index: -1; /* 确保图片在内容之下 */
-    /* filter: blur(1px); */
-  }
-  
-  .album {
-  }
-  
-  .tab {
-    width: 100%;
-    height: 140px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .controls {
-    display: flex;
-    align-items: center;
-    margin: 10px 0;
-  }
-  
-  .slide {
-    display: flex;
-    align-items: center;
-    margin: 0 30px;
-  }
-  
+    justify-content: center; */
+}
+
+.upload {
+  width: 100%;
+  height: 100%;
+}
+
+.upload-button {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px 40px;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 500;
+  background-color: rgba(38, 138, 248, 0.9);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.upload-button:hover {
+  background-color: #268af8;
+  box-shadow:
+    0 3px 6px -4px rgba(0, 0, 0, 0.12),
+    0 6px 16px 0 rgba(0, 0, 0, 0.08),
+    0 9px 28px 8px rgba(0, 0, 0, 0.05);
+}
+
+.upload-desc {
+  font-size: 16px;
+  font-weight: 400;
+  margin-top: 10px;
+}
+
+.bg {
+  position: absolute; /* 绝对定位相对于.tab */
+  width: 100%; /* 宽度填满容器 */
+  height: 100%; /* 高度填满容器 */
+  object-fit: cover; /* 确保图片覆盖整个容器而不变形 */
+  z-index: -1; /* 确保图片在内容之下 */
+  /* filter: blur(1px); */
+}
+
+.album {
+}
+
+.tab {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+
+.slide {
+  display: flex;
+  align-items: center;
+  margin: 10px 30px;
+}
