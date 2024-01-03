@@ -32,7 +32,7 @@ const Watermark: React.FC = () => {
   const [images, setImages] = useState<ImageType[]>([]);
   // 当前照片
   const [currentImg, setCurrentImg] = useState<ImageType | null>();
-  const [watermarkUrl, setWatermarkUrl] = useState("");
+  const [watermarkUrl, setWatermarkUrl] = useState("/logo.png");
   // TODO支持定制每一个水印
   const [watermarkPosition, setWatermarkPosition] = useState({
     x: 0,
@@ -514,7 +514,7 @@ const Watermark: React.FC = () => {
                   ))}
                 </div>
               )}
-              {watermarkUrl && (
+              {watermarkUrl && currentImg && (
                 <WatermarkEditor
                   watermarkUrl={watermarkUrl}
                   backgroundImageFile={currentImg.file}
