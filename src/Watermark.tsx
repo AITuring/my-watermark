@@ -283,7 +283,7 @@ const Watermark: React.FC = () => {
               }
             },
             "image/jpeg",
-            0.9,
+            1,
           );
         };
         image.onerror = reject;
@@ -365,7 +365,7 @@ const Watermark: React.FC = () => {
               }
             },
             "image/jpeg",
-            0.9,
+            1,
           );
         };
         image.crossOrigin = "Anonymous";
