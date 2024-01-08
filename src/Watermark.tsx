@@ -50,8 +50,6 @@ const Watermark: React.FC = () => {
 
   // 水印占背景图片的最大比例
   const [watermarkRatio, setWatermarkRatio] = useState<number>(0.12);
-  // 图片质量
-  const [quality, setQuality] = useState<number>(0.9);
 
   // 是否添加模糊边框
   const [isBlur, setIsBlur] = useState(false);
@@ -285,7 +283,7 @@ const Watermark: React.FC = () => {
               }
             },
             "image/jpeg",
-            quality,
+            1,
           );
         };
         image.onerror = reject;
@@ -367,7 +365,7 @@ const Watermark: React.FC = () => {
               }
             },
             "image/jpeg",
-            quality,
+            1,
           );
         };
         image.crossOrigin = "Anonymous";
@@ -534,17 +532,6 @@ const Watermark: React.FC = () => {
                 step={0.01}
                 value={watermarkRatio}
                 onChange={(e: number) => setWatermarkRatio(e)}
-              />
-              <div className="button-text">
-                图片质量
-              </div>
-              <InputNumber
-                placeholder="图片质量"
-                min={0.5}
-                max={1}
-                step={0.01}
-                value={quality}
-                onChange={(e: number) => setQuality(e)}
               />
               <div className="border-blur">
                 <div className="button-text">
