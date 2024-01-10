@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { message, Spin, InputNumber, FloatButton, Switch, Tooltip } from "antd";
 import {
@@ -41,6 +41,9 @@ const Watermark: React.FC = () => {
     scaleY: 1,
     rotation: 0,
   });
+  // 背景图片是否模糊
+  const [isBlurred, setIsBlurred] = useState(false);
+  const dropzoneRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   // 图片处理进度
@@ -57,6 +60,22 @@ const Watermark: React.FC = () => {
   const [isBlur, setIsBlur] = useState(false);
 
   console.log(currentImg, images);
+
+  const handleMouseMove = (event) => {
+    if (dropzoneRef.current) {
+      const threshold = 100;
+      const rect = dropzoneRef.current.getBoundingClientRect();
+      const mouseX = event.clientX;
+      const mouseY = event.clientY;
+      const isNear = (
+        mouseX > rect.left - threshold &&
+        mouseX < rect.right + threshold &&
+        mouseY > rect.top - threshold &&
+        mouseY < rect.bottom + threshold
+      );
+      setIsBlurred(isNear);
+    }
+  };
 
   const loadImages = (files) => {
     const promises = files.map((file) => {
@@ -458,18 +477,25 @@ const Watermark: React.FC = () => {
   const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
 
   return (
-    <div className="Watermark">
+    <div className="Watermark" onMouseMove={handleMouseMove}>
       {/* <SpeedInsights /> */}
       {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
       {imageUploaderVisible ? (
-        <img src="https://bing.img.run/rand_uhd.php" alt="bg" className="bg" />
+        <>
+          <img src="https://bing.img.run/rand_uhd.php" alt="bg" className="watermark-bg" />
+        <div className={`bg-overlay ${isBlurred ? 'blur' : ''}`}></div>
+        </>
       ) : (
         <></>
       )}
       <div>
         {imageUploaderVisible ? (
           <div className="upbutton">
-            <ImageUploader onUpload={handleImagesUpload} fileType="背景" />
+            <ImageUploader
+              ref={dropzoneRef}
+              onUpload={handleImagesUpload}
+              fileType="背景"
+            />
           </div>
         ) : (
           <div className="watermark">

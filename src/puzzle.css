@@ -46,7 +46,7 @@
   margin-top: 10px;
 }
 
-.bg {
+.puzzle-bg {
   position: absolute; /* 绝对定位相对于.tab */
   width: 100%; /* 宽度填满容器 */
   height: 100%; /* 高度填满容器 */

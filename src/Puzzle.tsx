@@ -1,6 +1,6 @@
-import { forwardRef, useCallback, useState, useRef, memo } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { useNavigate } from 'react-router-dom';
+import { forwardRef, useCallback, useState, useRef, memo } from "react";
+import { useDropzone } from "react-dropzone";
+import { useNavigate } from "react-router-dom";
 import {
   FloatButton,
   Spin,
@@ -9,7 +9,7 @@ import {
   Slider,
   Tooltip,
   Select,
-} from 'antd';
+} from "antd";
 import {
   closestCenter,
   DndContext,
@@ -22,26 +22,26 @@ import {
   UniqueIdentifier,
   useSensor,
   useSensors,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
-} from '@dnd-kit/sortable';
-import { PictureFilled, QuestionCircleFilled } from '@ant-design/icons';
-import ColorThief from 'colorthief';
-import clsx from 'clsx';
+} from "@dnd-kit/sortable";
+import { PictureFilled, QuestionCircleFilled } from "@ant-design/icons";
+import ColorThief from "colorthief";
+import clsx from "clsx";
 import {
   PhotoAlbum,
   RenderContainer,
   Photo,
   RenderPhotoProps,
-} from 'react-photo-album';
-import html2canvas from 'html2canvas';
-import './puzzle.css';
+} from "react-photo-album";
+import html2canvas from "html2canvas";
+import "./puzzle.css";
 
-const watermarkUrl = './assets/logo.png';
+const watermarkUrl = "./assets/logo.png";
 
 interface SortablePhoto extends Photo {
   id: UniqueIdentifier;
@@ -52,7 +52,7 @@ type SortablePhotoProps = RenderPhotoProps<SortablePhoto>;
 type PhotoFrameProps = SortablePhotoProps & {
   overlay?: boolean;
   active?: boolean;
-  insertPosition?: 'before' | 'after';
+  insertPosition?: "before" | "after";
   attributes?: Partial<React.HTMLAttributes<HTMLDivElement>>;
   listeners?: Partial<React.HTMLAttributes<HTMLDivElement>>;
 };
@@ -86,11 +86,11 @@ const PhotoFrame = memo(
           padding: style.padding,
           marginBottom: style.marginBottom,
         }}
-        className={clsx('photo-frame', {
+        className={clsx("photo-frame", {
           overlay: overlay,
           active: active,
-          insertBefore: insertPosition === 'before',
-          insertAfter: insertPosition === 'after',
+          insertBefore: insertPosition === "before",
+          insertAfter: insertPosition === "after",
         })}
         {...attributes}
         {...listeners}
@@ -99,8 +99,8 @@ const PhotoFrame = memo(
           alt={alt}
           style={{
             ...style,
-            width: '100%',
-            height: 'auto',
+            width: "100%",
+            height: "auto",
             padding: 0,
             marginBottom: 0,
           }}
@@ -125,8 +125,8 @@ function SortablePhotoFrame(
       insertPosition={
         activeIndex !== undefined && over?.id === photo.id && !isDragging
           ? index > activeIndex
-            ? 'after'
-            : 'before'
+            ? "after"
+            : "before"
           : undefined
       }
       aria-label="sortable image"
@@ -146,8 +146,8 @@ const Puzzle = () => {
   const [isUpload, setIsUpload] = useState<boolean>(false);
   const [inputColumns, setInputColumns] = useState<number>(3);
   const [inputScale, setInputScale] = useState<number>(6);
-  const [layout, setLayout] = useState<'rows' | 'masonry' | 'columns'>(
-    'columns',
+  const [layout, setLayout] = useState<"rows" | "masonry" | "columns">(
+    "columns",
   );
 
   const renderedPhotos = useRef<{ [key: string]: SortablePhotoProps }>({});
@@ -216,13 +216,13 @@ const Puzzle = () => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.jpeg', '.jpg', '.png'],
+      "image/*": [".jpeg", ".jpg", ".png"],
     },
   });
 
   const downloadImage = async () => {
     if (files.length === 0) {
-      message.error('请选择图片');
+      message.error("请选择图片");
       return;
     }
     setSpinning(true);
@@ -230,21 +230,21 @@ const Puzzle = () => {
     setSpinning(true);
     const canvasElement = galleryElement
       ? galleryElement
-      : document.getElementById('container');
+      : document.getElementById("container");
     const canvas = await html2canvas(canvasElement, { scale: inputScale });
     // 导出最终的图片
     canvas.toBlob(
       (blob) => {
         if (blob) {
           const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
+          const link = document.createElement("a");
           link.href = url;
-          link.download = 'my-image.jpeg';
+          link.download = "my-image.jpeg";
           link.click();
           setSpinning(false);
         }
       },
-      'image/jpeg',
+      "image/jpeg",
       0.9,
     );
   };
@@ -252,16 +252,16 @@ const Puzzle = () => {
   const downloadFileWithBorder = async () => {
     const watermarkImage = new Image();
     watermarkImage.onload = async () => {
-      message.success('水印下载开始！');
+      message.success("水印下载开始！");
       if (files.length === 0) {
-        message.error('请选择图片');
+        message.error("请选择图片");
         return;
       }
       const galleryElement = galleryRef.current;
       setSpinning(true);
       const canvasElement = galleryElement
         ? galleryElement
-        : document.getElementById('container');
+        : document.getElementById("container");
       const canvas = await html2canvas(canvasElement, { scale: inputScale });
       // 添加水印
       // 导出最终的图片
@@ -269,20 +269,20 @@ const Puzzle = () => {
         (blob) => {
           if (blob) {
             const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
+            const link = document.createElement("a");
             link.href = url;
-            link.download = 'my-image.jpeg';
+            link.download = "my-image.jpeg";
             link.click();
             setSpinning(false);
           }
         },
-        'image/jpeg',
+        "image/jpeg",
         0.9,
       );
     };
 
     watermarkImage.onerror = () => {
-      message.error('Failed to load the watermark image.');
+      message.error("Failed to load the watermark image.");
     };
     watermarkImage.src = watermarkUrl;
   };
@@ -310,21 +310,21 @@ const Puzzle = () => {
                 <div>布局方式:</div>
                 <Select
                   value={layout}
-                  style={{ width: 100, marginLeft: '20px' }}
+                  style={{ width: 100, marginLeft: "20px" }}
                   onChange={(value) =>
-                    setLayout(value as 'rows' | 'masonry' | 'columns')
+                    setLayout(value as "rows" | "masonry" | "columns")
                   }
                   options={[
-                    { value: 'rows', label: '行' },
-                    { value: 'columns', label: '列' },
-                    { value: 'masonry', label: 'masonry' },
+                    { value: "rows", label: "行" },
+                    { value: "columns", label: "列" },
+                    { value: "masonry", label: "masonry" },
                   ]}
                 />
               </div>
               <div className="slide">
                 <div>图片列数:</div>
                 <Slider
-                  style={{ width: '100px', marginLeft: '20px' }}
+                  style={{ width: "100px", marginLeft: "20px" }}
                   min={1}
                   max={6}
                   onChange={(value) => setInputColumns(value)}
@@ -334,7 +334,7 @@ const Puzzle = () => {
               <div className="slide">
                 <div>导出图片规模:</div>
                 <Slider
-                  style={{ width: '100px', margin: '0 20px' }}
+                  style={{ width: "100px", margin: "0 20px" }}
                   min={1}
                   max={10}
                   onChange={(value) => setInputScale(value)}
@@ -350,12 +350,12 @@ const Puzzle = () => {
                 type="primary"
                 size="large"
                 onClick={downloadImage}
-                style={{ margin: '0 30px' }}
+                style={{ margin: "0 30px" }}
               >
                 下载大图
               </Button>
               <Button
-                style={{ margin: '0 30px' }}
+                style={{ margin: "0 30px" }}
                 size="large"
                 onClick={() => {
                   setImages([]);
@@ -406,7 +406,7 @@ const Puzzle = () => {
           <img
             src="https://bing.img.run/rand_uhd.php"
             alt="bg"
-            className="bg"
+            className="puzzle-bg"
           />
           <input {...getInputProps()} />
           <div {...getRootProps()} className="upload-button">
@@ -420,7 +420,7 @@ const Puzzle = () => {
       <FloatButton
         icon={<PictureFilled />}
         tooltip={<div>添加水印</div>}
-        onClick={() => navigate('/')}
+        onClick={() => navigate("/")}
       />
       <Spin spinning={spinning} fullscreen size="large" />
     </div>
