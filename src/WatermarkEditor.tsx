@@ -140,6 +140,23 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   const watermarkRef = useRef<Konva.Image>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
 
+  // 添加新的状态来控制背景图片缩放的滑动条的值
+  const [backgroundSliderValue, setBackgroundSliderValue] = useState(1);
+
+  // 处理背景图片缩放滑动条变化的函数
+  const handleBackgroundSliderChange = (e) => {
+    const newScale = parseFloat(e.target.value);
+    setBackgroundSliderValue(newScale);
+    // 更新背景图片的缩放状态
+    setBackgroundScale(newScale);
+  };
+
+  // 计算并获取当前缩放的百分比
+  const getCurrentScalePercentage = () => {
+    // 假设初始的滑动条值为1，即100%
+    return Math.round(backgroundSliderValue * 100);
+  };
+
   const stageRef = useRef(null);
 
   // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
@@ -429,17 +446,40 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         <Button onClick={onBottomMid}>中下</Button>
         <Button onClick={onBottomRight}>右下</Button>
       </div>
+      {/* 显示背景图片原始宽高信息 */}
+      {backgroundImage && (
+        <div>
+          <p>原始宽度: {backgroundImage.naturalWidth}px</p>
+          <p>原始高度: {backgroundImage.naturalHeight}px</p>
+        </div>
+      )}
+
+      {/* 显示背景图片缩放的滑动条 */}
+      <div>
+        <label htmlFor="background-scale-slider">背景缩放: </label>
+        <input
+          id="background-scale-slider"
+          type="range"
+          min="0.1"
+          max="4"
+          step="0.01"
+          value={backgroundSliderValue}
+          onChange={handleBackgroundSliderChange}
+        />
+        <span>{getCurrentScalePercentage()}%</span>
+      </div>
+
       <Stage
-        width={backgroundImageSize.width}
-        height={backgroundImageSize.height}
+        width={backgroundImageSize.width * backgroundSliderValue}
+        height={backgroundImageSize.height * backgroundSliderValue}
         ref={stageRef}
       >
         <Layer>
           {backgroundImage && (
             <KonvaImage
               image={backgroundImage}
-              width={backgroundImageSize.width}
-              height={backgroundImageSize.height}
+              width={backgroundImageSize.width * backgroundSliderValue}
+              height={backgroundImageSize.height * backgroundSliderValue}
             />
           )}
           {watermarkImage && (
