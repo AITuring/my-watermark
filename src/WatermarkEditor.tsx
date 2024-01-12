@@ -4,7 +4,7 @@ import { Button } from "antd";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
-import "./watermark.css";
+import './watermark.css';
 interface ImageWithFixedWidthProps {
   src: string;
   fixedWidth: number;
@@ -123,6 +123,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   // 5.水印的旋转角度，可以设置
   // 6.背景图片放大是在预览图宽高范围内放大，不应该超过这个区域
   // 7.设置水印颜色
+  // 8.编辑撤销重做
 
   // 背景图片相关设置
   // 背景图片的固定宽度（或者高度），预览时图片固定就这么大，太大超过屏幕
@@ -137,12 +138,14 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   });
   // 背景图片的缩放比例（预览/原图）
   const [backgroundScale, setBackgroundScale] = useState(1);
+
+  // 水印相关设置
   const [watermarkImage] = useImage(watermarkUrl);
   const [position, setPosition] = useState({
     x: 20,
     y: 20,
-    scaleX: 1,
-    scaleY: 1,
+    scaleX: backgroundScale,
+    scaleY: backgroundScale,
   });
 
   // 当前设置的比例，为了方便按钮操作
@@ -168,6 +171,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 假设初始的滑动条值为1，即100%
     return Math.round(backgroundSliderValue * 100);
   };
+
 
   const stageRef = useRef(null);
 
@@ -448,19 +452,20 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     <div className="editor">
       <h2>水印位置</h2>
       <div className="buttons">
-        <Button onClick={onTopLeft}>左上</Button>
-        <Button onClick={onTopMid}>中上</Button>
-        <Button onClick={onTopRight}>右上</Button>
-        <Button onClick={onMidLeft}>中左</Button>
-        <Button onClick={onCenterMid}>中中</Button>
-        <Button onClick={onMidRight}>中右</Button>
-        <Button onClick={onBottomLeft}>左下</Button>
-        <Button onClick={onBottomMid}>中下</Button>
-        <Button onClick={onBottomRight}>右下</Button>
+      <Button onClick={onTopLeft}>左上</Button>
+      <Button onClick={onTopMid}>中上</Button>
+      <Button onClick={onTopRight}>右上</Button>
+      <Button onClick={onMidLeft}>中左</Button>
+      <Button onClick={onCenterMid}>中中</Button>
+      <Button onClick={onMidRight}>中右</Button>
+      <Button onClick={onBottomLeft}>左下</Button>
+      <Button onClick={onBottomMid}>中下</Button>
+      <Button onClick={onBottomRight}>右下</Button>
       </div>
       {/* 显示背景图片原始宽高信息 */}
       {backgroundImage && (
         <div>
+          <p>背景图片</p>
           <p>原始宽度: {backgroundImage.naturalWidth}px</p>
           <p>原始高度: {backgroundImage.naturalHeight}px</p>
           <p>当前缩放比例: {backgroundScale}</p>
@@ -483,6 +488,18 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         />
         <span>{getCurrentScalePercentage()}%</span>
       </div>
+
+      {/* 显示水印图片原始宽高信息 */}
+      {watermarkImage && (
+        <div>
+          <p>水印图片</p>
+          <p>原始宽度: {watermarkImage.naturalWidth}px</p>
+          <p>原始高度: {watermarkImage.naturalHeight}px</p>
+          <p>当前缩放比例: {backgroundScale}</p>
+          <p>当前宽度: {backgroundImageSize.width}px</p>
+          <p>当前高度: {backgroundImageSize.height}px</p>
+        </div>
+      )}
 
       <Stage
         width={backgroundImageSize.width * backgroundSliderValue}
