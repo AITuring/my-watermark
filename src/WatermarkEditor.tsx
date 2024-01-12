@@ -110,17 +110,32 @@ interface WatermarkEditorProps {
     scaleY: number;
   }) => void;
 }
-
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   watermarkUrl,
   backgroundImageFile,
   onTransform,
 }) => {
-  // 还有问题，如果图片是竖屏，目前图片无法加载
+  // TODO
+  // 1.水印的缩放比例应该要和背景图片的比例保持一致
+  // 2.保存水印位置时，统一都用百分比百分比，而不是尺寸
+  // 3.水印统一一个scale， 不用scaleX和scaleY，也就是说水印的长宽比不变，要不然会拉伸
+  // 4.水印的透明度，可以设置
+  // 5.水印的旋转角度，可以设置
+  // 6.背景图片放大是在预览图宽高范围内放大，不应该超过这个区域
+  // 7.设置水印颜色
+
+  // 背景图片相关设置
+  // 背景图片的固定宽度（或者高度），预览时图片固定就这么大，太大超过屏幕
+  // 这些都是固定的
   const backgroundFixWidth = 800;
   const [backgroundImageUrl, setBackgroundImageUrl] = useState("");
   const [backgroundImage, backgroundImageStatus] = useImage(backgroundImageUrl);
-  // 背景图片的缩放比例
+  // 预览时背景图片尺寸
+  const [backgroundImageSize, setBackgroundImageSize] = useState({
+    width: 0,
+    height: 0,
+  });
+  // 背景图片的缩放比例（预览/原图）
   const [backgroundScale, setBackgroundScale] = useState(1);
   const [watermarkImage] = useImage(watermarkUrl);
   const [position, setPosition] = useState({
@@ -129,10 +144,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     scaleX: 1,
     scaleY: 1,
   });
-  const [backgroundImageSize, setBackgroundImageSize] = useState({
-    width: 0,
-    height: 0,
-  });
+
   // 当前设置的比例，为了方便按钮操作
   const [currentScaleX, setCurrentScaleX] = useState(1);
   const [currentScaleY, setCurrentScaleY] = useState(1);
@@ -148,7 +160,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const newScale = parseFloat(e.target.value);
     setBackgroundSliderValue(newScale);
     // 更新背景图片的缩放状态
-    setBackgroundScale(newScale);
+    // setBackgroundScale(newScale);
   };
 
   // 计算并获取当前缩放的百分比
@@ -451,6 +463,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         <div>
           <p>原始宽度: {backgroundImage.naturalWidth}px</p>
           <p>原始高度: {backgroundImage.naturalHeight}px</p>
+          <p>当前缩放比例: {backgroundScale}</p>
+          <p>当前宽度: {backgroundImageSize.width}px</p>
+          <p>当前高度: {backgroundImageSize.height}px</p>
         </div>
       )}
 
