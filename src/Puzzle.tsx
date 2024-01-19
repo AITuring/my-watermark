@@ -1,15 +1,7 @@
 import { forwardRef, useCallback, useState, useRef, memo } from "react";
 import { useDropzone } from "react-dropzone";
 import { useNavigate } from "react-router-dom";
-import {
-  FloatButton,
-  Spin,
-  message,
-  Button,
-  Slider,
-  Tooltip,
-  Select,
-} from "antd";
+import { FloatButton, message, Button, Slider, Tooltip, Select } from "antd";
 import {
   closestCenter,
   DndContext,
@@ -242,6 +234,7 @@ const Puzzle = () => {
           link.download = "my-image.jpeg";
           link.click();
           setSpinning(false);
+          message.success("大图合成成功！");
         }
       },
       "image/jpeg",
@@ -301,105 +294,104 @@ const Puzzle = () => {
 
   return (
     <div className="puzzle">
+      {spinning && (
+        <div className="loading">
+          <div className="loader"></div>
+        </div>
+      )}
       {isUpload ? (
         <div className="album">
-          <div className="tab">
-            <h2>大图生成</h2>
-            <div className="controls">
-              <div className="slide">
-                <div>布局方式:</div>
-                <Select
-                  value={layout}
-                  style={{ width: 100, marginLeft: "20px" }}
-                  onChange={(value) =>
-                    setLayout(value as "rows" | "masonry" | "columns")
-                  }
-                  options={[
-                    { value: "rows", label: "行" },
-                    { value: "columns", label: "列" },
-                    { value: "masonry", label: "masonry" },
-                  ]}
-                />
+          <>
+            <div className="tab">
+              <h2>大图生成</h2>
+              <div className="controls">
+                <div className="slide">
+                  <div>布局方式:</div>
+                  <Select
+                    value={layout}
+                    style={{ width: 100, marginLeft: "20px" }}
+                    onChange={(value) =>
+                      setLayout(value as "rows" | "masonry" | "columns")
+                    }
+                    options={[
+                      { value: "rows", label: "行" },
+                      { value: "columns", label: "列" },
+                      { value: "masonry", label: "masonry" },
+                    ]}
+                  />
+                </div>
+                <div className="slide">
+                  <div>图片列数:</div>
+                  <Slider
+                    style={{ width: "100px", marginLeft: "20px" }}
+                    min={1}
+                    max={6}
+                    onChange={(value) => setInputColumns(value)}
+                    value={Number(inputColumns)}
+                  />
+                </div>
+                <div className="slide">
+                  <div>导出图片规模:</div>
+                  <Slider
+                    style={{ width: "100px", margin: "0 20px" }}
+                    min={1}
+                    max={10}
+                    onChange={(value) => setInputScale(value)}
+                    value={Number(inputScale)}
+                  />
+                  <Tooltip title="规模越大，导出图片尺寸越大，导出更加耗时">
+                    <QuestionCircleFilled />
+                  </Tooltip>
+                </div>
               </div>
-              <div className="slide">
-                <div>图片列数:</div>
-                <Slider
-                  style={{ width: "100px", marginLeft: "20px" }}
-                  min={1}
-                  max={6}
-                  onChange={(value) => setInputColumns(value)}
-                  value={Number(inputColumns)}
-                />
-              </div>
-              <div className="slide">
-                <div>导出图片规模:</div>
-                <Slider
-                  style={{ width: "100px", margin: "0 20px" }}
-                  min={1}
-                  max={10}
-                  onChange={(value) => setInputScale(value)}
-                  value={Number(inputScale)}
-                />
-                <Tooltip title="规模越大，导出图片尺寸越大，导出更加耗时">
-                  <QuestionCircleFilled />
-                </Tooltip>
+              <div className="controls">
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={downloadImage}
+                  style={{ margin: "0 30px" }}
+                >
+                  下载大图
+                </Button>
+                <Button
+                  style={{ margin: "0 30px" }}
+                  size="large"
+                  onClick={() => {
+                    setImages([]);
+                    setFiles([]);
+                    setIsUpload(false);
+                  }}
+                >
+                  清空
+                </Button>
               </div>
             </div>
-            <div className="controls">
-              <Button
-                type="primary"
-                size="large"
-                onClick={downloadImage}
-                style={{ margin: "0 30px" }}
-              >
-                下载大图
-              </Button>
-              <Button
-                style={{ margin: "0 30px" }}
-                size="large"
-                onClick={() => {
-                  setImages([]);
-                  setFiles([]);
-                  setIsUpload(false);
-                }}
-              >
-                清空
-              </Button>
-            </div>
-          </div>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={images}>
-              <div style={{ margin: 30 }}>
-                <PhotoAlbum
-                  layout={layout}
-                  photos={images}
-                  padding={0}
-                  spacing={0}
-                  columns={inputColumns}
-                  renderContainer={renderContainer}
-                  renderPhoto={renderPhoto}
-                />
-              </div>
-            </SortableContext>
-            <DragOverlay>
-              {activeId && (
-                <PhotoFrame overlay {...renderedPhotos.current[activeId]} />
-              )}
-            </DragOverlay>
-          </DndContext>
-          {/* <PhotoAlbum
-            layout="columns"
-            photos={images}
-            padding={0}
-            spacing={0}
-            columns={inputColumns}
-            renderContainer={renderContainer}
-          /> */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={images}>
+                <div style={{ margin: 30 }}>
+                  <PhotoAlbum
+                    layout={layout}
+                    photos={images}
+                    padding={0}
+                    spacing={0}
+                    columns={inputColumns}
+                    renderContainer={renderContainer}
+                    renderPhoto={renderPhoto}
+                  />
+                </div>
+              </SortableContext>
+              <DragOverlay>
+                {activeId && (
+                  <PhotoFrame overlay {...renderedPhotos.current[activeId]} />
+                )}
+              </DragOverlay>
+            </DndContext>
+          </>
         </div>
       ) : (
         <div className="upload">
@@ -422,7 +414,6 @@ const Puzzle = () => {
         tooltip={<div>添加水印</div>}
         onClick={() => navigate("/")}
       />
-      <Spin spinning={spinning} fullscreen size="large" />
     </div>
   );
 };
