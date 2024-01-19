@@ -19,6 +19,7 @@
   object-fit: cover; /* 确保图片覆盖整个容器而不变形 */
   z-index: -2; /* 确保图片在内容之下 */
   /* filter: blur(1px); */
+
 }
 
 .bg-overlay {
@@ -125,9 +126,7 @@
   cursor: pointer;
   margin: 20px 0;
   text-align: center;
-  transition:
-    background-color 0.3s,
-    transform 0.3s; /* 添加过渡效果 */
+  transition: background-color 0.3s, transform 0.3s; /* 添加过渡效果 */
 }
 
 .dropzone p {
