@@ -52,6 +52,7 @@ const Watermark: React.FC = () => {
   const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
 
   // 水印占背景图片的最大比例
+  // TODO 准备废弃
   const [watermarkRatio, setWatermarkRatio] = useState<number>(0.12);
   // 图片质量
   const [quality, setQuality] = useState<number>(0.9);
@@ -59,20 +60,17 @@ const Watermark: React.FC = () => {
   // 是否添加模糊边框
   const [isBlur, setIsBlur] = useState(false);
 
-  console.log(currentImg, images);
-
   const handleMouseMove = (event) => {
     if (dropzoneRef.current) {
       const threshold = 100;
       const rect = dropzoneRef.current.getBoundingClientRect();
       const mouseX = event.clientX;
       const mouseY = event.clientY;
-      const isNear = (
+      const isNear =
         mouseX > rect.left - threshold &&
         mouseX < rect.right + threshold &&
         mouseY > rect.top - threshold &&
-        mouseY < rect.bottom + threshold
-      );
+        mouseY < rect.bottom + threshold;
       setIsBlurred(isNear);
     }
   };
@@ -156,10 +154,7 @@ const Watermark: React.FC = () => {
     const scale = imageWidth < imageHeight ? position.scaleX : position.scaleY;
     // 设置一个固定比例，如果scale比固定比例还要大，就改用固定比例
     // 这里指的是水印的原始尺寸与图片尺寸的比值
-    const watermarkWidth =
-      scale > watermarkRatio
-        ? baseDimension * watermarkRatio
-        : baseDimension * scale;
+    const watermarkWidth = baseDimension * scale;
 
     // 保持水印的原始宽高比
     const aspectRatio = watermarkImage.width / watermarkImage.height;
@@ -192,6 +187,7 @@ const Watermark: React.FC = () => {
     // let watermarkY = position.y * image.height;
     // const watermarkWidth = watermarkImage.width * position.scaleX;
     // const watermarkHeight = watermarkImage.height * position.scaleY;
+    console.log(watermarkX, watermarkY, watermarkWidth, watermarkHeight);
 
     return {
       x: watermarkX,
@@ -482,8 +478,12 @@ const Watermark: React.FC = () => {
       {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
       {imageUploaderVisible ? (
         <>
-          <img src="https://bing.img.run/rand_uhd.php" alt="bg" className="watermark-bg" />
-        <div className={`bg-overlay ${isBlurred ? 'blur' : ''}`}></div>
+          <img
+            src="https://bing.img.run/rand_uhd.php"
+            alt="bg"
+            className="watermark-bg"
+          />
+          <div className={`bg-overlay ${isBlurred ? "blur" : ""}`}></div>
         </>
       ) : (
         <></>
@@ -561,9 +561,7 @@ const Watermark: React.FC = () => {
                 value={watermarkRatio}
                 onChange={(e: number) => setWatermarkRatio(e)}
               />
-              <div className="button-text">
-                图片质量
-              </div>
+              <div className="button-text">图片质量</div>
               <InputNumber
                 placeholder="图片质量"
                 min={0.5}
