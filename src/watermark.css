@@ -58,12 +58,13 @@
   align-items: center;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  color: #000;
   /* background: #fff; */
   box-shadow:
     -6px 0 16px 0 rgba(0, 0, 0, 0.08),
     -3px 0 6px -4px rgba(0, 0, 0, 0.12),
     -9px 0 28px 8px rgba(0, 0, 0, 0.05);
+
+  color: #000;
 }
 
 .upbutton {
@@ -164,7 +165,7 @@
 
 /* watermarkEditor */
 .positionButtons {
-  margin-bottom: 20px;
+  margin: 20px 0;
 }
 
 .buttonText {

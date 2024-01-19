@@ -432,18 +432,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
   return (
     <div className="watermarkEditor">
-      <h2>水印位置</h2>
-      <div className="positionButtons">
-        <Button onClick={onTopLeft}>左上</Button>
-        <Button onClick={onTopMid}>中上</Button>
-        <Button onClick={onTopRight}>右上</Button>
-        <Button onClick={onMidLeft}>中左</Button>
-        <Button onClick={onCenterMid}>中中</Button>
-        <Button onClick={onMidRight}>中右</Button>
-        <Button onClick={onBottomLeft}>左下</Button>
-        <Button onClick={onBottomMid}>中下</Button>
-        <Button onClick={onBottomRight}>右下</Button>
-      </div>
+      {/* <h2>水印添加</h2> */}
       {/* 显示背景图片原始宽高信息 */}
       {backgroundImage && (
         <div>
@@ -535,6 +524,17 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
           )}
         </Layer>
       </Stage>
+      <div className="positionButtons">
+        <Button onClick={onTopLeft}>左上</Button>
+        <Button onClick={onTopMid}>中上</Button>
+        <Button onClick={onTopRight}>右上</Button>
+        <Button onClick={onMidLeft}>中左</Button>
+        <Button onClick={onCenterMid}>中中</Button>
+        <Button onClick={onMidRight}>中右</Button>
+        <Button onClick={onBottomLeft}>左下</Button>
+        <Button onClick={onBottomMid}>中下</Button>
+        <Button onClick={onBottomRight}>右下</Button>
+      </div>
     </div>
   );
 };
