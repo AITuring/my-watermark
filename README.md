@@ -13,6 +13,19 @@ This is a [Vite](https://vitejs.dev) project together with React.
 - [Vite — GitHub](https://github.com/vitejs/vite)
 - [Vite — Docs](https://vitejs.dev/guide/)
 
+## 流程
+为了预览，首先缩小原图到尺寸为800，这个比例为`backgroundScale = backgroundFixWidth / backgroundImage.naturalWidth;`，这个比例将不再变化。同时`backgroundImageSize`也固定，不再变化。
+
+初始化水印的尺寸`watermarkInitSize`也需要按这个比例计算：`watermarkInitSize = watermarkImage.naturalWidth * backgroundScale`。`watermarkInitSize`也是一个固定值。
+
+后续可能还要继续调整水印的比例`scale`。这个`scale`是相对于`watermarkInitSize`的比例
+
+然后调整水印位置和大小，调整过程中水印`postion`的位置:`x, y`，大小`scaleX, scaleY`。(这里的x, y是相对于背景图的百分比，scaleX, scaleY是相对于水印的坐标)
+
+调整好水印的位置后，传到父组件里面是水印相对原图的x,y坐标，以及调整过程中水印放大的倍数scaleX，scaleY（一般情况下，这两者是一样的）。
+
+把水印应用到原图上，需要把水印的x,y坐标分别乘以`scale`。
+
 ## TODO
 TODO 
 - [x] 下载太慢，多图只处理前几个，后面不处理（已经优化，现在下载速度可以接受）
