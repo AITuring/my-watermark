@@ -58,6 +58,7 @@
   align-items: center;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  color: #000;
   /* background: #fff; */
   box-shadow:
     -6px 0 16px 0 rgba(0, 0, 0, 0.08),
