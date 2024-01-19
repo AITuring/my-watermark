@@ -149,8 +149,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     scaleY: backgroundScale,
   });
 
-  console.log(position);
-
   // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例，搞错了）
   const [currentScale, setCurrentScale] = useState(1);
   const watermarkRef = useRef<Konva.Image>(null);
@@ -257,8 +255,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const node = e.target;
     const newX = node.x();
     const newY = node.y();
-
-    console.log(newX, newY, node.scaleX(), "new position");
     // TODO 边缘检测有问题
     // // 检查是否超出背景的左边界
     // if (newX < 0) {
@@ -290,8 +286,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const actualY = newY / backgroundImageSize.height;
     const actualScaleX = node.scaleX();
 
-    console.log(actualX, actualY, actualScaleX, "% position");
-
     setCurrentScale(actualScaleX);
 
     updateWatermarkSize(actualScaleX);
@@ -302,6 +296,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       scaleX: actualScaleX,
       scaleY: actualScaleX,
     });
+
+    console.log(actualX, actualY, actualScaleX, "123");
 
     // 传递给onTransform回调
     onTransform({
@@ -319,7 +315,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const node = e.target;
     const newX = node.x();
     const newY = node.y();
-    console.log(newX, newY, node.scaleX(), "new position");
 
     // // 检查是否超出背景的左边界
     // if (newX < 0) {
@@ -346,7 +341,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const actualScaleX = node.scaleX();
 
     setCurrentScale(actualScaleX);
-    console.log(actualX, actualY, actualScaleX, "% position");
 
     updateWatermarkSize(actualScaleX);
 
@@ -357,6 +351,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       scaleY: actualScaleX,
     });
 
+    console.log(actualX, actualY, actualScaleX, "456");
     // 传递给onTransform回调,这里x，y是比例
     onTransform({
       x: actualX,
@@ -371,13 +366,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 计算水印图片中心的坐标（百分比）
     const centerX = Math.max(0, Math.min(1, percentX));
     const centerY = Math.max(0, Math.min(1, percentY));
-
-    console.log(
-      centerX,
-      watermarkSize.width,
-      backgroundImageSize.width,
-      watermarkSize.width / 2 / backgroundImageSize.width,
-    );
 
     // 计算水印图片左上角的坐标（百分比）
     const leftTopX =
@@ -404,6 +392,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     });
 
     // 如果有需要，可以调用 onTransform 来通知其他组件位置和缩放的变化
+    console.log(adjustedLeftTopX, adjustedLeftTopY, currentScale, "789");
     onTransform({
       x: adjustedLeftTopX,
       y: adjustedLeftTopY,

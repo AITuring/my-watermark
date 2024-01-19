@@ -555,6 +555,15 @@ const Watermark: React.FC = () => {
             </div>
             <div className="markButtons">
               <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
+              {watermarkUrl && (
+                <img
+                  src={watermarkUrl}
+                  alt="watermark"
+                  style={{
+                    width: "16vh",
+                  }}
+                />
+              )}
               <div className="button-text">水印最大比例</div>
               <InputNumber
                 placeholder="水印最大比例"
@@ -589,15 +598,6 @@ const Watermark: React.FC = () => {
                   onChange={(checked) => setIsBlur(checked)}
                 />
               </div>
-              {watermarkUrl && (
-                <img
-                  src={watermarkUrl}
-                  alt="watermark"
-                  style={{
-                    width: "16vw",
-                  }}
-                />
-              )}
               <button
                 onClick={handleApplyWatermarkDebounced}
                 className="button"
