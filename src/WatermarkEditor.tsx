@@ -431,9 +431,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   };
 
   return (
-    <div className="editor">
+    <div className="watermarkEditor">
       <h2>水印位置</h2>
-      <div className="buttons">
+      <div className="positionButtons">
         <Button onClick={onTopLeft}>左上</Button>
         <Button onClick={onTopMid}>中上</Button>
         <Button onClick={onTopRight}>右上</Button>

@@ -476,7 +476,7 @@ const Watermark: React.FC = () => {
   const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
 
   return (
-    <div className="Watermark" onMouseMove={handleMouseMove}>
+    <div className="watermarkApp" onMouseMove={handleMouseMove}>
       {/* <SpeedInsights /> */}
       {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
       {imageUploaderVisible ? (
@@ -484,9 +484,9 @@ const Watermark: React.FC = () => {
           <img
             src="https://bing.img.run/rand_uhd.php"
             alt="bg"
-            className="watermark-bg"
+            className="watermarkBg"
           />
-          <div className={`bg-overlay ${isBlurred ? "blur" : ""}`}></div>
+          <div className={`bgOverlay ${isBlurred ? "bgBlur" : ""}`}></div>
         </>
       ) : (
         <></>
@@ -501,16 +501,16 @@ const Watermark: React.FC = () => {
             />
           </div>
         ) : (
-          <div className="watermark">
-            <div className="image-part">
+          <div className="imgWatermark">
+            <div className="imageParts">
               {images.length > 0 && (
-                <div className="img-gallery">
+                <div className="imgGallery">
                   {images.map((image, index) => (
                     <div
                       key={index}
                       onClick={() => setCurrentImg(image)}
                       className={
-                        currentImg.id === image.id ? "select-img" : "img-cover"
+                        currentImg.id === image.id ? "selectedImg" : "imgCover"
                       }
                     >
                       <img
@@ -523,7 +523,7 @@ const Watermark: React.FC = () => {
                         className="bg-img"
                       />
                       <CloseCircleOutlined
-                        className="delete"
+                        className="deleteButton"
                         onClick={(e) => {
                           if (images.length === 1) {
                             // 只有一张图片，直接恢复上传按钮
@@ -553,7 +553,7 @@ const Watermark: React.FC = () => {
                 />
               )}
             </div>
-            <div className="markButtons">
+            <div className="operateButtons">
               <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
               {watermarkUrl && (
                 <img
@@ -564,7 +564,7 @@ const Watermark: React.FC = () => {
                   }}
                 />
               )}
-              <div className="button-text">水印最大比例</div>
+              <div className="buttonText">水印最大比例</div>
               <InputNumber
                 placeholder="水印最大比例"
                 min={0.01}
@@ -573,7 +573,7 @@ const Watermark: React.FC = () => {
                 value={watermarkRatio}
                 onChange={(e: number) => setWatermarkRatio(e)}
               />
-              <div className="button-text">图片质量</div>
+              <div className="buttonText">图片质量</div>
               <InputNumber
                 placeholder="图片质量"
                 min={0.5}
@@ -582,8 +582,8 @@ const Watermark: React.FC = () => {
                 value={quality}
                 onChange={(e: number) => setQuality(e)}
               />
-              <div className="border-blur">
-                <div className="button-text">
+              <div className="borderBlur">
+                <div className="buttonText">
                   边框水印
                   <Tooltip
                     title="开启边框水印后无须调整水印位置，边框水印默认添加在图片中下方"
@@ -600,7 +600,7 @@ const Watermark: React.FC = () => {
               </div>
               <button
                 onClick={handleApplyWatermarkDebounced}
-                className="button"
+                className="applyWatermark"
                 disabled={loading}
               >
                 {loading ? <Spin /> : "水印生成"}
