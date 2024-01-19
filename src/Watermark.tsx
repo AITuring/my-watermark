@@ -52,13 +52,14 @@ const Watermark: React.FC = () => {
   const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
 
   // 水印占背景图片的最大比例
-  // TODO 准备废弃
   const [watermarkRatio, setWatermarkRatio] = useState<number>(0.12);
   // 图片质量
   const [quality, setQuality] = useState<number>(0.9);
 
   // 是否添加模糊边框
   const [isBlur, setIsBlur] = useState(false);
+
+  console.log(currentImg, images);
 
   const handleMouseMove = (event) => {
     if (dropzoneRef.current) {
@@ -154,7 +155,10 @@ const Watermark: React.FC = () => {
     const scale = imageWidth < imageHeight ? position.scaleX : position.scaleY;
     // 设置一个固定比例，如果scale比固定比例还要大，就改用固定比例
     // 这里指的是水印的原始尺寸与图片尺寸的比值
-    const watermarkWidth = baseDimension * scale;
+    const watermarkWidth =
+      scale > watermarkRatio
+        ? baseDimension * watermarkRatio
+        : baseDimension * scale;
 
     // 保持水印的原始宽高比
     const aspectRatio = watermarkImage.width / watermarkImage.height;
@@ -187,7 +191,6 @@ const Watermark: React.FC = () => {
     // let watermarkY = position.y * image.height;
     // const watermarkWidth = watermarkImage.width * position.scaleX;
     // const watermarkHeight = watermarkImage.height * position.scaleY;
-    console.log(watermarkX, watermarkY, watermarkWidth, watermarkHeight);
 
     return {
       x: watermarkX,
