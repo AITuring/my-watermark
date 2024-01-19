@@ -57,7 +57,9 @@ const Watermark: React.FC = () => {
   const [quality, setQuality] = useState<number>(0.9);
 
   // 是否添加模糊边框
-  const [isBlur, setIsBlur] = useState(false);
+  const [frame, setFrame] = useState(false);
+  // 水印背景模糊
+  const [watermarkBlur, setWatermarkBlur] = useState<boolean>(false);
 
   console.log(currentImg, images);
 
@@ -146,7 +148,7 @@ const Watermark: React.FC = () => {
     watermarkImage,
     imageWidth,
     imageHeight,
-    position,
+    position
   ) {
     // 选择图片的较短边作为基准来计算水印的大小
     const baseDimension = Math.min(imageWidth, imageHeight);
@@ -165,10 +167,10 @@ const Watermark: React.FC = () => {
     const watermarkHeight = watermarkWidth / aspectRatio;
 
     console.log(
-      `baseDimension: ${baseDimension}, aspectRatio: ${aspectRatio}, x: ${position.x}, y: ${position.y}`,
+      `baseDimension: ${baseDimension}, aspectRatio: ${aspectRatio}, x: ${position.x}, y: ${position.y}`
     );
     console.log(
-      `watermarkWidth: ${watermarkWidth}, watermarkHeight: ${watermarkHeight}`,
+      `watermarkWidth: ${watermarkWidth}, watermarkHeight: ${watermarkHeight}`
     );
 
     // 根据水印的百分比位置计算水印的中心坐标，坐标原点在水印图片的左上角
@@ -184,7 +186,7 @@ const Watermark: React.FC = () => {
     watermarkX = Math.max(0, Math.min(watermarkX, imageWidth - watermarkWidth));
     watermarkY = Math.max(
       0,
-      Math.min(watermarkY, imageHeight - watermarkHeight),
+      Math.min(watermarkY, imageHeight - watermarkHeight)
     );
     // 原来的方式
     // let watermarkX = position.x * image.width;
@@ -215,22 +217,12 @@ const Watermark: React.FC = () => {
           // 绘制原始图片
           ctx.drawImage(image, 0, 0, image.width, image.height);
 
-          // 创建一个临时canvas来应用模糊效果
-          const tempCanvas = document.createElement("canvas");
-          const tempCtx = tempCanvas.getContext("2d");
-          tempCanvas.width = image.width;
-          tempCanvas.height = image.height;
-          tempCtx.drawImage(image, 0, 0, image.width, image.height);
-
-          // 应用全图高斯模糊
-          StackBlur.canvasRGBA(tempCanvas, 0, 0, image.width, image.height, 20);
-
           // 应用水印位置和变换
           const watermarkPosition = calculateWatermarkPosition(
             watermarkImage,
             image.width,
             image.height,
-            position,
+            position
           );
           let watermarkX = watermarkPosition.x;
           let watermarkY = watermarkPosition.y;
@@ -257,30 +249,54 @@ const Watermark: React.FC = () => {
             watermarkY = 4;
           }
 
-          // 创建径向渐变
-          const centerX = watermarkX + watermarkWidth / 2;
-          const centerY = watermarkY + watermarkHeight / 2;
-          const innerRadius = 0; // 从中心开始渐变
-          const outerRadius = Math.max(watermarkWidth, watermarkHeight); // 渐变扩散的半径
-          const gradient = ctx.createRadialGradient(
-            centerX,
-            centerY,
-            innerRadius,
-            centerX,
-            centerY,
-            outerRadius,
-          );
-          gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
-          gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+          if (watermarkBlur) {
+            console.log(1111)
+            // 创建一个临时canvas来应用模糊效果
+            const tempCanvas = document.createElement("canvas");
+            const tempCtx = tempCanvas.getContext("2d");
+            tempCanvas.width = image.width;
+            tempCanvas.height = image.height;
+            tempCtx.drawImage(image, 0, 0, image.width, image.height);
 
-          // 应用径向渐变作为蒙版
-          ctx.globalCompositeOperation = "destination-out";
-          ctx.fillStyle = gradient;
-          ctx.fillRect(watermarkX, watermarkY, watermarkWidth, watermarkHeight);
+            // 应用全图高斯模糊
+            StackBlur.canvasRGBA(
+              tempCanvas,
+              0,
+              0,
+              image.width,
+              image.height,
+              20
+            );
+            // 创建径向渐变
+            const centerX = watermarkX + watermarkWidth / 2;
+            const centerY = watermarkY + watermarkHeight / 2;
+            const innerRadius = 0; // 从中心开始渐变
+            const outerRadius = Math.max(watermarkWidth, watermarkHeight); // 渐变扩散的半径
+            const gradient = ctx.createRadialGradient(
+              centerX,
+              centerY,
+              innerRadius,
+              centerX,
+              centerY,
+              outerRadius
+            );
+            gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+            gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
 
-          // 绘制模糊的背景图片
-          ctx.globalCompositeOperation = "destination-over";
-          ctx.drawImage(tempCanvas, 0, 0);
+            // 应用径向渐变作为蒙版
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.fillStyle = gradient;
+            ctx.fillRect(
+              watermarkX,
+              watermarkY,
+              watermarkWidth,
+              watermarkHeight
+            );
+
+            // 绘制模糊的背景图片
+            ctx.globalCompositeOperation = "destination-over";
+            ctx.drawImage(tempCanvas, 0, 0);
+          }
 
           // 绘制清晰的水印
           ctx.globalCompositeOperation = "source-over";
@@ -289,7 +305,7 @@ const Watermark: React.FC = () => {
             watermarkX,
             watermarkY,
             watermarkWidth,
-            watermarkHeight,
+            watermarkHeight
           );
 
           // 导出最终的图片
@@ -303,7 +319,7 @@ const Watermark: React.FC = () => {
               }
             },
             "image/jpeg",
-            quality,
+            quality
           );
         };
         image.onerror = reject;
@@ -323,7 +339,7 @@ const Watermark: React.FC = () => {
           const colorThief = new ColorThief();
           const dominantColor = colorThief.getColor(image);
           const blurMargin = Math.floor(
-            Math.min(image.width, image.height) * 0.08,
+            Math.min(image.width, image.height) * 0.08
           );
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
@@ -370,7 +386,7 @@ const Watermark: React.FC = () => {
               watermarkX,
               watermarkY,
               watermarkWidth,
-              watermarkHeight,
+              watermarkHeight
             );
           }
 
@@ -385,7 +401,7 @@ const Watermark: React.FC = () => {
               }
             },
             "image/jpeg",
-            quality,
+            quality
           );
         };
         image.crossOrigin = "Anonymous";
@@ -400,7 +416,7 @@ const Watermark: React.FC = () => {
     files,
     watermarkImage,
     position,
-    batchSize = 5,
+    batchSize = 5
   ) {
     const downloadLink = document.createElement("a");
     downloadLink.style.display = "none";
@@ -409,7 +425,7 @@ const Watermark: React.FC = () => {
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
       const promises = batch.map((file) => {
-        if (isBlur) {
+        if (frame) {
           return processBlurImage(file, watermarkImage, position);
         } else {
           return processImage(file, watermarkImage, position);
@@ -449,7 +465,7 @@ const Watermark: React.FC = () => {
       downloadImagesWithWatermarkBatch(
         imageFiles,
         watermarkImage,
-        watermarkPosition,
+        watermarkPosition
       );
     };
 
@@ -532,7 +548,7 @@ const Watermark: React.FC = () => {
                           } else {
                             e.stopPropagation(); // 阻止事件冒泡到图片的点击事件
                             const newImages = images.filter(
-                              (_, imgIndex) => imgIndex !== index,
+                              (_, imgIndex) => imgIndex !== index
                             );
                             setImages(newImages);
                             if (currentImg && currentImg.id === image.id) {
@@ -595,7 +611,23 @@ const Watermark: React.FC = () => {
                 <Switch
                   checkedChildren="开启"
                   unCheckedChildren="关闭"
-                  onChange={(checked) => setIsBlur(checked)}
+                  onChange={(checked) => setFrame(checked)}
+                />
+              </div>
+              <div className="borderBlur">
+                <div className="buttonText">
+                  水印背景模糊
+                  <Tooltip
+                    title="开启后水印周围有一层高斯模糊"
+                    style={{ marginLeft: "6px" }}
+                  >
+                    <QuestionCircleFilled />
+                  </Tooltip>
+                </div>
+                <Switch
+                  checkedChildren="开启"
+                  unCheckedChildren="关闭"
+                  onChange={(checked) => setWatermarkBlur(checked)}
                 />
               </div>
               <button
