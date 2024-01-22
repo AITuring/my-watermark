@@ -51,8 +51,6 @@ const Watermark: React.FC = () => {
   // 第一步：上传图片
   const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
 
-  // 水印占背景图片的最大比例
-  const [watermarkRatio, setWatermarkRatio] = useState<number>(0.12);
   // 图片质量
   const [quality, setQuality] = useState<number>(0.9);
 
@@ -151,14 +149,6 @@ const Watermark: React.FC = () => {
   ) {
     // scaleX和scaleY是相等的，用随便一个就行
     const scale = position.scaleX;
-    // 设置一个固定比例，如果scale比固定比例还要大，就改用固定比例
-    // 这里指的是水印的原始尺寸与图片尺寸的比值
-    // const watermarkWidth =
-    //   scale > watermarkRatio
-    //     ? baseDimension * watermarkRatio
-    //     : baseDimension * scale;
-
-    // 不用watermarkRatio
     const watermarkWidth = watermarkImage.width * scale;
     const watermarkHeight = watermarkImage.height * scale;
 
@@ -529,25 +519,28 @@ const Watermark: React.FC = () => {
               )}
             </div>
             <div className="operateButtons">
-              <ImageUploader onUpload={handleWatermarkUpload} fileType="水印" />
-              {watermarkUrl && (
+              <ImageUploader onUpload={handleWatermarkUpload} fileType="水印">
+                <img
+                  src={watermarkUrl} // 当 watermarkUrl 不存在时，显示默认图片
+                  alt="watermark"
+                  style={{
+                    width: "16vh",
+                    cursor: "pointer", // 将鼠标样式设置为指针，以指示图片是可点击的
+                  }}
+                  onClick={() =>
+                    document.getElementById("watermarkUploader").click()
+                  } // 模拟点击 input
+                />
+              </ImageUploader>
+              {/* {watermarkUrl && (
                 <img
                   src={watermarkUrl}
                   alt="watermark"
                   style={{
-                    width: "16vh",
+                    width: '16vh',
                   }}
                 />
-              )}
-              <div className="buttonText">水印最大比例</div>
-              <InputNumber
-                placeholder="水印最大比例"
-                min={0.01}
-                max={1}
-                step={0.01}
-                value={watermarkRatio}
-                onChange={(e: number) => setWatermarkRatio(e)}
-              />
+              )} */}
               <div className="buttonText">图片质量</div>
               <InputNumber
                 placeholder="图片质量"
