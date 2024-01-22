@@ -399,7 +399,10 @@ const Watermark: React.FC = () => {
 
     document.body.removeChild(downloadLink);
     setLoading(false);
-    confetti();
+    confetti({
+      particleCount: 600,
+      spread: 360,
+    });
     setImgProgress(0);
   }
 
