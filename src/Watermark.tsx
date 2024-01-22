@@ -61,8 +61,6 @@ const Watermark: React.FC = () => {
   // 水印背景模糊
   const [watermarkBlur, setWatermarkBlur] = useState<boolean>(false);
 
-  console.log(currentImg, images);
-
   const handleMouseMove = (event) => {
     if (dropzoneRef.current) {
       const threshold = 100;
@@ -144,34 +142,29 @@ const Watermark: React.FC = () => {
     setWatermarkPosition(position);
   };
 
+  // 计算水印位置，简单一点，别想太多
   function calculateWatermarkPosition(
     watermarkImage,
     imageWidth,
     imageHeight,
-    position
+    position,
   ) {
-    // 选择图片的较短边作为基准来计算水印的大小
-    const baseDimension = Math.min(imageWidth, imageHeight);
-
-    // 计算水印的宽度，这里假设 position.scale 是水印相对于较短边的比例,一般来说scaleX和scaleY是相等的，不一样就是水印被拉伸了
-    const scale = imageWidth < imageHeight ? position.scaleX : position.scaleY;
+    // scaleX和scaleY是相等的，用随便一个就行
+    const scale = position.scaleX;
     // 设置一个固定比例，如果scale比固定比例还要大，就改用固定比例
     // 这里指的是水印的原始尺寸与图片尺寸的比值
-    const watermarkWidth =
-      scale > watermarkRatio
-        ? baseDimension * watermarkRatio
-        : baseDimension * scale;
+    // const watermarkWidth =
+    //   scale > watermarkRatio
+    //     ? baseDimension * watermarkRatio
+    //     : baseDimension * scale;
+
+    // 不用watermarkRatio
+    const watermarkWidth = watermarkImage.width * scale;
+    const watermarkHeight = watermarkImage.height * scale;
 
     // 保持水印的原始宽高比
-    const aspectRatio = watermarkImage.width / watermarkImage.height;
-    const watermarkHeight = watermarkWidth / aspectRatio;
-
-    console.log(
-      `baseDimension: ${baseDimension}, aspectRatio: ${aspectRatio}, x: ${position.x}, y: ${position.y}`
-    );
-    console.log(
-      `watermarkWidth: ${watermarkWidth}, watermarkHeight: ${watermarkHeight}`
-    );
+    // const aspectRatio = watermarkImage.width / watermarkImage.height;
+    // const watermarkHeight = watermarkWidth / aspectRatio;
 
     // 根据水印的百分比位置计算水印的中心坐标，坐标原点在水印图片的左上角
     // 请注意，我们需要将百分比位置转换为坐标，并且要考虑到水印尺寸
@@ -182,17 +175,23 @@ const Watermark: React.FC = () => {
     let watermarkX = position.x * imageWidth;
     let watermarkY = position.y * imageHeight;
 
-    // 确保水印不会超出图片边界
-    watermarkX = Math.max(0, Math.min(watermarkX, imageWidth - watermarkWidth));
-    watermarkY = Math.max(
-      0,
-      Math.min(watermarkY, imageHeight - watermarkHeight)
-    );
-    // 原来的方式
-    // let watermarkX = position.x * image.width;
-    // let watermarkY = position.y * image.height;
-    // const watermarkWidth = watermarkImage.width * position.scaleX;
-    // const watermarkHeight = watermarkImage.height * position.scaleY;
+    // 边缘检测
+    // 检查水印是否超出图片的左边界
+    if (watermarkX < 0) {
+      watermarkX = 4;
+    }
+    // 检查水印是否超出图片的右边界
+    if (watermarkX + watermarkWidth > imageWidth) {
+      watermarkX = imageWidth.width - watermarkWidth - 4;
+    }
+    // 检查水印是否超出图片的顶边界
+    if (watermarkY < 0) {
+      watermarkY = 4;
+    }
+    // 检查水印是否超出图片的底边界
+    if (watermarkY + watermarkHeight > imageHeight) {
+      watermarkY = imageHeight - watermarkHeight - 4;
+    }
 
     return {
       x: watermarkX,
@@ -222,35 +221,14 @@ const Watermark: React.FC = () => {
             watermarkImage,
             image.width,
             image.height,
-            position
+            position,
           );
-          let watermarkX = watermarkPosition.x;
-          let watermarkY = watermarkPosition.y;
+          const watermarkX = watermarkPosition.x;
+          const watermarkY = watermarkPosition.y;
           const watermarkWidth = watermarkPosition.width;
           const watermarkHeight = watermarkPosition.height;
 
-          // 检查水印是否超出图片的右边界
-          if (watermarkX + watermarkWidth > image.width) {
-            watermarkX = image.width - watermarkWidth - 4;
-          }
-
-          // 检查水印是否超出图片的底边界
-          if (watermarkY + watermarkHeight > image.height) {
-            watermarkY = image.height - watermarkHeight - 4;
-          }
-
-          // 检查水印是否超出图片的左边界
-          if (watermarkX < 0) {
-            watermarkX = 4;
-          }
-
-          // 检查水印是否超出图片的顶边界
-          if (watermarkY < 0) {
-            watermarkY = 4;
-          }
-
           if (watermarkBlur) {
-            console.log(1111)
             // 创建一个临时canvas来应用模糊效果
             const tempCanvas = document.createElement("canvas");
             const tempCtx = tempCanvas.getContext("2d");
@@ -265,7 +243,7 @@ const Watermark: React.FC = () => {
               0,
               image.width,
               image.height,
-              20
+              20,
             );
             // 创建径向渐变
             const centerX = watermarkX + watermarkWidth / 2;
@@ -278,7 +256,7 @@ const Watermark: React.FC = () => {
               innerRadius,
               centerX,
               centerY,
-              outerRadius
+              outerRadius,
             );
             gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
             gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
@@ -290,7 +268,7 @@ const Watermark: React.FC = () => {
               watermarkX,
               watermarkY,
               watermarkWidth,
-              watermarkHeight
+              watermarkHeight,
             );
 
             // 绘制模糊的背景图片
@@ -305,7 +283,7 @@ const Watermark: React.FC = () => {
             watermarkX,
             watermarkY,
             watermarkWidth,
-            watermarkHeight
+            watermarkHeight,
           );
 
           // 导出最终的图片
@@ -319,7 +297,7 @@ const Watermark: React.FC = () => {
               }
             },
             "image/jpeg",
-            quality
+            quality,
           );
         };
         image.onerror = reject;
@@ -339,7 +317,7 @@ const Watermark: React.FC = () => {
           const colorThief = new ColorThief();
           const dominantColor = colorThief.getColor(image);
           const blurMargin = Math.floor(
-            Math.min(image.width, image.height) * 0.08
+            Math.min(image.width, image.height) * 0.08,
           );
           const canvas = document.createElement("canvas");
           const ctx = canvas.getContext("2d");
@@ -353,25 +331,6 @@ const Watermark: React.FC = () => {
           // 将原图先绘制在填充的背景上
           ctx.globalCompositeOperation = "source-over";
           ctx.drawImage(image, blurMargin, blurMargin);
-
-          // 应用高斯模糊来使整个画布模糊，但原图部分受 clip 区域保护，不会被模糊
-          // ctx.globalCompositeOperation = 'destination-over';
-          // ctx.save();
-          // ctx.beginPath();
-          // // 设置一个矩形区域，此区域内的内容不会受到模糊效果的影响
-          // ctx.rect(blurMargin, blurMargin, image.width, image.height);
-          // ctx.clip();
-          // // 用背景色填充模糊区域，防止黑边
-          // ctx.fillStyle = `rgb(${dominantColor.join(',')})`;
-          // ctx.fillRect(0, 0, canvas.width, canvas.height);
-          // ctx.restore();
-
-          // StackBlur.canvasRGB(canvas, 0, 0, canvas.width, canvas.height, blurMargin);
-
-          // // 再次绘制原始图片，确保最顶层的图片不受模糊影响
-          // ctx.globalCompositeOperation = 'source-over';
-          // ctx.drawImage(image, blurMargin, blurMargin);
-
           // 添加水印
           if (watermarkImage) {
             const watermarkHeight = blurMargin - 20;
@@ -386,7 +345,7 @@ const Watermark: React.FC = () => {
               watermarkX,
               watermarkY,
               watermarkWidth,
-              watermarkHeight
+              watermarkHeight,
             );
           }
 
@@ -401,7 +360,7 @@ const Watermark: React.FC = () => {
               }
             },
             "image/jpeg",
-            quality
+            quality,
           );
         };
         image.crossOrigin = "Anonymous";
@@ -416,7 +375,7 @@ const Watermark: React.FC = () => {
     files,
     watermarkImage,
     position,
-    batchSize = 5
+    batchSize = 5,
   ) {
     const downloadLink = document.createElement("a");
     downloadLink.style.display = "none";
@@ -465,7 +424,7 @@ const Watermark: React.FC = () => {
       downloadImagesWithWatermarkBatch(
         imageFiles,
         watermarkImage,
-        watermarkPosition
+        watermarkPosition,
       );
     };
 
@@ -548,7 +507,7 @@ const Watermark: React.FC = () => {
                           } else {
                             e.stopPropagation(); // 阻止事件冒泡到图片的点击事件
                             const newImages = images.filter(
-                              (_, imgIndex) => imgIndex !== index
+                              (_, imgIndex) => imgIndex !== index,
                             );
                             setImages(newImages);
                             if (currentImg && currentImg.id === image.id) {
