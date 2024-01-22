@@ -253,33 +253,28 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     const node = e.target;
-    const newX = node.x();
-    const newY = node.y();
-    // TODO 边缘检测有问题
-    // // 检查是否超出背景的左边界
-    // if (newX < 0) {
-    //   newX = 0;
-    // }
-    // // 检查是否超出背景的上边界
-    // if (newY < 0) {
-    //   newY = 0;
-    // }
-    // // 水印当前的缩放后尺寸
-    // const watermarkWidth =
-    //   watermarkImage.naturalWidth * node.scaleX();
-    // const watermarkHeight =
-    //   watermarkImage.naturalHeight * node.scaleX();
-    // // 检查是否超出背景的右边界
-    // if (newX + watermarkWidth > backgroundImageSize.width) {
-    //   newX = backgroundImageSize.width - watermarkWidth;
-    // }
-    // // 检查是否超出背景的下边界
-    // if (newY + watermarkHeight > backgroundImageSize.height) {
-    //   newY = backgroundImageSize.height - watermarkHeight;
-    // }
+    let newX = node.x();
+    let newY = node.y();
 
-    // // 确保水印位置更新
-    // node.position({ x: newX, y: newY });
+    // 检查是否超出背景的左边界
+    if (newX < 0) {
+      console.log(newX, "x < 0");
+      newX = 0;
+    }
+    // 检查是否超出背景的上边界
+    if (newY < 0) {
+      newY = 0;
+    }
+    // 检查是否超出背景的右边界
+    if (newX + watermarkSize.width > backgroundImageSize.width) {
+      newX = backgroundImageSize.width - watermarkSize.width;
+    }
+    // 检查是否超出背景的下边界
+    if (newY + watermarkSize.height > backgroundImageSize.height) {
+      newY = backgroundImageSize.height - watermarkSize.height;
+    }
+    // 确保水印位置更新
+    node.position({ x: newX, y: newY });
 
     // 计算水印在原图上的实际位置和尺寸
     const actualX = newX / backgroundImageSize.width;
@@ -313,27 +308,25 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
   const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
     const node = e.target;
-    const newX = node.x();
-    const newY = node.y();
+    let newX = node.x();
+    let newY = node.y();
 
-    // // 检查是否超出背景的左边界
-    // if (newX < 0) {
-    //   newX = 0;
-    // }
-    // // 检查是否超出背景的上边界
-    // if (newY < 0) {
-    //   newY = 0;
-    // }
-    // const watermarkWidth = watermarkImage.naturalWidth;
-    // const watermarkHeight = watermarkImage.naturalHeight;
-    // // 检查是否超出背景的右边界
-    // if (newX + watermarkWidth > backgroundImageSize.width) {
-    //   newX = backgroundImageSize.width - watermarkWidth;
-    // }
-    // // 检查是否超出背景的下边界
-    // if (newY + watermarkHeight > backgroundImageSize.height) {
-    //   newY = backgroundImageSize.height - watermarkHeight;
-    // }
+    // 检查是否超出背景的左边界
+    if (newX < 0) {
+      newX = 0;
+    }
+    // 检查是否超出背景的上边界
+    if (newY < 0) {
+      newY = 0;
+    }
+    // 检查是否超出背景的右边界
+    if (newX + watermarkSize.width > backgroundImageSize.width) {
+      newX = backgroundImageSize.width - watermarkSize.width;
+    }
+    // 检查是否超出背景的下边界
+    if (newY + watermarkSize.height > backgroundImageSize.height) {
+      newY = backgroundImageSize.height - watermarkSize.height;
+    }
 
     // 计算水印在原图上的实际位置和尺寸
     const actualX = newX / backgroundImageSize.width;
