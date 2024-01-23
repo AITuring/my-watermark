@@ -647,7 +647,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     <div className="watermarkEditor">
       {/* <h2>水印添加</h2> */}
       {/* 显示背景图片原始宽高信息 */}
-      {backgroundImage && (
+      {/* {backgroundImage && (
         <div>
           <p>背景图片</p>
           <p>原始宽度: {backgroundImage.naturalWidth}px</p>
@@ -656,10 +656,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
           <p>当前宽度: {backgroundImageSize.width}px</p>
           <p>当前高度: {backgroundImageSize.height}px</p>
         </div>
-      )}
+      )} */}
 
       {/* 显示背景图片缩放的滑动条 */}
-      <div>
+      {/* <div>
         <label htmlFor="background-scale-slider">背景缩放: </label>
         <input
           id="background-scale-slider"
@@ -671,10 +671,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
           onChange={handleBackgroundSliderChange}
         />
         <span>{getCurrentScalePercentage()}%</span>
-      </div>
+      </div> */}
 
       {/* 显示水印图片原始宽高信息 */}
-      {watermarkImage && (
+      {/* {watermarkImage && (
         <div>
           <p>水印图片</p>
           <p>原始宽度: {watermarkImage.naturalWidth}px</p>
@@ -685,7 +685,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
           <p>当前宽度: {watermarkSize.width}px</p>
           <p>当前高度: {watermarkSize.height}px</p>
         </div>
-      )}
+      )} */}
 
       <Stage
         width={backgroundImageSize.width}
