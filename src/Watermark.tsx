@@ -153,15 +153,6 @@ const Watermark: React.FC = () => {
     const watermarkWidth = watermarkImage.width * scale;
     const watermarkHeight = watermarkImage.height * scale;
 
-    // 保持水印的原始宽高比
-    // const aspectRatio = watermarkImage.width / watermarkImage.height;
-    // const watermarkHeight = watermarkWidth / aspectRatio;
-
-    // 根据水印的百分比位置计算水印的中心坐标，坐标原点在水印图片的左上角
-    // 请注意，我们需要将百分比位置转换为坐标，并且要考虑到水印尺寸
-    // const watermarkCenterX = position.x * imageWidth;
-    // const watermarkCenterY = position.y * imageHeight;
-
     // 水印的左上角坐标
     let watermarkX = position.x * imageWidth;
     let watermarkY = position.y * imageHeight;
@@ -269,13 +260,29 @@ const Watermark: React.FC = () => {
 
           // 绘制清晰的水印
           ctx.globalCompositeOperation = "source-over";
+          // 保存当前context的状态
+          ctx.save();
+
+          // 将canvas的原点移动到水印的中心位置
+          ctx.translate(
+            watermarkX + watermarkWidth / 2,
+            watermarkY + watermarkHeight / 2,
+          );
+
+          // 绕原点旋转画布
+          ctx.rotate((position.rotation * Math.PI) / 180); // position.rotation是角度，需要转换为弧度
+
+          // 因为canvas是绕新的原点旋转的，所以你需要将图片绘制在中心的相反位置
           ctx.drawImage(
             watermarkImage,
-            watermarkX,
-            watermarkY,
+            -watermarkWidth / 2,
+            -watermarkHeight / 2,
             watermarkWidth,
             watermarkHeight,
           );
+
+          // 恢复canvas状态
+          ctx.restore();
 
           // 导出最终的图片
           canvas.toBlob(

@@ -108,6 +108,7 @@ interface WatermarkEditorProps {
     y: number;
     scaleX: number;
     scaleY: number;
+    rotation: number;
   }) => void;
 }
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
@@ -147,6 +148,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     y: 0.1,
     scaleX: backgroundScale,
     scaleY: backgroundScale,
+    rotation: 0,
   });
 
   // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例，搞错了）
@@ -251,6 +253,216 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     }
   };
 
+  // TODO 添加水印的拖拽功能，但目前还有问题，边缘检测也不对，后续修改
+  // const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+  //   const node = e.target;
+
+  //   // 获取旋转角度
+  //   const rotationRadians = (node.rotation() * Math.PI) / 180;
+
+  //   // 获取缩放后的宽度和高度
+  //   const width = node.width() * node.scaleX();
+  //   const height = node.height() * node.scaleY();
+
+  //   // 计算旋转后的中心点
+  //   const cx = node.x() + width / 2;
+  //   const cy = node.y() + height / 2;
+
+  //   // 辅助函数计算旋转后的点
+  //   const getRotatedPoint = (cx, cy, x, y, angle) => {
+  //     const cos = Math.cos(angle);
+  //     const sin = Math.sin(angle);
+  //     const nx = cos * (x - cx) + sin * (y - cy) + cx;
+  //     const ny = cos * (y - cy) - sin * (x - cx) + cy;
+  //     return { x: nx, y: ny };
+  //   };
+
+  //   // 获取旋转后的四个角点
+  //   const corners = [
+  //     getRotatedPoint(cx, cy, node.x(), node.y(), rotationRadians),
+  //     getRotatedPoint(cx, cy, node.x() + width, node.y(), rotationRadians),
+  //     getRotatedPoint(
+  //       cx,
+  //       cy,
+  //       node.x() + width,
+  //       node.y() + height,
+  //       rotationRadians,
+  //     ),
+  //     getRotatedPoint(cx, cy, node.x(), node.y() + height, rotationRadians),
+  //   ];
+
+  //   // 获取边界框的最小和最大坐标
+  //   const minX = Math.min(...corners.map((c) => c.x));
+  //   const maxX = Math.max(...corners.map((c) => c.x));
+  //   const minY = Math.min(...corners.map((c) => c.y));
+  //   const maxY = Math.max(...corners.map((c) => c.y));
+
+  //   // 边缘检测和调整
+  //   let adjustX = 0;
+  //   let adjustY = 0;
+
+  //   // 检测左边界
+  //   if (minX < 0) {
+  //     adjustX = -minX;
+  //   }
+  //   // 检测右边界
+  //   else if (maxX > backgroundImageSize.width) {
+  //     adjustX = backgroundImageSize.width - maxX;
+  //   }
+
+  //   // 检测上边界
+  //   if (minY < 0) {
+  //     adjustY = -minY;
+  //   }
+  //   // 检测下边界
+  //   else if (maxY > backgroundImageSize.height) {
+  //     adjustY = backgroundImageSize.height - maxY;
+  //   }
+
+  //   // 这里应用调整，但仅当有必要时
+  //   if (adjustX !== 0 || adjustY !== 0) {
+  //     // 应用调整
+  //     node.x(node.x() + adjustX);
+  //     node.y(node.y() + adjustY);
+  //   }
+
+  //   // 更新水印在原图上的实际位置
+  //   const actualX = (node.x() + adjustX) / backgroundImageSize.width;
+  //   const actualY = (node.y() + adjustY) / backgroundImageSize.height;
+  //   const actualScaleX = node.scaleX();
+
+  //   setCurrentScale(actualScaleX);
+  //   updateWatermarkSize(actualScaleX);
+
+  //   // 设置新位置和缩放
+  //   setPosition({
+  //     x: actualX,
+  //     y: actualY,
+  //     scaleX: actualScaleX,
+  //     scaleY: actualScaleX,
+  //     rotation: node.rotation(),
+  //   });
+
+  //   // 传递给onTransform回调,这里x，y是比例
+  //   onTransform({
+  //     x: actualX,
+  //     y: actualY,
+  //     scaleX: actualScaleX,
+  //     scaleY: actualScaleX,
+  //     rotation: node.rotation(),
+  //   });
+
+  //   // 使更改生效并重新绘制层
+  //   node.getLayer().batchDraw();
+  // };
+
+  // const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
+  //   const node = e.target;
+
+  //   // 获取旋转角度
+  //   const rotationRadians = (node.rotation() * Math.PI) / 180;
+
+  //   // 获取缩放后的宽度和高度
+  //   const width = node.width() * node.scaleX();
+  //   const height = node.height() * node.scaleY();
+
+  //   // 计算旋转后的水印边界框的四个角
+  //   const getRotatedPoint = (cx, cy, x, y, angle) => {
+  //     const cos = Math.cos(angle);
+  //     const sin = Math.sin(angle);
+  //     const nx = cos * (x - cx) + sin * (y - cy) + cx;
+  //     const ny = cos * (y - cy) - sin * (x - cx) + cy;
+  //     return { x: nx, y: ny };
+  //   };
+
+  //   const cx = node.x() + width / 2;
+  //   const cy = node.y() + height / 2;
+
+  //   const bl = getRotatedPoint(
+  //     cx,
+  //     cy,
+  //     node.x(),
+  //     node.y() + height,
+  //     rotationRadians,
+  //   );
+  //   const br = getRotatedPoint(
+  //     cx,
+  //     cy,
+  //     node.x() + width,
+  //     node.y() + height,
+  //     rotationRadians,
+  //   );
+  //   const tl = getRotatedPoint(cx, cy, node.x(), node.y(), rotationRadians);
+  //   const tr = getRotatedPoint(
+  //     cx,
+  //     cy,
+  //     node.x() + width,
+  //     node.y(),
+  //     rotationRadians,
+  //   );
+
+  //   // 计算边界框的最小/最大 X 和 Y 值
+  //   const minX = Math.min(tl.x, tr.x, br.x, bl.x);
+  //   const maxX = Math.max(tl.x, tr.x, br.x, bl.x);
+  //   const minY = Math.min(tl.y, tr.y, br.y, bl.y);
+  //   const maxY = Math.max(tl.y, tr.y, br.y, bl.y);
+
+  //   // 边缘检测和调整
+  //   let adjustX = 0;
+  //   let adjustY = 0;
+
+  //   // 检测左边界
+  //   if (minX < 0) {
+  //     adjustX = -minX;
+  //   }
+  //   // 检测右边界
+  //   else if (maxX > backgroundImageSize.width) {
+  //     adjustX = backgroundImageSize.width - maxX;
+  //   }
+
+  //   // 检测上边界
+  //   if (minY < 0) {
+  //     adjustY = -minY;
+  //   }
+  //   // 检测下边界
+  //   else if (maxY > backgroundImageSize.height) {
+  //     adjustY = backgroundImageSize.height - maxY;
+  //   }
+
+  //   // 应用调整
+  //   node.x(node.x() + adjustX);
+  //   node.y(node.y() + adjustY);
+
+  //   // 计算水印在原图上的实际位置
+  //   const actualX = (node.x() + adjustX) / backgroundImageSize.width;
+  //   const actualY = (node.y() + adjustY) / backgroundImageSize.height;
+  //   const actualScaleX = node.scaleX();
+
+  //   setCurrentScale(actualScaleX);
+  //   updateWatermarkSize(actualScaleX);
+
+  //   // 设置新位置和缩放
+  //   setPosition({
+  //     x: actualX,
+  //     y: actualY,
+  //     scaleX: actualScaleX,
+  //     scaleY: actualScaleX,
+  //     rotation: node.rotation(),
+  //   });
+
+  //   // 传递给onTransform回调,这里x，y是比例
+  //   onTransform({
+  //     x: actualX,
+  //     y: actualY,
+  //     scaleX: actualScaleX,
+  //     scaleY: actualScaleX,
+  //     rotation: node.rotation(),
+  //   });
+
+  //   // 使更改生效并重新绘制层
+  //   node.getLayer().batchDraw();
+  // };
+
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     const node = e.target;
     let newX = node.x();
@@ -280,6 +492,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const actualX = newX / backgroundImageSize.width;
     const actualY = newY / backgroundImageSize.height;
     const actualScaleX = node.scaleX();
+    const actualRotation = node.rotation();
 
     setCurrentScale(actualScaleX);
 
@@ -290,6 +503,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       y: actualY,
       scaleX: actualScaleX,
       scaleY: actualScaleX,
+      rotation: actualRotation,
     });
 
     console.log(actualX, actualY, actualScaleX, "123");
@@ -300,6 +514,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       y: actualY,
       scaleX: actualScaleX,
       scaleY: actualScaleX,
+      rotation: actualRotation,
     });
 
     // 使更改生效并重新绘制层
@@ -332,6 +547,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const actualX = newX / backgroundImageSize.width;
     const actualY = newY / backgroundImageSize.height;
     const actualScaleX = node.scaleX();
+    const actualRotation = node.rotation();
 
     setCurrentScale(actualScaleX);
 
@@ -342,6 +558,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       y: actualY,
       scaleX: actualScaleX,
       scaleY: actualScaleX,
+      rotation: actualRotation,
     });
 
     console.log(actualX, actualY, actualScaleX, "456");
@@ -351,6 +568,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       y: actualY,
       scaleX: actualScaleX,
       scaleY: actualScaleX,
+      rotation: actualRotation,
     });
   };
 
@@ -382,6 +600,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       y: adjustedLeftTopY,
       scaleX: currentScale,
       scaleY: currentScale,
+      rotation: 0,
     });
 
     // 如果有需要，可以调用 onTransform 来通知其他组件位置和缩放的变化
@@ -391,6 +610,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       y: adjustedLeftTopY,
       scaleX: currentScale,
       scaleY: currentScale,
+      rotation: 0,
     });
   };
 
