@@ -1,18 +1,18 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { message, Spin, InputNumber, FloatButton, Switch, Tooltip } from 'antd';
+import React, { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { message, Spin, InputNumber, FloatButton, Switch, Tooltip } from "antd";
 import {
   CloseCircleOutlined,
   AppstoreFilled,
   QuestionCircleFilled,
-} from '@ant-design/icons';
+} from "@ant-design/icons";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
-import ImageUploader from './ImageUploader';
-import WatermarkEditor from './WatermarkEditor';
+import ImageUploader from "./ImageUploader";
+import WatermarkEditor from "./WatermarkEditor";
 // import EmojiBg from './EmojiBg';
-import ColorThief from 'colorthief';
-import confetti from 'canvas-confetti';
-import './watermark.css';
+import ColorThief from "colorthief";
+import confetti from "canvas-confetti";
+import "./watermark.css";
 
 interface ImageType {
   id: string;
@@ -32,7 +32,7 @@ const BorderWatermark: React.FC = () => {
   const [images, setImages] = useState<ImageType[]>([]);
   // 当前照片
   const [currentImg, setCurrentImg] = useState<ImageType | null>();
-  const [watermarkUrl, setWatermarkUrl] = useState('/logo.png');
+  const [watermarkUrl, setWatermarkUrl] = useState("/logo.png");
   // TODO支持定制每一个水印
   const [watermarkPosition, setWatermarkPosition] = useState({
     x: 0,
@@ -97,7 +97,7 @@ const BorderWatermark: React.FC = () => {
         setCurrentImg(images[0]);
       })
       .catch((error) => {
-        console.error('Error loading images: ', error);
+        console.error("Error loading images: ", error);
       });
   };
 
@@ -188,17 +188,17 @@ const BorderWatermark: React.FC = () => {
           const blurMargin = Math.floor(
             Math.min(image.width, image.height) * 0.08,
           );
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
           canvas.width = image.width + blurMargin * 2;
           canvas.height = image.height + blurMargin * 2;
 
           // 使用提取的颜色填充画布
-          ctx.fillStyle = `rgb(${dominantColor.join(',')})`;
+          ctx.fillStyle = `rgb(${dominantColor.join(",")})`;
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
           // 将原图先绘制在填充的背景上
-          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalCompositeOperation = "source-over";
           ctx.drawImage(image, blurMargin, blurMargin);
           // 添加水印
           if (watermarkImage) {
@@ -225,17 +225,17 @@ const BorderWatermark: React.FC = () => {
                 const url = URL.createObjectURL(blob);
                 resolve({ url, name: file.name });
               } else {
-                reject(new Error('Canvas to Blob failed'));
+                reject(new Error("Canvas to Blob failed"));
               }
             },
-            'image/jpeg',
+            "image/jpeg",
             quality,
           );
         };
-        image.crossOrigin = 'Anonymous';
+        image.crossOrigin = "Anonymous";
         image.src = event.target.result as string;
       };
-      reader.onerror = () => reject(new Error('FileReader error'));
+      reader.onerror = () => reject(new Error("FileReader error"));
       reader.readAsDataURL(file);
     });
   }
@@ -246,13 +246,15 @@ const BorderWatermark: React.FC = () => {
     position,
     batchSize = 5,
   ) {
-    const downloadLink = document.createElement('a');
-    downloadLink.style.display = 'none';
+    const downloadLink = document.createElement("a");
+    downloadLink.style.display = "none";
     document.body.appendChild(downloadLink);
 
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
-      const promises = batch.map((file) => processBlurImage(file, watermarkImage, position));
+      const promises = batch.map((file) =>
+        processBlurImage(file, watermarkImage, position),
+      );
       const imageBlobs = await Promise.all(promises);
 
       imageBlobs.forEach(({ url, name }, index) => {
@@ -280,13 +282,13 @@ const BorderWatermark: React.FC = () => {
 
   const handleApplyWatermark = () => {
     if (!watermarkUrl) {
-      message.error('请上传水印图片！');
+      message.error("请上传水印图片！");
       return;
     }
     setLoading(true);
     const watermarkImage = new Image();
     watermarkImage.onload = () => {
-      message.success('水印下载开始！');
+      message.success("水印下载开始！");
       const imageFiles = images.map((image) => image.file);
       downloadImagesWithWatermarkBatch(
         imageFiles,
@@ -296,7 +298,7 @@ const BorderWatermark: React.FC = () => {
     };
 
     watermarkImage.onerror = () => {
-      message.error('Failed to load the watermark image.');
+      message.error("Failed to load the watermark image.");
       setLoading(false);
     };
     watermarkImage.src = watermarkUrl;
@@ -328,7 +330,7 @@ const BorderWatermark: React.FC = () => {
             alt="bg"
             className="watermarkBg"
           />
-          <div className={`bgOverlay ${isBlurred ? 'bgBlur' : ''}`}></div>
+          <div className={`bgOverlay ${isBlurred ? "bgBlur" : ""}`}></div>
         </>
       ) : (
         <></>
@@ -352,14 +354,14 @@ const BorderWatermark: React.FC = () => {
                       key={index}
                       onClick={() => setCurrentImg(image)}
                       className={
-                        currentImg.id === image.id ? 'selectedImg' : 'imgCover'
+                        currentImg.id === image.id ? "selectedImg" : "imgCover"
                       }
                     >
                       <img
                         src={URL.createObjectURL(image?.file)}
                         style={{
-                          width: `${(image.width / image.height) * 20}vh`,
-                          height: '20vh',
+                          width: "12vw",
+                          height: `${(image.height / image.width) * 12}vw`,
                         }}
                         alt="bg"
                         className="bg-img"
@@ -401,11 +403,11 @@ const BorderWatermark: React.FC = () => {
                   src={watermarkUrl} // 当 watermarkUrl 不存在时，显示默认图片
                   alt="watermark"
                   style={{
-                    width: '12vh',
-                    cursor: 'pointer', // 将鼠标样式设置为指针，以指示图片是可点击的
+                    width: "12vh",
+                    cursor: "pointer", // 将鼠标样式设置为指针，以指示图片是可点击的
                   }}
                   onClick={() =>
-                    document.getElementById('watermarkUploader').click()
+                    document.getElementById("watermarkUploader").click()
                   } // 模拟点击 input
                 />
               </ImageUploader>
@@ -425,7 +427,7 @@ const BorderWatermark: React.FC = () => {
                 className="applyWatermark"
                 disabled={loading}
               >
-                {loading ? <Spin /> : '水印生成'}
+                {loading ? <Spin /> : "水印生成"}
               </button>
             </div>
           </div>
@@ -434,7 +436,7 @@ const BorderWatermark: React.FC = () => {
       <FloatButton
         icon={<AppstoreFilled />}
         tooltip={<div>大图拼接</div>}
-        onClick={() => navigate('/puzzle')}
+        onClick={() => navigate("/puzzle")}
       />
     </div>
   );

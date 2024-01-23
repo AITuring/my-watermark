@@ -45,8 +45,9 @@
 }
 
 .imageParts {
-  /* width: 80vw;
-  padding-left: 20px; */
+  display: flex;
+  justify-content: center;
+  padding: 20px;
   color: #000;
 }
 
@@ -76,8 +77,10 @@
 
 .imgGallery {
   display: flex;
+  flex-direction: column;
   flex-wrap: wrap;
   background: #fff;
+  margin-right: 20px;
 }
 
 .imgCover {
@@ -109,7 +112,6 @@
 
 .watermarkEditor {
   background-color: #fff;
-  margin-top: 20px;
   padding: 20px;
   display: flex;
   flex-direction: column;

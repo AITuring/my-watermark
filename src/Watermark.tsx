@@ -422,8 +422,8 @@ const Watermark: React.FC = () => {
                       <img
                         src={URL.createObjectURL(image?.file)}
                         style={{
-                          width: `${(image.width / image.height) * 20}vh`,
-                          height: "20vh",
+                          width: "12vw",
+                          height: `${(image.height / image.width) * 12}vw`,
                         }}
                         alt="bg"
                         className="bg-img"
