@@ -41,4 +41,5 @@ This is a [Vite](https://vitejs.dev) project together with React.
 - [ ] 背景图片放大是在预览图宽高范围内放大，不应该超过这个区域
 - [ ] 编辑撤销重做
 - [ ] 浏览器扩展
+- [ ] 可以整个日历todo组件当做封面（功能强大一些，可以同步日历啥的）
 
