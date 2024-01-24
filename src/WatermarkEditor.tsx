@@ -24,6 +24,10 @@ const drawGuideLines = (layer, stageWidth, stageHeight) => {
   const lineStrokeWidth = 1;
   const dash = [4, 6];
 
+  // 清除旧的参考线
+  const oldLines = layer.find(".guide-line");
+  oldLines.forEach((line) => line.destroy());
+
   // 生成多条水平辅助线
   for (let i = 1; i <= 3; i++) {
     const yPos = (stageHeight / 4) * i;
@@ -32,6 +36,7 @@ const drawGuideLines = (layer, stageWidth, stageHeight) => {
       stroke: lineStroke,
       strokeWidth: lineStrokeWidth,
       dash: dash,
+      name: "guide-line", // 给参考线添加名称
     });
     layer.add(horizontalLine);
   }
@@ -44,6 +49,7 @@ const drawGuideLines = (layer, stageWidth, stageHeight) => {
       stroke: lineStroke,
       strokeWidth: lineStrokeWidth,
       dash: dash,
+      name: "guide-line", // 给参考线添加名称
     });
     layer.add(verticalLine);
   }
@@ -129,7 +135,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   // 背景图片相关设置
   // 背景图片的固定宽度（或者高度），预览时图片固定就这么大，太大超过屏幕
   // 这些都是固定的
-  const backgroundFixWidth = 800;
+  // 将固定宽度的常量转换为状态
+  const [backgroundFixWidthVW, setBackgroundFixWidthVW] = useState(
+    () => window.innerWidth * 0.7,
+  );
   const [backgroundImageUrl, setBackgroundImageUrl] = useState("");
   const [backgroundImage, backgroundImageStatus] = useImage(backgroundImageUrl);
   // 预览时背景图片尺寸
@@ -168,6 +177,46 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 更新背景图片的缩放状态
     // setBackgroundScale(newScale);
   };
+
+  // 更新参考线的函数
+  const updateGuideLines = () => {
+    const stage = stageRef.current; // 获取Stage引用
+    if (!stage) return;
+
+    const layer = stage.getLayers()[0]; // 假设只有一个图层
+    // 只移除具有'guide-line'名称的元素
+    const guideLines = layer.find(".guide-line");
+    guideLines.forEach((line) => line.destroy());
+
+    drawGuideLines(
+      layer,
+      backgroundImageSize.width,
+      backgroundImageSize.height,
+    ); // 绘制新的参考线
+  };
+
+  // 更新背景图片宽度的状态
+  const updateBackgroundWidth = () => {
+    const vwWidth = window.innerWidth * 0.7; // 假设你想要80vw的宽度
+    setBackgroundFixWidthVW(vwWidth);
+  };
+
+  // 添加resize事件监听器，以便在窗口大小改变时更新背景图片宽度
+  useEffect(() => {
+    window.addEventListener("resize", updateBackgroundWidth);
+    // 当窗口大小改变时，同时更新背景图片和水印的尺寸和位置
+    const handleResize = () => {
+      updateBackgroundWidth();
+      updateWatermarkSize(currentScale);
+    };
+    window.addEventListener("resize", handleResize);
+    handleResize(); // 初始化尺寸和位置
+    return () => {
+      window.removeEventListener("resize", updateBackgroundWidth);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [currentScale]);
+
   // 更新水印尺寸
   const updateWatermarkSize = (scale) => {
     if (watermarkImage) {
@@ -201,7 +250,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   // 当背景图片加载完成时，更新背景图片的尺寸
   useEffect(() => {
     if (backgroundImage && backgroundImageStatus === "loaded") {
-      const scaleWidth = backgroundFixWidth / backgroundImage.naturalWidth;
+      const scaleWidth = backgroundFixWidthVW / backgroundImage.naturalWidth;
       const windowHeight = window.innerHeight;
       const scaleHeight = windowHeight / backgroundImage.naturalHeight;
       // 选择宽度和高度中较小的缩放比例，以确保图片完全可见
@@ -210,10 +259,11 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
       const width = backgroundImage.naturalWidth * scale;
       const height = backgroundImage.naturalHeight * scale;
       setBackgroundImageSize({ width, height });
+      updateGuideLines();
       setCurrentScale(scale);
       // updateWatermarkSize(scale); // 更新水印的缩放比例
     }
-  }, [backgroundImage, backgroundImageStatus, backgroundFixWidth]);
+  }, [backgroundImage, backgroundImageStatus, backgroundFixWidthVW]);
 
   // 初始化水印尺寸
   useEffect(() => {
