@@ -1,6 +1,14 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { message, Spin, InputNumber, FloatButton, Switch, Tooltip } from "antd";
+import {
+  message,
+  Spin,
+  InputNumber,
+  FloatButton,
+  Switch,
+  Tooltip,
+  Image as AntdImage,
+} from "antd";
 import {
   CloseCircleOutlined,
   AppstoreFilled,
@@ -411,44 +419,48 @@ const Watermark: React.FC = () => {
             <div className="imageParts">
               {images.length > 0 && (
                 <div className="imgGallery">
-                  {images.map((image, index) => (
-                    <div
-                      key={index}
-                      onClick={() => setCurrentImg(image)}
-                      className={
-                        currentImg.id === image.id ? "selectedImg" : "imgCover"
-                      }
-                    >
-                      <img
-                        src={URL.createObjectURL(image?.file)}
-                        style={{
-                          width: "12vw",
-                          height: `${(image.height / image.width) * 12}vw`,
-                        }}
-                        alt="bg"
-                        className="bg-img"
-                      />
-                      <CloseCircleOutlined
-                        className="deleteButton"
-                        onClick={(e) => {
-                          if (images.length === 1) {
-                            // 只有一张图片，直接恢复上传按钮
-                            setImages([]);
-                            setImageUploaderVisible(true);
-                          } else {
-                            e.stopPropagation(); // 阻止事件冒泡到图片的点击事件
-                            const newImages = images.filter(
-                              (_, imgIndex) => imgIndex !== index,
-                            );
-                            setImages(newImages);
-                            if (currentImg && currentImg.id === image.id) {
-                              setCurrentImg(newImages[0] || null); // 如果删除的是当前选中的图片，则更新当前图片为新数组的第一个，或者如果没有图片则设为 null
+                  <AntdImage.PreviewGroup>
+                    {images.map((image, index) => (
+                      <div
+                        key={index}
+                        onClick={() => setCurrentImg(image)}
+                        className={
+                          currentImg.id === image.id
+                            ? "selectedImg"
+                            : "imgCover"
+                        }
+                      >
+                        <AntdImage
+                          src={URL.createObjectURL(image?.file)}
+                          style={{
+                            width: "12vw",
+                            height: `${(image.height / image.width) * 12}vw`,
+                          }}
+                          alt="bg"
+                          className="bg-img"
+                        />
+                        <CloseCircleOutlined
+                          className="deleteButton"
+                          onClick={(e) => {
+                            if (images.length === 1) {
+                              // 只有一张图片，直接恢复上传按钮
+                              setImages([]);
+                              setImageUploaderVisible(true);
+                            } else {
+                              e.stopPropagation(); // 阻止事件冒泡到图片的点击事件
+                              const newImages = images.filter(
+                                (_, imgIndex) => imgIndex !== index,
+                              );
+                              setImages(newImages);
+                              if (currentImg && currentImg.id === image.id) {
+                                setCurrentImg(newImages[0] || null); // 如果删除的是当前选中的图片，则更新当前图片为新数组的第一个，或者如果没有图片则设为 null
+                              }
                             }
-                          }
-                        }}
-                      />
-                    </div>
-                  ))}
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </AntdImage.PreviewGroup>
                 </div>
               )}
               {watermarkUrl && currentImg && (
@@ -465,7 +477,7 @@ const Watermark: React.FC = () => {
                   src={watermarkUrl} // 当 watermarkUrl 不存在时，显示默认图片
                   alt="watermark"
                   style={{
-                    width: "12vh",
+                    height: "4vh",
                     cursor: "pointer", // 将鼠标样式设置为指针，以指示图片是可点击的
                   }}
                   onClick={() =>
