@@ -137,7 +137,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
   // 这些都是固定的
   // 将固定宽度的常量转换为状态
   const [backgroundFixWidthVW, setBackgroundFixWidthVW] = useState(
-    () => window.innerWidth * 0.7,
+    () => window.innerHeight * 0.6,
   );
   const [backgroundImageUrl, setBackgroundImageUrl] = useState("");
   const [backgroundImage, backgroundImageStatus] = useImage(backgroundImageUrl);
@@ -197,7 +197,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
   // 更新背景图片宽度的状态
   const updateBackgroundWidth = () => {
-    const vwWidth = window.innerWidth * 0.7; // 假设你想要80vw的宽度
+    const vwWidth = window.innerHeight * 0.6; // 假设你想要80vw的宽度
     setBackgroundFixWidthVW(vwWidth);
   };
 
