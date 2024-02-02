@@ -14,7 +14,7 @@ const App = () => {
           <Route path="/" element={<Watermark />} />
           <Route path="/border" element={<BorderWatermark />} />
           <Route path="/puzzle" element={<Puzzle />} />
-          <Route path="/lottry" element={<Lottery />} />
+          <Route path="/lottery" element={<Lottery />} />
           <Route path="/change" element={<ChangeColor />} />
         </Routes>
       </Router>
