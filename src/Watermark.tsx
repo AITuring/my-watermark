@@ -1,6 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { message, Spin, InputNumber, FloatButton, Switch, Tooltip, Image as AntdImage } from 'antd';
+import {
+  message,
+  Spin,
+  InputNumber,
+  FloatButton,
+  Switch,
+  Tooltip,
+  Image as AntdImage,
+} from 'antd';
 import {
   CloseCircleOutlined,
   AppstoreFilled,
@@ -9,6 +17,7 @@ import {
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from './ImageUploader';
 import WatermarkEditor from './WatermarkEditor';
+import VerticalCarousel from './VerticalCarousel';
 // import EmojiBg from './EmojiBg';
 import * as StackBlur from 'stackblur-canvas';
 import confetti from 'canvas-confetti';
@@ -144,7 +153,6 @@ const Watermark: React.FC = () => {
     imageHeight,
     position,
   ) {
-
     // scaleX和scaleY是相等的，用随便一个就行
     const scale = position.scaleX;
     const watermarkWidth = watermarkImage.width * scale;
@@ -156,7 +164,7 @@ const Watermark: React.FC = () => {
 
     // 边缘检测
     // 检查水印是否超出图片的左边界
-    if (watermarkX < 0 ) {
+    if (watermarkX < 0) {
       watermarkX = 4;
     }
     // 检查水印是否超出图片的右边界
@@ -202,8 +210,8 @@ const Watermark: React.FC = () => {
             image.height,
             position,
           );
-          let watermarkX = watermarkPosition.x;
-          let watermarkY = watermarkPosition.y;
+          const watermarkX = watermarkPosition.x;
+          const watermarkY = watermarkPosition.y;
           const watermarkWidth = watermarkPosition.width;
           const watermarkHeight = watermarkPosition.height;
 
@@ -227,7 +235,12 @@ const Watermark: React.FC = () => {
             // 创建径向渐变
             const centerX = watermarkX + watermarkWidth / 2;
             const centerY = watermarkY + watermarkHeight / 2;
-            console.log(watermarkX, watermarkY, watermarkWidth, watermarkHeight)
+            console.log(
+              watermarkX,
+              watermarkY,
+              watermarkWidth,
+              watermarkHeight,
+            );
             const innerRadius = 0; // 从中心开始渐变
             const outerRadius = Math.max(watermarkWidth, watermarkHeight); // 渐变扩散的半径
             console.log(centerX, centerY, innerRadius, outerRadius);
@@ -317,7 +330,9 @@ const Watermark: React.FC = () => {
 
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
-      const promises = batch.map((file) => processImage(file, watermarkImage, position));
+      const promises = batch.map((file) =>
+        processImage(file, watermarkImage, position),
+      );
       const imageBlobs = await Promise.all(promises);
 
       imageBlobs.forEach(({ url, name }, index) => {
@@ -413,44 +428,47 @@ const Watermark: React.FC = () => {
               {images.length > 0 && (
                 <div className="imgGallery">
                   <AntdImage.PreviewGroup>
-                  {images.map((image, index) => (
-                    <div
-                      key={index}
-                      onClick={() => setCurrentImg(image)}
-                      className={
-                        currentImg.id === image.id ? 'selectedImg' : 'imgCover'
-                      }
-                    >
-                      <AntdImage
-                        src={URL.createObjectURL(image?.file)}
-                        style={{
-                          width: '12vw',
-                          height: `${(image.height / image.width) * 12}vw`,
-                        }}
-                        alt="bg"
-                        className="bg-img"
-                      />
-                      <CloseCircleOutlined
-                        className="deleteButton"
-                        onClick={(e) => {
-                          if (images.length === 1) {
-                            // 只有一张图片，直接恢复上传按钮
-                            setImages([]);
-                            setImageUploaderVisible(true);
-                          } else {
-                            e.stopPropagation(); // 阻止事件冒泡到图片的点击事件
-                            const newImages = images.filter(
-                              (_, imgIndex) => imgIndex !== index,
-                            );
-                            setImages(newImages);
-                            if (currentImg && currentImg.id === image.id) {
-                              setCurrentImg(newImages[0] || null); // 如果删除的是当前选中的图片，则更新当前图片为新数组的第一个，或者如果没有图片则设为 null
+                    <VerticalCarousel images={images} />
+                    {/* {images.map((image, index) => (
+                      <div
+                        key={index}
+                        onClick={() => setCurrentImg(image)}
+                        className={
+                          currentImg.id === image.id
+                            ? 'selectedImg'
+                            : 'imgCover'
+                        }
+                      >
+                        <AntdImage
+                          src={URL.createObjectURL(image?.file)}
+                          style={{
+                            width: '12vw',
+                            height: `${(image.height / image.width) * 12}vw`,
+                          }}
+                          alt="bg"
+                          className="bg-img"
+                        />
+                        <CloseCircleOutlined
+                          className="deleteButton"
+                          onClick={(e) => {
+                            if (images.length === 1) {
+                              // 只有一张图片，直接恢复上传按钮
+                              setImages([]);
+                              setImageUploaderVisible(true);
+                            } else {
+                              e.stopPropagation(); // 阻止事件冒泡到图片的点击事件
+                              const newImages = images.filter(
+                                (_, imgIndex) => imgIndex !== index,
+                              );
+                              setImages(newImages);
+                              if (currentImg && currentImg.id === image.id) {
+                                setCurrentImg(newImages[0] || null); // 如果删除的是当前选中的图片，则更新当前图片为新数组的第一个，或者如果没有图片则设为 null
+                              }
                             }
-                          }
-                        }}
-                      />
-                    </div>
-                  ))}
+                          }}
+                        />
+                      </div>
+                    ))} */}
                   </AntdImage.PreviewGroup>
                 </div>
               )}
