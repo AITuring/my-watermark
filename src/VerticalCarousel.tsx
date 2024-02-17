@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
-import './verticalCarousel.css';
+import React, { useState, useRef, useEffect } from "react";
+import { Image as AntdImage } from "antd";
+import "./verticalCarousel.css";
 
 interface ImageType {
   id: string;
@@ -25,10 +26,10 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({ images }) => {
     const handleResize = () => {
       // 窗口大小改变时，重新计算组件高度
     };
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 
@@ -55,22 +56,36 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({ images }) => {
   };
 
   return (
-    <div className="vertical-carousel" style={{ height: carouselHeight }} ref={carouselRef}>
-      <button className="arrow-button top" onClick={() => scrollToImage(Math.max(currentIndex - 1, 0))}>
+    <div
+      className="vertical-carousel"
+      style={{ height: carouselHeight }}
+      ref={carouselRef}
+    >
+      <button
+        className="arrow-button top"
+        onClick={() => scrollToImage(Math.max(currentIndex - 1, 0))}
+      >
         &uarr;
       </button>
-      <div className="images-container" style={{ overflowY: 'auto' }}>
-        {images.map((image, index) => (
-          <img
-            key={image.id}
-            ref={(ref) => setRef(ref, index)}
-            src={URL.createObjectURL(image?.file)} // 假设`image.src`是图片的源路径
-            alt={`Slide ${index}`}
-            className="carousel-image"
-          />
-        ))}
+      <div className="images-container" style={{ overflowY: "auto" }}>
+        <AntdImage.PreviewGroup>
+          {images.map((image, index) => (
+            <AntdImage
+              key={image.id}
+              // ref={(ref) => setRef(ref, index)}
+              src={URL.createObjectURL(image?.file)} // 假设`image.src`是图片的源路径
+              alt={`Slide ${index}`}
+              className="carousel-image"
+            />
+          ))}
+        </AntdImage.PreviewGroup>
       </div>
-      <button className="arrow-button bottom" onClick={() => scrollToImage(Math.min(currentIndex + 1, images.length - 1))}>
+      <button
+        className="arrow-button bottom"
+        onClick={() =>
+          scrollToImage(Math.min(currentIndex + 1, images.length - 1))
+        }
+      >
         &darr;
       </button>
     </div>

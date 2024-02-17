@@ -235,15 +235,10 @@ const Watermark: React.FC = () => {
             // 创建径向渐变
             const centerX = watermarkX + watermarkWidth / 2;
             const centerY = watermarkY + watermarkHeight / 2;
-            console.log(
-              watermarkX,
-              watermarkY,
-              watermarkWidth,
-              watermarkHeight,
-            );
+            
             const innerRadius = 0; // 从中心开始渐变
             const outerRadius = Math.max(watermarkWidth, watermarkHeight); // 渐变扩散的半径
-            console.log(centerX, centerY, innerRadius, outerRadius);
+            
             const gradient = ctx.createRadialGradient(
               centerX,
               centerY,
@@ -427,7 +422,7 @@ const Watermark: React.FC = () => {
             <div className="imageParts">
               {images.length > 0 && (
                 <div className="imgGallery">
-                  <AntdImage.PreviewGroup>
+                  {/* <AntdImage.PreviewGroup> */}
                     <VerticalCarousel images={images} />
                     {/* {images.map((image, index) => (
                       <div
@@ -469,7 +464,7 @@ const Watermark: React.FC = () => {
                         />
                       </div>
                     ))} */}
-                  </AntdImage.PreviewGroup>
+                  {/* </AntdImage.PreviewGroup> */}
                 </div>
               )}
               {watermarkUrl && currentImg && (
