@@ -325,7 +325,7 @@ const Puzzle = () => {
                   <Slider
                     style={{ width: "100px", marginLeft: "20px" }}
                     min={1}
-                    max={6}
+                    max={10}
                     onChange={(value) => setInputColumns(value)}
                     value={Number(inputColumns)}
                   />
