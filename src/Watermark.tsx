@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Lumiflex, Zenitho, Novatrix, Velustro, Tranquiluxe } from "uvcanvas";
 import {
   message,
   Spin,
@@ -8,20 +9,20 @@ import {
   Switch,
   Tooltip,
   Image as AntdImage,
-} from 'antd';
+} from "antd";
 import {
   CloseCircleOutlined,
   AppstoreFilled,
   QuestionCircleFilled,
-} from '@ant-design/icons';
+} from "@ant-design/icons";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
-import ImageUploader from './ImageUploader';
-import WatermarkEditor from './WatermarkEditor';
-import VerticalCarousel from './VerticalCarousel';
+import ImageUploader from "./ImageUploader";
+import WatermarkEditor from "./WatermarkEditor";
+import VerticalCarousel from "./VerticalCarousel";
 // import EmojiBg from './EmojiBg';
-import * as StackBlur from 'stackblur-canvas';
-import confetti from 'canvas-confetti';
-import './watermark.css';
+import * as StackBlur from "stackblur-canvas";
+import confetti from "canvas-confetti";
+import "./watermark.css";
 
 interface ImageType {
   id: string;
@@ -36,12 +37,23 @@ function uuid() {
   return idStr;
 }
 
+function getRandomBg() {
+  // 创建一个组件数组
+  const components = [Lumiflex, Zenitho, Novatrix, Velustro, Tranquiluxe];
+  // 随机选择一个组件的索引
+  const randomIndex = Math.floor(Math.random() * components.length);
+  // 选择一个组件
+  const SelectedComponent = components[randomIndex];
+  // 返回选中的组件
+  return <SelectedComponent />;
+}
+
 const Watermark: React.FC = () => {
   const navigate = useNavigate();
   const [images, setImages] = useState<ImageType[]>([]);
   // 当前照片
   const [currentImg, setCurrentImg] = useState<ImageType | null>();
-  const [watermarkUrl, setWatermarkUrl] = useState('/logo.png');
+  const [watermarkUrl, setWatermarkUrl] = useState("/logo.png");
   // TODO支持定制每一个水印
   const [watermarkPosition, setWatermarkPosition] = useState({
     x: 0,
@@ -108,7 +120,7 @@ const Watermark: React.FC = () => {
         setCurrentImg(images[0]);
       })
       .catch((error) => {
-        console.error('Error loading images: ', error);
+        console.error("Error loading images: ", error);
       });
   };
 
@@ -195,8 +207,8 @@ const Watermark: React.FC = () => {
         const image = new Image();
         image.onload = async () => {
           // 创建一个canvas元素
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
           canvas.width = image.width;
           canvas.height = image.height;
 
@@ -217,8 +229,8 @@ const Watermark: React.FC = () => {
 
           if (watermarkBlur) {
             // 创建一个临时canvas来应用模糊效果
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
+            const tempCanvas = document.createElement("canvas");
+            const tempCtx = tempCanvas.getContext("2d");
             tempCanvas.width = image.width;
             tempCanvas.height = image.height;
             tempCtx.drawImage(image, 0, 0, image.width, image.height);
@@ -235,10 +247,15 @@ const Watermark: React.FC = () => {
             // 创建径向渐变
             const centerX = watermarkX + watermarkWidth / 2;
             const centerY = watermarkY + watermarkHeight / 2;
-            
+            console.log(
+              watermarkX,
+              watermarkY,
+              watermarkWidth,
+              watermarkHeight,
+            );
             const innerRadius = 0; // 从中心开始渐变
             const outerRadius = Math.max(watermarkWidth, watermarkHeight); // 渐变扩散的半径
-            
+            console.log(centerX, centerY, innerRadius, outerRadius);
             const gradient = ctx.createRadialGradient(
               centerX,
               centerY,
@@ -247,11 +264,11 @@ const Watermark: React.FC = () => {
               centerY,
               outerRadius,
             );
-            gradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+            gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
 
             // 应用径向渐变作为蒙版
-            ctx.globalCompositeOperation = 'destination-out';
+            ctx.globalCompositeOperation = "destination-out";
             ctx.fillStyle = gradient;
             ctx.fillRect(
               watermarkX,
@@ -261,12 +278,12 @@ const Watermark: React.FC = () => {
             );
 
             // 绘制模糊的背景图片
-            ctx.globalCompositeOperation = 'destination-over';
+            ctx.globalCompositeOperation = "destination-over";
             ctx.drawImage(tempCanvas, 0, 0);
           }
 
           // 绘制清晰的水印
-          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalCompositeOperation = "source-over";
           // 保存当前context的状态
           ctx.save();
 
@@ -298,10 +315,10 @@ const Watermark: React.FC = () => {
                 const url = URL.createObjectURL(blob);
                 resolve({ url, name: file.name });
               } else {
-                reject(new Error('Canvas to Blob failed'));
+                reject(new Error("Canvas to Blob failed"));
               }
             },
-            'image/jpeg',
+            "image/jpeg",
             quality,
           );
         };
@@ -319,8 +336,8 @@ const Watermark: React.FC = () => {
     position,
     batchSize = 5,
   ) {
-    const downloadLink = document.createElement('a');
-    downloadLink.style.display = 'none';
+    const downloadLink = document.createElement("a");
+    downloadLink.style.display = "none";
     document.body.appendChild(downloadLink);
 
     for (let i = 0; i < files.length; i += batchSize) {
@@ -355,13 +372,13 @@ const Watermark: React.FC = () => {
 
   const handleApplyWatermark = () => {
     if (!watermarkUrl) {
-      message.error('请上传水印图片！');
+      message.error("请上传水印图片！");
       return;
     }
     setLoading(true);
     const watermarkImage = new Image();
     watermarkImage.onload = () => {
-      message.success('水印下载开始！');
+      message.success("水印下载开始！");
       const imageFiles = images.map((image) => image.file);
       downloadImagesWithWatermarkBatch(
         imageFiles,
@@ -371,7 +388,7 @@ const Watermark: React.FC = () => {
     };
 
     watermarkImage.onerror = () => {
-      message.error('Failed to load the watermark image.');
+      message.error("Failed to load the watermark image.");
       setLoading(false);
     };
     watermarkImage.src = watermarkUrl;
@@ -398,12 +415,13 @@ const Watermark: React.FC = () => {
       {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
       {imageUploaderVisible ? (
         <>
-          <img
+          <div className="watermarkBg">{getRandomBg()}</div>
+          {/* <img
             src="https://bing.img.run/rand_uhd.php"
             alt="bg"
             className="watermarkBg"
-          />
-          <div className={`bgOverlay ${isBlurred ? 'bgBlur' : ''}`}></div>
+          /> */}
+          {/* <div className={`bgOverlay ${isBlurred ? 'bgBlur' : ''}`}></div> */}
         </>
       ) : (
         <></>
@@ -422,7 +440,7 @@ const Watermark: React.FC = () => {
             <div className="imageParts">
               {images.length > 0 && (
                 <div className="imgGallery">
-                  {/* <AntdImage.PreviewGroup> */}
+                  <AntdImage.PreviewGroup>
                     <VerticalCarousel images={images} />
                     {/* {images.map((image, index) => (
                       <div
@@ -464,7 +482,7 @@ const Watermark: React.FC = () => {
                         />
                       </div>
                     ))} */}
-                  {/* </AntdImage.PreviewGroup> */}
+                  </AntdImage.PreviewGroup>
                 </div>
               )}
               {watermarkUrl && currentImg && (
@@ -481,11 +499,11 @@ const Watermark: React.FC = () => {
                   src={watermarkUrl} // 当 watermarkUrl 不存在时，显示默认图片
                   alt="watermark"
                   style={{
-                    height: '4vh',
-                    cursor: 'pointer', // 将鼠标样式设置为指针，以指示图片是可点击的
+                    height: "4vh",
+                    cursor: "pointer", // 将鼠标样式设置为指针，以指示图片是可点击的
                   }}
                   onClick={() =>
-                    document.getElementById('watermarkUploader').click()
+                    document.getElementById("watermarkUploader").click()
                   } // 模拟点击 input
                 />
               </ImageUploader>
@@ -505,7 +523,7 @@ const Watermark: React.FC = () => {
                   水印背景模糊
                   <Tooltip
                     title="开启后水印周围有一层高斯模糊"
-                    style={{ marginLeft: '6px' }}
+                    style={{ marginLeft: "6px" }}
                   >
                     <QuestionCircleFilled />
                   </Tooltip>
@@ -522,7 +540,7 @@ const Watermark: React.FC = () => {
                 className="applyWatermark"
                 disabled={loading}
               >
-                {loading ? <Spin /> : '水印生成'}
+                {loading ? <Spin /> : "水印生成"}
               </button>
             </div>
           </div>
@@ -531,7 +549,7 @@ const Watermark: React.FC = () => {
       <FloatButton
         icon={<AppstoreFilled />}
         tooltip={<div>大图拼接</div>}
-        onClick={() => navigate('/puzzle')}
+        onClick={() => navigate("/puzzle")}
       />
     </div>
   );

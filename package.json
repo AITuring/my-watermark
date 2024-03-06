@@ -34,7 +34,8 @@
     "stackblur-canvas": "^2.6.0",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
-    "use-image": "^1.1.1"
+    "use-image": "^1.1.1",
+    "uvcanvas": "^0.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.7",

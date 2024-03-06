@@ -11,20 +11,20 @@
   width: 100%; /* 宽度填满容器 */
   height: 100%; /* 高度填满容器 */
   object-fit: cover; /* 确保图片覆盖整个容器而不变形 */
-  z-index: -2; /* 确保图片在内容之下 */
+  z-index: -1; /* 确保图片在内容之下 */
 }
 
-.bgOverlay {
+/* .bgOverlay {
   position: absolute;
   width: 100%;
   height: 100%;
-  z-index: -1; /* 确保这一层在背景图片之上，其他内容之下 */
-}
+  z-index: -1; 确保这一层在背景图片之上，其他内容之下
+} */
 
-.bgBlur {
+/* .bgBlur {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-}
+} */
 
 .imgWatermark {
   display: flex;
