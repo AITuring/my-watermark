@@ -1,11 +1,10 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lumiflex, Zenitho, Novatrix, Velustro, Tranquiluxe } from "uvcanvas";
 import {
   message,
   Spin,
   InputNumber,
-  FloatButton,
   Switch,
   Tooltip,
   Image as AntdImage,
@@ -38,6 +37,7 @@ function uuid() {
 }
 
 function getRandomBg() {
+  console.log("getRandomBg");
   // 创建一个组件数组
   const components = [Lumiflex, Zenitho, Novatrix, Velustro, Tranquiluxe];
   // 随机选择一个组件的索引
@@ -49,7 +49,6 @@ function getRandomBg() {
 }
 
 const Watermark: React.FC = () => {
-  const navigate = useNavigate();
   const [images, setImages] = useState<ImageType[]>([]);
   // 当前照片
   const [currentImg, setCurrentImg] = useState<ImageType | null>();
@@ -76,6 +75,12 @@ const Watermark: React.FC = () => {
   const [quality, setQuality] = useState<number>(0.9);
   // 水印背景模糊
   const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
+
+  const [randomComponent, setRandomComponent] = useState(null);
+
+  useEffect(() => {
+    setRandomComponent(getRandomBg());
+  }, []);
 
   const handleMouseMove = (event) => {
     if (dropzoneRef.current) {
@@ -415,7 +420,7 @@ const Watermark: React.FC = () => {
       {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
       {imageUploaderVisible ? (
         <>
-          <div className="watermarkBg">{getRandomBg()}</div>
+          <div className="watermarkBg">{randomComponent}</div>
           {/* <img
             src="https://bing.img.run/rand_uhd.php"
             alt="bg"
@@ -546,11 +551,11 @@ const Watermark: React.FC = () => {
           </div>
         )}
       </div>
-      <FloatButton
+      {/* <FloatButton
         icon={<AppstoreFilled />}
         tooltip={<div>大图拼接</div>}
-        onClick={() => navigate("/puzzle")}
-      />
+        onClick={() => navigate('/puzzle')}
+      /> */}
     </div>
   );
 };
