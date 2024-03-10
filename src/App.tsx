@@ -5,6 +5,15 @@ import {
   Routes,
   useNavigate,
 } from "react-router-dom";
+import {
+  Navbar,
+  NavbarBrand,
+  NavbarContent,
+  NavbarItem,
+  Link,
+  Button,
+} from "@nextui-org/react";
+import AiLogo from '@/components/AiLogo';
 import type { MenuProps } from "antd";
 import { Menu } from "antd";
 import {
@@ -66,7 +75,34 @@ const App = () => {
   return (
     <div className="app">
       <Router>
-        <NavigationMenu current={current} setCurrent={setCurrent} />
+        <Navbar onChange={(e => console.log(e))}>
+          <NavbarBrand>
+            <AiLogo />
+            <p className="font-bold text-inherit">AITuring</p>
+          </NavbarBrand>
+          <NavbarContent className="hidden sm:flex gap-4" justify="center">
+            <NavbarItem>
+              <Link color="foreground" href="/">
+                水印添加
+              </Link>
+            </NavbarItem>
+            <NavbarItem isActive>
+              <Link href="/puzzle" aria-current="page">
+                大图拼接
+              </Link>
+            </NavbarItem>
+            <NavbarItem>
+              <Link color="foreground" href="/lottery">
+                微博抽奖
+              </Link>
+            </NavbarItem>
+            <NavbarItem>
+              <Link color="foreground" href="/change">
+                图片颜色调整
+              </Link>
+            </NavbarItem>
+          </NavbarContent>
+        </Navbar>
         <Routes>
           <Route path="/" element={<Watermark />} />
           <Route path="/border" element={<BorderWatermark />} />
