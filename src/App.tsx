@@ -13,7 +13,8 @@ import {
   Link,
   Button,
 } from "@nextui-org/react";
-import AiLogo from '@/components/AiLogo';
+import useDarkMode from "use-dark-mode";
+import AiLogo from "@/components/AiLogo";
 import type { MenuProps } from "antd";
 import { Menu } from "antd";
 import {
@@ -70,12 +71,17 @@ const NavigationMenu = ({ current, setCurrent }) => {
 };
 
 const App = () => {
+  const darkMode = useDarkMode(false);
   const [current, setCurrent] = useState("/");
 
   return (
-    <div className="app">
+    <div
+      className={`${
+        darkMode.value ? "dark" : ""
+      } text-foreground bg-background`}
+    >
       <Router>
-        <Navbar onChange={(e => console.log(e))}>
+        <Navbar onChange={(e) => console.log(e)}>
           <NavbarBrand>
             <AiLogo />
             <p className="font-bold text-inherit">AITuring</p>
@@ -100,6 +106,14 @@ const App = () => {
               <Link color="foreground" href="/change">
                 图片颜色调整
               </Link>
+            </NavbarItem>
+          </NavbarContent>
+          <NavbarContent className="flex gap-4" justify="end">
+            <NavbarItem>
+              <div>
+                <button onClick={darkMode.disable}>Light Mode</button>
+                <button onClick={darkMode.enable}>Dark Mode</button>
+              </div>
             </NavbarItem>
           </NavbarContent>
         </Navbar>
