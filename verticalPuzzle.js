@@ -1,3 +1,4 @@
+// node图片合成
 const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
