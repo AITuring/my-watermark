@@ -1,6 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Lumiflex, Zenitho, Novatrix, Velustro, Tranquiluxe } from "uvcanvas";
+import React, { useState, useRef } from "react";
 import {
   message,
   Spin,
@@ -10,8 +8,6 @@ import {
   Image as AntdImage,
 } from "antd";
 import {
-  CloseCircleOutlined,
-  AppstoreFilled,
   QuestionCircleFilled,
 } from "@ant-design/icons";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
@@ -34,18 +30,6 @@ function uuid() {
   let idStr = Date.now().toString(36);
   idStr += Math.random().toString(36).substr(2);
   return idStr;
-}
-
-function getRandomBg() {
-  console.log("getRandomBg");
-  // 创建一个组件数组
-  const components = [Lumiflex, Zenitho, Novatrix, Velustro, Tranquiluxe];
-  // 随机选择一个组件的索引
-  const randomIndex = Math.floor(Math.random() * components.length);
-  // 选择一个组件
-  const SelectedComponent = components[randomIndex];
-  // 返回选中的组件
-  return <SelectedComponent />;
 }
 
 const Watermark: React.FC = () => {
@@ -76,11 +60,6 @@ const Watermark: React.FC = () => {
   // 水印背景模糊
   const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
 
-  const [randomComponent, setRandomComponent] = useState(null);
-
-  useEffect(() => {
-    setRandomComponent(getRandomBg());
-  }, []);
 
   const handleMouseMove = (event) => {
     if (dropzoneRef.current) {
@@ -420,7 +399,8 @@ const Watermark: React.FC = () => {
       {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
       {imageUploaderVisible ? (
         <>
-          <div className="watermarkBg">{randomComponent}</div>
+          <div className="watermarkBg">
+          </div>
           {/* <img
             src="https://bing.img.run/rand_uhd.php"
             alt="bg"

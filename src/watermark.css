@@ -1,8 +1,19 @@
 /* 在 src/Watermark.css 中添加样式 */
+@keyframes scrollUp {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
 
 .watermarkApp {
   width: 100vw;
-  min-height: 100vh;
+  min-height: 90vh;
   position: relative;
 }
 
@@ -12,6 +23,10 @@
   height: 100%; /* 高度填满容器 */
   object-fit: cover; /* 确保图片覆盖整个容器而不变形 */
   /* z-index: -1; 确保图片在内容之下 */
+  background: linear-gradient(-90deg,#6d6d6d25 1px,transparent 0),linear-gradient(#6d6d6d25 1px,transparent 0),linear-gradient(-90deg,#6d6d6d25 1px,transparent 0),linear-gradient(#6d6d6d25 1px,transparent 0),linear-gradient(transparent 6px,transparent 0,transparent 156px,transparent 0),linear-gradient(-90deg,#6d6d6d25 1px,transparent 0),linear-gradient(-90deg,transparent 6px,transparent 0,transparent 156px,transparent 0),linear-gradient(#6d6d6d25 1px,transparent 0),0 0;
+
+  background-size: 32px 32px, 32px 32px, 256px 256px, 256px 256px, 256px 256px, 256px 256px, 256px 256px, 256px 256px;
+  animation: scrollUp 2s cubic-bezier(.215,.61,.355,1) forwards;
 }
 
 /* .bgOverlay {
