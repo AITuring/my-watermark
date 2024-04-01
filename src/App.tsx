@@ -11,8 +11,9 @@ import {
   NavbarContent,
   NavbarItem,
   Link,
-  Button,
+  Switch,
 } from "@nextui-org/react";
+import { Sun, MoonStar } from "lucide-react";
 import useDarkMode from "use-dark-mode";
 import AiLogo from "@/components/AiLogo";
 import type { MenuProps } from "antd";
@@ -110,10 +111,15 @@ const App = () => {
           </NavbarContent>
           <NavbarContent className="flex gap-4" justify="end">
             <NavbarItem>
-              <div>
-                <button onClick={darkMode.disable}>Light Mode</button>
-                <button onClick={darkMode.enable}>Dark Mode</button>
-              </div>
+              <Switch
+                defaultSelected
+                size="lg"
+                // color="secondary"
+                startContent={<Sun />}
+                endContent={<MoonStar />}
+                onChange={e => e.target.checked ? darkMode.disable() : darkMode.enable()}
+              >
+              </Switch>
             </NavbarItem>
           </NavbarContent>
         </Navbar>

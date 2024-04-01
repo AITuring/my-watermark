@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useState, useRef, memo } from "react";
 import { useDropzone } from "react-dropzone";
 import { useNavigate } from "react-router-dom";
-import { FloatButton, message, Button, Slider, Tooltip, Select } from "antd";
+import {message, Button, Slider, Tooltip, Select } from "antd";
 import {
   closestCenter,
   DndContext,
@@ -22,7 +22,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { PictureFilled, QuestionCircleFilled } from "@ant-design/icons";
-import ColorThief from "colorthief";
 import clsx from "clsx";
 import {
   PhotoAlbum,
@@ -31,6 +30,7 @@ import {
   RenderPhotoProps,
 } from "react-photo-album";
 import html2canvas from "html2canvas";
+import EmojiBg from "./EmojiBg";
 import "./puzzle.css";
 
 const watermarkUrl = "./assets/logo.png";
@@ -395,11 +395,12 @@ const Puzzle = () => {
         </div>
       ) : (
         <div className="upload">
-          <img
+          {/* <img
             src="https://bing.img.run/rand_uhd.php"
             alt="bg"
             className="puzzle-bg"
-          />
+          /> */}
+          <EmojiBg />
           <input {...getInputProps()} />
           <div {...getRootProps()} className="upload-button">
             <div>选择（或拖拽）图片</div>
@@ -409,11 +410,11 @@ const Puzzle = () => {
           </div>
         </div>
       )}
-      <FloatButton
+      {/* <FloatButton
         icon={<PictureFilled />}
         tooltip={<div>添加水印</div>}
         onClick={() => navigate("/")}
-      />
+      /> */}
     </div>
   );
 };

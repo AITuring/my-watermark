@@ -9,10 +9,23 @@
 
 @keyframes scrollRight {
   from {
-    left: 100%;
+    left: 50%;
   }
   to {
-    left: -100%;
+    left: -50%;
+  }
+}
+
+@keyframes hor {
+  to {
+    left: 100vw;
+  }
+
+}
+
+@keyframes ver {
+  to {
+    top: 100vh;
   }
 }
 
@@ -26,19 +39,19 @@
   white-space: nowrap;
   font-size: 0; /* 移除内联元素间隙 */
   z-index: -1; /* 确保背景位于内容之下 */
-  opacity: 0.6;
+  opacity: 0.8;
 }
 
 .vertical {
   display: flex;
   flex-direction: column;
-  animation: scrollUp 20s linear infinite;
+  animation: scrollUp 14s linear infinite alternate;
 }
 
 .horizontal {
   display: flex;
   flex-direction: column;
-  animation: scrollRight 20s linear infinite;
+  animation: scrollRight 18s linear infinite alternate;
 }
 
 .emoji-row {
@@ -51,4 +64,7 @@
   user-select: none;
   line-height: 1; /* 移除额外的行高 */
   margin: 2vw;
+  /* animation:
+  hor 2s linear infinite alternate,
+  ver 5s linear infinite alternate; */
 }

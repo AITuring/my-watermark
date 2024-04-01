@@ -9,11 +9,18 @@ interface EmojiBgProps {
 
 const emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'];
 
-const EmojiBg: React.FC<EmojiBgProps> = ({ direction = 'horizontal', emojiSize = 32 }) => {
+const EmojiBg: React.FC<EmojiBgProps> = ({ direction = 'vertical', emojiSize = 32 }) => {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [emojiGrid, setEmojiGrid] = useState<JSX.Element[]>([]);
   const [numRows, setNumRows] = useState(0);
   const [numCols, setNumCols] = useState(0);
+
+  const a = "horizontal";
+const b = "vertical";
+
+const randomNumber = Math.floor(Math.random() * 2);
+
+const randomString = randomNumber === 0 ? a : b;
 
   // 计算并设置行数和列数
   useEffect(() => {
@@ -75,7 +82,7 @@ const EmojiBg: React.FC<EmojiBgProps> = ({ direction = 'horizontal', emojiSize =
   // }, [direction]);
 
   return (
-    <div className={`emoji-scroller ${direction}`} ref={scrollerRef}>
+    <div className={`emoji-scroller ${randomString}`} ref={scrollerRef}>
       {emojiGrid}
     </div>
   );
