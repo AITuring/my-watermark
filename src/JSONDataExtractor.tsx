@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { Button, Textarea } from "@nextui-org/react";
 
-const JSONDataExtractor = ({ onDataExtracted }) => {
+interface JSONDataExtractorProps {
+  onDataExtracted: (data) => void;
+}
+
+
+const JSONDataExtractor: React.FC<JSONDataExtractorProps> = ({ onDataExtracted}) => {
   const [jsonInput, setJsonInput] = useState('');
 
   const handleInputChange = (event) => {
@@ -8,8 +14,8 @@ const JSONDataExtractor = ({ onDataExtracted }) => {
   };
 
   const combineData = () => {
-    let jsonObjects = [];
-    let jsonString = jsonInput;
+    const jsonObjects = [];
+    const jsonString = jsonInput;
     let depth = 0;
     let start = 0; // JSON对象的起始位置
 
@@ -24,7 +30,7 @@ const JSONDataExtractor = ({ onDataExtracted }) => {
         depth--;
         if (depth === 0) {
           // 当括号平衡时，我们找到了一个独立的JSON对象
-          let jsonStr = jsonString.slice(start, i + 1);
+          const jsonStr = jsonString.slice(start, i + 1);
           jsonObjects.push(jsonStr);
         }
       }
@@ -37,7 +43,7 @@ const JSONDataExtractor = ({ onDataExtracted }) => {
     jsonObjects.forEach((jsonStr) => {
       try {
         const jsonObject = JSON.parse(jsonStr);
-        if (jsonObject.hasOwnProperty('data')) {
+        if ('data' in jsonObject) {
           combinedData = combinedData.concat(jsonObject.data);
         } else {
           console.error('JSON does not contain "data" property.');
@@ -54,27 +60,19 @@ const JSONDataExtractor = ({ onDataExtracted }) => {
 
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}>
+    <div className="my-4 flex flex-col items-center">
       <h2>转发用户数据</h2>
 
-      <textarea
+      <Textarea
         value={jsonInput}
         onChange={handleInputChange}
-        rows={10}
+        minRows={20}
         cols={50}
-        style={{
-          margin: '20px 0',
-          width: '90vw',
-        }}
-        placeholder="粘贴用户转发数据"
+        className='m-4 rounded w-11/12'
+        placeholder="打开网页端微博控制台，在网络一栏复制repostTimeline的响应数据，粘贴到文本框中，每段数据之间回车隔开"
       />
 
-      <button onClick={combineData}>获取转发名单</button>
+      <Button variant="bordered" onClick={combineData}>获取转发名单</Button>
     </div>
   );
 };

@@ -28,6 +28,7 @@ import Watermark from "./Watermark";
 import BorderWatermark from "./BorderWatermark";
 import Lottery from "./Lottery";
 import ChangeColor from "./ChangeColor";
+import BlackHole from "./components/BlackHole";
 import "./App.css";
 
 const items: MenuProps["items"] = [
@@ -79,7 +80,7 @@ const App = () => {
     <div
       className={`${
         darkMode.value ? "dark" : ""
-      } text-foreground bg-background`}
+      } text-foreground bg-background w-screen h-screen`}
     >
       <Router>
         <Navbar onChange={(e) => console.log(e)}>
@@ -129,6 +130,7 @@ const App = () => {
           <Route path="/puzzle" element={<Puzzle />} />
           <Route path="/lottery" element={<Lottery />} />
           <Route path="/change" element={<ChangeColor />} />
+          <Route path="/hole" element={<BlackHole />} />
         </Routes>
       </Router>
     </div>
