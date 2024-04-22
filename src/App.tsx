@@ -28,7 +28,7 @@ import Watermark from "./Watermark";
 import BorderWatermark from "./BorderWatermark";
 import Lottery from "./Lottery";
 import ChangeColor from "./ChangeColor";
-import BlackHole from "./components/BlackHole";
+import BlackHole from "./components/three";
 import "./App.css";
 
 const items: MenuProps["items"] = [
@@ -88,13 +88,13 @@ const App = () => {
             <AiLogo />
             <p className="font-bold text-inherit">AITuring</p>
           </NavbarBrand>
-          <NavbarContent className="hidden sm:flex gap-4" justify="center">
+          <NavbarContent className="hidden sm:flex gap-8" justify="start">
             <NavbarItem>
               <Link color="foreground" href="/">
                 水印添加
               </Link>
             </NavbarItem>
-            <NavbarItem isActive>
+            <NavbarItem>
               <Link href="/puzzle" aria-current="page">
                 大图拼接
               </Link>
