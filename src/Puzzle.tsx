@@ -1,6 +1,5 @@
 import { forwardRef, useCallback, useState, useRef, memo } from "react";
 import { useDropzone } from "react-dropzone";
-import { useNavigate } from "react-router-dom";
 import {message, Button, Slider, Tooltip, Select } from "antd";
 import {
   closestCenter,
@@ -130,7 +129,6 @@ function SortablePhotoFrame(
 }
 
 const Puzzle = () => {
-  const navigate = useNavigate();
   const galleryRef = useRef(null);
   const [files, setFiles] = useState([]);
   const [images, setImages] = useState<ImgProp[]>([]);
