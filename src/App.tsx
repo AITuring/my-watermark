@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Navbar,
   NavbarContent,
@@ -43,6 +43,18 @@ const menuItems = [
 const App = () => {
   const darkMode = useDarkMode(false);
   const [current, setCurrent] = useState("watermark");
+
+  useEffect(() => {
+    const time = new Date().getHours();
+
+    if (time >= 18 || time <= 7) {
+      darkMode.enable();
+    } else {
+      darkMode.disable();
+    }
+
+  }, []);
+
 
   return (
     <div
