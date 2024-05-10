@@ -47,7 +47,7 @@ const App = () => {
   useEffect(() => {
     const time = new Date().getHours();
 
-    if (time >= 18 || time <= 7) {
+    if (time > 18 || time < 7) {
       darkMode.enable();
     } else {
       darkMode.disable();
