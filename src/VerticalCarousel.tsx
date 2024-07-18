@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Image as AntdImage } from "antd";
+import { CircleX } from 'lucide-react';
+import useDarkMode from "use-dark-mode";
 import "./verticalCarousel.css";
 
 interface ImageType {
@@ -13,9 +14,11 @@ interface VerticalCarouselProps {
     images: ImageType[];
     setImages: React.Dispatch<React.SetStateAction<ImageType[]>>;
     setImageUploaderVisible: React.Dispatch<React.SetStateAction<boolean>>;
+    setCurrentImg: React.Dispatch<React.SetStateAction<ImageType | null>>;
 }
 
-const VerticalCarousel: React.FC<VerticalCarouselProps> = ({ images, setImages, setImageUploaderVisible }) => {
+const VerticalCarousel: React.FC<VerticalCarouselProps> = ({ images, setImages, setImageUploaderVisible, setCurrentImg }) => {
+    const {value: darkMode }  = useDarkMode();
     const [currentIndex, setCurrentIndex] = useState(0);
     const carouselRef = useRef<HTMLDivElement>(null);
     // 创建一个用于存放图片元素引用的数组
@@ -70,18 +73,30 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({ images, setImages, 
                 &uarr;
             </button>
             <div className="images-container" style={{ overflowY: "auto" }}>
-                <AntdImage.PreviewGroup>
                     {images.map((image, index) => (
-                        <AntdImage
-                            key={image.id}
+                        <div key={image.id} className="relative m-2 ">
+                        <img
                             // ref={(ref) => setRef(ref, index)}
                             src={URL.createObjectURL(image?.file)} // 假设`image.src`是图片的源路径
                             alt={`Slide ${index}`}
                             className="carousel-image"
+                            onClick={() => setCurrentImg(image)}
                         />
+                        <CircleX
+                            className={`w-4 h-4 absolute right-1 top-1 cursor-pointer`}
+                            style={{ color: darkMode ? '#fff' : '#000' }}
+                            onClick={() => {
+                                setImages(images => {
+                                    const newImages = images.filter(item => item.id !== image.id);
+                                    setCurrentImg(newImages[0])
+                                    return newImages;
+                                })
+                            }}
+                        />
+                        </div>
                     ))}
-                </AntdImage.PreviewGroup>
             </div>
+            <div>共计{images.length}张</div>
             {/* <button
                 className="arrow-button bottom"
                 onClick={() =>

@@ -58,6 +58,8 @@ const Watermark: React.FC = () => {
     // 水印背景模糊
     const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
 
+    console.log(currentImg, 'currentImg')
+
     const handleMouseMove = (event) => {
         if (dropzoneRef.current) {
             const threshold = 100;
@@ -424,6 +426,7 @@ const Watermark: React.FC = () => {
                                             setImageUploaderVisible={
                                                 setImageUploaderVisible
                                             }
+                                            setCurrentImg={setCurrentImg}
                                             />
                                     </AntdImage.PreviewGroup>
                                 </div>
