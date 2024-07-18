@@ -402,7 +402,21 @@ const Watermark: React.FC = () => {
 
     return (
         <div className="watermarkApp" onMouseMove={handleMouseMove}>
-            {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>}
+            {/* <SpeedInsights /> */}
+            {/* <EmojiBg direction="vertical" emojiSize={52} /> */}
+            {imageUploaderVisible ? (
+                <>
+                    <div className="watermarkBg"></div>
+                    {/* <img
+            src="https://bing.img.run/rand_uhd.php"
+            alt="bg"
+            className="watermarkBg"
+          /> */}
+                    {/* <div className={`bgOverlay ${isBlurred ? 'bgBlur' : ''}`}></div> */}
+                </>
+            ) : (
+                <></>
+            )}
             <div>
                 {imageUploaderVisible ? (
                     <div className="upbutton">
@@ -418,13 +432,47 @@ const Watermark: React.FC = () => {
                             {images.length > 0 && (
                                 <div className="imgGallery">
                                     <AntdImage.PreviewGroup>
-                                        <VerticalCarousel
-                                            images={images}
-                                            setImages={setImages}
-                                            setImageUploaderVisible={
-                                                setImageUploaderVisible
-                                            }
-                                            />
+                                        <VerticalCarousel images={images} />
+                                        {/* {images.map((image, index) => (
+                      <div
+                        key={index}
+                        onClick={() => setCurrentImg(image)}
+                        className={
+                          currentImg.id === image.id
+                            ? 'selectedImg'
+                            : 'imgCover'
+                        }
+                      >
+                        <AntdImage
+                          src={URL.createObjectURL(image?.file)}
+                          style={{
+                            width: '12vw',
+                            height: `${(image.height / image.width) * 12}vw`,
+                          }}
+                          alt="bg"
+                          className="bg-img"
+                        />
+                        <CloseCircleOutlined
+                          className="deleteButton"
+                          onClick={(e) => {
+                            if (images.length === 1) {
+                              // 只有一张图片，直接恢复上传按钮
+                              setImages([]);
+                              setImageUploaderVisible(true);
+                            } else {
+                              e.stopPropagation(); // 阻止事件冒泡到图片的点击事件
+                              const newImages = images.filter(
+                                (_, imgIndex) => imgIndex !== index,
+                              );
+                              setImages(newImages);
+                              if (currentImg && currentImg.id === image.id) {
+                                setCurrentImg(newImages[0] || null); // 如果删除的是当前选中的图片，则更新当前图片为新数组的第一个，或者如果没有图片则设为 null
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+                    ))} */}
                                     </AntdImage.PreviewGroup>
                                 </div>
                             )}
@@ -496,6 +544,11 @@ const Watermark: React.FC = () => {
                     </div>
                 )}
             </div>
+            {/* <FloatButton
+        icon={<AppstoreFilled />}
+        tooltip={<div>大图拼接</div>}
+        onClick={() => navigate('/puzzle')}
+      /> */}
         </div>
     );
 };
