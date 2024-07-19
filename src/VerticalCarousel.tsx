@@ -1,14 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { CircleX } from 'lucide-react';
+import { CircleX, CirclePlus } from "lucide-react";
 import useDarkMode from "use-dark-mode";
+import ImageUploader from "./ImageUploader";
+import { loadImageData } from "./utils";
+import { ImageType } from "./types";
 import "./verticalCarousel.css";
-
-interface ImageType {
-    id: string;
-    file: File;
-    width: number;
-    height: number;
-}
 
 interface VerticalCarouselProps {
     images: ImageType[];
@@ -17,8 +13,13 @@ interface VerticalCarouselProps {
     setCurrentImg: React.Dispatch<React.SetStateAction<ImageType | null>>;
 }
 
-const VerticalCarousel: React.FC<VerticalCarouselProps> = ({ images, setImages, setImageUploaderVisible, setCurrentImg }) => {
-    const {value: darkMode }  = useDarkMode();
+const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
+    images,
+    setImages,
+    setImageUploaderVisible,
+    setCurrentImg,
+}) => {
+    const { value: darkMode } = useDarkMode();
     const [currentIndex, setCurrentIndex] = useState(0);
     const carouselRef = useRef<HTMLDivElement>(null);
     // 创建一个用于存放图片元素引用的数组
@@ -26,6 +27,11 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({ images, setImages, 
 
     const windowHeight = window.innerHeight;
     const carouselHeight = windowHeight * 0.8;
+
+    const handleImagesUpload = async (files: File[]) => {
+        const uploadImages:ImageType[] = await loadImageData(files);
+        setImages(images => [...images, ...uploadImages]);
+    };
 
     useEffect(() => {
         const handleResize = () => {
@@ -73,8 +79,8 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({ images, setImages, 
                 &uarr;
             </button>
             <div className="images-container" style={{ overflowY: "auto" }}>
-                    {images.map((image, index) => (
-                        <div key={image.id} className="relative m-2 ">
+                {images.map((image, index) => (
+                    <div key={image.id} className="relative m-2 ">
                         <img
                             // ref={(ref) => setRef(ref, index)}
                             src={URL.createObjectURL(image?.file)} // 假设`image.src`是图片的源路径
@@ -84,17 +90,19 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({ images, setImages, 
                         />
                         <CircleX
                             className={`w-4 h-4 absolute right-1 top-1 cursor-pointer`}
-                            style={{ color: darkMode ? '#fff' : '#000' }}
+                            style={{ color: darkMode ? "#fff" : "#000" }}
                             onClick={() => {
-                                setImages(images => {
-                                    const newImages = images.filter(item => item.id !== image.id);
-                                    setCurrentImg(newImages[0])
+                                setImages((images) => {
+                                    const newImages = images.filter(
+                                        (item) => item.id !== image.id
+                                    );
+                                    setCurrentImg(newImages[0]);
                                     return newImages;
-                                })
+                                });
                             }}
                         />
-                        </div>
-                    ))}
+                    </div>
+                ))}
             </div>
             <div>共计{images.length}张</div>
             {/* <button
@@ -105,10 +113,21 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({ images, setImages, 
             >
                 &darr;
             </button> */}
-            <button onClick={() => {
-                setImages([]);
-                setImageUploaderVisible(true);
-            }}>清空</button>
+            <button
+                onClick={() => {
+                    setImages([]);
+                    setImageUploaderVisible(true);
+                }}
+            >
+                清空
+            </button>
+
+            <ImageUploader
+                onUpload={handleImagesUpload}
+                fileType="水印"
+            >
+                <CirclePlus style={{ color: darkMode ? "#fff" : "#000" }} />
+            </ImageUploader>
         </div>
     );
 };

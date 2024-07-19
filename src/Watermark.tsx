@@ -5,9 +5,10 @@ import {
     InputNumber,
     Switch,
     Tooltip,
-    Image as AntdImage,
 } from "antd";
-import { QuestionCircleFilled } from "@ant-design/icons";
+import { CircleHelp } from 'lucide-react';
+import { loadImageData } from "./utils";
+import { ImageType } from "./types";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
@@ -17,21 +18,10 @@ import * as StackBlur from "stackblur-canvas";
 import confetti from "canvas-confetti";
 import "./watermark.css";
 
-interface ImageType {
-    id: string;
-    file: File;
-    width: number;
-    height: number;
-}
-
-function uuid() {
-    let idStr = Date.now().toString(36);
-    idStr += Math.random().toString(36).substr(2);
-    return idStr;
-}
 
 const Watermark: React.FC = () => {
     const [images, setImages] = useState<ImageType[]>([]);
+
     // 当前照片
     const [currentImg, setCurrentImg] = useState<ImageType | null>();
     const [watermarkUrl, setWatermarkUrl] = useState("/logo.png");
@@ -75,41 +65,16 @@ const Watermark: React.FC = () => {
         }
     };
 
-    const loadImages = (files) => {
-        const promises = files.map((file) => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    const img = new Image();
-                    img.onload = function () {
-                        resolve({
-                            id: uuid(),
-                            width: img.width,
-                            height: img.height,
-                            file: file,
-                        });
-                    };
-                    img.onerror = reject;
-                    img.src = e.target.result as string;
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        });
-
-        Promise.all(promises)
-            .then((images) => {
-                setImages(images); // 现在这里更新状态
-                setCurrentImg(images[0]);
-            })
-            .catch((error) => {
-                console.error("Error loading images: ", error);
-            });
-    };
-
-    const handleImagesUpload = (files: File[]) => {
-        loadImages(files);
+    const handleImagesUpload = async (files: File[]) => {
+        const uploadImages = await loadImageData(files);
+        setImages(uploadImages);
+        setCurrentImg(uploadImages[0]);
         setImageUploaderVisible(false);
+        // loadImageData(files).then((images) => {
+        //     setImages(images); // 现在这里更新状态
+        //     setCurrentImg(images[0]);
+        // });
+        // loadImages(files);
 
         if (files[0]) {
             // Update the original image dimensions when a new image is uploaded
@@ -419,7 +384,7 @@ const Watermark: React.FC = () => {
                         <div className="imageParts">
                             {images.length > 0 && (
                                 <div className="imgGallery">
-                                    <AntdImage.PreviewGroup>
+                                    {/* <AntdImage.PreviewGroup> */}
                                         <VerticalCarousel
                                             images={images}
                                             setImages={setImages}
@@ -428,7 +393,7 @@ const Watermark: React.FC = () => {
                                             }
                                             setCurrentImg={setCurrentImg}
                                             />
-                                    </AntdImage.PreviewGroup>
+                                    {/* </AntdImage.PreviewGroup> */}
                                 </div>
                             )}
                             {watermarkUrl && currentImg && (
@@ -470,13 +435,12 @@ const Watermark: React.FC = () => {
                                 />
                             </div>
                             <div className="operation">
-                                <div className="buttonText">
+                                <div className="my-2 flex items-center">
                                     水印背景模糊
                                     <Tooltip
                                         title="开启后水印周围有一层高斯模糊"
-                                        style={{ marginLeft: "6px" }}
                                     >
-                                        <QuestionCircleFilled />
+                                        <CircleHelp className="w-4 h-4 ml-2" />
                                     </Tooltip>
                                 </div>
                                 <Switch
