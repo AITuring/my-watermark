@@ -1,6 +1,5 @@
 /* eslint-disable react/display-name */
 import React, { useState, useEffect, useRef, forwardRef } from "react";
-// import { button } from "antd";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
