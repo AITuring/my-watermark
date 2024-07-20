@@ -1,18 +1,18 @@
 import { useCallback,forwardRef } from "react";
 import { useDropzone } from "react-dropzone";
-import "./watermark.css";
 
 // 定义 props 类型接口
 interface ImageUploaderProps {
     onUpload: (files: File[]) => void;
-    fileType: string;
+    fileType?: string;
     children?: React.ReactNode;
+    className?: string;
 }
 
 // 使用 React.forwardRef 和 TypeScript 泛型来定义组件和 ref 的类型
 const ImageUploader = forwardRef<HTMLDivElement, ImageUploaderProps>(
     (props, ref) => {
-        const { onUpload, fileType, children } = props;
+        const { onUpload, fileType, children, className } = props;
 
         const onDrop = useCallback(
             (acceptedFiles: File[]) => {
@@ -31,7 +31,7 @@ const ImageUploader = forwardRef<HTMLDivElement, ImageUploaderProps>(
         return (
             <div
                 {...getRootProps()}
-                className="dropzone"
+                className={className}
                 id="watermarkUploader"
                 ref={ref}
             >

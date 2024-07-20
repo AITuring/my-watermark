@@ -91,11 +91,10 @@ const App = () => {
                     ></Switch>
                 </NavbarContent>
             </Navbar>
-            <Card className="m-4">
-                <CardBody>
+                <div>
                     {menuItems.find((item) => item.key === current)?.component}
-                </CardBody>
-            </Card>
+                </div>
+
         </div>
     );
 };

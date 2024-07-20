@@ -48,7 +48,6 @@ const Watermark: React.FC = () => {
     // 水印背景模糊
     const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
 
-    console.log(currentImg, 'currentImg')
 
     const handleMouseMove = (event) => {
         if (dropzoneRef.current) {
@@ -377,7 +376,9 @@ const Watermark: React.FC = () => {
                             ref={dropzoneRef}
                             onUpload={handleImagesUpload}
                             fileType="背景"
-                        />
+                            className="w-40 h-20 cursor-pointer bg-blue-500 flex justify-center items-center font-sans font-bold text-white rounded focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                        </ImageUploader>
                     </div>
                 ) : (
                     <div className="imgWatermark">
@@ -408,14 +409,17 @@ const Watermark: React.FC = () => {
                             <ImageUploader
                                 onUpload={handleWatermarkUpload}
                                 fileType="水印"
+                                className="w-20 cursor-pointer bg-blue-500 "
                             >
                                 <img
                                     src={watermarkUrl} // 当 watermarkUrl 不存在时，显示默认图片
                                     alt="watermark"
-                                    style={{
-                                        height: "4vh",
-                                        cursor: "pointer", // 将鼠标样式设置为指针，以指示图片是可点击的
-                                    }}
+                                    // style={{
+                                    //     height: "4vh",
+                                    //     cursor: "pointer", // 将鼠标样式设置为指针，以指示图片是可点击的
+                                    //     background: "#268af8", // 背景色为白色，以显示图片
+                                    // }}
+
                                     onClick={() =>
                                         document
                                             .getElementById("watermarkUploader")

@@ -4,7 +4,6 @@ import useDarkMode from "use-dark-mode";
 import ImageUploader from "./ImageUploader";
 import { loadImageData } from "./utils";
 import { ImageType } from "./types";
-import "./verticalCarousel.css";
 
 interface VerticalCarouselProps {
     images: ImageType[];
@@ -29,36 +28,8 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     const carouselHeight = windowHeight * 0.8;
 
     const handleImagesUpload = async (files: File[]) => {
-        const uploadImages:ImageType[] = await loadImageData(files);
-        setImages(images => [...images, ...uploadImages]);
-    };
-
-    useEffect(() => {
-        const handleResize = () => {
-            // 窗口大小改变时，重新计算组件高度
-        };
-        window.addEventListener("resize", handleResize);
-
-        return () => {
-            window.removeEventListener("resize", handleResize);
-        };
-    }, []);
-
-    const scrollToImage = (index: number) => {
-        setCurrentIndex(index);
-        const carousel = carouselRef.current;
-        if (carousel) {
-            let scrollPosition = 0;
-            for (let i = 0; i < index; i++) {
-                const img = imageRefs.current[i];
-                if (img) {
-                    const imgHeight = img.getBoundingClientRect().height;
-                    // 你可能需要考虑图片之间的间距，如果有的话
-                    scrollPosition += imgHeight + (i !== 0 ? 10 /* 间距 */ : 0);
-                }
-            }
-            carousel.scrollTop = scrollPosition;
-        }
+        const uploadImages: ImageType[] = await loadImageData(files);
+        setImages((images) => [...images, ...uploadImages]);
     };
 
     // 为每张图片创建一个ref，并在渲染时更新它们
@@ -68,24 +39,17 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
 
     return (
         <div
-            className="vertical-carousel"
+            className="relative overflow-hidden flex flex-col items-center"
             style={{ height: carouselHeight }}
             ref={carouselRef}
         >
-            <button
-                className="arrow-button top"
-                onClick={() => scrollToImage(Math.max(currentIndex - 1, 0))}
-            >
-                &uarr;
-            </button>
-            <div className="images-container" style={{ overflowY: "auto" }}>
+            <div className="flex flex-col items-center overflow-y-auto">
                 {images.map((image, index) => (
                     <div key={image.id} className="relative m-2 ">
                         <img
                             // ref={(ref) => setRef(ref, index)}
                             src={URL.createObjectURL(image?.file)} // 假设`image.src`是图片的源路径
                             alt={`Slide ${index}`}
-                            className="carousel-image"
                             onClick={() => setCurrentImg(image)}
                         />
                         <CircleX
@@ -105,29 +69,21 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                 ))}
             </div>
             <div>共计{images.length}张</div>
-            {/* <button
-                className="arrow-button bottom"
-                onClick={() =>
-                    scrollToImage(Math.min(currentIndex + 1, images.length - 1))
-                }
-            >
-                &darr;
-            </button> */}
-            <button
-                onClick={() => {
-                    setImages([]);
-                    setImageUploaderVisible(true);
-                }}
-            >
-                清空
-            </button>
+            <div className="flex justify-between items-center">
+                <button
+                    onClick={() => {
+                        setImages([]);
+                        setImageUploaderVisible(true);
+                    }}
+                >
+                    清空
+                </button>
 
-            <ImageUploader
-                onUpload={handleImagesUpload}
-                fileType="水印"
-            >
-                <CirclePlus style={{ color: darkMode ? "#fff" : "#000" }} />
-            </ImageUploader>
+                <ImageUploader onUpload={handleImagesUpload} className="flex">
+                    <CirclePlus style={{ color: darkMode ? "#fff" : "#000" }} />{" "}
+                    添加
+                </ImageUploader>
+            </div>
         </div>
     );
 };

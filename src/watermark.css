@@ -128,44 +128,6 @@
     flex: 1;
 }
 
-.dropzone {
-    border: 2px solid #268af8;
-    background-color: #268af8;
-    font-weight: 500;
-    color: #fff;
-    width: 10vw;
-    border-radius: 5px;
-    padding: 20px;
-    cursor: pointer;
-    margin: 20px 0;
-    text-align: center;
-    transition:
-        background-color 0.3s,
-        transform 0.3s;
-    /* 添加过渡效果 */
-}
-
-.dropzone p {
-    margin: 0;
-    font-size: 16px;
-}
-
-.dropzone:hover {
-    background-color: #4a9dfb;
-    /* 鼠标悬停时的背景色 */
-    border-color: #4a9dfb;
-    transform: scale(1.05);
-    /* 鼠标悬停时稍微放大 */
-}
-
-.dropzone:active {
-    background-color: #1d6fd2;
-    /* 鼠标点击时的背景色 */
-    border-color: #1d6fd2;
-    transform: scale(0.95);
-    /* 鼠标点击时稍微缩小 */
-}
-
 .applyWatermark {
     background-color: #268af8;
     border: none;

@@ -1,142 +1,130 @@
 /* 在 src/App.css 中添加样式 */
 
 .App {
-  width: 100vw;
-  min-height: 100vh;
-  /* text-align: center; */
-  /* padding: 20px; */
-  position: relative;
-  /* display: flex;
+    width: 100vw;
+    min-height: 100vh;
+    /* text-align: center; */
+    /* padding: 20px; */
+    position: relative;
+    /* display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center; */
 }
 
 .bg {
-  position: absolute; /* 绝对定位相对于.tab */
-  width: 100%; /* 宽度填满容器 */
-  height: 100%; /* 高度填满容器 */
-  object-fit: cover; /* 确保图片覆盖整个容器而不变形 */
-  z-index: -1; /* 确保图片在内容之下 */
-  /* filter: blur(1px); */
+    position: absolute;
+    /* 绝对定位相对于.tab */
+    width: 100%;
+    /* 宽度填满容器 */
+    height: 100%;
+    /* 高度填满容器 */
+    object-fit: cover;
+    /* 确保图片覆盖整个容器而不变形 */
+    z-index: -1;
+    /* 确保图片在内容之下 */
+    /* filter: blur(1px); */
 }
 
 .watermark {
-  /* position: absolute; */
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  min-height: 100vh;
-  background: #F1F2F5;
+    /* position: absolute; */
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+    min-height: 100vh;
+    background: #F1F2F5;
 }
 
 .image-part {
-  width: 80vw;
-  padding-left: 20px;
+    width: 80vw;
+    padding-left: 20px;
 }
 
 .markButtons {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  /* background: #fff; */
-  box-shadow: -6px 0 16px 0 rgba(0, 0, 0, 0.08), -3px 0 6px -4px rgba(0, 0, 0, 0.12), -9px 0 28px 8px rgba(0, 0, 0, 0.05);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    /* background: #fff; */
+    box-shadow: -6px 0 16px 0 rgba(0, 0, 0, 0.08), -3px 0 6px -4px rgba(0, 0, 0, 0.12), -9px 0 28px 8px rgba(0, 0, 0, 0.05);
 }
 
 .upbutton {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .img-gallery {
-  display: flex;
-  flex-wrap: wrap;
-  background: #fff;
+    display: flex;
+    flex-wrap: wrap;
+    background: #fff;
 }
 
 .img-cover {
-  cursor: pointer;
-  margin: 20px;
-  padding: 20px;
-  border-radius: 4px;
-  position: relative;
+    cursor: pointer;
+    margin: 20px;
+    padding: 20px;
+    border-radius: 4px;
+    position: relative;
 }
 
 .img-cover:hover {
-  background-color: #f2f2f2;
+    background-color: #f2f2f2;
 }
 
 .select-img {
-  background-color: #268af8;
-  border-radius: 4px;
-  margin: 20px;
-  padding: 20px;
-  cursor: pointer;
-  position: relative;
+    background-color: #268af8;
+    border-radius: 4px;
+    margin: 20px;
+    padding: 20px;
+    cursor: pointer;
+    position: relative;
 }
 
 .delete {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
 }
 
 .editor {
-  background-color: #fff;
-  margin-top: 20px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.dropzone {
-  border: 2px solid #268af8;
-  background-color: #268af8;
-  color: #fff;
-  width: 10vw;
-  border-radius: 5px;
-  padding: 20px;
-  cursor: pointer;
-  margin: 20px 0;
-  text-align: center;
-}
-
-.dropzone p {
-  margin: 0;
-  font-size: 16px;
+    background-color: #fff;
+    margin-top: 20px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .button {
-  background-color: #268af8;
-  border: none;
-  color: white;
-  padding: 10px 20px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: 16px;
-  margin: 20px 0px;
-  cursor: pointer;
-  border-radius: 5px;
+    background-color: #268af8;
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 20px 0px;
+    cursor: pointer;
+    border-radius: 5px;
 }
 
 .error {
-  color: red;
-  margin-top: 10px;
+    color: red;
+    margin-top: 10px;
 }
 
 .loading {
-  color: #007bff;
-  margin-top: 10px;
+    color: #007bff;
+    margin-top: 10px;
 }
 
 /* watermarkEditor */
 .buttons {
-  margin-bottom: 20px;
+    margin-bottom: 20px;
 }
