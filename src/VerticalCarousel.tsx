@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
-import { CircleX, CirclePlus } from "lucide-react";
+import { CircleX, CirclePlus, FolderX } from "lucide-react";
 import useDarkMode from "use-dark-mode";
 import ImageUploader from "./ImageUploader";
+import { CustomButton } from "./components";
 import { loadImageData } from "./utils";
 import { ImageType } from "./types";
 
@@ -70,14 +71,26 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
             </div>
             <div>共计{images.length}张</div>
             <div className="flex justify-between items-center">
-                <button
+                <CustomButton
+                    variant="contained"
+                    color="primary"
+                    size="medium"
+                    onClick={() => {
+                        setImages([]);
+                        setImageUploaderVisible(true);
+                    }}
+                    icon={<FolderX />}
+                >
+                    清空
+                </CustomButton>
+                {/* <button
                     onClick={() => {
                         setImages([]);
                         setImageUploaderVisible(true);
                     }}
                 >
                     清空
-                </button>
+                </button> */}
 
                 <ImageUploader onUpload={handleImagesUpload} className="flex">
                     <CirclePlus style={{ color: darkMode ? "#fff" : "#000" }} />{" "}
