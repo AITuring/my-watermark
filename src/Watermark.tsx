@@ -1,13 +1,8 @@
 import React, { useState, useRef } from "react";
-import {
-    message,
-    Spin,
-    InputNumber,
-    Switch,
-    Tooltip,
-} from "antd";
-import { CircleHelp } from 'lucide-react';
-import { loadImageData } from "./utils";
+import { message, Spin, InputNumber, Switch, Tooltip } from "antd";
+import { ImageUp, CircleHelp } from "lucide-react";
+import { CustomButton } from "./components";
+import { loadImageData, calculateWatermarkPosition,debounce } from "./utils";
 import { ImageType } from "./types";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
@@ -17,7 +12,6 @@ import VerticalCarousel from "./VerticalCarousel";
 import * as StackBlur from "stackblur-canvas";
 import confetti from "canvas-confetti";
 import "./watermark.css";
-
 
 const Watermark: React.FC = () => {
     const [images, setImages] = useState<ImageType[]>([]);
@@ -33,8 +27,7 @@ const Watermark: React.FC = () => {
         scaleY: 1,
         rotation: 0,
     });
-    // 背景图片是否模糊
-    const [isBlurred, setIsBlurred] = useState(false);
+
     const dropzoneRef = useRef(null);
 
     const [loading, setLoading] = useState(false);
@@ -47,22 +40,6 @@ const Watermark: React.FC = () => {
     const [quality, setQuality] = useState<number>(0.9);
     // 水印背景模糊
     const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
-
-
-    const handleMouseMove = (event) => {
-        if (dropzoneRef.current) {
-            const threshold = 100;
-            const rect = dropzoneRef.current.getBoundingClientRect();
-            const mouseX = event.clientX;
-            const mouseY = event.clientY;
-            const isNear =
-                mouseX > rect.left - threshold &&
-                mouseX < rect.right + threshold &&
-                mouseY > rect.top - threshold &&
-                mouseY < rect.bottom + threshold;
-            setIsBlurred(isNear);
-        }
-    };
 
     const handleImagesUpload = async (files: File[]) => {
         const uploadImages = await loadImageData(files);
@@ -104,48 +81,6 @@ const Watermark: React.FC = () => {
     }) => {
         setWatermarkPosition(position);
     };
-
-    // 计算水印位置，简单一点，别想太多
-    function calculateWatermarkPosition(
-        watermarkImage,
-        imageWidth,
-        imageHeight,
-        position
-    ) {
-        // scaleX和scaleY是相等的，用随便一个就行
-        const scale = position.scaleX;
-        const watermarkWidth = watermarkImage.width * scale;
-        const watermarkHeight = watermarkImage.height * scale;
-
-        // 水印的左上角坐标
-        let watermarkX = position.x * imageWidth;
-        let watermarkY = position.y * imageHeight;
-
-        // 边缘检测
-        // 检查水印是否超出图片的左边界
-        if (watermarkX < 0) {
-            watermarkX = 4;
-        }
-        // 检查水印是否超出图片的右边界
-        if (watermarkX + watermarkWidth > imageWidth) {
-            watermarkX = imageWidth - watermarkWidth - 4;
-        }
-        // 检查水印是否超出图片的顶边界
-        if (watermarkY < 0) {
-            watermarkY = 4;
-        }
-        // 检查水印是否超出图片的底边界
-        if (watermarkY + watermarkHeight > imageHeight) {
-            watermarkY = imageHeight - watermarkHeight - 4;
-        }
-
-        return {
-            x: watermarkX,
-            y: watermarkY,
-            width: watermarkWidth,
-            height: watermarkHeight,
-        };
-    }
 
     async function processImage(file, watermarkImage, position) {
         return new Promise((resolve, reject) => {
@@ -351,23 +286,12 @@ const Watermark: React.FC = () => {
         watermarkImage.src = watermarkUrl;
     };
 
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
 
     // 使用 debounce 包裹你的事件处理函数
     const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
 
     return (
-        <div className="watermarkApp" onMouseMove={handleMouseMove}>
+        <div className="watermarkApp">
             {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>}
             <div>
                 {imageUploaderVisible ? (
@@ -376,8 +300,21 @@ const Watermark: React.FC = () => {
                             ref={dropzoneRef}
                             onUpload={handleImagesUpload}
                             fileType="背景"
-                            className="w-40 h-20 cursor-pointer bg-blue-500 flex justify-center items-center font-sans font-bold text-white rounded focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            // className="w-40 h-20 cursor-pointer bg-blue-500 flex justify-center items-center font-sans font-bold text-white rounded focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
+                            <CustomButton
+                                variant="contained"
+                                color="primary"
+                                size="xlarge"
+                                // className="w-40 h-20"
+                                // onClick={() => {
+                                //     setImages([]);
+                                //     setImageUploaderVisible(true);
+                                // }}
+                                icon={<ImageUp />}
+                            >
+                                上传背景图片
+                            </CustomButton>
                         </ImageUploader>
                     </div>
                 ) : (
@@ -386,14 +323,14 @@ const Watermark: React.FC = () => {
                             {images.length > 0 && (
                                 <div className="imgGallery">
                                     {/* <AntdImage.PreviewGroup> */}
-                                        <VerticalCarousel
-                                            images={images}
-                                            setImages={setImages}
-                                            setImageUploaderVisible={
-                                                setImageUploaderVisible
-                                            }
-                                            setCurrentImg={setCurrentImg}
-                                            />
+                                    <VerticalCarousel
+                                        images={images}
+                                        setImages={setImages}
+                                        setImageUploaderVisible={
+                                            setImageUploaderVisible
+                                        }
+                                        setCurrentImg={setCurrentImg}
+                                    />
                                     {/* </AntdImage.PreviewGroup> */}
                                 </div>
                             )}
@@ -441,9 +378,7 @@ const Watermark: React.FC = () => {
                             <div className="operation">
                                 <div className="my-2 flex items-center">
                                     水印背景模糊
-                                    <Tooltip
-                                        title="开启后水印周围有一层高斯模糊"
-                                    >
+                                    <Tooltip title="开启后水印周围有一层高斯模糊">
                                         <CircleHelp className="w-4 h-4 ml-2" />
                                     </Tooltip>
                                 </div>

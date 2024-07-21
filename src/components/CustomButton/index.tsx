@@ -1,3 +1,5 @@
+// TODO 不同sie，icon应该不一样
+
 import React, { FC, MouseEvent, useState } from "react";
 import classNames from "classnames";
 import { uuid } from "@/utils";
@@ -5,11 +7,12 @@ import { uuid } from "@/utils";
 interface CustomButtonProps {
     variant?: "text" | "outlined" | "contained";
     color?: "default" | "primary" | "secondary";
-    size?: "small" | "medium" | "large";
+    size?: "small" | "medium" | "large" | "xlarge";
     disabled?: boolean;
     icon?: React.ReactNode;
     onClick?: () => void;
     children: React.ReactNode;
+    className?: string;
 }
 
 type Ripple = {
@@ -28,6 +31,7 @@ const CustomButton: FC<CustomButtonProps> = ({
     onClick,
     icon,
     children,
+    className
 }) => {
     const [ripples, setRipples] = useState<
         Array<Ripple>
@@ -48,7 +52,7 @@ const CustomButton: FC<CustomButtonProps> = ({
     };
 
     const buttonClasses = classNames(
-        "relative overflow-hidden rounded transition duration-300 focus:outline-none text-white bg-gray-700 px-4 py-2 flex items-center cursor-pointer space-x-4",
+        "relative overflow-hidden rounded transition duration-300 focus:outline-none text-white px-4 py-2 flex justify-center items-center cursor-pointer",
         {
             "bg-blue-500": color === "primary",
             "bg-purple-500": color === "secondary",
@@ -66,7 +70,18 @@ const CustomButton: FC<CustomButtonProps> = ({
             "text-sm": size === "small",
             "text-base": size === "medium",
             "text-lg": size === "large",
-        }
+            "w-12": size === "small",
+            "w-24": size === "medium",
+            "w-36": size === "large",
+            "w-48": size === "xlarge",
+            "h-8": size === "small",
+            "h-12": size === "medium",
+            "h-20": size === "large",
+            "h-24": size === "xlarge",
+            // icon size
+
+        },
+        className
     );
 
     return (
@@ -75,7 +90,7 @@ const CustomButton: FC<CustomButtonProps> = ({
             onClick={handleClick}
             disabled={disabled}
         >
-            {icon}
+            {icon && <div className="mr-2">{icon}</div>}
             {children}
             {ripples.map(ripple => (
                 <span
