@@ -1,7 +1,6 @@
-"use client";
 import { ReactNode, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import ToggleSwitch from '../button/toggle-switch';
 import DarkToggle from "@/components/DarkToggle";
 
 import { cn } from "@/lib/utils";
@@ -10,42 +9,57 @@ interface TabProps {
     text: string;
     selected: boolean;
     setSelected: React.Dispatch<React.SetStateAction<string>>;
+    id: string;
+    url: string;
 }
 
 interface TabDataProp {
     label: string;
-    key: string;
-    content: ReactNode;
+    id: string;
+    url: string;
+    component: ReactNode;
 }
 
-export default function NavTabs({ tabs }: { tabs: string[] }) {
-    const [selected, setSelected] = useState<string>(tabs[0]);
+export default function NavTabs({ tabs }: { tabs: TabDataProp[] }) {
+    const navigate = useNavigate();
+    const [selected, setSelected] = useState<string>(tabs[0].id);
 
     return (
-        <div className="flex flex-wrap items-center justify-center gap-4 rounded-md bg-violet-950 p-6">
-            {tabs.map((tab) => (
-                <Tab
-                    text={tab}
-                    selected={selected === tab}
-                    setSelected={setSelected}
-                    key={tab}
-                />
-            ))}
+        <div className="flex items-center justify-around gap-4 rounded-md bg-violet-950 p-6">
+            <div className="flex items-center justify-center gap-4">
+                {tabs.map((tab) => (
+                    <Tab
+                        text={tab.label}
+                        selected={selected === tab.id}
+                        setSelected={() => {
+                            setSelected(tab.id);
+                            navigate(tab.url, { replace: true });
+                        }}
+                        id={tab.id}
+                        key={tab.id}
+                        url={tab.url}
+                    />
+                ))}
+            </div>
             <DarkToggle />
         </div>
     );
 }
 
-const Tab = ({ text, selected, setSelected }: TabProps) => {
+const Tab = ({ text, selected, setSelected, id, url }: TabProps) => {
+
     return (
         <button
-            onClick={() => setSelected(text)}
+            onClick={() => {
+                console.log(id);
+                setSelected(id)
+            }}
             className={cn(
                 "relative rounded-md p-2 text-sm transition-all",
                 selected ? "text-white" : "text-slate-300 hover:font-black"
             )}
         >
-            <p className="relative z-50 min-w-20">{text}</p>
+            <Link to={url} className="relative z-50 min-w-20">{text}</Link>
             {selected && (
                 <motion.span
                     layoutId="tabs"

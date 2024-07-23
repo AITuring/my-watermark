@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Navbar, Tabs, Tab } from "@nextui-org/react";
 import NavTabs from "./components/animata/container/nav-tabs";
 import useDarkMode from "use-dark-mode";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Puzzle from "./Puzzle";
 import Watermark from "./Watermark";
 import CompTest from "./CompTest";
@@ -13,34 +14,38 @@ import "./App.css";
 const menuItems = [
     {
         label: "水印添加",
-        key: "watermark",
+        id: "watermark",
+        url: "/",
         component: <Watermark />,
     },
     {
         label: "大图拼接",
-        key: "puzzle",
+        id: "puzzle",
+        url: "/puzzle",
         component: <Puzzle />,
     },
     {
         label: "微博抽奖",
-        key: "lottery",
+        id: "lottery",
+        url: "/lottery",
         component: <Lottery />,
     },
     {
         label: "图片颜色调整",
-        key: "change",
+        id: "change",
+        url: "/change",
         component: <ChangeColor />,
     },
     {
         label: "组件测试",
-        key: "comptest",
+        id: "comptest",
+        url: "/comptest",
         component: <CompTest />,
     },
 ];
 
 const App = () => {
     const darkMode = useDarkMode(false);
-    const [current, setCurrent] = useState("watermark");
 
     useEffect(() => {
         const time = new Date().getHours();
@@ -58,36 +63,20 @@ const App = () => {
                 darkMode.value ? "dark" : ""
             } text-foreground bg-background w-screen h-screen`}
         >
-            <NavTabs
-                tabs={[
-                    "Profile",
-                    "Search",
-                    "About Us",
-                    "Contact Us",
-                    "Settings",
-                ]}
-            />
-            <Navbar>
-                <Tabs
-                    aria-label="Options"
-                    color="primary"
-                    radius="sm"
-                    size="lg"
-                    selectedKey={current}
-                    onSelectionChange={(e) => setCurrent(e as string)}
-                >
-                    <Tab key="watermark" title="水印添加" />
-                    <Tab key="puzzle" title="大图拼接" />
-
-                    <Tab key="lottery" title="微博抽奖" />
-
-                    <Tab key="change" title="logo变色" />
-                    <Tab key="comptest" title="组件测试" />
-                </Tabs>
-            </Navbar>
-            <div>
-                {menuItems.find((item) => item.key === current)?.component}
-            </div>
+            <BrowserRouter>
+                <NavTabs tabs={menuItems} />
+                <div className="flex flex-col w-screen h-full">
+                    <Routes>
+                        {menuItems.map((item) => (
+                            <Route
+                                key={item.id}
+                                path={item.url}
+                                element={item.component}
+                            />
+                        ))}
+                    </Routes>
+                </div>
+            </BrowserRouter>
         </div>
     );
 };

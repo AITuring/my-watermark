@@ -108,7 +108,7 @@ const CustomButton: FC<CustomButtonProps> = ({
             disabled={disabled}
         >
             {icon && <div className="mr-2">
-                <Icon style={{...iconSizeStyle}}>{icon}</Icon>
+                {/* <Icon style={{...iconSizeStyle}}>{icon}</Icon> */}
                 </div>}
             {children}
             {ripples.map((ripple) => (
