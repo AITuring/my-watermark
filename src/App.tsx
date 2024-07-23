@@ -5,13 +5,12 @@ import {
     Switch,
     Tabs,
     Tab,
-    Card,
-    CardBody,
 } from "@nextui-org/react";
 import { Sun, MoonStar } from "lucide-react";
 import useDarkMode from "use-dark-mode";
 import Puzzle from "./Puzzle";
 import Watermark from "./Watermark";
+import CompTest from "./CompTest";
 // import BorderWatermark from "./BorderWatermark";
 import Lottery from "./Lottery";
 import ChangeColor from "./ChangeColor";
@@ -37,6 +36,11 @@ const menuItems = [
         label: "图片颜色调整",
         key: "change",
         component: <ChangeColor />,
+    },
+    {
+        label: "组件测试",
+        key: "comptest",
+        component: <CompTest />,
     },
 ];
 
@@ -75,6 +79,7 @@ const App = () => {
                     <Tab key="lottery" title="微博抽奖" />
 
                     <Tab key="change" title="logo变色" />
+                    <Tab key="comptest" title="组件测试" />
                 </Tabs>
                 <NavbarContent className="flex gap-4" justify="end">
                     <Switch
