@@ -7,8 +7,13 @@ module.exports = {
         "./node_modules/@nextui-org/theme/dist/**/*.{js,ts,jsx,tsx}"
     ],
     theme: {
-        extend: {},
+        extend: {
+            colors: {
+                foreground: "hsl(var(--foreground))",
+                headground: "#2A1261"
+            }
+        },
     },
     darkMode: "class",
-    plugins: [nextui()],
+    plugins: [nextui(), require("tailwindcss-animate")],
 };

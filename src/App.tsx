@@ -1,12 +1,6 @@
 import { useState, useEffect } from "react";
-import {
-    Navbar,
-    NavbarContent,
-    Switch,
-    Tabs,
-    Tab,
-} from "@nextui-org/react";
-import { Sun, MoonStar } from "lucide-react";
+import { Navbar, Tabs, Tab } from "@nextui-org/react";
+import NavTabs from "./components/animata/container/nav-tabs";
 import useDarkMode from "use-dark-mode";
 import Puzzle from "./Puzzle";
 import Watermark from "./Watermark";
@@ -64,6 +58,15 @@ const App = () => {
                 darkMode.value ? "dark" : ""
             } text-foreground bg-background w-screen h-screen`}
         >
+            <NavTabs
+                tabs={[
+                    "Profile",
+                    "Search",
+                    "About Us",
+                    "Contact Us",
+                    "Settings",
+                ]}
+            />
             <Navbar>
                 <Tabs
                     aria-label="Options"
@@ -81,25 +84,10 @@ const App = () => {
                     <Tab key="change" title="logo变色" />
                     <Tab key="comptest" title="组件测试" />
                 </Tabs>
-                <NavbarContent className="flex gap-4" justify="end">
-                    <Switch
-                        defaultSelected
-                        size="lg"
-                        // color="secondary"
-                        startContent={<Sun />}
-                        endContent={<MoonStar />}
-                        onChange={(e) =>
-                            e.target.checked
-                                ? darkMode.disable()
-                                : darkMode.enable()
-                        }
-                    ></Switch>
-                </NavbarContent>
             </Navbar>
-                <div>
-                    {menuItems.find((item) => item.key === current)?.component}
-                </div>
-
+            <div>
+                {menuItems.find((item) => item.key === current)?.component}
+            </div>
         </div>
     );
 };
