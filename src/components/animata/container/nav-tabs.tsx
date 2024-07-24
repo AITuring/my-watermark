@@ -25,7 +25,7 @@ export default function NavTabs({ tabs }: { tabs: TabDataProp[] }) {
     const [selected, setSelected] = useState<string>(tabs[0].id);
 
     return (
-        <div className="flex items-center justify-around gap-4 rounded-md bg-violet-950 p-6">
+        <div className="flex items-center justify-around gap-4 rounded-md bg-violet-950 p-4">
             <div className="flex items-center justify-center gap-4">
                 {tabs.map((tab) => (
                     <Tab

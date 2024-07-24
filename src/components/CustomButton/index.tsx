@@ -35,6 +35,8 @@ const CustomButton: FC<CustomButtonProps> = ({
 }) => {
     const [ripples, setRipples] = useState<Array<Ripple>>([]);
 
+    console.log(icon, 'icon')
+
     const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -52,7 +54,7 @@ const CustomButton: FC<CustomButtonProps> = ({
     };
 
     const buttonClasses = classNames(
-        "relative overflow-hidden rounded transition duration-300 focus:outline-none text-white px-4 py-2 flex justify-center items-center cursor-pointer",
+        "relative overflow-hidden rounded transition duration-300 focus:outline-none text-white p-2 flex justify-center items-center cursor-pointer space-x-2",
         {
             "bg-blue-500": color === "primary",
             "bg-purple-500": color === "secondary",
@@ -67,12 +69,13 @@ const CustomButton: FC<CustomButtonProps> = ({
             "border border-gray-500":
                 variant === "outlined" && color === "default",
             "cursor-not-allowed opacity-50": disabled,
-            "text-sm": size === "small",
+            "text-xs": size === "small",
             "text-base": size === "medium",
             "text-lg": size === "large",
-            "w-12": size === "small",
+            "text-xl": size === "xlarge",
+            "w-16": size === "small",
             "w-24": size === "medium",
-            "w-36": size === "large",
+            "w-40": size === "large",
             "w-48": size === "xlarge",
             "h-8": size === "small",
             "h-12": size === "medium",
@@ -87,19 +90,19 @@ const CustomButton: FC<CustomButtonProps> = ({
         console.log(size);
         switch (size) {
             case "small":
-                return { width: 16, height: 16 };
+                return 12;
             case "medium":
-                return { width: 24, height: 24 };
+                return 16;
             case "large":
-                return { width: 32, height: 32 };
+                return 24;
             case "xlarge":
-                return { width: 40, height: 40 };
+                return 32;
             default:
-                return { width: 24, height: 24 }; // 默认大小为 medium
+                return 16; // 默认大小为 medium
         }
     };
 
-    const iconSizeStyle = getIconSizeStyle(size);
+    const iconSize = getIconSizeStyle(size);
 
     return (
         <button
@@ -107,10 +110,8 @@ const CustomButton: FC<CustomButtonProps> = ({
             onClick={handleClick}
             disabled={disabled}
         >
-            {icon && <div className="mr-2">
-                {/* <Icon style={{...iconSizeStyle}}>{icon}</Icon> */}
-                </div>}
-            {children}
+            {icon && <Icon name={icon} size={iconSize}  /> }
+            <div>{children}</div>
             {ripples.map((ripple) => (
                 <span
                     key={ripple.id}

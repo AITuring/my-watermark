@@ -16,6 +16,9 @@ import "./watermark.css";
 const Watermark: React.FC = () => {
     const [images, setImages] = useState<ImageType[]>([]);
 
+    const editorHeight = window.innerHeight * 0.8;
+    console.log(editorHeight, 'editorHeight');
+
     // 当前照片
     const [currentImg, setCurrentImg] = useState<ImageType | null>();
     const [watermarkUrl, setWatermarkUrl] = useState("/logo.png");
@@ -306,12 +309,7 @@ const Watermark: React.FC = () => {
                                 variant="contained"
                                 color="primary"
                                 size="xlarge"
-                                // className="w-40 h-20"
-                                // onClick={() => {
-                                //     setImages([]);
-                                //     setImageUploaderVisible(true);
-                                // }}
-                                icon={<ImageUp />}
+                                icon="ImageUp"
                             >
                                 上传背景图片
                             </CustomButton>
@@ -322,7 +320,6 @@ const Watermark: React.FC = () => {
                         <div className="imageParts">
                             {images.length > 0 && (
                                 <div className="imgGallery">
-                                    {/* <AntdImage.PreviewGroup> */}
                                     <VerticalCarousel
                                         images={images}
                                         setImages={setImages}
@@ -330,8 +327,8 @@ const Watermark: React.FC = () => {
                                             setImageUploaderVisible
                                         }
                                         setCurrentImg={setCurrentImg}
+                                        height={editorHeight}
                                     />
-                                    {/* </AntdImage.PreviewGroup> */}
                                 </div>
                             )}
                             {watermarkUrl && currentImg && (

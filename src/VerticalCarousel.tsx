@@ -11,6 +11,7 @@ interface VerticalCarouselProps {
     setImages: React.Dispatch<React.SetStateAction<ImageType[]>>;
     setImageUploaderVisible: React.Dispatch<React.SetStateAction<boolean>>;
     setCurrentImg: React.Dispatch<React.SetStateAction<ImageType | null>>;
+    height?: number;
 }
 
 const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
@@ -18,15 +19,12 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     setImages,
     setImageUploaderVisible,
     setCurrentImg,
+    height = window.innerHeight * 0.8,
 }) => {
     const { value: darkMode } = useDarkMode();
-    const [currentIndex, setCurrentIndex] = useState(0);
     const carouselRef = useRef<HTMLDivElement>(null);
     // 创建一个用于存放图片元素引用的数组
     const imageRefs = useRef<(HTMLImageElement | null)[]>([]);
-
-    const windowHeight = window.innerHeight;
-    const carouselHeight = windowHeight * 0.8;
 
     const handleImagesUpload = async (files: File[]) => {
         const uploadImages: ImageType[] = await loadImageData(files);
@@ -41,7 +39,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     return (
         <div
             className="relative overflow-hidden flex flex-col items-center"
-            style={{ height: carouselHeight }}
+            style={{ height: height }}
             ref={carouselRef}
         >
             <div className="flex flex-col items-center overflow-y-auto">
@@ -79,7 +77,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                         setImages([]);
                         setImageUploaderVisible(true);
                     }}
-                    icon={<FolderX />}
+                    icon="FolderX"
                 >
                     清空
                 </CustomButton>
@@ -89,7 +87,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                         variant="contained"
                         color="primary"
                         size="medium"
-                        icon={<ImageUp />}
+                        icon="ImageUp"
                     >
                         添加
                     </CustomButton>

@@ -2,9 +2,7 @@
 import React, { useState, useEffect, useRef, forwardRef } from "react";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
-import { CustomButton } from "./components";
 import useImage from "use-image";
-
 import "./watermark.css";
 interface ImageWithFixedWidthProps {
     src: string;
@@ -236,6 +234,11 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     };
 
+    // 计算并获取当前缩放的百分比
+    const getCurrentScalePercentage = () => {
+        // 假设初始的滑动条值为1，即100%
+        return Math.round(backgroundSliderValue * 100);
+    };
 
     // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
     useEffect(() => {
@@ -251,14 +254,13 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         if (backgroundImage && backgroundImageStatus === "loaded") {
             const scaleWidth =
                 backgroundFixWidthVW / backgroundImage.naturalWidth;
-            const windowHeight = window.innerHeight * 0.74;
+            const windowHeight = window.innerHeight;
             const scaleHeight = windowHeight / backgroundImage.naturalHeight;
             // 选择宽度和高度中较小的缩放比例，以确保图片完全可见
             const scale = Math.min(scaleWidth, scaleHeight);
             setBackgroundScale(scale);
-            const ratio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
-            const width = windowHeight * ratio;
-            const height = windowHeight;
+            const width = backgroundImage.naturalWidth * scale;
+            const height = backgroundImage.naturalHeight * scale;
             setBackgroundImageSize({ width, height });
             updateGuideLines();
             setCurrentScale(scale);
@@ -304,6 +306,216 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     };
 
+    // TODO 添加水印的拖拽功能，但目前还有问题，边缘检测也不对，后续修改
+    // const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    //   const node = e.target;
+
+    //   // 获取旋转角度
+    //   const rotationRadians = (node.rotation() * Math.PI) / 180;
+
+    //   // 获取缩放后的宽度和高度
+    //   const width = node.width() * node.scaleX();
+    //   const height = node.height() * node.scaleY();
+
+    //   // 计算旋转后的中心点
+    //   const cx = node.x() + width / 2;
+    //   const cy = node.y() + height / 2;
+
+    //   // 辅助函数计算旋转后的点
+    //   const getRotatedPoint = (cx, cy, x, y, angle) => {
+    //     const cos = Math.cos(angle);
+    //     const sin = Math.sin(angle);
+    //     const nx = cos * (x - cx) + sin * (y - cy) + cx;
+    //     const ny = cos * (y - cy) - sin * (x - cx) + cy;
+    //     return { x: nx, y: ny };
+    //   };
+
+    //   // 获取旋转后的四个角点
+    //   const corners = [
+    //     getRotatedPoint(cx, cy, node.x(), node.y(), rotationRadians),
+    //     getRotatedPoint(cx, cy, node.x() + width, node.y(), rotationRadians),
+    //     getRotatedPoint(
+    //       cx,
+    //       cy,
+    //       node.x() + width,
+    //       node.y() + height,
+    //       rotationRadians,
+    //     ),
+    //     getRotatedPoint(cx, cy, node.x(), node.y() + height, rotationRadians),
+    //   ];
+
+    //   // 获取边界框的最小和最大坐标
+    //   const minX = Math.min(...corners.map((c) => c.x));
+    //   const maxX = Math.max(...corners.map((c) => c.x));
+    //   const minY = Math.min(...corners.map((c) => c.y));
+    //   const maxY = Math.max(...corners.map((c) => c.y));
+
+    //   // 边缘检测和调整
+    //   let adjustX = 0;
+    //   let adjustY = 0;
+
+    //   // 检测左边界
+    //   if (minX < 0) {
+    //     adjustX = -minX;
+    //   }
+    //   // 检测右边界
+    //   else if (maxX > backgroundImageSize.width) {
+    //     adjustX = backgroundImageSize.width - maxX;
+    //   }
+
+    //   // 检测上边界
+    //   if (minY < 0) {
+    //     adjustY = -minY;
+    //   }
+    //   // 检测下边界
+    //   else if (maxY > backgroundImageSize.height) {
+    //     adjustY = backgroundImageSize.height - maxY;
+    //   }
+
+    //   // 这里应用调整，但仅当有必要时
+    //   if (adjustX !== 0 || adjustY !== 0) {
+    //     // 应用调整
+    //     node.x(node.x() + adjustX);
+    //     node.y(node.y() + adjustY);
+    //   }
+
+    //   // 更新水印在原图上的实际位置
+    //   const actualX = (node.x() + adjustX) / backgroundImageSize.width;
+    //   const actualY = (node.y() + adjustY) / backgroundImageSize.height;
+    //   const actualScaleX = node.scaleX();
+
+    //   setCurrentScale(actualScaleX);
+    //   updateWatermarkSize(actualScaleX);
+
+    //   // 设置新位置和缩放
+    //   setPosition({
+    //     x: actualX,
+    //     y: actualY,
+    //     scaleX: actualScaleX,
+    //     scaleY: actualScaleX,
+    //     rotation: node.rotation(),
+    //   });
+
+    //   // 传递给onTransform回调,这里x，y是比例
+    //   onTransform({
+    //     x: actualX,
+    //     y: actualY,
+    //     scaleX: actualScaleX,
+    //     scaleY: actualScaleX,
+    //     rotation: node.rotation(),
+    //   });
+
+    //   // 使更改生效并重新绘制层
+    //   node.getLayer().batchDraw();
+    // };
+
+    // const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
+    //   const node = e.target;
+
+    //   // 获取旋转角度
+    //   const rotationRadians = (node.rotation() * Math.PI) / 180;
+
+    //   // 获取缩放后的宽度和高度
+    //   const width = node.width() * node.scaleX();
+    //   const height = node.height() * node.scaleY();
+
+    //   // 计算旋转后的水印边界框的四个角
+    //   const getRotatedPoint = (cx, cy, x, y, angle) => {
+    //     const cos = Math.cos(angle);
+    //     const sin = Math.sin(angle);
+    //     const nx = cos * (x - cx) + sin * (y - cy) + cx;
+    //     const ny = cos * (y - cy) - sin * (x - cx) + cy;
+    //     return { x: nx, y: ny };
+    //   };
+
+    //   const cx = node.x() + width / 2;
+    //   const cy = node.y() + height / 2;
+
+    //   const bl = getRotatedPoint(
+    //     cx,
+    //     cy,
+    //     node.x(),
+    //     node.y() + height,
+    //     rotationRadians,
+    //   );
+    //   const br = getRotatedPoint(
+    //     cx,
+    //     cy,
+    //     node.x() + width,
+    //     node.y() + height,
+    //     rotationRadians,
+    //   );
+    //   const tl = getRotatedPoint(cx, cy, node.x(), node.y(), rotationRadians);
+    //   const tr = getRotatedPoint(
+    //     cx,
+    //     cy,
+    //     node.x() + width,
+    //     node.y(),
+    //     rotationRadians,
+    //   );
+
+    //   // 计算边界框的最小/最大 X 和 Y 值
+    //   const minX = Math.min(tl.x, tr.x, br.x, bl.x);
+    //   const maxX = Math.max(tl.x, tr.x, br.x, bl.x);
+    //   const minY = Math.min(tl.y, tr.y, br.y, bl.y);
+    //   const maxY = Math.max(tl.y, tr.y, br.y, bl.y);
+
+    //   // 边缘检测和调整
+    //   let adjustX = 0;
+    //   let adjustY = 0;
+
+    //   // 检测左边界
+    //   if (minX < 0) {
+    //     adjustX = -minX;
+    //   }
+    //   // 检测右边界
+    //   else if (maxX > backgroundImageSize.width) {
+    //     adjustX = backgroundImageSize.width - maxX;
+    //   }
+
+    //   // 检测上边界
+    //   if (minY < 0) {
+    //     adjustY = -minY;
+    //   }
+    //   // 检测下边界
+    //   else if (maxY > backgroundImageSize.height) {
+    //     adjustY = backgroundImageSize.height - maxY;
+    //   }
+
+    //   // 应用调整
+    //   node.x(node.x() + adjustX);
+    //   node.y(node.y() + adjustY);
+
+    //   // 计算水印在原图上的实际位置
+    //   const actualX = (node.x() + adjustX) / backgroundImageSize.width;
+    //   const actualY = (node.y() + adjustY) / backgroundImageSize.height;
+    //   const actualScaleX = node.scaleX();
+
+    //   setCurrentScale(actualScaleX);
+    //   updateWatermarkSize(actualScaleX);
+
+    //   // 设置新位置和缩放
+    //   setPosition({
+    //     x: actualX,
+    //     y: actualY,
+    //     scaleX: actualScaleX,
+    //     scaleY: actualScaleX,
+    //     rotation: node.rotation(),
+    //   });
+
+    //   // 传递给onTransform回调,这里x，y是比例
+    //   onTransform({
+    //     x: actualX,
+    //     y: actualY,
+    //     scaleX: actualScaleX,
+    //     scaleY: actualScaleX,
+    //     rotation: node.rotation(),
+    //   });
+
+    //   // 使更改生效并重新绘制层
+    //   node.getLayer().batchDraw();
+    // };
+
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         const node = e.target;
         let newX = node.x();
@@ -346,6 +558,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             scaleY: actualScaleX,
             rotation: actualRotation,
         });
+
+        console.log(actualX, actualY, actualScaleX, "123");
 
         // 传递给onTransform回调
         onTransform({
@@ -448,6 +662,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             rotation: 0,
         });
 
+        // 如果有需要，可以调用 onTransform 来通知其他组件位置和缩放的变化
+        console.log(adjustedLeftTopX, adjustedLeftTopY, currentScale, "789");
         onTransform({
             x: adjustedLeftTopX,
             y: adjustedLeftTopY,
@@ -590,15 +806,15 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 </Layer>
             </Stage>
             <div className="flex justify-between align-baseline w-full my-4 flex-wrap">
-                <CustomButton size="small" onClick={onTopLeft}>左上</CustomButton>
-                <CustomButton size="small" onClick={onTopMid}>中上</CustomButton>
-                <CustomButton size="small" onClick={onTopRight}>右上</CustomButton>
-                <CustomButton size="small" onClick={onMidLeft}>中左</CustomButton>
-                <CustomButton size="small" onClick={onCenterMid}>中中</CustomButton>
-                <CustomButton size="small" onClick={onMidRight}>中右</CustomButton>
-                <CustomButton size="small" onClick={onBottomLeft}>左下</CustomButton>
-                <CustomButton size="small" onClick={onBottomMid}>中下</CustomButton>
-                <CustomButton size="small" onClick={onBottomRight}>右下</CustomButton>
+                <button onClick={onTopLeft}>左上</button>
+                <button onClick={onTopMid}>中上</button>
+                <button onClick={onTopRight}>右上</button>
+                <button onClick={onMidLeft}>中左</button>
+                <button onClick={onCenterMid}>中中</button>
+                <button onClick={onMidRight}>中右</button>
+                <button onClick={onBottomLeft}>左下</button>
+                <button onClick={onBottomMid}>中下</button>
+                <button onClick={onBottomRight}>右下</button>
             </div>
         </div>
     );
