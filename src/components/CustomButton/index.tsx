@@ -35,8 +35,6 @@ const CustomButton: FC<CustomButtonProps> = ({
 }) => {
     const [ripples, setRipples] = useState<Array<Ripple>>([]);
 
-    console.log(icon, 'icon')
-
     const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -50,7 +48,7 @@ const CustomButton: FC<CustomButtonProps> = ({
                 ripples.filter((ripple) => ripple.id !== id)
             );
         }, 1000);
-        if (onClick) onClick();
+        if (onClick && !disabled) onClick();
     };
 
     const buttonClasses = classNames(
@@ -73,9 +71,13 @@ const CustomButton: FC<CustomButtonProps> = ({
             "text-base": size === "medium",
             "text-lg": size === "large",
             "text-xl": size === "xlarge",
-            "w-16": size === "small",
-            "w-24": size === "medium",
-            "w-40": size === "large",
+            "px-2": size === "small",
+            "px-4": size === "medium",
+            "px-8": size === "large",
+            "px-12": size === "xlarge",
+            // "w-16": size === "small",
+            // "w-24": size === "medium",
+            // "w-40": size === "large",
             "w-48": size === "xlarge",
             "h-8": size === "small",
             "h-12": size === "medium",
@@ -87,7 +89,6 @@ const CustomButton: FC<CustomButtonProps> = ({
     );
 
     const getIconSizeStyle = (size: CustomButtonProps["size"]) => {
-        console.log(size);
         switch (size) {
             case "small":
                 return 12;

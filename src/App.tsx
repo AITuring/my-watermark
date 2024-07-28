@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { Navbar, Tabs, Tab } from "@nextui-org/react";
 import NavTabs from "./components/animata/container/nav-tabs";
 import useDarkMode from "use-dark-mode";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -61,7 +60,7 @@ const App = () => {
         <div
             className={`${
                 darkMode.value ? "dark" : ""
-            } text-foreground bg-background w-screen h-screen`}
+            } text-foreground bg-background w-screen min-h-screen`}
         >
             <BrowserRouter>
                 <NavTabs tabs={menuItems} />

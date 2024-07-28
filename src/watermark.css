@@ -54,28 +54,6 @@
     /* background: #f1f2f5; */
 }
 
-.imageParts {
-    display: flex;
-    /* justify-content: center; */
-    padding: 20px;
-    color: #000;
-}
-
-.operateButtons {
-    flex: 1;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    box-shadow:
-        -6px 0 16px 0 rgba(0, 0, 0, 0.08),
-        -3px 0 6px -4px rgba(0, 0, 0, 0.12),
-        -9px 0 28px 8px rgba(0, 0, 0, 0.05);
-
-    color: #000;
-}
-
 .upbutton {
     position: absolute;
     left: 50%;
@@ -92,41 +70,6 @@
     width: 20vw;
 }
 
-.imgCover {
-    cursor: pointer;
-    margin: 20px;
-    padding: 20px;
-    border-radius: 4px;
-    position: relative;
-}
-
-.imgCover:hover {
-    background-color: #f2f2f2;
-}
-
-.selectedImg {
-    background-color: #268af8;
-    border-radius: 4px;
-    margin: 20px;
-    padding: 20px;
-    cursor: pointer;
-    position: relative;
-}
-
-.deleteButton {
-    position: absolute;
-    bottom: 6px;
-    right: 6px;
-}
-
-.watermarkEditor {
-    /* background-color: #fff; */
-    /* padding: 20px; */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex: 1;
-}
 
 .applyWatermark {
     background-color: #268af8;

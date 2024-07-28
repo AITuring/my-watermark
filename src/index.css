@@ -23,22 +23,12 @@
     }
 }
 
-
 :root {
     font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
     font-size: 16px;
     line-height: 24px;
     font-weight: 400;
 
-    color-scheme: light dark;
-    color: rgba(255, 255, 255, 0.87);
-    background-color: #242424;
-
-    font-synthesis: none;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -47,4 +37,15 @@ body {
     /* place-items: center; */
     min-width: 320px;
     min-height: 100vh;
+}
+
+.light-mode {
+    background: #fff;
+    color: #000;
+}
+
+/* 暗色模式下的样式 */
+.dark-mode{
+    background: #272727;
+    color: #fff;
 }

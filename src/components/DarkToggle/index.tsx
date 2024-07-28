@@ -7,7 +7,6 @@ const DarkToggle = () => {
         <ToggleSwitch
             defaultChecked={darkMode.value}
             onChange={(e) =>{
-                console.log(e)
                 return e ? darkMode.enable() : darkMode.disable()
             }
             }

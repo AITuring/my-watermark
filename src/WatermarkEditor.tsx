@@ -487,7 +487,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     };
 
     return (
-        <div className="watermarkEditor">
+        <div className="flex flex-col justify-center items-center">
             {/* <h2>水印添加</h2> */}
             {/* 显示背景图片原始宽高信息 */}
             {/* {backgroundImage && (
@@ -589,7 +589,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                     )}
                 </Layer>
             </Stage>
-            <div className="flex justify-between align-baseline w-full my-4 flex-wrap">
+            <div className="flex justify-center align-center space-x-6 w-full my-4 flex-wrap">
                 <CustomButton size="small" onClick={onTopLeft}>左上</CustomButton>
                 <CustomButton size="small" onClick={onTopMid}>中上</CustomButton>
                 <CustomButton size="small" onClick={onTopRight}>右上</CustomButton>

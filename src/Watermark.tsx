@@ -317,7 +317,7 @@ const Watermark: React.FC = () => {
                     </div>
                 ) : (
                     <div className="imgWatermark">
-                        <div className="imageParts">
+                        <div className="flex p-4 justify-between">
                             {images.length > 0 && (
                                 <div className="imgGallery">
                                     <VerticalCarousel
@@ -339,7 +339,7 @@ const Watermark: React.FC = () => {
                                 />
                             )}
                         </div>
-                        <div className="operateButtons">
+                        <div className="flex justify-around items-center backdrop-blur-lg shadow-inner">
                             <ImageUploader
                                 onUpload={handleWatermarkUpload}
                                 fileType="水印"
@@ -388,13 +388,15 @@ const Watermark: React.FC = () => {
                                     }
                                 />
                             </div>
-                            <button
+                            <CustomButton
+                                color="primary"
+                                variant="contained"
                                 onClick={handleApplyWatermarkDebounced}
                                 className="applyWatermark"
                                 disabled={loading}
                             >
                                 {loading ? <Spin /> : "水印生成"}
-                            </button>
+                            </CustomButton>
                         </div>
                     </div>
                 )}
