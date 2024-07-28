@@ -72,7 +72,7 @@ const InputNum: React.FC<InputNumProps> = ({
                 onChange={handleInputChange}
                 className={
                     classNames(
-                        "shadow-xl w-full p-2 border border-gray-100 rounded-lg bg-gray-50 text-gray-900 focus:border-blue-500 focus:shadow-outline-blue transition-colors disabled:opacity-50",
+                        "shadow-xl w-full p-2 rounded-lg border outline-none border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-primary-500 focus:shadow-outline-blue transition-colors disabled:opacity-50",
                         className
                     )
                 }

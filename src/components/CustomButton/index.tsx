@@ -54,17 +54,17 @@ const CustomButton: FC<CustomButtonProps> = ({
     const buttonClasses = classNames(
         "relative overflow-hidden rounded transition duration-300 focus:outline-none text-white p-2 flex justify-center items-center cursor-pointer space-x-2",
         {
-            "bg-blue-500": color === "primary",
-            "bg-purple-500": color === "secondary",
-            "bg-gray-500": color === "default",
-            "text-blue-500": variant === "text" && color === "primary",
-            "text-purple-500": variant === "text" && color === "secondary",
-            "text-gray-500": variant === "text" && color === "default",
-            "border border-blue-500":
+            "bg-primary-500": color === "primary",
+            "bg-secondary-500": color === "secondary",
+            "bg-default-500": color === "default",
+            "text-primary-500": variant === "text" && color === "primary",
+            "text-secondary-500": variant === "text" && color === "secondary",
+            "text-default-500": variant === "text" && color === "default",
+            "border border-primary-500":
                 variant === "outlined" && color === "primary",
-            "border border-purple-500":
+            "border border-secondary-500":
                 variant === "outlined" && color === "secondary",
-            "border border-gray-500":
+            "border border-default-500":
                 variant === "outlined" && color === "default",
             "cursor-not-allowed opacity-50": disabled,
             "text-xs": size === "small",

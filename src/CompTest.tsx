@@ -4,7 +4,7 @@ import { CircleX, ImageUp, FolderX } from "lucide-react";
 const CompTest = () => {
     return (
         <>
-            <div className="flex items-center space-x-4 bg-current p-4 m-4">
+            <div className="flex items-center space-x-4 p-4 m-4 bg-gray-200 dark:bg-gray-800">
                 <CustomButton
                     variant="contained"
                     // color="primary"
@@ -16,7 +16,7 @@ const CompTest = () => {
 
                 <CustomButton
                     variant="contained"
-                    // color="primary"
+                    color="primary"
                     size="medium"
                     icon="FolderX"
                 >
@@ -25,7 +25,7 @@ const CompTest = () => {
 
                 <CustomButton
                     variant="contained"
-                    // color="primary"
+                    color="secondary"
                     size="large"
                     icon="FolderX"
                 >
@@ -40,7 +40,7 @@ const CompTest = () => {
                     超大
                 </CustomButton>
             </div>
-            <div className="flex items-center space-x-4 bg-current p-4 m-4">
+            <div className="flex items-center space-x-4 p-4 m-4 bg-gray-200 dark:bg-gray-800">
                 <InputNum step={10} value={0} onChange={e => console.log(e)} min={1} max={20}/>
             </div>
         </>
