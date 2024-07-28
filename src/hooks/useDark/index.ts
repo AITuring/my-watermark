@@ -6,6 +6,14 @@ const useDark = (): [boolean, () => void] => {
     const [isDark, setIsDark] = useState<boolean>(storedTheme === 'dark');
 
     useEffect(() => {
+        const time = new Date().getHours();
+        if (time >= 18 || time < 6) {
+            setIsDark(true);
+            localStorage.setItem('theme', 'dark');
+        } else {
+            setIsDark(false);
+            localStorage.setItem('theme', 'light');
+        }
         // 应用主题到document.body
         document.body.classList.remove(isDark ? 'light' : 'dark');
         document.body.classList.add(isDark ? 'dark' : 'light');
