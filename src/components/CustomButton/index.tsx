@@ -1,5 +1,5 @@
 // TODO 不同sie，icon应该不一样
-
+import { icons } from "lucide-react";
 import React, { FC, MouseEvent, useState } from "react";
 import classNames from "classnames";
 import { uuid } from "@/utils";
@@ -10,7 +10,7 @@ interface CustomButtonProps {
     color?: "default" | "primary" | "secondary";
     size?: "small" | "medium" | "large" | "xlarge";
     disabled?: boolean;
-    icon?: React.ReactNode;
+    icon?: keyof typeof icons;
     onClick?: () => void;
     children: React.ReactNode;
     className?: string;
