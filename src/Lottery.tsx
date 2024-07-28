@@ -106,7 +106,7 @@ const Lottery = () => {
                     onChange={handleInputChange}
                     // minRows={20}
                     cols={50}
-                    className="shadow-xl m-4 p-2 rounded w-11/12 h-52 text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:shadow-outline-blue resize-y transition duration-300 ease-in-out"
+                    className="shadow-xl m-4 p-2 rounded w-11/12 h-52 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:shadow-outline-blue resize-y transition duration-300 ease-in-out dark:bg-gray-700 dark:text-white"
                     placeholder="打开网页端微博控制台，在网络一栏复制repostTimeline的响应数据，粘贴到文本框中，每段数据之间回车隔开"
                 />
 
@@ -114,7 +114,7 @@ const Lottery = () => {
                     获取转发名单
                 </CustomButton>
             </div>
-            <div className="flex items-center flex-col text-gray-800">
+            <div className="flex items-center flex-col">
                 <h2 className="my-4">转发用户名单</h2>
                 <div>一共{uniqueArray.length}人</div>
                 {uniqueArray.length > 0 && (

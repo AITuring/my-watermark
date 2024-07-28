@@ -1,15 +1,13 @@
+import { useContext } from "react";
 import { ToggleSwitch } from "../animata";
-import useDarkMode from "use-dark-mode";
+import { ThemeContext } from "@/context";
 
 const DarkToggle = () => {
-    const darkMode = useDarkMode(false);
+    const { isDark, toggleTheme } = useContext(ThemeContext);
     return (
         <ToggleSwitch
-            defaultChecked={darkMode.value}
-            onChange={(e) =>{
-                return e ? darkMode.enable() : darkMode.disable()
-            }
-            }
+            defaultChecked={isDark}
+            onChange={toggleTheme}
         />
     );
 };

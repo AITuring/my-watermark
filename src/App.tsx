@@ -1,7 +1,6 @@
-import { useEffect } from "react";
 import NavTabs from "./components/animata/container/nav-tabs";
-import useDarkMode from "use-dark-mode";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "./context";
 import Puzzle from "./Puzzle";
 import Watermark from "./Watermark";
 import CompTest from "./CompTest";
@@ -44,39 +43,25 @@ const menuItems = [
 ];
 
 const App = () => {
-    const darkMode = useDarkMode(false);
-
-    useEffect(() => {
-        const time = new Date().getHours();
-
-        if (time > 18 || time < 7) {
-            darkMode.enable();
-        } else {
-            darkMode.disable();
-        }
-    }, []);
-
     return (
-        <div
-            className={`${
-                darkMode.value ? "dark" : ""
-            } text-foreground bg-background w-screen min-h-screen`}
-        >
-            <BrowserRouter>
-                <NavTabs tabs={menuItems} />
-                <div className="flex flex-col w-screen h-full">
-                    <Routes>
-                        {menuItems.map((item) => (
-                            <Route
-                                key={item.id}
-                                path={item.url}
-                                element={item.component}
-                            />
-                        ))}
-                    </Routes>
-                </div>
-            </BrowserRouter>
-        </div>
+        <ThemeProvider>
+            <div className="w-screen min-h-screen text-gray-800 bg-gray-100 dark:bg-gray-900 dark:text-white">
+                <BrowserRouter>
+                    <NavTabs tabs={menuItems} />
+                    <div className="flex flex-col w-screen h-full">
+                        <Routes>
+                            {menuItems.map((item) => (
+                                <Route
+                                    key={item.id}
+                                    path={item.url}
+                                    element={item.component}
+                                />
+                            ))}
+                        </Routes>
+                    </div>
+                </BrowserRouter>
+            </div>
+        </ThemeProvider>
     );
 };
 

@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 import { CircleX, ImageUp, FolderX } from "lucide-react";
-import useDarkMode from "use-dark-mode";
+import { ThemeContext } from "@/context";
 import ImageUploader from "./ImageUploader";
 import { CustomButton } from "./components";
 import { loadImageData } from "./utils";
@@ -21,7 +21,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     setCurrentImg,
     height = window.innerHeight * 0.8,
 }) => {
-    const { value: darkMode } = useDarkMode();
+    const {isDark} = useContext(ThemeContext)
     const carouselRef = useRef<HTMLDivElement>(null);
     // 创建一个用于存放图片元素引用的数组
     const imageRefs = useRef<(HTMLImageElement | null)[]>([]);
@@ -53,7 +53,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                         />
                         <CircleX
                             className={`w-4 h-4 absolute right-1 top-1 cursor-pointer`}
-                            style={{ color: darkMode ? "#fff" : "#000" }}
+                            style={{ color: isDark ? "#fff" : "#000" }}
                             onClick={() => {
                                 setImages((images) => {
                                     const newImages = images.filter(

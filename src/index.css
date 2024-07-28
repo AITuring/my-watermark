@@ -39,13 +39,13 @@ body {
     min-height: 100vh;
 }
 
-.light-mode {
+/* .light-mode {
     background: #fff;
     color: #000;
-}
+} */
 
 /* 暗色模式下的样式 */
-.dark-mode{
+/* .dark-mode{
     background: #272727;
     color: #fff;
-}
+} */

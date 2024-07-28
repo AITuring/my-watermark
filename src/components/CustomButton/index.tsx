@@ -83,7 +83,11 @@ const CustomButton: FC<CustomButtonProps> = ({
             "h-12": size === "medium",
             "h-20": size === "large",
             "h-24": size === "xlarge",
-            // icon size
+            // shadow
+            "shadow-md": size === "small",
+            "shadow-lg": size === "medium",
+            "shadow-xl": size === "large",
+            "shadow-2xl": size === "xlarge",
         },
         className
     );

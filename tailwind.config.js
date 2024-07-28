@@ -1,3 +1,4 @@
+const colors = require('tailwindcss/colors');
 
 module.exports = {
     content: [
@@ -8,10 +9,16 @@ module.exports = {
         extend: {
             colors: {
                 foreground: "hsl(var(--foreground))",
-                headground: "#2A1261"
+                headground: "#2A1261",
+                primary: colors.sky,
+                secondary: colors.teal,
+                default: colors.slate,
+                accent: colors.amber,
+                success: colors.emerald,
+                danger: colors.red,
             }
         },
     },
-    darkMode: "class",
+    darkMode: "selector",
     plugins: [require("tailwindcss-animate")],
 };
