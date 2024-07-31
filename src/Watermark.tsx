@@ -160,7 +160,7 @@ const Watermark: React.FC = () => {
 
     return (
         <div className="watermarkApp">
-            {/* {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>} */}
+            {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>}
             <div>
                 {imageUploaderVisible ? (
                     <div className="upbutton">

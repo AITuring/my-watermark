@@ -1,5 +1,6 @@
 import path from "path";
 import react from "@vitejs/plugin-react-swc";
+import legacy from "@vitejs/plugin-legacy";
 // import viteCompression from "vite-plugin-compression";
 import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
@@ -7,6 +8,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
     plugins: [
         react(),
+        legacy(),
         // viteCompression({
         //     verbose: true, // 是否在控制台中输出压缩结果
         //     disable: false,
@@ -34,6 +36,7 @@ export default defineConfig({
                 },
             },
         },
+        minify: "terser",
         terserOptions: {
             compress: {
                 drop_console: true, // 生产环境自动删除console

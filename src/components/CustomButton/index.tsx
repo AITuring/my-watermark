@@ -39,9 +39,15 @@ const CustomButton: FC<CustomButtonProps> = ({
         const rect = e.currentTarget.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-        const color = "#" + Math.floor(Math.random() * 0xffffff).toString(16);
+        // const color = "#" + Math.floor(Math.random() * 0xffffff).toString(16);
+        const buttonColor = `bg-${color}-${100}`;
+        console.log(buttonColor);
+
+        // 生成减弱的涟漪颜色，这里简单地使用相同的颜色和透明度类
+        // 你可以根据需要调整透明度级别
+        const rippleColorClass = `${buttonColor}`;
         const id = uuid();
-        const newRipple: Ripple = { id, x, y, color };
+        const newRipple: Ripple = { id, x, y, color: rippleColorClass };
         setRipples((ripples) => [...ripples, newRipple]);
         setTimeout(() => {
             setRipples((ripples) =>
@@ -57,6 +63,11 @@ const CustomButton: FC<CustomButtonProps> = ({
             "bg-primary-500": color === "primary",
             "bg-secondary-500": color === "secondary",
             "bg-default-500": color === "default",
+            "hover:bg-primary-600": color === "primary",
+            "hover:bg-secondary-600": color === "secondary",
+            "hover:bg-default-600": color === "default",
+            "active:bg-primary-700": color === "primary",
+            "active:bg-secondary-700": color === "secondary",
             "text-primary-500": variant === "text" && color === "primary",
             "text-secondary-500": variant === "text" && color === "secondary",
             "text-default-500": variant === "text" && color === "default",
@@ -74,20 +85,21 @@ const CustomButton: FC<CustomButtonProps> = ({
             "px-2": size === "small",
             "px-4": size === "medium",
             "px-8": size === "large",
-            "px-12": size === "xlarge",
-            // "w-16": size === "small",
-            // "w-24": size === "medium",
-            // "w-40": size === "large",
-            "w-48": size === "xlarge",
+            "px-10": size === "xlarge",
+            "min-w-16": size === "small",
+            "min-w-24": size === "medium",
+            "min-w-32": size === "large",
+            "min-w-40": size === "xlarge",
             "h-8": size === "small",
             "h-12": size === "medium",
-            "h-20": size === "large",
-            "h-24": size === "xlarge",
+            "h-16": size === "large",
+            "h-20": size === "xlarge",
             // shadow
             "shadow-md": size === "small",
             "shadow-lg": size === "medium",
             "shadow-xl": size === "large",
             "shadow-2xl": size === "xlarge",
+            // "hover: blur-sm": size === 'xlarge',
         },
         className
     );
@@ -99,9 +111,9 @@ const CustomButton: FC<CustomButtonProps> = ({
             case "medium":
                 return 16;
             case "large":
-                return 24;
+                return 20;
             case "xlarge":
-                return 32;
+                return 24;
             default:
                 return 16; // 默认大小为 medium
         }
@@ -115,22 +127,24 @@ const CustomButton: FC<CustomButtonProps> = ({
             onClick={handleClick}
             disabled={disabled}
         >
-            {icon && <Icon name={icon} size={iconSize}  /> }
+            {icon && <Icon name={icon} size={iconSize} />}
             <div>{children}</div>
-            {ripples.map((ripple) => (
+            {/* {ripples.map((ripple) => (
                 <span
                     key={ripple.id}
-                    className="absolute rounded-full border-2 animate-ripple"
+                    className={
+                        `absolute rounded-full border-none animate-ripple ${ripple.color}`
+                    }
                     style={{
                         left: ripple.x,
                         top: ripple.y,
-                        borderColor: ripple.color,
+                        // borderColor: ripple.color,
                         // backgroundColor: ripple.color,
-                        // opacity: 0.2,
+                        opacity: 0.6,
                         transform: "translate(-50%, -50%)",
                     }}
                 />
-            ))}
+            ))} */}
         </button>
     );
 };
