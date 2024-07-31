@@ -1,4 +1,7 @@
 import { ImageType } from "@/types";
+import * as StackBlur from "stackblur-canvas";
+
+
 function uuid(): string {
     let idStr = Date.now().toString(36);
     idStr += Math.random().toString(36).substr(2);
@@ -8,26 +11,28 @@ function uuid(): string {
 // 加载图片数据
 async function loadImageData(files: File[]): Promise<ImageType[]> {
     // 注意Promise<ImageType>[]和Promise<ImageType[]>
-    const promises: Promise<ImageType>[] = files.map((file): Promise<ImageType> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const img = new Image();
-                img.onload = function () {
-                    resolve({
-                        id: uuid(),
-                        width: img.width,
-                        height: img.height,
-                        file: file,
-                    });
+    const promises: Promise<ImageType>[] = files.map(
+        (file): Promise<ImageType> => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = new Image();
+                    img.onload = function () {
+                        resolve({
+                            id: uuid(),
+                            width: img.width,
+                            height: img.height,
+                            file: file,
+                        });
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result as string;
                 };
-                img.onerror = reject;
-                img.src = e.target.result as string;
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    });
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+    );
     return Promise.all(promises);
 }
 
@@ -86,4 +91,133 @@ function debounce(func, wait) {
     };
 }
 
-export { uuid, loadImageData, calculateWatermarkPosition, debounce };
+// 图片处理
+async function processImage(file, watermarkImage, position, watermarkBlur, quality) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const image = new Image();
+            image.onload = async () => {
+                // 创建一个canvas元素
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+                canvas.width = image.width;
+                canvas.height = image.height;
+
+                // 绘制原始图片
+                ctx.drawImage(image, 0, 0, image.width, image.height);
+
+                // 应用水印位置和变换
+                const watermarkPosition = calculateWatermarkPosition(
+                    watermarkImage,
+                    image.width,
+                    image.height,
+                    position
+                );
+                const watermarkX = watermarkPosition.x;
+                const watermarkY = watermarkPosition.y;
+                const watermarkWidth = watermarkPosition.width;
+                const watermarkHeight = watermarkPosition.height;
+
+                if (watermarkBlur) {
+                    // 创建一个临时canvas来应用模糊效果
+                    const tempCanvas = document.createElement("canvas");
+                    const tempCtx = tempCanvas.getContext("2d");
+                    tempCanvas.width = image.width;
+                    tempCanvas.height = image.height;
+                    tempCtx.drawImage(image, 0, 0, image.width, image.height);
+
+                    // 应用全图高斯模糊
+                    StackBlur.canvasRGBA(
+                        tempCanvas,
+                        0,
+                        0,
+                        image.width,
+                        image.height,
+                        20
+                    );
+                    // 创建径向渐变
+                    const centerX = watermarkX + watermarkWidth / 2;
+                    const centerY = watermarkY + watermarkHeight / 2;
+
+                    const innerRadius = 0; // 从中心开始渐变
+                    const outerRadius = Math.max(
+                        watermarkWidth,
+                        watermarkHeight
+                    ); // 渐变扩散的半径
+
+                    const gradient = ctx.createRadialGradient(
+                        centerX,
+                        centerY,
+                        innerRadius,
+                        centerX,
+                        centerY,
+                        outerRadius
+                    );
+                    gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+                    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+                    // 应用径向渐变作为蒙版
+                    ctx.globalCompositeOperation = "destination-out";
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(
+                        watermarkX,
+                        watermarkY,
+                        watermarkWidth,
+                        watermarkHeight
+                    );
+
+                    // 绘制模糊的背景图片
+                    ctx.globalCompositeOperation = "destination-over";
+                    ctx.drawImage(tempCanvas, 0, 0);
+                }
+
+                // 绘制清晰的水印
+                ctx.globalCompositeOperation = "source-over";
+                // 保存当前context的状态
+                ctx.save();
+
+                // 将canvas的原点移动到水印的中心位置
+                ctx.translate(
+                    watermarkX + watermarkWidth / 2,
+                    watermarkY + watermarkHeight / 2
+                );
+
+                // 绕原点旋转画布
+                ctx.rotate((position.rotation * Math.PI) / 180); // position.rotation是角度，需要转换为弧度
+
+                // 因为canvas是绕新的原点旋转的，所以你需要将图片绘制在中心的相反位置
+                ctx.drawImage(
+                    watermarkImage,
+                    -watermarkWidth / 2,
+                    -watermarkHeight / 2,
+                    watermarkWidth,
+                    watermarkHeight
+                );
+
+                // 恢复canvas状态
+                ctx.restore();
+
+                // 导出最终的图片
+                canvas.toBlob(
+                    (blob) => {
+                        if (blob) {
+                            const url = URL.createObjectURL(blob);
+                            resolve({ url, name: file.name });
+                        } else {
+                            reject(new Error("Canvas to Blob failed"));
+                        }
+                    },
+                    "image/jpeg",
+                    quality
+                );
+            };
+            image.onerror = reject;
+            image.src = e.target.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+export { uuid, loadImageData, calculateWatermarkPosition, debounce, processImage };

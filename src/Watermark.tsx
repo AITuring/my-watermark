@@ -1,15 +1,14 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { message, Spin, InputNumber, Switch, Tooltip } from "antd";
 import { ImageUp, CircleHelp } from "lucide-react";
 import { CustomButton } from "./components";
-import { loadImageData, calculateWatermarkPosition,debounce } from "./utils";
+import { loadImageData,debounce, processImage } from "./utils";
 import { ImageType } from "./types";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
 import VerticalCarousel from "./VerticalCarousel";
 // import EmojiBg from './EmojiBg';
-import * as StackBlur from "stackblur-canvas";
 import confetti from "canvas-confetti";
 import "./watermark.css";
 
@@ -17,7 +16,6 @@ const Watermark: React.FC = () => {
     const [images, setImages] = useState<ImageType[]>([]);
 
     const editorHeight = window.innerHeight * 0.8;
-    console.log(editorHeight, 'editorHeight');
 
     // 当前照片
     const [currentImg, setCurrentImg] = useState<ImageType | null>();
@@ -43,6 +41,12 @@ const Watermark: React.FC = () => {
     const [quality, setQuality] = useState<number>(0.9);
     // 水印背景模糊
     const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
+
+    useEffect(() => {
+        if (images.length === 0) {
+            setImageUploaderVisible(true)
+        }
+    }, [images])
 
     const handleImagesUpload = async (files: File[]) => {
         const uploadImages = await loadImageData(files);
@@ -85,145 +89,6 @@ const Watermark: React.FC = () => {
         setWatermarkPosition(position);
     };
 
-    async function processImage(file, watermarkImage, position) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const image = new Image();
-                image.onload = async () => {
-                    // 创建一个canvas元素
-                    const canvas = document.createElement("canvas");
-                    const ctx = canvas.getContext("2d");
-                    canvas.width = image.width;
-                    canvas.height = image.height;
-
-                    // 绘制原始图片
-                    ctx.drawImage(image, 0, 0, image.width, image.height);
-
-                    // 应用水印位置和变换
-                    const watermarkPosition = calculateWatermarkPosition(
-                        watermarkImage,
-                        image.width,
-                        image.height,
-                        position
-                    );
-                    const watermarkX = watermarkPosition.x;
-                    const watermarkY = watermarkPosition.y;
-                    const watermarkWidth = watermarkPosition.width;
-                    const watermarkHeight = watermarkPosition.height;
-
-                    if (watermarkBlur) {
-                        // 创建一个临时canvas来应用模糊效果
-                        const tempCanvas = document.createElement("canvas");
-                        const tempCtx = tempCanvas.getContext("2d");
-                        tempCanvas.width = image.width;
-                        tempCanvas.height = image.height;
-                        tempCtx.drawImage(
-                            image,
-                            0,
-                            0,
-                            image.width,
-                            image.height
-                        );
-
-                        // 应用全图高斯模糊
-                        StackBlur.canvasRGBA(
-                            tempCanvas,
-                            0,
-                            0,
-                            image.width,
-                            image.height,
-                            20
-                        );
-                        // 创建径向渐变
-                        const centerX = watermarkX + watermarkWidth / 2;
-                        const centerY = watermarkY + watermarkHeight / 2;
-                        console.log(
-                            watermarkX,
-                            watermarkY,
-                            watermarkWidth,
-                            watermarkHeight
-                        );
-                        const innerRadius = 0; // 从中心开始渐变
-                        const outerRadius = Math.max(
-                            watermarkWidth,
-                            watermarkHeight
-                        ); // 渐变扩散的半径
-                        console.log(centerX, centerY, innerRadius, outerRadius);
-                        const gradient = ctx.createRadialGradient(
-                            centerX,
-                            centerY,
-                            innerRadius,
-                            centerX,
-                            centerY,
-                            outerRadius
-                        );
-                        gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
-                        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-                        // 应用径向渐变作为蒙版
-                        ctx.globalCompositeOperation = "destination-out";
-                        ctx.fillStyle = gradient;
-                        ctx.fillRect(
-                            watermarkX,
-                            watermarkY,
-                            watermarkWidth,
-                            watermarkHeight
-                        );
-
-                        // 绘制模糊的背景图片
-                        ctx.globalCompositeOperation = "destination-over";
-                        ctx.drawImage(tempCanvas, 0, 0);
-                    }
-
-                    // 绘制清晰的水印
-                    ctx.globalCompositeOperation = "source-over";
-                    // 保存当前context的状态
-                    ctx.save();
-
-                    // 将canvas的原点移动到水印的中心位置
-                    ctx.translate(
-                        watermarkX + watermarkWidth / 2,
-                        watermarkY + watermarkHeight / 2
-                    );
-
-                    // 绕原点旋转画布
-                    ctx.rotate((position.rotation * Math.PI) / 180); // position.rotation是角度，需要转换为弧度
-
-                    // 因为canvas是绕新的原点旋转的，所以你需要将图片绘制在中心的相反位置
-                    ctx.drawImage(
-                        watermarkImage,
-                        -watermarkWidth / 2,
-                        -watermarkHeight / 2,
-                        watermarkWidth,
-                        watermarkHeight
-                    );
-
-                    // 恢复canvas状态
-                    ctx.restore();
-
-                    // 导出最终的图片
-                    canvas.toBlob(
-                        (blob) => {
-                            if (blob) {
-                                const url = URL.createObjectURL(blob);
-                                resolve({ url, name: file.name });
-                            } else {
-                                reject(new Error("Canvas to Blob failed"));
-                            }
-                        },
-                        "image/jpeg",
-                        quality
-                    );
-                };
-                image.onerror = reject;
-                image.src = e.target.result as string;
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    }
-
     async function downloadImagesWithWatermarkBatch(
         files,
         watermarkImage,
@@ -237,7 +102,7 @@ const Watermark: React.FC = () => {
         for (let i = 0; i < files.length; i += batchSize) {
             const batch = files.slice(i, i + batchSize);
             const promises = batch.map((file) =>
-                processImage(file, watermarkImage, position)
+                processImage(file, watermarkImage, position, watermarkBlur, quality)
             );
             const imageBlobs = await Promise.all(promises);
 
@@ -295,7 +160,7 @@ const Watermark: React.FC = () => {
 
     return (
         <div className="watermarkApp">
-            {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>}
+            {/* {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>} */}
             <div>
                 {imageUploaderVisible ? (
                     <div className="upbutton">
