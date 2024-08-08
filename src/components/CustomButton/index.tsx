@@ -40,20 +40,21 @@ const CustomButton: FC<CustomButtonProps> = ({
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
         // const color = "#" + Math.floor(Math.random() * 0xffffff).toString(16);
-        const buttonColor = `bg-${color}-${100}`;
-        console.log(buttonColor);
+        // const buttonColor = `bg-${color}-${400}`;
+        // console.log(buttonColor);
 
         // 生成减弱的涟漪颜色，这里简单地使用相同的颜色和透明度类
         // 你可以根据需要调整透明度级别
-        const rippleColorClass = `${buttonColor}`;
+        // TODO 颜色有问题，没正确展示
+        // const rippleColorClass = `${color}`;
         const id = uuid();
-        const newRipple: Ripple = { id, x, y, color: rippleColorClass };
+        const newRipple: Ripple = { id, x, y, color };
         setRipples((ripples) => [...ripples, newRipple]);
         setTimeout(() => {
             setRipples((ripples) =>
                 ripples.filter((ripple) => ripple.id !== id)
             );
-        }, 1000);
+        }, 1500);
         if (onClick && !disabled) onClick();
     };
 
@@ -129,22 +130,32 @@ const CustomButton: FC<CustomButtonProps> = ({
         >
             {icon && <Icon name={icon} size={iconSize} />}
             <div>{children}</div>
-            {/* {ripples.map((ripple) => (
-                <span
-                    key={ripple.id}
-                    className={
-                        `absolute rounded-full border-none animate-ripple ${ripple.color}`
-                    }
-                    style={{
-                        left: ripple.x,
-                        top: ripple.y,
-                        // borderColor: ripple.color,
-                        // backgroundColor: ripple.color,
-                        opacity: 0.6,
-                        transform: "translate(-50%, -50%)",
-                    }}
-                />
-            ))} */}
+            {ripples.map((ripple) => {
+                console.log(ripple);
+                return (
+                    <span
+                        key={ripple.id}
+                        className={
+                            classNames(
+                                "absolute rounded-full border-none animate-ripple z-50",
+                                {
+                                    "bg-primary-400": ripple.color === 'primary',
+                                    "bg-secondary-400": ripple.color === 'secondary',
+                                    "bg-default-400": ripple.color === 'default',
+                                }
+                            )
+                        }
+                        style={{
+                            left: ripple.x,
+                            top: ripple.y,
+                            // borderColor: ripple.color,
+                            // backgroundColor: ripple.color,
+                            opacity: 0.6,
+                            transform: "translate(-50%, -50%)",
+                        }}
+                    />
+                )
+            })}
         </button>
     );
 };
