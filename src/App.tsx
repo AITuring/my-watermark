@@ -4,9 +4,11 @@ import { ThemeProvider } from "./context";
 import Puzzle from "./Puzzle";
 import Watermark from "./Watermark";
 import CompTest from "./CompTest";
+
 // import BorderWatermark from "./BorderWatermark";
 import Lottery from "./Lottery";
 import ChangeColor from "./ChangeColor";
+import PhotoCollage from "./PhotoCollage";
 import "./App.css";
 
 const menuItems = [
@@ -40,6 +42,13 @@ const menuItems = [
         url: "/comptest",
         component: <CompTest />,
     },
+    {
+        label: "图片拼接",
+        id: "collage",
+        url: "/collage",
+        component: <PhotoCollage />,
+    },
+
 ];
 
 const App = () => {
