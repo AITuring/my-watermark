@@ -1,12 +1,7 @@
 // EmojiBg.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Marquee from "@/components/animata/container/marquee";
-import "./EmojiBg.css";
 
-interface EmojiBgProps {
-    direction?: "horizontal" | "vertical";
-    emojiSize?: number; // 表情符号的大小（单位：像素）
-}
 
 const emojis = [
     "😀",
@@ -121,15 +116,15 @@ const emojis = [
     "😾",
 ];
 
-// ... existing code ...
 
-const EmojiBg: React.FC<EmojiBgProps> = ({ direction = "vertical" }) => {
+const EmojiBg: React.FC = () => {
+    const containerRef = useRef<HTMLDivElement>(null);
     const [marqueeCount, setMarqueeCount] = useState(2);
     const [emojiSize, setEmojiSize] = useState(32);
 
     // 计算需要的 Marquee 层数
     const calculateMarqueeCount = () => {
-        const screenHeight = window.innerHeight;
+        const screenHeight = window.innerHeight - 56;
         const rowHeight = emojiSize * 1.5; // 每行的高度
         return Math.max(2, Math.floor(screenHeight / rowHeight)); // 至少保持2层
     };
@@ -199,6 +194,12 @@ const EmojiBg: React.FC<EmojiBgProps> = ({ direction = "vertical" }) => {
                     reverse={index % 2 === 1} // 相邻行反向移动
                     pauseOnHover
                     className="my-4 border-none "
+                    style={
+                        {
+                            "--duration": "20s", // 控制滚动速度
+                            "--gap": "1rem", // 控制元素间距
+                        } as React.CSSProperties
+                    }
                 >
                     {rowEmojiDivs}
                 </Marquee>
@@ -206,7 +207,9 @@ const EmojiBg: React.FC<EmojiBgProps> = ({ direction = "vertical" }) => {
         });
     };
 
-    return <div className="w-screen overflow-hidden ">{generateMarquees()}</div>;
+    return (
+        <div ref={containerRef} className="w-screen overflow-hidden ">{generateMarquees()}</div>
+    );
 };
 
 export default EmojiBg;

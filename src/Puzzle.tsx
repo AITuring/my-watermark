@@ -301,7 +301,7 @@ const Puzzle = () => {
     );
 
     return (
-        <div className="puzzle">
+        <div className="h-[calc(100vh-56px)]">
             {spinning && (
                 <div className="loading">
                     <div className="loader"></div>
@@ -426,12 +426,7 @@ const Puzzle = () => {
                     </>
                 </div>
             ) : (
-                <div className="upload">
-                    {/* <img
-            src="https://bing.img.run/rand_uhd.php"
-            alt="bg"
-            className="puzzle-bg"
-          /> */}
+                <div className="h-full">
                     <EmojiBg />
                     <input {...getInputProps()} />
                     <div {...getRootProps()} className="upload-button">
@@ -442,11 +437,6 @@ const Puzzle = () => {
                     </div>
                 </div>
             )}
-            {/* <FloatButton
-        icon={<PictureFilled />}
-        tooltip={<div>添加水印</div>}
-        onClick={() => navigate("/")}
-      /> */}
         </div>
     );
 };

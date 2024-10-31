@@ -1,6 +1,6 @@
 "use client";
 import { useState, useCallback } from "react";
-import { Sun, MoonStar } from "lucide-react";
+import { Icon } from '@iconify/react';
 
 interface IToggleSwitchProps {
     onChange?: (value: boolean) => void;
@@ -29,14 +29,12 @@ const ToggleSwitch = ({ onChange, defaultChecked }: IToggleSwitchProps) => {
                         className="sr-only"
                     />
                     <div
-                        className={`box block h-6 w-12 rounded-full ${
+                        className={`box block h-6 w-14 rounded-full ${
                             isChecked ? "bg-indigo-500" : "bg-pink-500"
                         }`}
                     >
                         {isChecked && (
-                            <Sun
-                                className="absolute left-1 top-1 flex items-center justify-center w-4 h-4 rounded-full"
-                            />
+                            <Icon icon="line-md:moon-alt-to-sunny-outline-loop-transition" className="absolute left-1 top-1 flex items-center justify-center w-4 h-4 rounded-full"/>
                         )}
                     </div>
                     <div
@@ -47,10 +45,7 @@ const ToggleSwitch = ({ onChange, defaultChecked }: IToggleSwitchProps) => {
                         }`}
                     />
                     {!isChecked && (
-                        <MoonStar
-
-                            className="absolute right-1 top-1 flex items-center justify-center w-4 h-4 rounded-full"
-                        />
+                        <Icon icon="line-md:moon-rising-alt-loop" className="absolute right-1 top-1 flex items-center justify-center w-4 h-4 rounded-full" />
                     )}
                 </div>
             </label>
