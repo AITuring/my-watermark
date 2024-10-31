@@ -1,6 +1,8 @@
-import { forwardRef, useCallback, useState, useRef, memo } from "react";
+import { forwardRef, useCallback, useState, useRef, memo, useMemo } from "react";
 import { useDropzone } from "react-dropzone";
-import { message, Button, Slider, Tooltip, Select } from "antd";
+import imageCompression from "browser-image-compression";
+import { message, Button, Slider, Tooltip, Select, Spin } from "antd";
+import { Icon } from '@iconify/react';
 import {
     closestCenter,
     DndContext,
@@ -21,7 +23,7 @@ import {
     useSortable,
 } from "@dnd-kit/sortable";
 
-import { CircleHelp } from 'lucide-react';
+import { CircleHelp } from "lucide-react";
 import clsx from "clsx";
 import {
     PhotoAlbum,
@@ -103,7 +105,16 @@ const PhotoFrame = memo(
                 />
             </div>
         );
-    })
+    }),
+    // 添加自定义比较函数作为第二个参数
+    (prevProps, nextProps) => {
+        return (
+            prevProps.imageProps.src === nextProps.imageProps.src &&
+            prevProps.active === nextProps.active &&
+            prevProps.insertPosition === nextProps.insertPosition &&
+            prevProps.overlay === nextProps.overlay
+        );
+    }
 );
 
 function SortablePhotoFrame(
@@ -142,6 +153,7 @@ const Puzzle = () => {
     const [isUpload, setIsUpload] = useState<boolean>(false);
     const [inputColumns, setInputColumns] = useState<number>(3);
     const [inputScale, setInputScale] = useState<number>(6);
+    const [margin, setMargin] = useState<number>(0);
     const [layout, setLayout] = useState<"rows" | "masonry" | "columns">(
         "columns"
     );
@@ -190,26 +202,49 @@ const Puzzle = () => {
         return <SortablePhotoFrame activeIndex={activeIndex} {...props} />;
     };
 
-    const onDrop = useCallback((acceptedFiles) => {
-        setFiles((prev) => [...prev, ...acceptedFiles]);
-        acceptedFiles.forEach((file) => {
-            const src = URL.createObjectURL(file);
-            const img = new Image();
-            img.src = src;
-            img.onload = () => {
-                setImages((prev) => [
-                    ...prev,
-                    {
-                        id: src,
-                        src: src,
-                        width: img.width,
-                        height: img.height,
-                    },
-                ]);
+    const onDrop = useCallback(async (acceptedFiles) => {
+        setSpinning(true);
+        const newImages = [];
+
+        try {
+            const compressionOptions = {
+                maxSizeMB: 15,
+                maxWidthOrHeight: 2560,
+                useWebWorker: true
             };
-            setIsUpload(true);
-        });
-    }, []);
+
+            // 使用 Promise.all 并行处理所有图片
+            await Promise.all(acceptedFiles.map(async (file) => {
+                const compressedFile = await imageCompression(file, compressionOptions);
+                const src = URL.createObjectURL(compressedFile);
+
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        newImages.push({
+                            id: src,
+                            src: src,
+                            width: img.width,
+                            height: img.height,
+                        });
+                        resolve(undefined);
+                    };
+                    img.src = src;
+                });
+            }));
+
+            // 批量更新状态
+            setFiles(prev => [...prev, ...acceptedFiles]);
+            setImages(prev => [...prev, ...newImages]);
+            if (!isUpload) {
+                setIsUpload(true);
+            }
+        } catch (error) {
+            message.error(`图片处理失败: ${error.message}`);
+        } finally {
+            setSpinning(false);
+        }
+    }, [isUpload]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
@@ -247,46 +282,6 @@ const Puzzle = () => {
             0.9
         );
     };
-    // TODO 添加水印，比较耗时，先不搞了
-    const downloadFileWithBorder = async () => {
-        const watermarkImage = new Image();
-        watermarkImage.onload = async () => {
-            message.success("水印下载开始！");
-            if (files.length === 0) {
-                message.error("请选择图片");
-                return;
-            }
-            const galleryElement = galleryRef.current;
-            setSpinning(true);
-            const canvasElement = galleryElement
-                ? galleryElement
-                : document.getElementById("container");
-            const canvas = await html2canvas(canvasElement, {
-                scale: inputScale,
-            });
-            // 添加水印
-            // 导出最终的图片
-            canvas.toBlob(
-                (blob) => {
-                    if (blob) {
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement("a");
-                        link.href = url;
-                        link.download = "my-image.jpeg";
-                        link.click();
-                        setSpinning(false);
-                    }
-                },
-                "image/jpeg",
-                0.9
-            );
-        };
-
-        watermarkImage.onerror = () => {
-            message.error("Failed to load the watermark image.");
-        };
-        watermarkImage.src = watermarkUrl;
-    };
 
     const renderContainer: RenderContainer = ({
         containerProps,
@@ -300,14 +295,29 @@ const Puzzle = () => {
         </div>
     );
 
+    // 使用 useMemo 优化渲染的图片列表
+    const memoizedPhotoAlbum = useMemo(() => (
+        <PhotoAlbum
+            layout={layout}
+            photos={images}
+            padding={0}
+            spacing={margin}
+            columns={inputColumns}
+            renderContainer={renderContainer}
+            renderPhoto={renderPhoto}
+        />
+    ), [layout, images, margin, inputColumns, renderContainer, renderPhoto]);
+
+
     return (
         <div className="h-[calc(100vh-56px)]">
-            {spinning && (
-                <div className="loading">
-                    <div className="loader"></div>
-                </div>
-            )}
-            {isUpload ? (
+            {spinning ? (
+                <Spin
+                    size="large"
+                    fullscreen
+                    indicator={ <Icon icon="line-md:uploading-loop" className=" text-white" />}
+                />
+            ) : isUpload ? (
                 <div className="album">
                     <>
                         <div className="tab">
@@ -339,21 +349,51 @@ const Puzzle = () => {
                                         ]}
                                     />
                                 </div>
+                                {layout !== "rows" && (
+                                    <div className="slide">
+                                        <div>图片列数:</div>
+                                        <Slider
+                                            style={{
+                                                width: "100px",
+                                                marginLeft: "20px",
+                                            }}
+                                            min={0}
+                                            max={10}
+                                            onChange={(value) =>
+                                                setInputColumns(value)
+                                            }
+                                            value={Number(inputColumns)}
+                                        />
+                                    </div>
+                                )}
                                 <div className="slide">
-                                    <div>图片列数:</div>
+                                    <div>图片间距:</div>
                                     <Slider
                                         style={{
                                             width: "100px",
                                             marginLeft: "20px",
                                         }}
-                                        min={1}
-                                        max={10}
-                                        onChange={(value) =>
-                                            setInputColumns(value)
-                                        }
-                                        value={Number(inputColumns)}
+                                        min={0}
+                                        max={50}
+                                        onChange={(value) => setMargin(value)}
+                                        value={Number(margin)}
                                     />
                                 </div>
+                                {/* <div className="slide">
+                                        <div>画框宽度:</div>
+                                        <Slider
+                                            style={{
+                                                width: "100px",
+                                                marginLeft: "20px",
+                                            }}
+                                            min={1}
+                                            max={50}
+                                            onChange={(value) =>
+                                                setPadding(value)
+                                            }
+                                            value={Number(padding)}
+                                        />
+                                    </div> */}
                                 <div className="slide">
                                     <div>导出图片规模:</div>
                                     <Slider
@@ -383,6 +423,18 @@ const Puzzle = () => {
                                     下载大图
                                 </Button>
                                 <Button
+                                    type="default"
+                                    size="large"
+                                    onClick={() =>
+                                        document
+                                            .querySelector('input[type="file"]')
+                                            ?.click()
+                                    }
+                                    style={{ margin: "0 30px" }}
+                                >
+                                    继续添加
+                                </Button>
+                                <Button
                                     style={{ margin: "0 30px" }}
                                     size="large"
                                     onClick={() => {
@@ -395,6 +447,9 @@ const Puzzle = () => {
                                 </Button>
                             </div>
                         </div>
+                        <div style={{ display: "none" }}>
+                            <input {...getInputProps()} />
+                        </div>
                         <DndContext
                             sensors={sensors}
                             collisionDetection={closestCenter}
@@ -403,15 +458,7 @@ const Puzzle = () => {
                         >
                             <SortableContext items={images}>
                                 <div style={{ margin: 30 }}>
-                                    <PhotoAlbum
-                                        layout={layout}
-                                        photos={images}
-                                        padding={0}
-                                        spacing={0}
-                                        columns={inputColumns}
-                                        renderContainer={renderContainer}
-                                        renderPhoto={renderPhoto}
-                                    />
+                                    {memoizedPhotoAlbum}
                                 </div>
                             </SortableContext>
                             <DragOverlay>
@@ -427,14 +474,13 @@ const Puzzle = () => {
                 </div>
             ) : (
                 <div className="h-full">
-                    <EmojiBg />
                     <input {...getInputProps()} />
-                    <div {...getRootProps()} className="upload-button">
-                        <div>选择（或拖拽）图片</div>
-                        <div className="upload-desc">
-                            请不要上传太多图片，否则处理速度会很慢
+                        <div {...getRootProps()} className="upload-button">
+                            <div>选择（或拖拽）图片</div>
+                            <div className="upload-desc">
+                                请不要上传太多图片，否则处理速度会很慢
+                            </div>
                         </div>
-                    </div>
                 </div>
             )}
         </div>
