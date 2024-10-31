@@ -29,19 +29,18 @@ const ToggleSwitch = ({ onChange, defaultChecked }: IToggleSwitchProps) => {
                         className="sr-only"
                     />
                     <div
-                        className={`box block h-8 w-16 rounded-full ${
+                        className={`box block h-6 w-12 rounded-full ${
                             isChecked ? "bg-indigo-500" : "bg-pink-500"
                         }`}
                     >
                         {isChecked && (
                             <Sun
-                                strokeWidth={2}
-                                className="absolute left-1 top-1 flex items-center justify-center w-6 h-6 rounded-full"
+                                className="absolute left-1 top-1 flex items-center justify-center w-4 h-4 rounded-full"
                             />
                         )}
                     </div>
                     <div
-                        className={`absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full transition ${
+                        className={`absolute left-1 top-1 flex h-4 w-4 items-center justify-center rounded-full transition ${
                             isChecked
                                 ? "translate-x-8 bg-gray-200"
                                 : "bg-gray-200"
@@ -49,8 +48,8 @@ const ToggleSwitch = ({ onChange, defaultChecked }: IToggleSwitchProps) => {
                     />
                     {!isChecked && (
                         <MoonStar
-                            strokeWidth={2}
-                            className="absolute right-1 top-1 flex items-center justify-center w-6 h-6 rounded-full"
+
+                            className="absolute right-1 top-1 flex items-center justify-center w-4 h-4 rounded-full"
                         />
                     )}
                 </div>

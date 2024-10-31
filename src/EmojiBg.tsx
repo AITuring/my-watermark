@@ -1,91 +1,212 @@
 // EmojiBg.tsx
-import React, { useEffect, useRef, useState } from 'react';
-import './EmojiBg.css';
+import React, { useEffect, useRef, useState } from "react";
+import Marquee from "@/components/animata/container/marquee";
+import "./EmojiBg.css";
 
 interface EmojiBgProps {
-  direction?: 'horizontal' | 'vertical';
-  emojiSize?: number; // 表情符号的大小（单位：像素）
+    direction?: "horizontal" | "vertical";
+    emojiSize?: number; // 表情符号的大小（单位：像素）
 }
 
-const emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'];
+const emojis = [
+    "😀",
+    "😃",
+    "😄",
+    "😁",
+    "😆",
+    "😅",
+    "😂",
+    "🤣",
+    "😊",
+    "😇",
+    "🙂",
+    "🙃",
+    "😉",
+    "😌",
+    "😍",
+    "🥰",
+    "😘",
+    "😗",
+    "😙",
+    "😚",
+    "😋",
+    "😛",
+    "😝",
+    "😜",
+    "🤪",
+    "🤨",
+    "🧐",
+    "🤓",
+    "😎",
+    "🤩",
+    "🥳",
+    "😏",
+    "😒",
+    "😞",
+    "😔",
+    "😟",
+    "😕",
+    "🙁",
+    "😣",
+    "😖",
+    "😫",
+    "😩",
+    "🥺",
+    "😢",
+    "😭",
+    "😤",
+    "😠",
+    "😡",
+    "🤬",
+    "🤯",
+    "😳",
+    "🥵",
+    "🥶",
+    "😱",
+    "😨",
+    "😰",
+    "😥",
+    "😓",
+    "🤗",
+    "🤔",
+    "🤭",
+    "🤫",
+    "🤥",
+    "😶",
+    "😐",
+    "😑",
+    "😬",
+    "🙄",
+    "😯",
+    "😦",
+    "😧",
+    "😮",
+    "😲",
+    "🥱",
+    "😴",
+    "🤤",
+    "😪",
+    "😵",
+    "🤐",
+    "🥴",
+    "🤢",
+    "🤮",
+    "🤧",
+    "😷",
+    "🤒",
+    "🤕",
+    "🤑",
+    "🤠",
+    "😈",
+    "👿",
+    "👹",
+    "👺",
+    "🤡",
+    "💩",
+    "👻",
+    "💀",
+    "☠️",
+    "👽",
+    "👾",
+    "🤖",
+    "🎃",
+    "😺",
+    "😸",
+    "😹",
+    "😻",
+    "😼",
+    "😽",
+    "🙀",
+    "😿",
+    "😾",
+];
 
-const EmojiBg: React.FC<EmojiBgProps> = ({ direction = 'vertical', emojiSize = 32 }) => {
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const [emojiGrid, setEmojiGrid] = useState<JSX.Element[]>([]);
-  const [numRows, setNumRows] = useState(0);
-  const [numCols, setNumCols] = useState(0);
+// ... existing code ...
 
-  const a = "horizontal";
-const b = "vertical";
+const EmojiBg: React.FC<EmojiBgProps> = ({ direction = "vertical" }) => {
+    const [marqueeCount, setMarqueeCount] = useState(2);
+    const [emojiSize, setEmojiSize] = useState(32);
 
-const randomNumber = Math.floor(Math.random() * 2);
-
-const randomString = randomNumber === 0 ? a : b;
-
-  // 计算并设置行数和列数
-  useEffect(() => {
-    const calculateGridSize = () => {
-      const screenWidth = window.innerWidth;
-      const screenHeight = window.innerHeight;
-      const rows = Math.ceil(screenHeight / emojiSize);
-      const cols = Math.ceil(screenWidth / emojiSize);
-      // 设置两倍的格子，防止滚动时出现空白
-      setNumRows(rows * 2);
-      setNumCols(cols * 2);
+    // 计算需要的 Marquee 层数
+    const calculateMarqueeCount = () => {
+        const screenHeight = window.innerHeight;
+        const rowHeight = emojiSize * 1.5; // 每行的高度
+        return Math.max(2, Math.floor(screenHeight / rowHeight)); // 至少保持2层
     };
 
-    calculateGridSize(); // 初始计算
-    window.addEventListener('resize', calculateGridSize); // 调整大小时再次计算
-
-    return () => {
-      window.removeEventListener('resize', calculateGridSize);
+    const calculateEmojiSize = () => {
+        const screenWidth = window.innerWidth;
+        // 根据屏幕宽度设置不同的大小
+        if (screenWidth < 640) {
+            // 移动设备
+            return 24;
+        } else if (screenWidth < 1024) {
+            // 平板
+            return 32;
+        } else if (screenWidth < 1440) {
+            // 小型桌面
+            return 40;
+        } else {
+            // 大屏幕
+            return 48;
+        }
     };
-  }, [emojiSize]);
 
-  // 根据行数和列数生成表情网格
-  useEffect(() => {
-    const generateEmojiGrid = () => {
-      return Array.from({ length: numRows }, (_, rowIndex) => (
-        <div key={`row-${rowIndex}`} className="emoji-row">
-          {Array.from({ length: numCols }, (_, colIndex) => {
-            const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+    // 根据总层数平均分配 emoji
+    const getEmojisForRow = () => {
+        const emojisPerRow = Math.ceil(emojis.length / marqueeCount);
+        return emojis.reduce((acc: string[][], curr, i) => {
+            const rowIndex = Math.floor(i / emojisPerRow);
+            if (!acc[rowIndex]) acc[rowIndex] = [];
+            acc[rowIndex].push(curr);
+            return acc;
+        }, []);
+    };
+
+    // 监听屏幕变化
+    useEffect(() => {
+        const handleResize = () => {
+            setEmojiSize(calculateEmojiSize());
+            setMarqueeCount(calculateMarqueeCount());
+        };
+
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
+    // 生成 Marquee 组件
+    const generateMarquees = () => {
+        const emojiRows = getEmojisForRow();
+        return emojiRows.map((rowEmojis, index) => {
+            const rowEmojiDivs = rowEmojis.map((emoji, i) => (
+                <div
+                    key={i}
+                    className="flex items-center justify-center"
+                    style={{
+                        height: `${emojiSize * 1.5}px`,
+                        width: `${emojiSize * 1.5}px`,
+                        fontSize: `${emojiSize}px`,
+                    }}
+                >
+                    {emoji}
+                </div>
+            ));
+
             return (
-              <span key={`emoji-${rowIndex}-${colIndex}`} className="emoji" style={{ fontSize: `${emojiSize}px` }}>
-                {randomEmoji}
-              </span>
+                <Marquee
+                    key={index}
+                    reverse={index % 2 === 1} // 相邻行反向移动
+                    pauseOnHover
+                    className="my-4 border-none "
+                >
+                    {rowEmojiDivs}
+                </Marquee>
             );
-          })}
-        </div>
-      ));
+        });
     };
 
-    setEmojiGrid(generateEmojiGrid());
-  }, [numRows, numCols, emojiSize]);
-
-  // 处理滚动动画
-  // useEffect(() => {
-  //   const scroller = scrollerRef.current;
-  //   if (scroller) {
-  //     let position = 0;
-  //     const speed = 2; // 可调整滚动速度
-  //     const scroll = () => {
-  //       position += speed;
-  //       if (direction === 'vertical') {
-  //         scroller.scrollTop = position;
-  //       } else {
-  //         scroller.scrollLeft = position;
-  //       }
-  //       requestAnimationFrame(scroll);
-  //     };
-  //     requestAnimationFrame(scroll);
-  //   }
-  // }, [direction]);
-
-  return (
-    <div className={`emoji-scroller ${randomString}`} ref={scrollerRef}>
-      {emojiGrid}
-    </div>
-  );
+    return <div className="w-screen overflow-hidden ">{generateMarquees()}</div>;
 };
 
 export default EmojiBg;
