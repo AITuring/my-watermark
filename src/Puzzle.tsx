@@ -30,7 +30,6 @@ import {
     useSortable,
 } from "@dnd-kit/sortable";
 
-import { CircleHelp } from "lucide-react";
 import clsx from "clsx";
 import {
     PhotoAlbum,
@@ -430,7 +429,10 @@ const Puzzle = () => {
                                     value={Number(inputScale)}
                                 />
                                 <Tooltip title="规模越大，导出图片尺寸越大，导出更加耗时">
-                                    <CircleHelp className="w-4 h-4" />
+                                    <Icon
+                                        icon="ic:outline-help"
+                                        className=" w-4 h-4"
+                                    />
                                 </Tooltip>
                             </div>
                         </div>
@@ -441,7 +443,11 @@ const Puzzle = () => {
                             <Button
                                 type="default"
                                 onClick={() =>
-                                    (document.querySelector('input[type="file"]') as HTMLInputElement)?.click()
+                                    (
+                                        document.querySelector(
+                                            'input[type="file"]'
+                                        ) as HTMLInputElement
+                                    )?.click()
                                 }
                             >
                                 继续添加
