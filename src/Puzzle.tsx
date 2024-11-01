@@ -94,7 +94,7 @@ const PhotoFrame = memo(
                     marginBottom: style.marginBottom,
                     position: "relative",
                 }}
-                className={clsx("photo-frame", {
+                className={clsx("photo-frame group", {
                     overlay: overlay,
                     active: active,
                     insertBefore: insertPosition === "before",
@@ -115,7 +115,7 @@ const PhotoFrame = memo(
                     {...restImageProps}
                 />
                 {!overlay && ( // 拖拽时不显示删除按钮
-                    <div>
+                    <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                         <Tooltip title="删除">
                             <Button
                                 shape="circle"
