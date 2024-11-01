@@ -185,22 +185,55 @@ const Puzzle = () => {
         []
     );
 
-    const handleDragEnd = useCallback((event: DragEndEvent) => {
-        const { active, over } = event;
+    const handleDragEnd = useCallback(
+        (event: DragEndEvent) => {
+            const { active, over } = event;
 
-        if (over && active.id !== over.id) {
-            setImages((items) => {
-                const oldIndex = items.findIndex(
-                    (item) => item.id === active.id
-                );
-                const newIndex = items.findIndex((item) => item.id === over.id);
+            if (over && active.id !== over.id) {
+                setImages((items) => {
+                    const oldIndex = items.findIndex(
+                        (item) => item.id === active.id
+                    );
+                    const newIndex = items.findIndex(
+                        (item) => item.id === over.id
+                    );
 
-                return arrayMove(items, oldIndex, newIndex);
-            });
-        }
+                    // 在列布局时进行特殊处理
+                    // if (layout === "columns") {
+                    //     // 计算每行的图片数量
+                    //     const itemsPerRow = inputColumns;
+                    //     // 计算源图片和目标图片所在的行
+                    //     const oldRow = Math.floor(oldIndex / itemsPerRow);
+                    //     const newRow = Math.floor(newIndex / itemsPerRow);
 
-        setActiveId(undefined);
-    }, []);
+                    //     // 如果在同一行内，则直接交换位置
+                    //     if (oldRow === newRow) {
+                    //         const newItems = [...items];
+                    //         [newItems[oldIndex], newItems[newIndex]] = [
+                    //             newItems[newIndex],
+                    //             newItems[oldIndex],
+                    //         ];
+                    //         return newItems;
+                    //     }
+                    //     // 如果不在同一行，则保持原有行为（整体重排）
+                    //     return arrayMove(items, oldIndex, newIndex);
+                    // }
+
+                    // // 其他布局保持原有行为
+                    // return arrayMove(items, oldIndex, newIndex);
+                    const newItems = [...items];
+                    [newItems[oldIndex], newItems[newIndex]] = [
+                        newItems[newIndex],
+                        newItems[oldIndex],
+                    ];
+                    return newItems;
+                });
+            }
+
+            setActiveId(undefined);
+        },
+        [layout, inputColumns]
+    );
 
     const renderPhoto = (props: SortablePhotoProps) => {
         // capture rendered photos for future use in DragOverlay
