@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { message, Spin, InputNumber, Switch, Tooltip } from "antd";
-import { ImageUp, CircleHelp } from "lucide-react";
+import { Icon } from "@iconify/react";
 import { CustomButton } from "./components";
-import { loadImageData,debounce, processImage } from "./utils";
+import { loadImageData, debounce, processImage } from "./utils";
 import { ImageType } from "./types";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
@@ -44,9 +44,9 @@ const Watermark: React.FC = () => {
 
     useEffect(() => {
         if (images.length === 0) {
-            setImageUploaderVisible(true)
+            setImageUploaderVisible(true);
         }
-    }, [images])
+    }, [images]);
 
     const handleImagesUpload = async (files: File[]) => {
         const uploadImages = await loadImageData(files);
@@ -102,7 +102,13 @@ const Watermark: React.FC = () => {
         for (let i = 0; i < files.length; i += batchSize) {
             const batch = files.slice(i, i + batchSize);
             const promises = batch.map((file) =>
-                processImage(file, watermarkImage, position, watermarkBlur, quality)
+                processImage(
+                    file,
+                    watermarkImage,
+                    position,
+                    watermarkBlur,
+                    quality
+                )
             );
             const imageBlobs = await Promise.all(promises);
 
@@ -153,7 +159,6 @@ const Watermark: React.FC = () => {
         };
         watermarkImage.src = watermarkUrl;
     };
-
 
     // 使用 debounce 包裹你的事件处理函数
     const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
@@ -241,7 +246,10 @@ const Watermark: React.FC = () => {
                                 <div className="my-2 flex items-center">
                                     水印背景模糊
                                     <Tooltip title="开启后水印周围有一层高斯模糊">
-                                        <CircleHelp className="w-4 h-4 ml-2" />
+                                        <Icon
+                                            icon="ic:outline-help"
+                                            className=" w-4 h-4 ml-2"
+                                        />
                                     </Tooltip>
                                 </div>
                                 <Switch

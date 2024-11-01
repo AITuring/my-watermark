@@ -1,16 +1,16 @@
 // TODO 不同sie，icon应该不一样
-import { icons } from "lucide-react";
 import React, { FC, MouseEvent, useState } from "react";
 import classNames from "classnames";
 import { uuid } from "@/utils";
-import Icon from "../Icon";
+import type { IconifyIcon } from '@iconify/types';
+import { Icon } from "@iconify/react";
 
 interface CustomButtonProps {
     variant?: "text" | "outlined" | "contained";
     color?: "default" | "primary" | "secondary";
     size?: "small" | "medium" | "large" | "xlarge";
     disabled?: boolean;
-    icon?: keyof typeof icons;
+    icon?: string;
     onClick?: () => void;
     children: React.ReactNode;
     className?: string;
@@ -105,22 +105,12 @@ const CustomButton: FC<CustomButtonProps> = ({
         className
     );
 
-    const getIconSizeStyle = (size: CustomButtonProps["size"]) => {
-        switch (size) {
-            case "small":
-                return 12;
-            case "medium":
-                return 16;
-            case "large":
-                return 20;
-            case "xlarge":
-                return 24;
-            default:
-                return 16; // 默认大小为 medium
-        }
-    };
-
-    const iconSize = getIconSizeStyle(size);
+    const sizeMap = {
+        small: 16,
+        medium: 24,
+        large: 32,
+        xlarge: 40
+    } as const;
 
     return (
         <button
@@ -128,7 +118,7 @@ const CustomButton: FC<CustomButtonProps> = ({
             onClick={handleClick}
             disabled={disabled}
         >
-            {icon && <Icon name={icon} size={iconSize} />}
+            {icon && <Icon icon={icon as unknown as IconifyIcon} width={sizeMap[size]} height={sizeMap[size]} />}
             <div>{children}</div>
             {ripples.map((ripple) => {
                 console.log(ripple);

@@ -1,5 +1,4 @@
 import { CustomButton, InputNum } from "./components";
-import { CircleX, ImageUp, FolderX } from "lucide-react";
 
 const CompTest = () => {
     return (
