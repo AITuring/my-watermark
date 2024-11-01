@@ -36,7 +36,7 @@ import {
     sortableKeyboardCoordinates,
     useSortable,
 } from "@dnd-kit/sortable";
-import { useDebouncedCallback } from 'use-debounce';
+import { useDebouncedCallback } from "use-debounce";
 import clsx from "clsx";
 import {
     PhotoAlbum,
@@ -62,6 +62,8 @@ type PhotoFrameProps = SortablePhotoProps & {
     attributes?: Partial<React.HTMLAttributes<HTMLDivElement>>;
     listeners?: Partial<React.HTMLAttributes<HTMLDivElement>>;
     onDelete?: (id: UniqueIdentifier) => void;
+    margin?: number;
+    radius?: number;
 };
 interface ImgProp {
     id: string;
@@ -85,6 +87,8 @@ const PhotoFrame = memo(
             listeners,
             photo,
             onDelete,
+            margin,
+            radius,
         } = props;
         const { alt, style, ...restImageProps } = imageProps;
 
@@ -95,9 +99,15 @@ const PhotoFrame = memo(
                     width: overlay
                         ? `calc(100% - ${2 * layoutOptions.padding}px)`
                         : style.width,
-                    padding: style.padding,
-                    margin: style.marginBottom,
+                    padding: margin || 0,
+                    boxSizing: "border-box",
                     position: "relative",
+                    // borderRadius: margin > 2 ? "4px" : 0,
+                    // boxShadow: margin > 0
+                    // ? "0px 3px 3px -2px rgb(0 0 0 / 20%), 0px 3px 4px 0px rgb(0 0 0 / 24%), 0px 1px 8px 0px rgb(0 0 0 / 22%)"
+                    // : "none",
+                    transition:
+                        "box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms",
                 }}
                 className={clsx("photo-frame group", {
                     overlay: overlay,
@@ -108,30 +118,45 @@ const PhotoFrame = memo(
                 {...attributes}
                 {...listeners}
             >
-                <Image
-                    alt={alt}
+                <div
                     style={{
-                        ...style,
+                        position: "relative",
                         width: "100%",
-                        height: "auto",
-                        padding: 0,
-                        marginBottom: 0,
+                        height: "100%",
                     }}
-                    preview={{
-                        maskClassName:
-                            "group-hover:opacity-100 opacity-0 transition-opacity duration-200",
-                        mask: (
-                            <div className="flex items-center justify-center">
-                                <Icon
-                                    icon="ph:eye-bold"
-                                    className="w-5 h-5 mr-2"
-                                />
-                                预览
-                            </div>
-                        ),
-                    }}
-                    {...restImageProps}
-                />
+                >
+                    <Image
+                        alt={alt}
+                        style={{
+                            ...style,
+                            width: "100%",
+                            height: "auto",
+                            padding: 0,
+                            margin: 0,
+                            borderRadius: radius || 0,
+                            // TODO 导出图片无法带这个阴影，想做后期还得研究
+                            // boxShadow:
+                            //     margin > 0
+                            //         ? "0px 3px 3px -2px rgb(0 0 0 / 20%), 0px 3px 4px 0px rgb(0 0 0 / 24%), 0px 1px 8px 0px rgb(0 0 0 / 22%)"
+                            //         : "none",
+                        }}
+                        preview={{
+                            maskClassName:
+                                "group-hover:opacity-100 opacity-0 transition-opacity duration-200",
+                            mask: (
+                                <div className="flex items-center justify-center">
+                                    <Icon
+                                        icon="ph:eye-bold"
+                                        className="w-5 h-5 mr-2"
+                                    />
+                                    预览
+                                </div>
+                            ),
+                        }}
+                        {...restImageProps}
+                    />
+                </div>
+
                 {!overlay && ( // 拖拽时不显示删除按钮
                     <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                         <Tooltip title="删除">
@@ -162,7 +187,9 @@ const PhotoFrame = memo(
             prevProps.imageProps.src === nextProps.imageProps.src &&
             prevProps.active === nextProps.active &&
             prevProps.insertPosition === nextProps.insertPosition &&
-            prevProps.overlay === nextProps.overlay
+            prevProps.overlay === nextProps.overlay &&
+            prevProps.margin === nextProps.margin && // 添加 margin 比较
+            prevProps.radius === nextProps.radius // 添加 radius 比较
         );
     }
 );
@@ -171,9 +198,11 @@ function SortablePhotoFrame(
     props: SortablePhotoProps & {
         activeIndex?: number;
         onDelete?: (id: UniqueIdentifier) => void;
+        margin?: number;
+        radius?: number;
     }
 ) {
-    const { photo, activeIndex, onDelete } = props;
+    const { photo, activeIndex, onDelete, margin, radius } = props;
     const { attributes, listeners, isDragging, index, over, setNodeRef } =
         useSortable({ id: photo.id });
 
@@ -194,6 +223,8 @@ function SortablePhotoFrame(
             attributes={attributes}
             listeners={listeners}
             onDelete={onDelete}
+            margin={margin}
+            radius={radius}
             {...props}
         />
     );
@@ -208,6 +239,7 @@ const Puzzle = () => {
     const [inputColumns, setInputColumns] = useState<number>(3);
     const [inputScale, setInputScale] = useState<number>(6);
     const [margin, setMargin] = useState<number>(0);
+    const [radius, setRadius] = useState<number>(0);
     const [layout, setLayout] = useState<"rows" | "masonry" | "columns">(
         "columns"
     );
@@ -304,6 +336,8 @@ const Puzzle = () => {
             <SortablePhotoFrame
                 activeIndex={activeIndex}
                 onDelete={handleDelete}
+                margin={margin}
+                radius={radius}
                 {...props}
             />
         );
@@ -385,12 +419,12 @@ const Puzzle = () => {
             return;
         }
         // 临时隐藏所有删除按钮
-        const deleteButtons = document.querySelectorAll(
-            ".photo-frame .ant-btn"
-        );
-        deleteButtons.forEach((button) => {
-            (button as HTMLElement).style.display = "none";
-        });
+        // const deleteButtons = document.querySelectorAll(
+        //     ".photo-frame .ant-btn"
+        // );
+        // deleteButtons.forEach((button) => {
+        //     (button as HTMLElement).style.display = "none";
+        // });
         setSpinning(true);
         const galleryElement = galleryRef.current;
         const canvasElement = galleryElement
@@ -421,13 +455,21 @@ const Puzzle = () => {
         containerRef,
     }) => (
         <div ref={galleryRef} id="container">
-            <div ref={containerRef} {...containerProps} id="gallery">
+            <div
+                ref={containerRef}
+                {...containerProps}
+                id="gallery"
+                style={{
+                    ...containerProps.style,
+                    margin: `-${margin}px`, // 抵消最外层的 padding
+                    padding: `${margin}px`,
+                    // TODO 这里可以自定义背景颜色
+                }}
+            >
                 {children}
             </div>
         </div>
     );
-
-    const layoutKey = useMemo(() => `${layout}-${margin}-${inputColumns}`, [layout, margin, inputColumns]);
 
     const debouncedSetMargin = useDebouncedCallback(
         (value: number) => {
@@ -440,65 +482,73 @@ const Puzzle = () => {
     const memoizedPhotoAlbum = useMemo(
         () => (
             <Image.PreviewGroup
-                // TODO 期待新增一个删除按钮，但还需要梳理一下
-                // preview={{
-                //     onChange: (current) => {
+            // TODO 期待新增一个删除按钮，但还需要梳理一下
+            // preview={{
+            //     onChange: (current) => {
 
-                //     },
-                //     toolbarRender: (
-                //         _,
-                //         {
-                //             actions: {
-                //                 onFlipY,
-                //                 onFlipX,
-                //                 onRotateLeft,
-                //                 onRotateRight,
-                //                 onZoomOut,
-                //                 onZoomIn,
-                //             },
-                //         }
-                //     ) => (
-                //         <div className="flex items-center gpa-4 text-xl">
-                //             <Icon icon="ant-design:rotate-left-outlined" className="w-5 h-5 cursor-pointer" onClick={onRotateLeft} />
-                //             <Icon icon="ant-design:rotate-right-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onRotateRight} />
-                //             <Icon icon="ant-design:swap-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onFlipY} style={{ transform: 'rotate(90deg)'}} />
-                //             <Icon icon="ant-design:swap-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onFlipX} />
-                //             <Icon icon="ant-design:zoom-out-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onZoomOut} />
-                //             <Icon icon="ant-design:zoom-in-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onZoomIn} />
-                //             <Icon icon="ant-design:delete-outlined" className="w-5 h-5 cursor-pointer" onClick={() => {
-                //                 console.log(currentImageIndex);
-                //                 if (currentImageIndex !== undefined) {
-                //                     const newImages = [...images];
-                //                     newImages.splice(currentImageIndex, 1);
-                //                     setImages(newImages);
-                //                     setFiles(prev => {
-                //                         const newFiles = [...prev];
-                //                         newFiles.splice(currentImageIndex, 1);
-                //                         return newFiles;
-                //                     });
-                //                     // 如果删除的是最后一张图片，显示前一张
-                //                     if (currentImageIndex >= newImages.length) {
-                //                         setCurrentImageIndex(Math.max(newImages.length - 1, 0));
-                //                     }
-                //                 }
-                //             }} />
+            //     },
+            //     toolbarRender: (
+            //         _,
+            //         {
+            //             actions: {
+            //                 onFlipY,
+            //                 onFlipX,
+            //                 onRotateLeft,
+            //                 onRotateRight,
+            //                 onZoomOut,
+            //                 onZoomIn,
+            //             },
+            //         }
+            //     ) => (
+            //         <div className="flex items-center gpa-4 text-xl">
+            //             <Icon icon="ant-design:rotate-left-outlined" className="w-5 h-5 cursor-pointer" onClick={onRotateLeft} />
+            //             <Icon icon="ant-design:rotate-right-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onRotateRight} />
+            //             <Icon icon="ant-design:swap-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onFlipY} style={{ transform: 'rotate(90deg)'}} />
+            //             <Icon icon="ant-design:swap-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onFlipX} />
+            //             <Icon icon="ant-design:zoom-out-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onZoomOut} />
+            //             <Icon icon="ant-design:zoom-in-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onZoomIn} />
+            //             <Icon icon="ant-design:delete-outlined" className="w-5 h-5 cursor-pointer" onClick={() => {
+            //                 console.log(currentImageIndex);
+            //                 if (currentImageIndex !== undefined) {
+            //                     const newImages = [...images];
+            //                     newImages.splice(currentImageIndex, 1);
+            //                     setImages(newImages);
+            //                     setFiles(prev => {
+            //                         const newFiles = [...prev];
+            //                         newFiles.splice(currentImageIndex, 1);
+            //                         return newFiles;
+            //                     });
+            //                     // 如果删除的是最后一张图片，显示前一张
+            //                     if (currentImageIndex >= newImages.length) {
+            //                         setCurrentImageIndex(Math.max(newImages.length - 1, 0));
+            //                     }
+            //                 }
+            //             }} />
 
-                //         </div>
-                //     ),
-                // }}
+            //         </div>
+            //     ),
+            // }}
             >
                 <PhotoAlbum
                     layout={layout}
                     photos={images}
                     padding={0}
-                    spacing={margin}
+                    spacing={0}
                     columns={inputColumns}
                     renderContainer={renderContainer}
                     renderPhoto={renderPhoto}
                 />
             </Image.PreviewGroup>
         ),
-        [layout, images, margin, inputColumns, renderContainer, renderPhoto]
+        [
+            layout,
+            images,
+            margin,
+            inputColumns,
+            renderContainer,
+            renderPhoto,
+            radius,
+        ]
     );
 
     return (
@@ -522,10 +572,7 @@ const Puzzle = () => {
                                 <div>布局方式:</div>
                                 <Select
                                     value={layout}
-                                    style={{
-                                        width: 100,
-                                        marginLeft: "20px",
-                                    }}
+                                    className="w-24 ml-4"
                                     onChange={(value) =>
                                         setLayout(
                                             value as
@@ -561,7 +608,7 @@ const Puzzle = () => {
                                     />
                                 </div>
                             )}
-                            {/* <div className="flex items-center gpa-4 my-4">
+                            <div className="flex items-center gpa-4 my-4">
                                 <div>图片间距:</div>
                                 <InputNumber
                                     className="w-16 ml-4"
@@ -570,7 +617,19 @@ const Puzzle = () => {
                                     onChange={debouncedSetMargin}
                                     value={Number(margin)}
                                 />
-                            </div> */}
+                            </div>
+                            {margin > 0 && (
+                                <div className="flex items-center gpa-4 my-4">
+                                    <div>图片圆角:</div>
+                                    <InputNumber
+                                        className="w-16 ml-4"
+                                        min={0}
+                                        max={50}
+                                        onChange={(value) => setRadius(value)}
+                                        value={Number(radius)}
+                                    />
+                                </div>
+                            )}
                             {/* <div className="flex items-center gpa-4 my-4">
                                         <div>画框宽度:</div>
                                         <InputNumber
@@ -642,6 +701,8 @@ const Puzzle = () => {
                             {activeId && (
                                 <PhotoFrame
                                     overlay
+                                    margin={margin}
+                                    radius={radius}
                                     {...renderedPhotos.current[activeId]}
                                 />
                             )}
@@ -653,9 +714,6 @@ const Puzzle = () => {
                     <input {...getInputProps()} />
                     <div {...getRootProps()} className="upload-button">
                         <div>选择图片</div>
-                        {/* <div className="upload-desc">
-                                请不要上传太多图片，否则处理速度会很慢
-                            </div> */}
                     </div>
                 </div>
             )}
