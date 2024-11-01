@@ -36,6 +36,7 @@
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7",
     "terser": "^5.36.0",
+    "use-debounce": "^10.0.4",
     "use-image": "^1.1.1",
     "vite-plugin-compression": "^0.5.1"
   },

@@ -8,7 +8,15 @@ import {
 } from "react";
 import { useDropzone } from "react-dropzone";
 import imageCompression from "browser-image-compression";
-import { message, Button, Tooltip, Select, Spin, InputNumber } from "antd";
+import {
+    message,
+    Button,
+    Tooltip,
+    Select,
+    Spin,
+    InputNumber,
+    Image,
+} from "antd";
 import { Icon } from "@iconify/react";
 import {
     closestCenter,
@@ -28,7 +36,7 @@ import {
     sortableKeyboardCoordinates,
     useSortable,
 } from "@dnd-kit/sortable";
-
+import { useDebouncedCallback } from 'use-debounce';
 import clsx from "clsx";
 import {
     PhotoAlbum,
@@ -37,10 +45,7 @@ import {
     RenderPhotoProps,
 } from "react-photo-album";
 import html2canvas from "html2canvas";
-import EmojiBg from "./EmojiBg";
 import "./puzzle.css";
-
-const watermarkUrl = "./assets/logo.png";
 
 interface SortablePhoto extends Photo {
     id: UniqueIdentifier;
@@ -91,7 +96,7 @@ const PhotoFrame = memo(
                         ? `calc(100% - ${2 * layoutOptions.padding}px)`
                         : style.width,
                     padding: style.padding,
-                    marginBottom: style.marginBottom,
+                    margin: style.marginBottom,
                     position: "relative",
                 }}
                 className={clsx("photo-frame group", {
@@ -103,7 +108,7 @@ const PhotoFrame = memo(
                 {...attributes}
                 {...listeners}
             >
-                <img
+                <Image
                     alt={alt}
                     style={{
                         ...style,
@@ -111,6 +116,19 @@ const PhotoFrame = memo(
                         height: "auto",
                         padding: 0,
                         marginBottom: 0,
+                    }}
+                    preview={{
+                        maskClassName:
+                            "group-hover:opacity-100 opacity-0 transition-opacity duration-200",
+                        mask: (
+                            <div className="flex items-center justify-center">
+                                <Icon
+                                    icon="ph:eye-bold"
+                                    className="w-5 h-5 mr-2"
+                                />
+                                预览
+                            </div>
+                        ),
                     }}
                     {...restImageProps}
                 />
@@ -196,6 +214,7 @@ const Puzzle = () => {
 
     const renderedPhotos = useRef<{ [key: string]: SortablePhotoProps }>({});
     const [activeId, setActiveId] = useState<UniqueIdentifier>();
+    // const [currentImageIndex, setCurrentImageIndex] = useState<number>();
     const activeIndex = activeId
         ? images.findIndex((photo) => photo.id === activeId)
         : undefined;
@@ -318,8 +337,8 @@ const Puzzle = () => {
                         );
                         const src = URL.createObjectURL(compressedFile);
 
-                        return new Promise((resolve) => {
-                            const img = new Image();
+                        return new Promise<HTMLImageElement>((resolve) => {
+                            const img = new window.Image();
                             img.onload = () => {
                                 newImages.push({
                                     id: src,
@@ -327,7 +346,7 @@ const Puzzle = () => {
                                     width: img.width,
                                     height: img.height,
                                 });
-                                resolve(undefined);
+                                resolve(img);
                             };
                             img.src = src;
                         });
@@ -408,18 +427,76 @@ const Puzzle = () => {
         </div>
     );
 
+    const layoutKey = useMemo(() => `${layout}-${margin}-${inputColumns}`, [layout, margin, inputColumns]);
+
+    const debouncedSetMargin = useDebouncedCallback(
+        (value: number) => {
+            setMargin(value);
+        },
+        300 // 300ms 延迟
+    );
+
     // 使用 useMemo 优化渲染的图片列表
     const memoizedPhotoAlbum = useMemo(
         () => (
-            <PhotoAlbum
-                layout={layout}
-                photos={images}
-                padding={0}
-                spacing={margin}
-                columns={inputColumns}
-                renderContainer={renderContainer}
-                renderPhoto={renderPhoto}
-            />
+            <Image.PreviewGroup
+                // TODO 期待新增一个删除按钮，但还需要梳理一下
+                // preview={{
+                //     onChange: (current) => {
+
+                //     },
+                //     toolbarRender: (
+                //         _,
+                //         {
+                //             actions: {
+                //                 onFlipY,
+                //                 onFlipX,
+                //                 onRotateLeft,
+                //                 onRotateRight,
+                //                 onZoomOut,
+                //                 onZoomIn,
+                //             },
+                //         }
+                //     ) => (
+                //         <div className="flex items-center gpa-4 text-xl">
+                //             <Icon icon="ant-design:rotate-left-outlined" className="w-5 h-5 cursor-pointer" onClick={onRotateLeft} />
+                //             <Icon icon="ant-design:rotate-right-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onRotateRight} />
+                //             <Icon icon="ant-design:swap-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onFlipY} style={{ transform: 'rotate(90deg)'}} />
+                //             <Icon icon="ant-design:swap-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onFlipX} />
+                //             <Icon icon="ant-design:zoom-out-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onZoomOut} />
+                //             <Icon icon="ant-design:zoom-in-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onZoomIn} />
+                //             <Icon icon="ant-design:delete-outlined" className="w-5 h-5 cursor-pointer" onClick={() => {
+                //                 console.log(currentImageIndex);
+                //                 if (currentImageIndex !== undefined) {
+                //                     const newImages = [...images];
+                //                     newImages.splice(currentImageIndex, 1);
+                //                     setImages(newImages);
+                //                     setFiles(prev => {
+                //                         const newFiles = [...prev];
+                //                         newFiles.splice(currentImageIndex, 1);
+                //                         return newFiles;
+                //                     });
+                //                     // 如果删除的是最后一张图片，显示前一张
+                //                     if (currentImageIndex >= newImages.length) {
+                //                         setCurrentImageIndex(Math.max(newImages.length - 1, 0));
+                //                     }
+                //                 }
+                //             }} />
+
+                //         </div>
+                //     ),
+                // }}
+            >
+                <PhotoAlbum
+                    layout={layout}
+                    photos={images}
+                    padding={0}
+                    spacing={margin}
+                    columns={inputColumns}
+                    renderContainer={renderContainer}
+                    renderPhoto={renderPhoto}
+                />
+            </Image.PreviewGroup>
         ),
         [layout, images, margin, inputColumns, renderContainer, renderPhoto]
     );
@@ -484,16 +561,16 @@ const Puzzle = () => {
                                     />
                                 </div>
                             )}
-                            <div className="flex items-center gpa-4 my-4">
+                            {/* <div className="flex items-center gpa-4 my-4">
                                 <div>图片间距:</div>
                                 <InputNumber
                                     className="w-16 ml-4"
                                     min={0}
                                     max={50}
-                                    onChange={(value) => setMargin(value)}
+                                    onChange={debouncedSetMargin}
                                     value={Number(margin)}
                                 />
-                            </div>
+                            </div> */}
                             {/* <div className="flex items-center gpa-4 my-4">
                                         <div>画框宽度:</div>
                                         <InputNumber

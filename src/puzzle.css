@@ -57,5 +57,15 @@
   /* filter: blur(1px); */
 }
 
-/* HTML: <div class="loader"></div> */
+/* 覆盖 antd Image 组件的默认样式 */
+.ant-image {
+    display: block !important;
+    font-size: 0;
+    line-height: 0;
+}
+
+.ant-image-img {
+    display: block;
+    vertical-align: middle;
+}
 
