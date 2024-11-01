@@ -24,7 +24,6 @@ import {
     useSensors,
 } from "@dnd-kit/core";
 import {
-    arrayMove,
     SortableContext,
     sortableKeyboardCoordinates,
     useSortable,
@@ -55,6 +54,7 @@ type PhotoFrameProps = SortablePhotoProps & {
     insertPosition?: "before" | "after";
     attributes?: Partial<React.HTMLAttributes<HTMLDivElement>>;
     listeners?: Partial<React.HTMLAttributes<HTMLDivElement>>;
+    onDelete?: (id: UniqueIdentifier) => void;
 };
 interface ImgProp {
     id: string;
@@ -76,6 +76,8 @@ const PhotoFrame = memo(
             insertPosition,
             attributes,
             listeners,
+            photo,
+            onDelete,
         } = props;
         const { alt, style, ...restImageProps } = imageProps;
 
@@ -88,6 +90,7 @@ const PhotoFrame = memo(
                         : style.width,
                     padding: style.padding,
                     marginBottom: style.marginBottom,
+                    position: "relative",
                 }}
                 className={clsx("photo-frame", {
                     overlay: overlay,
@@ -109,6 +112,22 @@ const PhotoFrame = memo(
                     }}
                     {...restImageProps}
                 />
+                {!overlay && ( // 拖拽时不显示删除按钮
+                    <div>
+                        <Tooltip title="删除">
+                            <Button
+                                shape="circle"
+                                size="small"
+                                className="absolute top-1 right-1"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete?.(photo.id);
+                                }}
+                                icon={<Icon icon="material-symbols:delete-outline-sharp" className="w-3 h-3" />}
+                            />
+                        </Tooltip>
+                    </div>
+                )}
             </div>
         );
     }),
@@ -124,9 +143,12 @@ const PhotoFrame = memo(
 );
 
 function SortablePhotoFrame(
-    props: SortablePhotoProps & { activeIndex?: number }
+    props: SortablePhotoProps & {
+        activeIndex?: number;
+        onDelete?: (id: UniqueIdentifier) => void;
+    }
 ) {
-    const { photo, activeIndex } = props;
+    const { photo, activeIndex, onDelete } = props;
     const { attributes, listeners, isDragging, index, over, setNodeRef } =
         useSortable({ id: photo.id });
 
@@ -146,6 +168,7 @@ function SortablePhotoFrame(
             aria-label="sortable image"
             attributes={attributes}
             listeners={listeners}
+            onDelete={onDelete}
             {...props}
         />
     );
@@ -235,10 +258,29 @@ const Puzzle = () => {
         [layout, inputColumns]
     );
 
+    const handleDelete = useCallback(
+        (id: UniqueIdentifier) => {
+            setImages((prevImages) =>
+                prevImages.filter((img) => img.id !== id)
+            );
+            setFiles((prevFiles) => {
+                const imageIndex = images.findIndex((img) => img.id === id);
+                return prevFiles.filter((_, index) => index !== imageIndex);
+            });
+        },
+        [images]
+    ); // 添加 images 作为依赖
+
     const renderPhoto = (props: SortablePhotoProps) => {
         // capture rendered photos for future use in DragOverlay
         renderedPhotos.current[props.photo.id] = props;
-        return <SortablePhotoFrame activeIndex={activeIndex} {...props} />;
+        return (
+            <SortablePhotoFrame
+                activeIndex={activeIndex}
+                onDelete={handleDelete}
+                {...props}
+            />
+        );
     };
 
     const onDrop = useCallback(
@@ -366,7 +408,7 @@ const Puzzle = () => {
                     fullscreen
                     indicator={
                         <Icon
-                            icon="line-md:uploading-loop"
+                            icon="line-md:speedometer-loop"
                             className=" text-white"
                         />
                     }
