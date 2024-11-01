@@ -46,7 +46,9 @@ interface SortablePhoto extends Photo {
     id: UniqueIdentifier;
 }
 
-type SortablePhotoProps = RenderPhotoProps<SortablePhoto>;
+type SortablePhotoProps = RenderPhotoProps<SortablePhoto> & {
+    photo: SortablePhoto;
+};
 
 type PhotoFrameProps = SortablePhotoProps & {
     overlay?: boolean;
@@ -123,7 +125,12 @@ const PhotoFrame = memo(
                                     e.stopPropagation();
                                     onDelete?.(photo.id);
                                 }}
-                                icon={<Icon icon="material-symbols:delete-outline-sharp" className="w-3 h-3" />}
+                                icon={
+                                    <Icon
+                                        icon="material-symbols:delete-outline-sharp"
+                                        className="w-3 h-3"
+                                    />
+                                }
                             />
                         </Tooltip>
                     </div>
@@ -285,6 +292,13 @@ const Puzzle = () => {
 
     const onDrop = useCallback(
         async (acceptedFiles) => {
+            const oversizedFiles = acceptedFiles.filter(
+                (file) => file.size > 100 * 1024 * 1024
+            );
+            if (oversizedFiles.length > 0) {
+                message.error("图片大小不能超过100MB");
+                return;
+            }
             setSpinning(true);
             const newImages = [];
 
@@ -340,6 +354,10 @@ const Puzzle = () => {
         accept: {
             "image/*": [".jpeg", ".jpg", ".png"],
         },
+        maxSize: 100 * 1024 * 1024, // 100MB
+        onDropRejected: () => {
+            message.error("图片大小不能超过100MB");
+        },
     });
 
     const downloadImage = async () => {
@@ -347,9 +365,15 @@ const Puzzle = () => {
             message.error("请选择图片");
             return;
         }
+        // 临时隐藏所有删除按钮
+        const deleteButtons = document.querySelectorAll(
+            ".photo-frame .ant-btn"
+        );
+        deleteButtons.forEach((button) => {
+            (button as HTMLElement).style.display = "none";
+        });
         setSpinning(true);
         const galleryElement = galleryRef.current;
-        setSpinning(true);
         const canvasElement = galleryElement
             ? galleryElement
             : document.getElementById("container");
