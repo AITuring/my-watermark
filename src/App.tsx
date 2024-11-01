@@ -24,30 +24,30 @@ const menuItems = [
         url: "/puzzle",
         component: <Puzzle />,
     },
-    {
-        label: "微博抽奖",
-        id: "lottery",
-        url: "/lottery",
-        component: <Lottery />,
-    },
-    {
-        label: "图片颜色调整",
-        id: "change",
-        url: "/change",
-        component: <ChangeColor />,
-    },
-    {
-        label: "组件测试",
-        id: "comptest",
-        url: "/comptest",
-        component: <CompTest />,
-    },
-    {
-        label: "图片拼接",
-        id: "collage",
-        url: "/collage",
-        component: <PhotoCollage />,
-    },
+    // {
+    //     label: "微博抽奖",
+    //     id: "lottery",
+    //     url: "/lottery",
+    //     component: <Lottery />,
+    // },
+    // {
+    //     label: "图片颜色调整",
+    //     id: "change",
+    //     url: "/change",
+    //     component: <ChangeColor />,
+    // },
+    // {
+    //     label: "组件测试",
+    //     id: "comptest",
+    //     url: "/comptest",
+    //     component: <CompTest />,
+    // },
+    // {
+    //     label: "图片拼接",
+    //     id: "collage",
+    //     url: "/collage",
+    //     component: <PhotoCollage />,
+    // },
 
 ];
 

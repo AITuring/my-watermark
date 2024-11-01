@@ -5,6 +5,7 @@ import {
     useRef,
     memo,
     useMemo,
+    useEffect,
 } from "react";
 import { useDropzone } from "react-dropzone";
 import imageCompression from "browser-image-compression";
@@ -46,6 +47,23 @@ import {
 } from "react-photo-album";
 import html2canvas from "html2canvas";
 import "./puzzle.css";
+
+interface AspectRatio {
+    width: number;
+    height: number;
+    label: string;
+}
+
+const aspectRatioOptions: AspectRatio[] = [
+    { width: null, height: null, label: "自适应" },
+    { width: 1, height: 1, label: "1:1" },
+    { width: 4, height: 3, label: "4:3" },
+    { width: 3, height: 4, label: "3:4" },
+    { width: 16, height: 9, label: "16:9" },
+    { width: 9, height: 16, label: "9:16" },
+    { width: 2, height: 1, label: "2:1" },
+    { width: 1, height: 2, label: "1:2" },
+];
 
 interface SortablePhoto extends Photo {
     id: UniqueIdentifier;
@@ -243,7 +261,9 @@ const Puzzle = () => {
     const [layout, setLayout] = useState<"rows" | "masonry" | "columns">(
         "columns"
     );
-
+    const [selectedRatio, setSelectedRatio] = useState<AspectRatio | null>(
+        null
+    );
     const renderedPhotos = useRef<{ [key: string]: SortablePhotoProps }>({});
     const [activeId, setActiveId] = useState<UniqueIdentifier>();
     // const [currentImageIndex, setCurrentImageIndex] = useState<number>();
@@ -418,35 +438,97 @@ const Puzzle = () => {
             message.error("请选择图片");
             return;
         }
-        // 临时隐藏所有删除按钮
-        // const deleteButtons = document.querySelectorAll(
-        //     ".photo-frame .ant-btn"
-        // );
-        // deleteButtons.forEach((button) => {
-        //     (button as HTMLElement).style.display = "none";
-        // });
         setSpinning(true);
         const galleryElement = galleryRef.current;
         const canvasElement = galleryElement
             ? galleryElement
             : document.getElementById("container");
-        const canvas = await html2canvas(canvasElement, { scale: inputScale });
-        // 导出最终的图片
-        canvas.toBlob(
-            (blob) => {
-                if (blob) {
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.download = "my-image.jpeg";
-                    link.click();
-                    setSpinning(false);
-                    message.success("大图合成成功！");
+
+        try {
+            // 1. 先生成原始图片
+            const originalCanvas = await html2canvas(canvasElement, {
+                scale: inputScale,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: "#ffffff",
+                logging: false,
+                onclone: (clonedDoc) => {
+                    const images = clonedDoc.getElementsByTagName("img");
+                    return Promise.all(
+                        Array.from(images).map(
+                            (img) =>
+                                new Promise((resolve) => {
+                                    if (img.complete) {
+                                        resolve(null);
+                                    } else {
+                                        img.onload = () => resolve(null);
+                                    }
+                                })
+                        )
+                    );
+                },
+            });
+
+            // 2. 根据是否选择了自适应来决定是否添加边框
+            let finalCanvas;
+            if (!selectedRatio || selectedRatio.width === null) {
+                // 自适应模式：直接使用原始画布
+                finalCanvas = originalCanvas;
+            } else {
+                // 指定长宽比模式：添加边框
+                const originalWidth = originalCanvas.width;
+                const originalHeight = originalCanvas.height;
+                const targetRatio = selectedRatio.width / selectedRatio.height;
+                const currentRatio = originalWidth / originalHeight;
+
+                let finalWidth = originalWidth;
+                let finalHeight = originalHeight;
+
+                if (currentRatio > targetRatio) {
+                    finalHeight = originalWidth / targetRatio;
+                    finalWidth = originalWidth;
+                } else {
+                    finalWidth = originalHeight * targetRatio;
+                    finalHeight = originalHeight;
                 }
-            },
-            "image/jpeg",
-            0.9
-        );
+
+                finalCanvas = document.createElement('canvas');
+                finalCanvas.width = finalWidth;
+                finalCanvas.height = finalHeight;
+                const ctx = finalCanvas.getContext('2d');
+
+                // 填充白色背景
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, finalWidth, finalHeight);
+
+                // 在中心绘制原始图片
+                const x = (finalWidth - originalWidth) / 2;
+                const y = (finalHeight - originalHeight) / 2;
+                ctx.drawImage(originalCanvas, x, y);
+            }
+
+            // 3. 导出最终图片
+            finalCanvas.toBlob(
+                (blob) => {
+                    if (blob) {
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.href = url;
+                        link.download = "my-image.jpeg";
+                        link.click();
+                        URL.revokeObjectURL(url);
+                        setSpinning(false);
+                        message.success("大图合成成功！");
+                    }
+                },
+                "image/jpeg",
+                0.9
+            );
+        } catch (error) {
+            console.error('Export error:', error);
+            setSpinning(false);
+            message.error("导出失败，请重试");
+        }
     };
 
     const renderContainer: RenderContainer = ({
@@ -551,6 +633,26 @@ const Puzzle = () => {
         ]
     );
 
+    useEffect(() => {
+        if (selectedRatio && selectedRatio.width && selectedRatio.height) {
+            // 修正：如果是高小于宽的比例（如16:9, 4:3），使用行布局
+            if (selectedRatio.height < selectedRatio.width) {
+                setLayout("columns");
+                // 根据比例估算合适的列数
+                const estimatedColumns = Math.ceil(Math.sqrt(images.length * selectedRatio.width / selectedRatio.height));
+                setInputColumns(Math.min(Math.max(estimatedColumns, 1), 10));
+            }
+            // 修正：如果是高大于宽的比例（如9:16, 3:4），使用列布局
+            else if (selectedRatio.height > selectedRatio.width) {
+                setLayout("rows");
+                // 根据比例估算合适的列数
+                const estimatedColumns = Math.ceil(Math.sqrt(images.length * selectedRatio.height / selectedRatio.width));
+                setInputColumns(Math.min(Math.max(estimatedColumns, 1), 10));
+            }
+        }
+    }, [selectedRatio, images.length]);
+
+
     return (
         <div className="h-[calc(100vh-56px)]">
             {spinning ? (
@@ -630,6 +732,30 @@ const Puzzle = () => {
                                     />
                                 </div>
                             )}
+                            <div className="flex items-center gpa-4 my-4">
+                                <div>生成图片长宽比:</div>
+                                <Select
+                                    value={selectedRatio?.label}
+                                    className="w-24 ml-4"
+                                    onChange={(value) => {
+                                        const ratio = aspectRatioOptions.find(
+                                            (r) => r.label === value
+                                        );
+                                        setSelectedRatio(ratio || null);
+                                        if (!ratio || ratio.width === null) {
+                                            return;
+                                        }
+                                    }}
+                                    allowClear
+                                    placeholder="自适应"
+                                    options={aspectRatioOptions.map(
+                                        (ratio) => ({
+                                            value: ratio.label,
+                                            label: ratio.label,
+                                        })
+                                    )}
+                                />
+                            </div>
                             {/* <div className="flex items-center gpa-4 my-4">
                                         <div>画框宽度:</div>
                                         <InputNumber
