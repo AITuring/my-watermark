@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useDropzone } from "react-dropzone";
 import imageCompression from "browser-image-compression";
-import { message, Button, Slider, Tooltip, Select, Spin } from "antd";
+import { message, Button, Tooltip, Select, Spin, InputNumber } from "antd";
 import { Icon } from "@iconify/react";
 import {
     closestCenter,
@@ -441,7 +441,7 @@ const Puzzle = () => {
                 <div className="album">
                     <div className="w-full">
                         <div className="flex flex-wrap gap-4 justify-center">
-                            <div className="flex items-center gpa-4 my-4">
+                            <div className="flex items-center gpa-4">
                                 <div>布局方式:</div>
                                 <Select
                                     value={layout}
@@ -473,11 +473,8 @@ const Puzzle = () => {
                             {layout !== "rows" && (
                                 <div className="flex items-center gpa-4 my-4">
                                     <div>图片列数:</div>
-                                    <Slider
-                                        style={{
-                                            width: "100px",
-                                            marginLeft: "20px",
-                                        }}
+                                    <InputNumber
+                                        className="w-16 ml-4"
                                         min={0}
                                         max={10}
                                         onChange={(value) =>
@@ -489,11 +486,8 @@ const Puzzle = () => {
                             )}
                             <div className="flex items-center gpa-4 my-4">
                                 <div>图片间距:</div>
-                                <Slider
-                                    style={{
-                                        width: "100px",
-                                        marginLeft: "20px",
-                                    }}
+                                <InputNumber
+                                    className="w-16 ml-4"
                                     min={0}
                                     max={50}
                                     onChange={(value) => setMargin(value)}
@@ -502,11 +496,8 @@ const Puzzle = () => {
                             </div>
                             {/* <div className="flex items-center gpa-4 my-4">
                                         <div>画框宽度:</div>
-                                        <Slider
-                                            style={{
-                                                width: "100px",
-                                                marginLeft: "20px",
-                                            }}
+                                        <InputNumber
+                                            className="w-16 ml-4"
                                             min={1}
                                             max={50}
                                             onChange={(value) =>
@@ -516,23 +507,17 @@ const Puzzle = () => {
                                         />
                                     </div> */}
                             <div className="flex items-center gpa-4 my-4">
-                                <div>导出图片规模:</div>
-                                <Slider
-                                    style={{
-                                        width: "100px",
-                                        margin: "0 20px",
-                                    }}
+                                <Tooltip title="规模越大，导出图片尺寸越大，导出更加耗时">
+                                    <div>导出图片规模:</div>
+                                </Tooltip>
+
+                                <InputNumber
+                                    className="w-16 ml-4"
                                     min={1}
                                     max={10}
                                     onChange={(value) => setInputScale(value)}
                                     value={Number(inputScale)}
                                 />
-                                <Tooltip title="规模越大，导出图片尺寸越大，导出更加耗时">
-                                    <Icon
-                                        icon="ic:outline-help"
-                                        className=" w-4 h-4"
-                                    />
-                                </Tooltip>
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-4 justify-center mt-2">
