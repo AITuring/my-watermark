@@ -481,42 +481,39 @@ const Puzzle = () => {
                 // 自适应模式：直接使用原始画布
                 finalCanvas = originalCanvas;
             } else {
+                // TODO 就还有问题.....
                 // 指定长宽比模式：添加边框
                 const originalWidth = originalCanvas.width;
                 const originalHeight = originalCanvas.height;
                 const targetRatio = selectedRatio.width / selectedRatio.height;
-                // (originalWidth+2*padding)/(originalHeight+2*padding) = targetRatio
-                // => originalWidth + 2*padding = targetRatio * (originalHeight+padding+x)
-                //  ((originalWidth + 2*padding)/ targRatio) - (originalHeight+padding) = x
-                // x = (targetRatio * originalHeight - originalWidth) / (2 * (1 - targetRatio))
                 let padding = 100;
 
-                // const paddingBottom = ((originalWidth + 2*padding)/ targetRatio) - (originalHeight+padding);
-                // 如果height > width，就需要width加padding才能符合比例
-                // 否则，需要height加padding才能符合比例
-                // 但现在三边padding一样，所以直接平均分
+                // 如果height > widhth,那么一定是纵向的，要满足
+
                 let finalWidth,
                     finalHeight,
                     paddingBottom = 0;
 
-                if (targetRatio > 1) {
-                    // 比如3：4
-                    // 横向矩形：固定宽度，调整底部
+                if (originalHeight <= originalWidth) {
+                    // 横向的，宽可以确定，就是width+2个padding
                     finalWidth = originalWidth + 2 * padding;
-                    paddingBottom = Math.abs(
-                        (originalWidth + 2 * padding) / targetRatio -
-                            (originalHeight + padding)
-                    );
-                    finalHeight = originalHeight + padding + paddingBottom;
+
+                    finalHeight = finalWidth * targetRatio;
+                    paddingBottom = Math.max((finalHeight - (originalHeight + padding)), padding);
                 } else {
-                    // 竖向矩形：固定高度，两侧平均分配padding
                     finalHeight = originalHeight + 2 * padding;
-                    // 根据目标比例计算所需总宽度
-                    finalWidth = finalHeight * targetRatio;
-                    // 计算每侧需要的padding（减去原始宽度后平分）
-                    const totalWidthPadding = finalWidth - originalWidth;
-                    padding = totalWidthPadding / 2;
+                    finalWidth = finalHeight / targetRatio;
+                    const realBottom = finalWidth - (originalWidth + padding);
+                    paddingBottom = (realBottom+padding) / 2;
+                    padding = (realBottom+padding) / 2;
                 }
+
+                // paddingBottom = Math.abs(
+                //     (originalWidth + 2 * padding) / targetRatio -
+                //         (originalHeight + padding)
+                // );
+
+                // const finalHeight = originalHeight + padding + paddingBottom;
 
                 console.log(
                     originalHeight,
@@ -676,6 +673,13 @@ const Puzzle = () => {
         ]
     );
 
+    const handleRatioChange = (value) => {
+        const ratio = aspectRatioOptions.find((r) => r.label === value);
+        setSelectedRatio(ratio || null);
+        // 清空列数，触发重新计算
+        setInputColumns(null);
+    };
+
     // 使用 ResizeObserver 监听容器尺寸变化
     useEffect(() => {
         const container = galleryRef.current;
@@ -742,76 +746,84 @@ const Puzzle = () => {
     ]);
 
     // 添加一个独立的 useEffect 来处理 selectedRatio 的变化
+    // useEffect(() => {
+    //     if (!selectedRatio?.width || !images.length) return;
+
+    //     const targetRatio = selectedRatio.width / selectedRatio.height;
+    //     console.log("Ratio changed to:", targetRatio);
+
+    //     // 根据图片数量和目标比例计算初始列数
+    //     const sqrtCount = Math.sqrt(images.length);
+    //     let newColumns;
+
+    //     if (targetRatio > 1) {
+    //         // 横向布局（如 4:3）：减少列数使整体变宽
+    //         newColumns = Math.max(Math.ceil(sqrtCount * 0.7), 1);
+    //         console.log("Horizontal layout, reducing columns to:", newColumns);
+    //     } else {
+    //         // 竖向布局（如 3:4）：增加列数使整体变高
+    //         newColumns = Math.min(Math.ceil(sqrtCount * 1.5), 10);
+    //         console.log("Vertical layout, increasing columns to:", newColumns);
+    //     }
+
+    //     setInputColumns(newColumns);
+    // }, [selectedRatio?.width, selectedRatio?.height, images.length]); // 只依赖这些关键属性
+
+    // 添加一个独立的 useEffect 来处理 selectedRatio 的变化
     useEffect(() => {
-        if (!selectedRatio?.width || !images.length) return;
+        if (!selectedRatio?.width || !images.length || inputColumns !== null)
+            return;
 
         const targetRatio = selectedRatio.width / selectedRatio.height;
-        console.log("Ratio changed to:", targetRatio);
-
-        // 根据图片数量和目标比例计算初始列数
         const sqrtCount = Math.sqrt(images.length);
         let newColumns;
 
-        if (targetRatio > 1) {
-            // 横向布局（如 4:3）：减少列数使整体变宽
-            newColumns = Math.max(Math.ceil(sqrtCount * 0.7), 1);
-            console.log("Horizontal layout, reducing columns to:", newColumns);
-        } else {
-            // 竖向布局（如 3:4）：增加列数使整体变高
-            newColumns = Math.min(Math.ceil(sqrtCount * 1.5), 10);
-            console.log("Vertical layout, increasing columns to:", newColumns);
+        // 根据具体的比例选择合适的列数
+        switch (selectedRatio.label) {
+            case "1:1":
+                // 正方形：使用平方根作为基准
+                newColumns = Math.round(sqrtCount);
+                break;
+            case "4:3":
+                // 横向矩形：减少列数使整体变宽
+                newColumns = Math.max(Math.round(sqrtCount * 0.7), 1);
+                break;
+            case "3:4":
+                // 竖向矩形：增加列数使整体变高
+                newColumns = Math.min(Math.round(sqrtCount * 1.3), 10);
+                break;
+            case "16:9":
+                // 宽屏横向：显著减少列数
+                newColumns = Math.max(Math.round(sqrtCount * 0.5), 1);
+                break;
+            case "9:16":
+                // 窄屏竖向：显著增加列数
+                newColumns = Math.min(Math.round(sqrtCount * 1.6), 10);
+                break;
+            case "2:1":
+                // 超宽横向：最少列数
+                newColumns = Math.max(Math.round(sqrtCount * 0.4), 1);
+                break;
+            case "1:2":
+                // 超窄竖向：最多列数
+                newColumns = Math.min(Math.round(sqrtCount * 1.8), 10);
+                break;
+            default:
+                // 自适应或其他情况：使用默认列数
+                newColumns = Math.round(sqrtCount);
         }
 
+        console.log(
+            `Adjusting layout for ${selectedRatio.label} - New columns:`,
+            newColumns
+        );
         setInputColumns(newColumns);
-    }, [selectedRatio?.width, selectedRatio?.height, images.length]); // 只依赖这些关键属性
-
-    // 添加一个独立的 useEffect 来处理 selectedRatio 的变化
-useEffect(() => {
-    if (!selectedRatio?.width || !images.length) return;
-
-    const targetRatio = selectedRatio.width / selectedRatio.height;
-    const sqrtCount = Math.sqrt(images.length);
-    let newColumns;
-
-    // 根据具体的比例选择合适的列数
-    switch (selectedRatio.label) {
-        case "1:1":
-            // 正方形：使用平方根作为基准
-            newColumns = Math.ceil(sqrtCount);
-            break;
-        case "4:3":
-            // 横向矩形：减少列数使整体变宽
-            newColumns = Math.max(Math.ceil(sqrtCount * 0.7), 1);
-            break;
-        case "3:4":
-            // 竖向矩形：增加列数使整体变高
-            newColumns = Math.min(Math.ceil(sqrtCount * 1.3), 10);
-            break;
-        case "16:9":
-            // 宽屏横向：显著减少列数
-            newColumns = Math.max(Math.ceil(sqrtCount * 0.5), 1);
-            break;
-        case "9:16":
-            // 窄屏竖向：显著增加列数
-            newColumns = Math.min(Math.ceil(sqrtCount * 1.6), 10);
-            break;
-        case "2:1":
-            // 超宽横向：最少列数
-            newColumns = Math.max(Math.ceil(sqrtCount * 0.4), 1);
-            break;
-        case "1:2":
-            // 超窄竖向：最多列数
-            newColumns = Math.min(Math.ceil(sqrtCount * 1.8), 10);
-            break;
-        default:
-            // 自适应或其他情况：使用默认列数
-            newColumns = Math.ceil(sqrtCount);
-    }
-
-    console.log(`Adjusting layout for ${selectedRatio.label} - New columns:`, newColumns);
-    setInputColumns(newColumns);
-
-}, [selectedRatio?.label, images.length]); // 只需要监听 label 和图片数量
+    }, [
+        selectedRatio?.label,
+        selectedRatio?.width,
+        selectedRatio?.height,
+        images.length
+    ]); // 只需要监听 label 和图片数量
 
     console.log(inputColumns, selectedRatio);
 
@@ -899,15 +911,7 @@ useEffect(() => {
                                 <Select
                                     value={selectedRatio?.label}
                                     className="w-24 ml-4"
-                                    onChange={(value) => {
-                                        const ratio = aspectRatioOptions.find(
-                                            (r) => r.label === value
-                                        );
-                                        setSelectedRatio(ratio || null);
-                                        if (!ratio || ratio.width === null) {
-                                            return;
-                                        }
-                                    }}
+                                    onChange={handleRatioChange}
                                     allowClear
                                     placeholder="自适应"
                                     options={aspectRatioOptions.map(
