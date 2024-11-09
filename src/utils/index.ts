@@ -220,20 +220,4 @@ async function processImage(file, watermarkImage, position, watermarkBlur, quali
     });
 }
 
-// 计算图片平均亮度
-function getColorBrightness(data: Uint8ClampedArray): boolean {
-    console.log(data)
-    let totalBrightness = 0;
-    for (let i = 0; i < data.length; i += 4) {
-        // 将 RGB 值转换为亮度
-        const brightness = (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
-        totalBrightness += brightness;
-    }
-
-    // 计算平均亮度 (0-255)
-    const averageBrightness = totalBrightness / (data.length / 4);
-    // 如果平均亮度大于 128，认为是亮色
-    return averageBrightness > 128;
-}
-
-export { uuid, loadImageData, calculateWatermarkPosition, debounce, processImage, getColorBrightness };
+export { uuid, loadImageData, calculateWatermarkPosition, debounce, processImage };

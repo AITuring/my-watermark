@@ -1,16 +1,12 @@
 import React, {
-    useState,
     useRef,
-    useEffect,
-    useContext,
     memo,
     useCallback,
 } from "react";
 import { Icon } from "@iconify/react";
-import { Button } from "antd";
-import { ThemeContext } from "@/context";
+import { Button, Tooltip } from "antd";
 import ImageUploader from "./ImageUploader";
-import { loadImageData, getColorBrightness } from "./utils";
+import { loadImageData } from "./utils";
 import { ImageType } from "./types";
 
 interface VerticalCarouselProps {
@@ -24,38 +20,31 @@ interface VerticalCarouselProps {
 const CarouselItem = memo(
     ({
         image,
-        onImageLoad,
         onDelete,
         onClick,
-        brightness,
     }: {
         image: ImageType;
-        onImageLoad: (
-            e: React.SyntheticEvent<HTMLImageElement>,
-            id: string
-        ) => void;
         onDelete: (id: string) => void;
         onClick: (image: ImageType) => void;
-        brightness: boolean;
     }) => (
         <div className="relative m-2 first:mt-0">
             <img
                 src={URL.createObjectURL(image?.file)}
                 alt={`Slide`}
                 onClick={() => onClick(image)}
-                onLoad={(e) => onImageLoad(e, image.id)}
             />
-            <Icon
-                icon="ic:baseline-cancel"
-                className="w-4 h-4 absolute right-1 top-1 cursor-pointer"
-                style={{ color: brightness ? "#000" : "#fff" }}
-                onClick={() => onDelete(image.id)}
-            />
+            <Tooltip title="删除">
+                <Icon
+                    icon="ic:baseline-cancel"
+                    className="w-4 h-4 absolute right-1 top-1 cursor-pointer text-white"
+                    onClick={() => onDelete(image.id)}
+                />
+            </Tooltip>
         </div>
     )
 );
 
-CarouselItem.displayName = 'CarouselItem';
+CarouselItem.displayName = "CarouselItem";
 
 const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     images,
@@ -64,14 +53,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     setCurrentImg,
     height = window.innerHeight * 0.8,
 }) => {
-    const { isDark } = useContext(ThemeContext);
     const carouselRef = useRef<HTMLDivElement>(null);
-    // 创建一个用于存放图片元素引用的数组
-    const imageRefs = useRef<(HTMLImageElement | null)[]>([]);
-
-    const [imageBrightness, setImageBrightness] = useState<{
-        [key: string]: boolean;
-    }>({});
 
     const handleImagesUpload = useCallback(
         async (files: File[]) => {
@@ -80,48 +62,6 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
         },
         [setImages]
     );
-
-    const handleImageLoad = useCallback(
-        (event: React.SyntheticEvent<HTMLImageElement>, imageId: string) => {
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return;
-
-            canvas.width = 16;
-            canvas.height = 16;
-            ctx.drawImage(event.currentTarget, 0, 0, 16, 16);
-
-            const imageData = ctx.getImageData(0, 0, 16, 16);
-            const isBright = getColorBrightness(imageData.data);
-
-            setImageBrightness((prev) => ({
-                ...prev,
-                [imageId]: isBright,
-            }));
-        },
-        []
-    );
-
-    const analyzeImageBrightness = (
-        image: HTMLImageElement,
-        imageId: string
-    ) => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        canvas.width = 16;
-        canvas.height = 16;
-        ctx.drawImage(image, 0, 0, 16, 16);
-
-        const imageData = ctx.getImageData(0, 0, 16, 16);
-        const isBright = getColorBrightness(imageData.data);
-
-        setImageBrightness((prev) => ({
-            ...prev,
-            [imageId]: isBright,
-        }));
-    };
 
     const handleDelete = useCallback(
         (imageId: string) => {
@@ -154,10 +94,8 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                     <CarouselItem
                         key={image.id}
                         image={image}
-                        onImageLoad={handleImageLoad}
                         onDelete={handleDelete}
                         onClick={handleImageClick}
-                        brightness={imageBrightness[image.id]}
                     />
                 ))}
             </div>
@@ -173,8 +111,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                         icon={
                             <Icon
                                 icon="icon-park-twotone:clear"
-                                className={`w-4 h-4 cursor-pointer`}
-                                style={{ color: isDark ? "#fff" : "#000" }}
+                                className={`w-4 h-4 cursor-pointer text-black`}
                             />
                         }
                     >
@@ -190,8 +127,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                             icon={
                                 <Icon
                                     icon="material-symbols:note-stack-add-outline-rounded"
-                                    className={`w-4 h-4 cursor-pointer`}
-                                    style={{ color: isDark ? "#fff" : "#000" }}
+                                    className={`w-4 h-4 cursor-pointer text-black`}
                                 />
                             }
                         >
