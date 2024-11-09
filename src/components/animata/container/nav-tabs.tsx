@@ -1,5 +1,5 @@
-import { ReactNode, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { ReactNode, useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import DarkToggle from "@/components/DarkToggle";
 
@@ -22,7 +22,16 @@ interface TabDataProp {
 
 export default function NavTabs({ tabs }: { tabs: TabDataProp[] }) {
     const navigate = useNavigate();
+    const location = useLocation();
     const [selected, setSelected] = useState<string>(tabs[0].id);
+
+    useEffect(() => {
+        // 根据当前 URL 找到匹配的 tab
+        const currentTab = tabs.find(tab => tab.url === location.pathname);
+        if (currentTab) {
+            setSelected(currentTab.id);
+        }
+    }, [location.pathname, tabs]);
 
     return (
         <div className="flex items-center justify-between gap-4 bg-violet-950 py-4 px-8">
