@@ -5,4 +5,20 @@ interface ImageType {
     height: number;
 }
 
-export type { ImageType }
+interface WatermarkPosition {
+    id: string;
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+    rotation: number;
+}
+
+
+interface ImgWithPosition {
+    id: string;
+    file: File;
+    position: WatermarkPosition;
+}
+
+export type { ImageType,WatermarkPosition, ImgWithPosition }

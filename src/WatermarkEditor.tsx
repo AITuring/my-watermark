@@ -111,6 +111,13 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
 interface WatermarkEditorProps {
     watermarkUrl: string;
     backgroundImageFile: File | null;
+    onAllTransform: (position: {
+        x: number;
+        y: number;
+        scaleX: number;
+        scaleY: number;
+        rotation: number;
+    }) => void;
     onTransform: (position: {
         x: number;
         y: number;
@@ -123,6 +130,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     watermarkUrl,
     backgroundImageFile,
     onTransform,
+    onAllTransform,
 }) => {
     // TODO
     // 1.水印的缩放比例应该要和背景图片的比例保持一致 done
@@ -448,7 +456,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             rotation: 0,
         });
 
-        onTransform({
+        onAllTransform({
             x: adjustedLeftTopX,
             y: adjustedLeftTopY,
             scaleX: currentScale,

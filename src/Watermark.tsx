@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
-import { message, Spin, InputNumber, Switch, Tooltip } from "antd";
+import { message, Spin, InputNumber, Switch, Tooltip, Button } from "antd";
 import { Icon } from "@iconify/react";
 import { CustomButton } from "./components";
 import { loadImageData, debounce, processImage } from "./utils";
-import { ImageType } from "./types";
+import { ImageType, WatermarkPosition, ImgWithPosition } from "./types";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
@@ -20,14 +20,10 @@ const Watermark: React.FC = () => {
     // 当前照片
     const [currentImg, setCurrentImg] = useState<ImageType | null>();
     const [watermarkUrl, setWatermarkUrl] = useState("/logo.png");
-    // TODO支持定制每一个水印
-    const [watermarkPosition, setWatermarkPosition] = useState({
-        x: 0,
-        y: 0,
-        scaleX: 1,
-        scaleY: 1,
-        rotation: 0,
-    });
+
+    const [watermarkPositions, setWatermarkPositions] = useState<
+        WatermarkPosition[]
+    >([]);
 
     const dropzoneRef = useRef(null);
 
@@ -50,6 +46,7 @@ const Watermark: React.FC = () => {
 
     const handleImagesUpload = async (files: File[]) => {
         const uploadImages = await loadImageData(files);
+        console.log("uploadImages", uploadImages);
         setImages(uploadImages);
         setCurrentImg(uploadImages[0]);
         setImageUploaderVisible(false);
@@ -63,9 +60,16 @@ const Watermark: React.FC = () => {
             // Update the original image dimensions when a new image is uploaded
             const image = new Image();
             image.onload = () => {
-                setWatermarkPosition((prevPos) => ({
-                    ...prevPos,
-                }));
+                setWatermarkPositions(
+                    uploadImages.map((img) => ({
+                        id: img.id,
+                        x: 0,
+                        y: 0,
+                        scaleX: 1,
+                        scaleY: 1,
+                        rotation: 0,
+                    }))
+                );
             };
             image.src = URL.createObjectURL(files[0]);
         }
@@ -86,26 +90,49 @@ const Watermark: React.FC = () => {
         scaleY: number;
         rotation: number;
     }) => {
-        setWatermarkPosition(position);
+        setWatermarkPositions((prev) =>
+            prev.map((img) => {
+                if (img.id === currentImg?.id) {
+                    return { ...position, id: img.id };
+                } else {
+                    return img;
+                }
+            })
+        );
     };
 
+    const handleAllWatermarkTransform = (position: {
+        x: number;
+        y: number;
+        scaleX: number;
+        scaleY: number;
+        rotation: number;
+    }) => {
+        setWatermarkPositions((prev) =>
+            prev.map((img) => {
+                return { ...position, id: img.id };
+            })
+        );
+    };
+
+    console.log("watermarkPosition", watermarkPositions);
+
     async function downloadImagesWithWatermarkBatch(
-        files,
+        imgPostionList,
         watermarkImage,
-        position,
         batchSize = 5
     ) {
         const downloadLink = document.createElement("a");
         downloadLink.style.display = "none";
         document.body.appendChild(downloadLink);
 
-        for (let i = 0; i < files.length; i += batchSize) {
-            const batch = files.slice(i, i + batchSize);
-            const promises = batch.map((file) =>
+        for (let i = 0; i < imgPostionList.length; i += batchSize) {
+            const batch = imgPostionList.slice(i, i + batchSize);
+            const promises = batch.map((img) =>
                 processImage(
-                    file,
+                    img.file,
                     watermarkImage,
-                    position,
+                    img.position,
                     watermarkBlur,
                     quality
                 )
@@ -115,7 +142,7 @@ const Watermark: React.FC = () => {
             imageBlobs.forEach(({ url, name }, index) => {
                 const sliceName = name.split(".")[0];
                 message.success(`图${i + index + 1}下载成功！`);
-                const progress = ((i + index + 1) / files.length) * 100;
+                const progress = ((i + index + 1) / imgPostionList.length) * 100;
                 setImgProgress(Math.min(progress, 100));
                 downloadLink.href = url;
                 downloadLink.download = `${sliceName}-mark.jpeg`;
@@ -145,11 +172,17 @@ const Watermark: React.FC = () => {
         const watermarkImage = new Image();
         watermarkImage.onload = () => {
             message.success("水印下载开始！");
-            const imageFiles = images.map((image) => image.file);
+
+            const allimageData: ImgWithPosition[] = images.map((img) => ({
+                id: img.id,
+                file: img.file,
+                position: watermarkPositions.find((pos) => pos.id === img.id)!,
+            }));
+
+            console.log("allimageData", allimageData);
             downloadImagesWithWatermarkBatch(
-                imageFiles,
+                allimageData,
                 watermarkImage,
-                watermarkPosition
             );
         };
 
@@ -164,11 +197,11 @@ const Watermark: React.FC = () => {
     const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
 
     return (
-        <div className="watermarkApp">
+        <div className="relative w-screen h-screen">
             {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>}
             <div>
                 {imageUploaderVisible ? (
-                    <div className="upbutton">
+                    <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
                         <ImageUploader
                             ref={dropzoneRef}
                             onUpload={handleImagesUpload}
@@ -186,10 +219,9 @@ const Watermark: React.FC = () => {
                         </ImageUploader>
                     </div>
                 ) : (
-                    <div className="imgWatermark">
+                    <div className="flex flex-col">
                         <div className="flex p-4 justify-between">
                             {images.length > 0 && (
-                                <div className="imgGallery">
                                     <VerticalCarousel
                                         images={images}
                                         setImages={setImages}
@@ -199,13 +231,13 @@ const Watermark: React.FC = () => {
                                         setCurrentImg={setCurrentImg}
                                         height={editorHeight}
                                     />
-                                </div>
                             )}
                             {watermarkUrl && currentImg && (
                                 <WatermarkEditor
                                     watermarkUrl={watermarkUrl}
                                     backgroundImageFile={currentImg.file}
                                     onTransform={handleWatermarkTransform}
+                                    onAllTransform={handleAllWatermarkTransform}
                                 />
                             )}
                         </div>
@@ -261,15 +293,14 @@ const Watermark: React.FC = () => {
                                     }
                                 />
                             </div>
-                            <CustomButton
-                                color="primary"
-                                variant="contained"
+                            <Button
+                                type="primary"
                                 onClick={handleApplyWatermarkDebounced}
-                                className="applyWatermark"
+                                size="large"
                                 disabled={loading}
                             >
                                 {loading ? <Spin /> : "水印生成"}
-                            </CustomButton>
+                            </Button>
                         </div>
                     </div>
                 )}

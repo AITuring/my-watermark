@@ -121,7 +121,7 @@ const CustomButton: FC<CustomButtonProps> = ({
             {icon && <Icon icon={icon as unknown as IconifyIcon} width={sizeMap[size]} height={sizeMap[size]} />}
             <div>{children}</div>
             {ripples.map((ripple) => {
-                console.log(ripple);
+                
                 return (
                     <span
                         key={ripple.id}

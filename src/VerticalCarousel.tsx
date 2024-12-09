@@ -85,7 +85,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
 
     return (
         <div
-            className="relative overflow-hidden flex flex-col items-center justify-between"
+            className="relative overflow-hidden flex flex-col items-center justify-between w-[20vw]"
             style={{ height: height }}
             ref={carouselRef}
         >
