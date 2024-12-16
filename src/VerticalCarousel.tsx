@@ -27,10 +27,11 @@ const CarouselItem = memo(
         onDelete: (id: string) => void;
         onClick: (image: ImageType) => void;
     }) => (
-        <div className="relative m-2 first:mt-0">
+        <div className="w-[16vw] relative m-2 first:mt-0">
             <img
                 src={URL.createObjectURL(image?.file)}
                 alt={`Slide`}
+                className="object-cover"
                 onClick={() => onClick(image)}
             />
             <Tooltip title="删除">
@@ -85,7 +86,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
 
     return (
         <div
-            className="relative overflow-hidden flex flex-col items-center justify-between w-[20vw]"
+            className="relative overflow-hidden flex flex-col items-center justify-between"
             style={{ height: height }}
             ref={carouselRef}
         >

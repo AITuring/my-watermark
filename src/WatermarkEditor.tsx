@@ -599,57 +599,106 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 </Layer>
             </Stage>
             <div className="flex justify-center align-center space-x-6 w-full my-4 flex-wrap">
-                <Tooltip content="水印位置" placement="top">
-                <Button
-                    shape="circle"
-                    icon={
-                        <Icon
-                            icon="ri:arrow-left-up-line"
-                            className="w-6 h-6"
-                        />
-                    }
-                    onClick={onTopLeft}
-                ></Button>
+                <Tooltip title="左上角" placement="top">
+                    <Button
+                        shape="circle"
+                        icon={
+                            <Icon
+                                icon="ri:arrow-left-up-line"
+                                className="w-6 h-6"
+                            />
+                        }
+                        onClick={onTopLeft}
+                    ></Button>
                 </Tooltip>
-
-                <Button
-                    shape="circle"
-                    icon={<Icon icon="ri:arrow-up-line" className="w-6 h-6" />}
-                    onClick={onTopMid}
-                ></Button>
-                <Button
-                    shape="circle"
-                    icon={
-                        <Icon
-                            icon="ri:arrow-right-up-line"
-                            className="w-6 h-6"
-                        />
-                    }
-                    onClick={onTopRight}
-                ></Button>
-                <Button
-                    shape="circle"
-                    icon={
-                        <Icon icon="ri:arrow-left-line" className="w-6 h-6" />
-                    }
-                    onClick={onMidLeft}
-                >
-
-                </Button>
-                <Button shape="circle"  icon={<Icon icon="ri:add-fill" className="w-6 h-6" />} onClick={onCenterMid}>
-
-                </Button>
-                <Button shape="circle"  icon={<Icon icon="ri:arrow-right-line" className="w-6 h-6" />} onClick={onMidRight}>
-
-                </Button>
-                <Button shape="circle" icon={<Icon icon="ri:arrow-left-down-line" className="w-6 h-6" />} onClick={onBottomLeft}>
-
-                </Button>
-                <Button shape="circle"  icon={<Icon icon="ri:arrow-down-line" className="w-6 h-6" />}  onClick={onBottomMid}>
-
-                </Button>
-                <Button shape="circle" icon={<Icon icon="ri:arrow-right-down-line" className="w-6 h-6" />} onClick={onBottomRight}>
-                </Button>
+                <Tooltip title="上" placement="top">
+                    <Button
+                        shape="circle"
+                        icon={
+                            <Icon icon="ri:arrow-up-line" className="w-6 h-6" />
+                        }
+                        onClick={onTopMid}
+                    ></Button>
+                </Tooltip>
+                <Tooltip title="右上角" placement="top">
+                    <Button
+                        shape="circle"
+                        icon={
+                            <Icon
+                                icon="ri:arrow-right-up-line"
+                                className="w-6 h-6"
+                            />
+                        }
+                        onClick={onTopRight}
+                    ></Button>
+                </Tooltip>
+                <Tooltip title="左" placement="top">
+                    <Button
+                        shape="circle"
+                        icon={
+                            <Icon
+                                icon="ri:arrow-left-line"
+                                className="w-6 h-6"
+                            />
+                        }
+                        onClick={onMidLeft}
+                    ></Button>
+                </Tooltip>
+                <Tooltip title="中" placement="top">
+                    <Button
+                        shape="circle"
+                        icon={<Icon icon="ri:add-fill" className="w-6 h-6" />}
+                        onClick={onCenterMid}
+                    ></Button>
+                </Tooltip>
+                <Tooltip title="右" placement="top">
+                    <Button
+                        shape="circle"
+                        icon={
+                            <Icon
+                                icon="ri:arrow-right-line"
+                                className="w-6 h-6"
+                            />
+                        }
+                        onClick={onMidRight}
+                    ></Button>
+                </Tooltip>
+                <Tooltip title="左下角" placement="top">
+                    <Button
+                        shape="circle"
+                        icon={
+                            <Icon
+                                icon="ri:arrow-left-down-line"
+                                className="w-6 h-6"
+                            />
+                        }
+                        onClick={onBottomLeft}
+                    ></Button>
+                </Tooltip>
+                <Tooltip title="下" placement="top">
+                    <Button
+                        shape="circle"
+                        icon={
+                            <Icon
+                                icon="ri:arrow-down-line"
+                                className="w-6 h-6"
+                            />
+                        }
+                        onClick={onBottomMid}
+                    ></Button>
+                </Tooltip>
+                <Tooltip title="右下角" placement="top">
+                    <Button
+                        shape="circle"
+                        icon={
+                            <Icon
+                                icon="ri:arrow-right-down-line"
+                                className="w-6 h-6"
+                            />
+                        }
+                        onClick={onBottomRight}
+                    ></Button>
+                </Tooltip>
             </div>
         </div>
     );
