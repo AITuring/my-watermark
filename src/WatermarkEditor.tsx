@@ -1,8 +1,9 @@
 /* eslint-disable react/display-name */
 import React, { useState, useEffect, useRef, forwardRef } from "react";
+import { Tooltip, Button } from "antd";
+import { Icon } from "@iconify/react";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
-import { CustomButton } from "./components";
 import useImage from "use-image";
 
 import "./watermark.css";
@@ -244,7 +245,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     };
 
-
     // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
     useEffect(() => {
         if (backgroundImageFile) {
@@ -264,7 +264,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             // 选择宽度和高度中较小的缩放比例，以确保图片完全可见
             const scale = Math.min(scaleWidth, scaleHeight);
             setBackgroundScale(scale);
-            const ratio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
+            const ratio =
+                backgroundImage.naturalWidth / backgroundImage.naturalHeight;
             const width = windowHeight * ratio;
             const height = windowHeight;
             setBackgroundImageSize({ width, height });
@@ -598,15 +599,57 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 </Layer>
             </Stage>
             <div className="flex justify-center align-center space-x-6 w-full my-4 flex-wrap">
-                <CustomButton size="small" onClick={onTopLeft}>左上</CustomButton>
-                <CustomButton size="small" onClick={onTopMid}>中上</CustomButton>
-                <CustomButton size="small" onClick={onTopRight}>右上</CustomButton>
-                <CustomButton size="small" onClick={onMidLeft}>中左</CustomButton>
-                <CustomButton size="small" onClick={onCenterMid}>中中</CustomButton>
-                <CustomButton size="small" onClick={onMidRight}>中右</CustomButton>
-                <CustomButton size="small" onClick={onBottomLeft}>左下</CustomButton>
-                <CustomButton size="small" onClick={onBottomMid}>中下</CustomButton>
-                <CustomButton size="small" onClick={onBottomRight}>右下</CustomButton>
+                <Tooltip content="水印位置" placement="top">
+                <Button
+                    shape="circle"
+                    icon={
+                        <Icon
+                            icon="ri:arrow-left-up-line"
+                            className="w-6 h-6"
+                        />
+                    }
+                    onClick={onTopLeft}
+                ></Button>
+                </Tooltip>
+
+                <Button
+                    shape="circle"
+                    icon={<Icon icon="ri:arrow-up-line" className="w-6 h-6" />}
+                    onClick={onTopMid}
+                ></Button>
+                <Button
+                    shape="circle"
+                    icon={
+                        <Icon
+                            icon="ri:arrow-right-up-line"
+                            className="w-6 h-6"
+                        />
+                    }
+                    onClick={onTopRight}
+                ></Button>
+                <Button
+                    shape="circle"
+                    icon={
+                        <Icon icon="ri:arrow-left-line" className="w-6 h-6" />
+                    }
+                    onClick={onMidLeft}
+                >
+
+                </Button>
+                <Button shape="circle"  icon={<Icon icon="ri:add-fill" className="w-6 h-6" />} onClick={onCenterMid}>
+
+                </Button>
+                <Button shape="circle"  icon={<Icon icon="ri:arrow-right-line" className="w-6 h-6" />} onClick={onMidRight}>
+
+                </Button>
+                <Button shape="circle" icon={<Icon icon="ri:arrow-left-down-line" className="w-6 h-6" />} onClick={onBottomLeft}>
+
+                </Button>
+                <Button shape="circle"  icon={<Icon icon="ri:arrow-down-line" className="w-6 h-6" />}  onClick={onBottomMid}>
+
+                </Button>
+                <Button shape="circle" icon={<Icon icon="ri:arrow-right-down-line" className="w-6 h-6" />} onClick={onBottomRight}>
+                </Button>
             </div>
         </div>
     );
