@@ -92,7 +92,7 @@ function debounce(func, wait) {
 }
 
 // 图片处理
-async function processImage(file, watermarkImage, position, watermarkBlur, quality) {
+async function processImage(file: File, watermarkImage: HTMLImageElement, position, watermarkBlur: boolean, quality: number) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async (e) => {
