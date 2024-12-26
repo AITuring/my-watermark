@@ -32,7 +32,7 @@ const ImageUploader = forwardRef<HTMLDivElement, ImageUploaderProps>(
             <div
                 {...getRootProps()}
                 className={className}
-                id="watermarkUploader"
+                id={fileType === "背景" ? "bgUploader" : "watermarkUploader"}
                 ref={ref}
             >
                 <input {...getInputProps()} />

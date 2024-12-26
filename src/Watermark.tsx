@@ -146,7 +146,6 @@ const Watermark: React.FC = () => {
                         watermarkBlur,
                         quality
                     );
-                    console.log(url, "url", name, "name");
                     const sliceName = name.split(".")[0];
                     downloadLink.href = url;
                     downloadLink.download = `${sliceName}-mark.jpeg`;
@@ -261,23 +260,18 @@ const Watermark: React.FC = () => {
                                 />
                             )}
                         </div>
-                        <div className="flex justify-around items-center backdrop-blur-lg shadow-inner">
+                        <div className="flex justify-around items-center backdrop-blur-lg shadow-inner h-[10vh]">
                             <ImageUploader
                                 onUpload={handleWatermarkUpload}
                                 fileType="水印"
-                                className="w-20 cursor-pointer bg-blue-500 "
+                                className="w-12 cursor-pointer bg-blue-500 "
                             >
                                 <img
                                     src={watermarkUrl} // 当 watermarkUrl 不存在时，显示默认图片
                                     alt="watermark"
-                                    onClick={() =>
-                                        document
-                                            .getElementById("watermarkUploader")
-                                            .click()
-                                    } // 模拟点击 input
                                 />
                             </ImageUploader>
-                            <div className="operation">
+                            {/* <div className="operation">
                                 <div className="buttonText">图片质量</div>
                                 <InputNumber
                                     placeholder="图片质量"
@@ -287,9 +281,9 @@ const Watermark: React.FC = () => {
                                     value={quality}
                                     onChange={(e: number) => setQuality(e)}
                                 />
-                            </div>
-                            <div className="operation">
-                                <div className="my-2 flex items-center">
+                            </div> */}
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center">
                                     水印背景模糊
                                     <Tooltip title="开启后水印周围有一层高斯模糊">
                                         <Icon

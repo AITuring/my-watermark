@@ -1,6 +1,9 @@
 import NavTabs from "./components/animata/container/nav-tabs";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ThemeProvider } from "./context";
+import { useContext } from "react";
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { ThemeProvider,ThemeContext } from "./context";
+import { FloatButton } from "antd";
+import { Icon } from "@iconify/react";
 import Puzzle from "./Puzzle";
 import Watermark from "./Watermark";
 import CompTest from "./CompTest";
@@ -48,16 +51,74 @@ const menuItems = [
     //     url: "/collage",
     //     component: <PhotoCollage />,
     // },
-
 ];
 
+const FloatingButtons = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { isDark, toggleTheme } = useContext(ThemeContext);
+
+    return (
+        <FloatButton.Group
+            trigger="click"
+            tooltip={<div>{location.pathname === "/" ? '水印添加' : '图片拼接'}</div>}
+            icon={
+                <Icon
+                    icon="material-symbols:navigation"
+                    className=" w-5 h-5"
+                />
+            }
+        >
+            <FloatButton
+                tooltip={<div>{isDark ? '夜间' : '白天'}</div>}
+                icon={
+                    <Icon
+                        icon={isDark ? "line-md:moon-rising-alt-loop" : "line-md:moon-alt-to-sunny-outline-loop-transition"}
+                        className=" w-4 h-4"
+                    />
+                }
+                onClick={() => {
+                    toggleTheme();
+                }}
+            />
+            <FloatButton
+                tooltip={<div>水印添加</div>}
+                icon={
+                    <Icon
+                        icon="ri:image-ai-line"
+                        className=" w-4 h-4"
+                    />
+                }
+                type={location.pathname === "/" ? "primary": "default"}
+                onClick={() => {
+                    navigate("/");
+                }}
+            />
+            <FloatButton
+                icon={
+                    <Icon
+                        icon="tabler:layout-board-split"
+                        className=" w-5 h-5"
+                    />
+                }
+                type={location.pathname === "/puzzle" ? "primary": "default"}
+                onClick={() => {
+                    navigate("/puzzle");
+                }}
+                tooltip={<div>图片拼接</div>}
+            />
+        </FloatButton.Group>
+    );
+};
+
 const App = () => {
+
     return (
         <ThemeProvider>
             <div className="w-screen min-h-screen text-gray-800 bg-gray-100 dark:bg-gray-900 dark:text-white">
                 <BrowserRouter>
-                    <NavTabs tabs={menuItems} />
-                    <div className="flex flex-col w-screen h-full">
+                    {/* <NavTabs tabs={menuItems} /> */}
+                    <div className="flex flex-col w-screen h-screen">
                         <Routes>
                             {menuItems.map((item) => (
                                 <Route
@@ -68,6 +129,7 @@ const App = () => {
                             ))}
                         </Routes>
                     </div>
+                    <FloatingButtons />
                 </BrowserRouter>
             </div>
         </ThemeProvider>

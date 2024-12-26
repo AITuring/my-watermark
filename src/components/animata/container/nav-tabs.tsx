@@ -34,7 +34,7 @@ export default function NavTabs({ tabs }: { tabs: TabDataProp[] }) {
     }, [location.pathname, tabs]);
 
     return (
-        <div className="flex items-center justify-between gap-4 bg-violet-950 py-4 px-8">
+        <div className="flex items-center justify-between gap-4 bg-violet-950 py-4 px-8 h-[8vh]">
             <div className="flex items-center justify-center gap-4">
                 {tabs.map((tab) => (
                     <Tab

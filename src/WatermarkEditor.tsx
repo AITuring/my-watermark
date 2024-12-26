@@ -611,7 +611,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                     )}
                 </Layer>
             </Stage>
-            <div className="flex justify-center align-center space-x-6 w-full my-4 flex-wrap">
+            <div className="my-2">批量操作</div>
+            <div className="flex justify-center align-center space-x-6 w-full flex-wrap">
                 <Tooltip title="左上角" placement="top">
                     <Button
                         shape="circle"
