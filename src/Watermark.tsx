@@ -44,9 +44,9 @@ const Watermark: React.FC = () => {
         }
     }, [images]);
 
+
     const handleImagesUpload = async (files: File[]) => {
         const uploadImages = await loadImageData(files);
-        console.log("uploadImages", uploadImages);
         setImages(uploadImages);
         setCurrentImg(uploadImages[0]);
         setImageUploaderVisible(false);
@@ -83,22 +83,17 @@ const Watermark: React.FC = () => {
         reader.readAsDataURL(files[0]);
     };
 
-    const handleWatermarkTransform = (position: {
+    const handleWatermarkTransform = (imageId, position: {
         x: number;
         y: number;
         scaleX: number;
         scaleY: number;
         rotation: number;
     }) => {
-        setWatermarkPositions((prev) =>
-            prev.map((img) => {
-                if (img.id === currentImg?.id) {
-                    return { ...position, id: img.id };
-                } else {
-                    return img;
-                }
-            })
+        setWatermarkPositions(prev =>
+            prev.map(pos => pos.id === imageId ? { ...pos, ...position } : pos)
         );
+        console.log(watermarkPositions,'watermarkPositions');
     };
 
     const handleAllWatermarkTransform = (position: {
@@ -236,8 +231,13 @@ const Watermark: React.FC = () => {
                                 <WatermarkEditor
                                     watermarkUrl={watermarkUrl}
                                     backgroundImageFile={currentImg.file}
-                                    onTransform={handleWatermarkTransform}
-                                    onAllTransform={handleAllWatermarkTransform}
+                                    currentWatermarkPosition={watermarkPositions.find(pos => pos.id === currentImg.id)}
+                                    onTransform={position => {
+                                        handleWatermarkTransform(currentImg.id, position);
+                                      }}
+                                      onAllTransform={position => {
+                                        handleAllWatermarkTransform(position);
+                                      }}
                                 />
                             )}
                         </div>

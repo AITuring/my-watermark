@@ -5,6 +5,7 @@ import { Icon } from "@iconify/react";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
+import { WatermarkPosition } from "./types";
 
 import "./watermark.css";
 interface ImageWithFixedWidthProps {
@@ -112,6 +113,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
 interface WatermarkEditorProps {
     watermarkUrl: string;
     backgroundImageFile: File | null;
+    currentWatermarkPosition: WatermarkPosition | undefined;
     onAllTransform: (position: {
         x: number;
         y: number;
@@ -130,6 +132,7 @@ interface WatermarkEditorProps {
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     watermarkUrl,
     backgroundImageFile,
+    currentWatermarkPosition,
     onTransform,
     onAllTransform,
 }) => {
@@ -164,13 +167,15 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 水印相关设置
     const [watermarkImage] = useImage(watermarkUrl);
     const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 }); // 新增水印尺寸状态
-    const [position, setPosition] = useState({
+    const [position, setPosition] = useState(currentWatermarkPosition || {
         x: 0.1,
         y: 0.1,
         scaleX: backgroundScale,
         scaleY: backgroundScale,
         rotation: 0,
     });
+
+    console.log('position', position)
 
     // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例，搞错了）
     const [currentScale, setCurrentScale] = useState(1);
@@ -306,6 +311,12 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         };
     }, [backgroundImageFile]);
 
+    useEffect(() => {
+        if (currentWatermarkPosition) {
+            setPosition(currentWatermarkPosition);
+        }
+    }, [currentWatermarkPosition]);
+
     const onWatermarkClick = () => {
         if (watermarkRef.current && transformerRef.current) {
             transformerRef.current.nodes([watermarkRef.current]);
@@ -370,6 +381,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     };
 
     const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
+        console.log('transform')
         const node = e.target;
         let newX = node.x();
         let newY = node.y();
