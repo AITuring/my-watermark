@@ -7,6 +7,7 @@ import { ImageType, WatermarkPosition, ImgWithPosition } from "./types";
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
 import VerticalCarousel from "./VerticalCarousel";
+import pLimit from "p-limit";
 // import EmojiBg from './EmojiBg';
 import confetti from "canvas-confetti";
 import "./watermark.css";
@@ -118,40 +119,36 @@ const Watermark: React.FC = () => {
     async function downloadImagesWithWatermarkBatch(
         imgPostionList,
         watermarkImage,
-        batchSize = 5
+        batchSize = 10
     ) {
+        const limit = pLimit(batchSize);
         const downloadLink = document.createElement("a");
         downloadLink.style.display = "none";
         document.body.appendChild(downloadLink);
 
-        for (let i = 0; i < imgPostionList.length; i += batchSize) {
-            const batch = imgPostionList.slice(i, i + batchSize);
-            const promises = batch.map((img) =>
-                processImage(
-                    img.file,
+        const tasks = imgPostionList.map((img, index) =>
+            limit(async () => {
+                const { file, position } = img;
+                const { url, name } = await processImage(
+                    file,
                     watermarkImage,
-                    img.position,
+                    position,
                     watermarkBlur,
                     quality
-                )
-            );
-            const imageBlobs = await Promise.all(promises);
-
-            imageBlobs.forEach(({ url, name }, index) => {
+                );
+                console.log(url, "url",name, "name");
                 const sliceName = name.split(".")[0];
-                message.success(`图${i + index + 1}下载成功！`);
-                const progress =
-                    ((i + index + 1) / imgPostionList.length) * 100;
-                setImgProgress(Math.min(progress, 100));
                 downloadLink.href = url;
                 downloadLink.download = `${sliceName}-mark.jpeg`;
                 downloadLink.click();
                 URL.revokeObjectURL(url);
-            });
+                message.success(`图${index + 1}下载成功！`);
+                const progress = ((index + 1) / imgPostionList.length) * 100;
+                setImgProgress(Math.min(progress, 100));
+            })
+        );
 
-            // 等待一会儿，让浏览器有时间回收内存
-            await new Promise((resolve) => setTimeout(resolve, 100));
-        }
+        await Promise.all(tasks);
 
         document.body.removeChild(downloadLink);
         setLoading(false);
@@ -203,7 +200,7 @@ const Watermark: React.FC = () => {
                             onUpload={handleImagesUpload}
                             fileType="背景"
                         >
-                            <div className="w-[22vw] px-10 py-5 rounded-lg text-white text-2xl font-medium bg-opacity-90 bg-blue-500 cursor-pointer flex flex-col items-center hover:bg-blue-500 hover:shadow-md hover:shadow-gray-300 hover:shadow-offset-[-4px,-4px] hover:shadow-opacity-50">
+                            <div className="p-6 rounded-lg text-white text-2xl font-medium bg-opacity-90 bg-blue-500 cursor-pointer flex flex-col items-center hover:bg-blue-500 hover:shadow-md hover:shadow-gray-300 hover:shadow-offset-[-4px,-4px] hover:shadow-opacity-50">
                                 上传背景图片
                             </div>
                         </ImageUploader>
@@ -250,12 +247,6 @@ const Watermark: React.FC = () => {
                                 <img
                                     src={watermarkUrl} // 当 watermarkUrl 不存在时，显示默认图片
                                     alt="watermark"
-                                    // style={{
-                                    //     height: "4vh",
-                                    //     cursor: "pointer", // 将鼠标样式设置为指针，以指示图片是可点击的
-                                    //     background: "#268af8", // 背景色为白色，以显示图片
-                                    // }}
-
                                     onClick={() =>
                                         document
                                             .getElementById("watermarkUploader")

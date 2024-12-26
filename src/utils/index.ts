@@ -92,7 +92,8 @@ function debounce(func, wait) {
 }
 
 // 图片处理
-async function processImage(file: File, watermarkImage: HTMLImageElement, position, watermarkBlur: boolean, quality: number) {
+async function processImage(file: File, watermarkImage: HTMLImageElement, position, watermarkBlur: boolean, quality: number): Promise<{ url: string; name: string }> {
+    const startTime = performance.now();
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async (e) => {
@@ -214,6 +215,8 @@ async function processImage(file: File, watermarkImage: HTMLImageElement, positi
             };
             image.onerror = reject;
             image.src = e.target.result as string;
+            const endTime = performance.now();
+        console.log(`处理图片耗时: ${endTime - startTime} ms`);
         };
         reader.onerror = reject;
         reader.readAsDataURL(file);

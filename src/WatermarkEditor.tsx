@@ -162,7 +162,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         height: 0,
     });
     // 背景图片的缩放比例（预览/原图）
-    const [backgroundScale, setBackgroundScale] = useState(1);
+    const [backgroundScale, setBackgroundScale] = useState(0.2);
+     // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例，搞错了）
+    const [currentScale, setCurrentScale] = useState(1);
 
     // 水印相关设置
     const [watermarkImage] = useImage(watermarkUrl);
@@ -177,8 +179,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     console.log('position', position)
 
-    // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例，搞错了）
-    const [currentScale, setCurrentScale] = useState(1);
     const watermarkRef = useRef<Konva.Image>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
 
@@ -268,7 +268,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             const scaleHeight = windowHeight / backgroundImage.naturalHeight;
             // 选择宽度和高度中较小的缩放比例，以确保图片完全可见
             const scale = Math.min(scaleWidth, scaleHeight);
-            setBackgroundScale(scale);
+
             const ratio =
                 backgroundImage.naturalWidth / backgroundImage.naturalHeight;
             const width = windowHeight * ratio;
@@ -283,6 +283,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 初始化水印尺寸
     useEffect(() => {
         if (watermarkImage) {
+            console.log("watermarkImage", watermarkImage.naturalWidth, watermarkImage.naturalHeight, backgroundScale);
             setWatermarkSize({
                 width: watermarkImage.naturalWidth * backgroundScale,
                 height: watermarkImage.naturalHeight * backgroundScale,
