@@ -223,4 +223,44 @@ async function processImage(file: File, watermarkImage: HTMLImageElement, positi
     });
 }
 
-export { uuid, loadImageData, calculateWatermarkPosition, debounce, processImage };
+interface ExtendedNavigator extends Navigator {
+    deviceMemory?: number; // 可选属性
+}
+
+// 获取设备性能信息
+function getDevicePerformance(): { cores: number; memory: number } {
+    const extendedNavigator = navigator as ExtendedNavigator;
+    const cores = navigator.hardwareConcurrency || 4; // CPU 线程数，默认值为 4
+    const memory = extendedNavigator.deviceMemory || 4; // 近似内存容量（GB），默认值为 4
+    return { cores, memory };
+}
+
+// 根据设备性能动态调整批次大小和并发数
+function adjustBatchSizeAndConcurrency(
+    images: { file: File }[]
+): { batchSize: number; globalConcurrency: number } {
+    const { cores, memory } = getDevicePerformance();
+
+    // 图片文件大小统计
+    const totalSize = images.reduce((sum, img) => sum + img.file.size, 0);
+    const avgSize = totalSize / images.length / 1024 / 1024; // 平均大小（MB）
+
+    // 动态调整规则
+    const batchSize = Math.max(1, Math.min(Math.floor(cores / 2), 5)); // 每批次最多 5 张
+    const globalConcurrency = Math.max(
+        1,
+        Math.min(Math.floor(memory * 2), 10) // 全局并发任务数，内存越多并发数越大
+    );
+
+    // 如果图片较大，进一步降低参数
+    if (avgSize > 5) {
+        return {
+            batchSize: Math.max(1, batchSize - 1),
+            globalConcurrency: Math.max(1, globalConcurrency - 2),
+        };
+    }
+
+    return { batchSize, globalConcurrency };
+}
+
+export { uuid, loadImageData, calculateWatermarkPosition, debounce, processImage, adjustBatchSizeAndConcurrency };

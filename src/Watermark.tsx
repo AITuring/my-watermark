@@ -1,7 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { message, Spin, InputNumber, Switch, Tooltip, Button } from "antd";
 import { Icon } from "@iconify/react";
-import { loadImageData, debounce, processImage } from "./utils";
+import {
+    loadImageData,
+    debounce,
+    processImage,
+    adjustBatchSizeAndConcurrency,
+} from "./utils";
 import { ImageType, WatermarkPosition, ImgWithPosition } from "./types";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
@@ -119,36 +124,47 @@ const Watermark: React.FC = () => {
     async function downloadImagesWithWatermarkBatch(
         imgPostionList,
         watermarkImage,
-        batchSize = 10
+        batchSize = 5,
+        globalConcurrency = 10
     ) {
-        const limit = pLimit(batchSize);
+        const limit = pLimit(globalConcurrency);
         const downloadLink = document.createElement("a");
         downloadLink.style.display = "none";
         document.body.appendChild(downloadLink);
 
-        const tasks = imgPostionList.map((img, index) =>
-            limit(async () => {
-                const { file, position } = img;
-                const { url, name } = await processImage(
-                    file,
-                    watermarkImage,
-                    position,
-                    watermarkBlur,
-                    quality
-                );
-                console.log(url, "url",name, "name");
-                const sliceName = name.split(".")[0];
-                downloadLink.href = url;
-                downloadLink.download = `${sliceName}-mark.jpeg`;
-                downloadLink.click();
-                URL.revokeObjectURL(url);
-                message.success(`图${index + 1}下载成功！`);
-                const progress = ((index + 1) / imgPostionList.length) * 100;
-                setImgProgress(Math.min(progress, 100));
-            })
-        );
+        // 按照 batchSize 分批处理
+        for (let i = 0; i < imgPostionList.length; i += batchSize) {
+            const batch = imgPostionList.slice(i, i + batchSize); // 当前批次的图片
 
-        await Promise.all(tasks);
+            const tasks = batch.map((img, index) =>
+                limit(async () => {
+                    const { file, position } = img;
+                    const { url, name } = await processImage(
+                        file,
+                        watermarkImage,
+                        position,
+                        watermarkBlur,
+                        quality
+                    );
+                    console.log(url, "url", name, "name");
+                    const sliceName = name.split(".")[0];
+                    downloadLink.href = url;
+                    downloadLink.download = `${sliceName}-mark.jpeg`;
+                    downloadLink.click();
+                    URL.revokeObjectURL(url);
+                    message.success(`图${i + index + 1}下载成功！`);
+                    const progress =
+                        ((i + index + 1) / imgPostionList.length) * 100;
+                    setImgProgress(Math.min(progress, 100));
+                })
+            );
+
+            // 等待当前批次完成
+            await Promise.all(tasks);
+
+            // 加一点延时，避免占用过高资源
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
 
         document.body.removeChild(downloadLink);
         setLoading(false);
@@ -159,14 +175,16 @@ const Watermark: React.FC = () => {
         setImgProgress(0);
     }
 
-    const handleApplyWatermark = () => {
+    const handleApplyWatermark = async () => {
         if (!watermarkUrl) {
             message.error("请上传水印图片！");
             return;
         }
         setLoading(true);
+        const { batchSize, globalConcurrency } =
+            adjustBatchSizeAndConcurrency(images);
         const watermarkImage = new Image();
-        watermarkImage.onload = () => {
+        watermarkImage.onload = async () => {
             message.success("水印下载开始！");
 
             const allimageData: ImgWithPosition[] = images.map((img) => ({
@@ -176,7 +194,12 @@ const Watermark: React.FC = () => {
             }));
 
             console.log("allimageData", allimageData);
-            downloadImagesWithWatermarkBatch(allimageData, watermarkImage);
+            await downloadImagesWithWatermarkBatch(
+                allimageData,
+                watermarkImage,
+                batchSize,
+                globalConcurrency
+            );
         };
 
         watermarkImage.onerror = () => {
