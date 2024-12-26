@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { message, Spin, InputNumber, Switch, Tooltip, Button } from "antd";
 import { Icon } from "@iconify/react";
-import { CustomButton } from "./components";
 import { loadImageData, debounce, processImage } from "./utils";
 import { ImageType, WatermarkPosition, ImgWithPosition } from "./types";
 // import { SpeedInsights } from "@vercel/speed-insights/react"
@@ -44,7 +43,6 @@ const Watermark: React.FC = () => {
         }
     }, [images]);
 
-
     const handleImagesUpload = async (files: File[]) => {
         const uploadImages = await loadImageData(files);
         setImages(uploadImages);
@@ -83,17 +81,22 @@ const Watermark: React.FC = () => {
         reader.readAsDataURL(files[0]);
     };
 
-    const handleWatermarkTransform = (imageId, position: {
-        x: number;
-        y: number;
-        scaleX: number;
-        scaleY: number;
-        rotation: number;
-    }) => {
-        setWatermarkPositions(prev =>
-            prev.map(pos => pos.id === imageId ? { ...pos, ...position } : pos)
+    const handleWatermarkTransform = (
+        imageId,
+        position: {
+            x: number;
+            y: number;
+            scaleX: number;
+            scaleY: number;
+            rotation: number;
+        }
+    ) => {
+        setWatermarkPositions((prev) =>
+            prev.map((pos) =>
+                pos.id === imageId ? { ...pos, ...position } : pos
+            )
         );
-        console.log(watermarkPositions,'watermarkPositions');
+        console.log(watermarkPositions, "watermarkPositions");
     };
 
     const handleAllWatermarkTransform = (position: {
@@ -137,7 +140,8 @@ const Watermark: React.FC = () => {
             imageBlobs.forEach(({ url, name }, index) => {
                 const sliceName = name.split(".")[0];
                 message.success(`图${i + index + 1}下载成功！`);
-                const progress = ((i + index + 1) / imgPostionList.length) * 100;
+                const progress =
+                    ((i + index + 1) / imgPostionList.length) * 100;
                 setImgProgress(Math.min(progress, 100));
                 downloadLink.href = url;
                 downloadLink.download = `${sliceName}-mark.jpeg`;
@@ -175,10 +179,7 @@ const Watermark: React.FC = () => {
             }));
 
             console.log("allimageData", allimageData);
-            downloadImagesWithWatermarkBatch(
-                allimageData,
-                watermarkImage,
-            );
+            downloadImagesWithWatermarkBatch(allimageData, watermarkImage);
         };
 
         watermarkImage.onerror = () => {
@@ -201,43 +202,42 @@ const Watermark: React.FC = () => {
                             ref={dropzoneRef}
                             onUpload={handleImagesUpload}
                             fileType="背景"
-                            // className="w-40 h-20 cursor-pointer bg-blue-500 flex justify-center items-center font-sans font-bold text-white rounded focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
-                            <CustomButton
-                                variant="contained"
-                                color="primary"
-                                size="xlarge"
-                                icon="ImageUp"
-                            >
+                            <div className="w-[22vw] px-10 py-5 rounded-lg text-white text-2xl font-medium bg-opacity-90 bg-blue-500 cursor-pointer flex flex-col items-center hover:bg-blue-500 hover:shadow-md hover:shadow-gray-300 hover:shadow-offset-[-4px,-4px] hover:shadow-opacity-50">
                                 上传背景图片
-                            </CustomButton>
+                            </div>
                         </ImageUploader>
                     </div>
                 ) : (
                     <div className="flex flex-col">
                         <div className="flex p-4 justify-between">
                             {images.length > 0 && (
-                                    <VerticalCarousel
-                                        images={images}
-                                        setImages={setImages}
-                                        setImageUploaderVisible={
-                                            setImageUploaderVisible
-                                        }
-                                        setCurrentImg={setCurrentImg}
-                                        height={editorHeight}
-                                    />
+                                <VerticalCarousel
+                                    images={images}
+                                    setImages={setImages}
+                                    setImageUploaderVisible={
+                                        setImageUploaderVisible
+                                    }
+                                    setCurrentImg={setCurrentImg}
+                                    height={editorHeight}
+                                />
                             )}
                             {watermarkUrl && currentImg && (
                                 <WatermarkEditor
                                     watermarkUrl={watermarkUrl}
                                     backgroundImageFile={currentImg.file}
-                                    currentWatermarkPosition={watermarkPositions.find(pos => pos.id === currentImg.id)}
-                                    onTransform={position => {
-                                        handleWatermarkTransform(currentImg.id, position);
-                                      }}
-                                      onAllTransform={position => {
+                                    currentWatermarkPosition={watermarkPositions.find(
+                                        (pos) => pos.id === currentImg.id
+                                    )}
+                                    onTransform={(position) => {
+                                        handleWatermarkTransform(
+                                            currentImg.id,
+                                            position
+                                        );
+                                    }}
+                                    onAllTransform={(position) => {
                                         handleAllWatermarkTransform(position);
-                                      }}
+                                    }}
                                 />
                             )}
                         </div>
