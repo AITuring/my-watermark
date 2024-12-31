@@ -509,7 +509,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     };
 
     return (
-        <div className="flex flex-col justify-center items-center">
+        <div className="flex flex-1 flex-col justify-center items-center">
             {/* <h2>水印添加</h2> */}
             {/* 显示背景图片原始宽高信息 */}
             {/* {backgroundImage && (

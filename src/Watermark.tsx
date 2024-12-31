@@ -228,7 +228,7 @@ const Watermark: React.FC = () => {
                         </ImageUploader>
                     </div>
                 ) : (
-                    <div className="flex flex-col">
+                    <div className="flex flex-col items-between">
                         <div className="flex p-4 justify-between">
                             {images.length > 0 && (
                                 <VerticalCarousel
@@ -260,7 +260,7 @@ const Watermark: React.FC = () => {
                                 />
                             )}
                         </div>
-                        <div className="flex justify-around items-center backdrop-blur-lg shadow-inner h-[10vh]">
+                        <div className="flex justify-around items-center backdrop-blur-lg shadow-inner">
                             <ImageUploader
                                 onUpload={handleWatermarkUpload}
                                 fileType="水印"
