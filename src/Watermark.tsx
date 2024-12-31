@@ -260,17 +260,20 @@ const Watermark: React.FC = () => {
                                 />
                             )}
                         </div>
-                        <div className="flex justify-around items-center backdrop-blur-lg shadow-inner">
+                        <div className="flex flex-1 justify-around items-center backdrop-blur-lg shadow-inner pt-4">
                             <ImageUploader
                                 onUpload={handleWatermarkUpload}
                                 fileType="水印"
-                                className="w-12 cursor-pointer bg-blue-500 "
+                                className="w-20 rounded-md cursor-pointer bg-blue-500 "
                             >
-                                <img
-                                    src={watermarkUrl} // 当 watermarkUrl 不存在时，显示默认图片
-                                    alt="watermark"
-                                />
+                                <Tooltip title="点击上传水印图片">
+                                    <img
+                                        src={watermarkUrl} // 当 watermarkUrl 不存在时，显示默认图片
+                                        alt="watermark"
+                                    />
+                                </Tooltip>
                             </ImageUploader>
+
                             {/* <div className="operation">
                                 <div className="buttonText">图片质量</div>
                                 <InputNumber
@@ -282,7 +285,7 @@ const Watermark: React.FC = () => {
                                     onChange={(e: number) => setQuality(e)}
                                 />
                             </div> */}
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col items-center gap-2">
                                 <div className="flex items-center">
                                     水印背景模糊
                                     <Tooltip title="开启后水印周围有一层高斯模糊">
