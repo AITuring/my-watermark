@@ -32,7 +32,11 @@ const CarouselItem = memo(
                 src={URL.createObjectURL(image?.file)}
                 alt={`Slide`}
                 className="object-cover"
-                onClick={() => onClick(image)}
+                onClick={(e) => {
+                    e.stopPropagation();  // 阻止事件冒泡
+                    onClick(image);
+                }}
+                // onClick={() => onClick(image)}
             />
             <Tooltip title="删除">
                 <Icon
@@ -100,7 +104,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                     />
                 ))}
             </div>
-            <div className="w-full flex flex-col items-center">
+            <div className="w-full flex flex-col items-center mt-2">
                 <div>共计{images.length}张</div>
                 <div className="flex flex-wrap justify-between items-center w-full p-2">
                     <Button

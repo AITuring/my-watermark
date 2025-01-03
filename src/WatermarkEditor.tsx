@@ -182,7 +182,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     );
 
-    console.log("position", position);
 
     const watermarkRef = useRef<Konva.Image>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
@@ -379,13 +378,24 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         });
 
         // 传递给onTransform回调
-        onTransform({
-            x: actualX,
-            y: actualY,
-            scaleX: actualScaleX,
-            scaleY: actualScaleX,
-            rotation: actualRotation,
-        });
+        if (isBatch) {
+            onAllTransform({
+                x: actualX,
+                y: actualY,
+                scaleX: actualScaleX,
+                scaleY: actualScaleX,
+                rotation: actualRotation,
+            });
+        } else {
+            console.log("single");
+            onTransform({
+                x: actualX,
+                y: actualY,
+                scaleX: actualScaleX,
+                scaleY: actualScaleX,
+                rotation: actualRotation,
+            });
+        }
 
         // 使更改生效并重新绘制层
         node.getLayer().batchDraw();
@@ -424,22 +434,21 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
         updateWatermarkSize(actualScaleX);
 
-        setPosition({
+        const newPosition = {
             x: actualX,
             y: actualY,
             scaleX: actualScaleX,
             scaleY: actualScaleX,
             rotation: actualRotation,
-        });
+        };
 
-        // 传递给onTransform回调,这里x，y是比例
-        onTransform({
-            x: actualX,
-            y: actualY,
-            scaleX: actualScaleX,
-            scaleY: actualScaleX,
-            rotation: actualRotation,
-        });
+        setPosition(newPosition);
+
+        if (isBatch) {
+            onAllTransform(newPosition);
+        } else {
+            onTransform(newPosition);
+        }
     };
 
     // 更新水印位置的辅助函数
@@ -471,30 +480,20 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         );
 
         // 设置水印图片的新位置和缩放
-        setPosition({
+        const newPosition = {
             x: adjustedLeftTopX,
             y: adjustedLeftTopY,
             scaleX: currentScale,
             scaleY: currentScale,
             rotation: 0,
-        });
+        };
+
+        setPosition(newPosition);
 
         if (isBatch) {
-            onAllTransform({
-                x: adjustedLeftTopX,
-                y: adjustedLeftTopY,
-                scaleX: currentScale,
-                scaleY: currentScale,
-                rotation: 0,
-            });
+            onAllTransform(newPosition);
         } else {
-            onTransform({
-                x: adjustedLeftTopX,
-                y: adjustedLeftTopY,
-                scaleX: currentScale,
-                scaleY: currentScale,
-                rotation: 0,
-            });
+            onTransform(newPosition);
         }
     };
 
@@ -630,15 +629,14 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                     )}
                 </Layer>
             </Stage>
-            <div className="my-2 flex items-center gap-2">
+            <div className="my-4 flex items-center gap-2">
                 <Segmented
-
                     options={[
                         {
                             value: "batch",
                             icon: (
                                 <Icon
-                                    icon="material-symbols:wallpaper-slideshow-sharp"
+                                    icon="ri:archive-stack-line"
                                     className="w-6 h-6"
                                 />
                             ),
@@ -647,13 +645,15 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                             value: "alone",
                             icon: (
                                 <Icon
-                                    icon="material-symbols:wallpaper-sharp"
+                                    icon="ri:file-image-line"
                                     className="w-6 h-6"
                                 />
                             ),
                         },
                     ]}
-                    onChange={e => e === "alone" ? setIsBatch(false) : setIsBatch(true)}
+                    onChange={(e) =>
+                        e === "alone" ? setIsBatch(false) : setIsBatch(true)
+                    }
                 />
                 {isBatch ? <div>批量操作</div> : <div>单独操作</div>}
             </div>
