@@ -1,6 +1,6 @@
 /* eslint-disable react/display-name */
 import React, { useState, useEffect, useRef, forwardRef } from "react";
-import { Tooltip, Button } from "antd";
+import { Tooltip, Button, Segmented } from "antd";
 import { Icon } from "@iconify/react";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
@@ -163,21 +163,26 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     });
     // 背景图片的缩放比例（预览/原图）
     const [backgroundScale, setBackgroundScale] = useState(0.2);
-     // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例，搞错了）
+    // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例，搞错了）
     const [currentScale, setCurrentScale] = useState(1);
+
+    // 批量or单独
+    const [isBatch, setIsBatch] = useState<boolean>(true);
 
     // 水印相关设置
     const [watermarkImage] = useImage(watermarkUrl);
     const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 }); // 新增水印尺寸状态
-    const [position, setPosition] = useState(currentWatermarkPosition || {
-        x: 0.1,
-        y: 0.1,
-        scaleX: backgroundScale,
-        scaleY: backgroundScale,
-        rotation: 0,
-    });
+    const [position, setPosition] = useState(
+        currentWatermarkPosition || {
+            x: 0.1,
+            y: 0.1,
+            scaleX: backgroundScale,
+            scaleY: backgroundScale,
+            rotation: 0,
+        }
+    );
 
-    console.log('position', position)
+    console.log("position", position);
 
     const watermarkRef = useRef<Konva.Image>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
@@ -283,7 +288,12 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 初始化水印尺寸
     useEffect(() => {
         if (watermarkImage) {
-            console.log("watermarkImage", watermarkImage.naturalWidth, watermarkImage.naturalHeight, backgroundScale);
+            console.log(
+                "watermarkImage",
+                watermarkImage.naturalWidth,
+                watermarkImage.naturalHeight,
+                backgroundScale
+            );
             setWatermarkSize({
                 width: watermarkImage.naturalWidth * backgroundScale,
                 height: watermarkImage.naturalHeight * backgroundScale,
@@ -382,7 +392,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     };
 
     const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
-        console.log('transform')
+        console.log("transform");
         const node = e.target;
         let newX = node.x();
         let newY = node.y();
@@ -422,7 +432,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             rotation: actualRotation,
         });
 
-        console.log(actualX, actualY, actualScaleX, "456");
         // 传递给onTransform回调,这里x，y是比例
         onTransform({
             x: actualX,
@@ -470,13 +479,23 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             rotation: 0,
         });
 
-        onAllTransform({
-            x: adjustedLeftTopX,
-            y: adjustedLeftTopY,
-            scaleX: currentScale,
-            scaleY: currentScale,
-            rotation: 0,
-        });
+        if (isBatch) {
+            onAllTransform({
+                x: adjustedLeftTopX,
+                y: adjustedLeftTopY,
+                scaleX: currentScale,
+                scaleY: currentScale,
+                rotation: 0,
+            });
+        } else {
+            onTransform({
+                x: adjustedLeftTopX,
+                y: adjustedLeftTopY,
+                scaleX: currentScale,
+                scaleY: currentScale,
+                rotation: 0,
+            });
+        }
     };
 
     // 按钮回调函数，设置水印位置
@@ -611,7 +630,33 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                     )}
                 </Layer>
             </Stage>
-            <div className="my-2">批量操作</div>
+            <div className="my-2 flex items-center gap-2">
+                <Segmented
+
+                    options={[
+                        {
+                            value: "batch",
+                            icon: (
+                                <Icon
+                                    icon="material-symbols:wallpaper-slideshow-sharp"
+                                    className="w-6 h-6"
+                                />
+                            ),
+                        },
+                        {
+                            value: "alone",
+                            icon: (
+                                <Icon
+                                    icon="material-symbols:wallpaper-sharp"
+                                    className="w-6 h-6"
+                                />
+                            ),
+                        },
+                    ]}
+                    onChange={e => e === "alone" ? setIsBatch(false) : setIsBatch(true)}
+                />
+                {isBatch ? <div>批量操作</div> : <div>单独操作</div>}
+            </div>
             <div className="flex justify-center align-center space-x-6 w-full flex-wrap">
                 <Tooltip title="左上角" placement="top">
                     <Button
