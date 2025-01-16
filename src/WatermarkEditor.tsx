@@ -182,7 +182,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     );
 
-
     const watermarkRef = useRef<Konva.Image>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
 
@@ -629,6 +628,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                     )}
                 </Layer>
             </Stage>
+            
             <div className="my-4 flex items-center gap-2">
                 <Segmented
                     options={[

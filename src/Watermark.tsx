@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { message, Spin, InputNumber, Switch, Tooltip, Button } from "antd";
+import { message, Spin,Switch, Tooltip, Button } from "antd";
 import { Icon } from "@iconify/react";
 import {
     loadImageData,
@@ -229,7 +229,7 @@ const Watermark: React.FC = () => {
                     </div>
                 ) : (
                     <div className="flex flex-col items-between">
-                        <div className="flex p-4 justify-between">
+                        <div className="flex p-4 justify-between gap-2">
                             {images.length > 0 && (
                                 <VerticalCarousel
                                     images={images}
@@ -264,7 +264,7 @@ const Watermark: React.FC = () => {
                             <ImageUploader
                                 onUpload={handleWatermarkUpload}
                                 fileType="水印"
-                                className="w-20 rounded-md cursor-pointer bg-blue-500 "
+                                className="w-20 rounded-md cursor-pointer bg-blue-500"
                             >
                                 <Tooltip title="点击上传水印图片">
                                     <img
