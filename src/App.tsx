@@ -12,6 +12,7 @@ import CompTest from "./CompTest";
 import Lottery from "./Lottery";
 import ChangeColor from "./ChangeColor";
 import PhotoCollage from "./PhotoCollage";
+import ImageStitching from "./ImageStitching";
 import "./App.css";
 
 const menuItems = [
@@ -27,6 +28,12 @@ const menuItems = [
         url: "/puzzle",
         component: <Puzzle />,
     },
+    {
+        label: "图片拼接",
+        id: "stitch",
+        url: "/stitch",
+        component: <ImageStitching />,
+    }
     // {
     //     label: "微博抽奖",
     //     id: "lottery",
