@@ -1,181 +1,202 @@
-// 添加一个新的函数用于找到最佳的缩放比例和位置
-function find_best_match(
-    image1Data: ImageData,
-    image2Data: ImageData,
-    image1Width: number,
-    image1Height: number,
-    image2Width: number,
-    image2Height: number,
-    scale: number,
-    direction: string
-): {
-    scale: number;
-    shift_x: number;
-    shift_y: number;
-    direction: string;
-    error: number;
-} {
-    console.log("Finding best match...");
-    let bestMatch = {
-        scale,
-        shift_x: 0,
-        shift_y: 0,
-        direction,
-        error: Number.POSITIVE_INFINITY,
-    };
+// 导入 OpenCV.js
+import cv from "opencv.js";
 
-    const scaledWidth = Math.floor(image2Width * scale);
-    const scaledHeight = Math.floor(image2Height * scale);
+// 当 OpenCV 加载完成时的标志
+let cvReady = false;
+let cv: any = null;
 
-    // 根据方向确定搜索范围
-    let searchRangeX = 0;
-    let searchRangeY = 0;
+// 初始化 OpenCV
+async function initOpenCV() {
+    return new Promise((resolve) => {
+        // 如果已经加载完成，直接返回
+        if (cvReady) {
+            resolve(true);
+            return;
+        }
 
-    if (direction === "right" || direction === "left") {
-        searchRangeX = Math.floor(Math.min(image1Width, scaledWidth) * 0.4);
-        searchRangeY = Math.floor(Math.min(image1Height, scaledHeight) * 0.2);
-    } else {
-        searchRangeX = Math.floor(Math.min(image1Width, scaledWidth) * 0.2);
-        searchRangeY = Math.floor(Math.min(image1Height, scaledHeight) * 0.4);
-    }
+        // 加载 OpenCV.js
+        self.importScripts("https://docs.opencv.org/4.5.5/opencv.js");
 
-    // 确定重叠区域的大小和位置
-    let overlapWidth = 0;
-    let overlapHeight = 0;
-    let startX1 = 0,
-        startY1 = 0;
-    let startX2 = 0,
-        startY2 = 0;
+        // 监听 OpenCV 加载完成事件
+        self.addEventListener("opencv_loaded", () => {
+            cv = (self as any).cv;
+            cvReady = true;
+            resolve(true);
+        });
+    });
+}
 
-    switch (direction) {
-        case "right":
-            overlapWidth = Math.floor(scaledWidth * 0.3);
-            overlapHeight = Math.min(image1Height, scaledHeight);
-            startX1 = image1Width - overlapWidth;
-            startY1 = 0;
-            startX2 = 0;
-            startY2 = 0;
-            break;
-        case "bottom":
-            overlapWidth = Math.min(image1Width, scaledWidth);
-            overlapHeight = Math.floor(scaledHeight * 0.3);
-            startX1 = 0;
-            startY1 = image1Height - overlapHeight;
-            startX2 = 0;
-            startY2 = 0;
-            break;
-        case "left":
-            overlapWidth = Math.floor(scaledWidth * 0.3);
-            overlapHeight = Math.min(image1Height, scaledHeight);
-            startX1 = 0;
-            startY1 = 0;
-            startX2 = scaledWidth - overlapWidth;
-            startY2 = 0;
-            break;
-        case "top":
-            overlapWidth = Math.min(image1Width, scaledWidth);
-            overlapHeight = Math.floor(scaledHeight * 0.3);
-            startX1 = 0;
-            startY1 = 0;
-            startX2 = 0;
-            startY2 = scaledHeight - overlapHeight;
-            break;
-    }
+// 使用 OpenCV 的特征点匹配算法
+async function findFeatureMatch(
+    img1: any,
+    img2: any
+): Promise<{ homography: any; matchesCount: number }> {
+    // 转换为灰度图像
+    const gray1 = new cv.Mat();
+    const gray2 = new cv.Mat();
+    cv.cvtColor(img1, gray1, cv.COLOR_RGBA2GRAY);
+    cv.cvtColor(img2, gray2, cv.COLOR_RGBA2GRAY);
 
-    // 性能优化：增加采样步长
-    const sampleStep = 4;
+    // 使用 ORB 特征检测器
+    const orb = new cv.ORB(500); // 最多检测500个特征点
 
-    // 在重叠区域内搜索最佳匹配
-    for (let y = -searchRangeY; y <= searchRangeY; y += sampleStep) {
-        for (let x = -searchRangeX; x <= searchRangeX; x += sampleStep) {
-            let error = 0;
-            let pixelCount = 0;
+    // 检测关键点并计算描述符
+    const keypoints1 = new cv.KeyPointVector();
+    const keypoints2 = new cv.KeyPointVector();
+    const descriptors1 = new cv.Mat();
+    const descriptors2 = new cv.Mat();
 
-            for (let h = 0; h < overlapHeight; h += sampleStep) {
-                for (let w = 0; w < overlapWidth; w += sampleStep) {
-                    const x1 = startX1 + w + x;
-                    const y1 = startY1 + h + y;
-                    const x2 = startX2 + w;
-                    const y2 = startY2 + h;
+    orb.detectAndCompute(gray1, new cv.Mat(), keypoints1, descriptors1);
+    orb.detectAndCompute(gray2, new cv.Mat(), keypoints2, descriptors2);
 
-                    if (
-                        x1 >= 0 &&
-                        x1 < image1Width &&
-                        y1 >= 0 &&
-                        y1 < image1Height &&
-                        x2 >= 0 &&
-                        x2 < scaledWidth &&
-                        y2 >= 0 &&
-                        y2 < scaledHeight
-                    ) {
-                        const index1 = (y1 * image1Width + x1) * 4;
-                        const index2 = (y2 * scaledWidth + x2) * 4;
+    // 使用暴力匹配器进行特征匹配
+    const matcher = new cv.BFMatcher(cv.NORM_HAMMING);
+    const matches = new cv.DMatchVector();
+    matcher.match(descriptors1, descriptors2, matches);
 
-                        for (let c = 0; c < 3; c++) {
-                            error += Math.pow(
-                                image1Data.data[index1 + c] -
-                                    image2Data.data[index2 + c],
-                                2
-                            );
-                        }
-                        pixelCount++;
-                    }
-                }
-            }
+    // 筛选好的匹配点
+    const goodMatches = new cv.DMatchVector();
+    const maxDistance = 50; // 设置距离阈值
 
-            if (pixelCount > 0) {
-                error /= pixelCount;
-
-                if (error < bestMatch.error) {
-                    bestMatch = {
-                        scale,
-                        shift_x: x,
-                        shift_y: y,
-                        direction,
-                        error,
-                    };
-                }
-            }
+    for (let i = 0; i < matches.size(); i++) {
+        const match = matches.get(i);
+        if (match.distance < maxDistance) {
+            goodMatches.push_back(match);
         }
     }
 
-    return bestMatch;
+    // 如果匹配点太少，返回空结果
+    if (goodMatches.size() < 4) {
+        gray1.delete();
+        gray2.delete();
+        descriptors1.delete();
+        descriptors2.delete();
+        keypoints1.delete();
+        keypoints2.delete();
+        matches.delete();
+        goodMatches.delete();
+        orb.delete();
+        matcher.delete();
+
+        return { homography: null, matchesCount: 0 };
+    }
+
+    // 提取匹配点的坐标
+    const srcPoints = [];
+    const dstPoints = [];
+
+    for (let i = 0; i < goodMatches.size(); i++) {
+        const match = goodMatches.get(i);
+        const kp1 = keypoints1.get(match.queryIdx);
+        const kp2 = keypoints2.get(match.trainIdx);
+        srcPoints.push(new cv.Point(kp1.pt.x, kp1.pt.y));
+        dstPoints.push(new cv.Point(kp2.pt.x, kp2.pt.y));
+    }
+
+    // 将点转换为 Mat 格式
+    const srcPointsMat = cv.matFromArray(
+        srcPoints.length,
+        1,
+        cv.CV_32FC2,
+        srcPoints.flatMap((p) => [p.x, p.y])
+    );
+    const dstPointsMat = cv.matFromArray(
+        dstPoints.length,
+        1,
+        cv.CV_32FC2,
+        dstPoints.flatMap((p) => [p.x, p.y])
+    );
+
+    // 计算单应性矩阵
+    const homography = cv.findHomography(srcPointsMat, dstPointsMat, cv.RANSAC);
+
+    // 释放内存
+    gray1.delete();
+    gray2.delete();
+    descriptors1.delete();
+    descriptors2.delete();
+    keypoints1.delete();
+    keypoints2.delete();
+    matches.delete();
+    goodMatches.delete();
+    srcPointsMat.delete();
+    dstPointsMat.delete();
+    orb.delete();
+    matcher.delete();
+
+    return { homography, matchesCount: goodMatches.size() };
 }
 
 // 处理来自主线程的消息
-self.onmessage = function (e) {
+self.onmessage = async function (e) {
     const { type, data } = e.data;
 
     if (type === "find_matches") {
-        const { imagesData, imagesSizes } = data;
-
         try {
-            // 创建一个图像位置映射，记录每个图像的位置和缩放
+            self.postMessage({
+                type: "progress",
+                data: { step: "初始化 OpenCV", percent: 5 },
+            });
+
+            try {
+                await initOpenCV();
+            } catch (error) {
+                console.error("Failed to initialize OpenCV:", error);
+                self.postMessage({
+                    type: "error",
+                    data: "OpenCV 初始化失败，请刷新页面重试",
+                });
+                return;
+            }
+
+            self.postMessage({
+                type: "progress",
+                data: { step: "OpenCV 初始化完成", percent: 5 },
+            });
+
+            const { imagesData, imagesSizes } = data;
+
+            // 创建 OpenCV 图像
+            const cvImages = [];
+            for (let i = 0; i < imagesData.length; i++) {
+                self.postMessage({
+                    type: "progress",
+                    data: {
+                        step: "准备图像",
+                        percent: 5 + (i * 5) / imagesData.length,
+                        detail: `处理图像 ${i + 1}/${imagesData.length}`,
+                    },
+                });
+
+                const img = cv.matFromImageData(imagesData[i]);
+                cvImages.push(img);
+            }
+
+            // 创建一个图像位置映射
             const positions = imagesSizes.map((size: any, index: number) => ({
                 index,
                 width: size.width,
                 height: size.height,
                 x: 0,
                 y: 0,
-                scale: 1,
+                transform: new cv.Mat(), // 变换矩阵
                 placed: false,
             }));
 
             // 先放置第一张图像
             positions[0].placed = true;
+            positions[0].transform = cv.Mat.eye(3, 3, cv.CV_64F); // 单位矩阵
 
             self.postMessage({
                 type: "progress",
-                data: { step: "计算最佳匹配", percent: 10 },
+                data: { step: "计算特征匹配", percent: 10 },
             });
 
-            // 计算所有图像对之间的最佳匹配
-            const matches: any[] = [];
-            const scales = [0.8, 0.9, 0.95, 1.0, 1.05, 1.1, 1.2];
-            const directions = ["right", "bottom", "left", "top"];
+            // 计算所有图像对之间的特征匹配
+            const matches = [];
 
-            for (let i = 0; i < imagesData.length; i++) {
-                for (let j = 0; j < imagesData.length; j++) {
+            for (let i = 0; i < cvImages.length; i++) {
+                for (let j = 0; j < cvImages.length; j++) {
                     if (i !== j) {
                         self.postMessage({
                             type: "progress",
@@ -183,54 +204,33 @@ self.onmessage = function (e) {
                                 step: "计算图像匹配",
                                 percent:
                                     10 +
-                                    ((i * imagesData.length + j) * 40) /
-                                        (imagesData.length * imagesData.length),
+                                    ((i * cvImages.length + j) * 60) /
+                                        (cvImages.length * cvImages.length),
                                 detail: `比较图像 ${i + 1} 和 ${j + 1}`,
                             },
                         });
 
-                        let bestMatch = {
-                            scale: 1,
-                            shift_x: 0,
-                            shift_y: 0,
-                            direction: "right",
-                            error: Number.POSITIVE_INFINITY,
-                        };
+                        const { homography, matchesCount } =
+                            await findFeatureMatch(cvImages[i], cvImages[j]);
 
-                        for (const scale of scales) {
-                            for (const direction of directions) {
-                                const match = find_best_match(
-                                    imagesData[i],
-                                    imagesData[j],
-                                    imagesSizes[i].width,
-                                    imagesSizes[i].height,
-                                    imagesSizes[j].width,
-                                    imagesSizes[j].height,
-                                    scale,
-                                    direction
-                                );
-
-                                if (match.error < bestMatch.error) {
-                                    bestMatch = match;
-                                }
-                            }
+                        if (homography && matchesCount > 10) {
+                            matches.push({
+                                from: i,
+                                to: j,
+                                homography,
+                                matchesCount,
+                            });
                         }
-
-                        matches.push({
-                            from: i,
-                            to: j,
-                            ...bestMatch,
-                        });
                     }
                 }
             }
 
-            // 按错误率排序匹配
-            matches.sort((a, b) => a.error - b.error);
+            // 按匹配点数量排序
+            matches.sort((a, b) => b.matchesCount - a.matchesCount);
 
             self.postMessage({
                 type: "progress",
-                data: { step: "构建拼接图", percent: 50 },
+                data: { step: "构建拼接图", percent: 70 },
             });
 
             // 贪心算法放置图像
@@ -246,40 +246,64 @@ self.onmessage = function (e) {
                 const fromPos = positions[bestMatch.from];
                 const toPos = positions[bestMatch.to];
 
-                // 根据方向和偏移计算新图像的位置
-                toPos.scale = bestMatch.scale;
+                // 计算变换矩阵
+                const combinedTransform = new cv.Mat();
+                cv.matMul(
+                    fromPos.transform,
+                    bestMatch.homography,
+                    combinedTransform
+                );
+                toPos.transform = combinedTransform;
 
-                switch (bestMatch.direction) {
-                    case "right":
-                        toPos.x =
-                            fromPos.x +
-                            imagesSizes[fromPos.index].width * fromPos.scale -
-                            bestMatch.shift_x;
-                        toPos.y = fromPos.y + bestMatch.shift_y;
-                        break;
-                    case "bottom":
-                        toPos.x = fromPos.x + bestMatch.shift_x;
-                        toPos.y =
-                            fromPos.y +
-                            imagesSizes[fromPos.index].height * fromPos.scale -
-                            bestMatch.shift_y;
-                        break;
-                    case "left":
-                        toPos.x =
-                            fromPos.x -
-                            imagesSizes[toPos.index].width * toPos.scale +
-                            bestMatch.shift_x;
-                        toPos.y = fromPos.y + bestMatch.shift_y;
-                        break;
-                    case "top":
-                        toPos.x = fromPos.x + bestMatch.shift_x;
-                        toPos.y =
-                            fromPos.y -
-                            imagesSizes[toPos.index].height * toPos.scale +
-                            bestMatch.shift_y;
-                        break;
+                // 计算变换后的四个角点位置
+                const corners = [
+                    { x: 0, y: 0 },
+                    { x: imagesSizes[toPos.index].width, y: 0 },
+                    {
+                        x: imagesSizes[toPos.index].width,
+                        y: imagesSizes[toPos.index].height,
+                    },
+                    { x: 0, y: imagesSizes[toPos.index].height },
+                ];
+
+                // 应用变换矩阵到角点
+                const transformedCorners = corners.map((corner) => {
+                    const pt = new cv.Mat(3, 1, cv.CV_64F);
+                    pt.data64F[0] = corner.x;
+                    pt.data64F[1] = corner.y;
+                    pt.data64F[2] = 1;
+
+                    const transformedPt = new cv.Mat();
+                    cv.matMul(toPos.transform, pt, transformedPt);
+
+                    const x =
+                        transformedPt.data64F[0] / transformedPt.data64F[2];
+                    const y =
+                        transformedPt.data64F[1] / transformedPt.data64F[2];
+
+                    pt.delete();
+                    transformedPt.delete();
+
+                    return { x, y };
+                });
+
+                // 计算变换后图像的边界框
+                let minX = Infinity,
+                    minY = Infinity,
+                    maxX = -Infinity,
+                    maxY = -Infinity;
+
+                for (const corner of transformedCorners) {
+                    minX = Math.min(minX, corner.x);
+                    minY = Math.min(minY, corner.y);
+                    maxX = Math.max(maxX, corner.x);
+                    maxY = Math.max(maxY, corner.y);
                 }
 
+                toPos.x = minX;
+                toPos.y = minY;
+                toPos.width = maxX - minX;
+                toPos.height = maxY - minY;
                 toPos.placed = true;
 
                 // 更新进度
@@ -290,10 +314,10 @@ self.onmessage = function (e) {
                     type: "progress",
                     data: {
                         step: "放置图像",
-                        percent: 50 + (placedCount * 30) / imagesData.length,
-                        detail: `放置图像 ${bestMatch.to + 1}, 方向: ${
-                            bestMatch.direction
-                        }, 缩放: ${bestMatch.scale.toFixed(2)}`,
+                        percent: 70 + (placedCount * 20) / cvImages.length,
+                        detail: `放置图像 ${bestMatch.to + 1}, 匹配点: ${
+                            bestMatch.matchesCount
+                        }`,
                     },
                 });
             }
@@ -305,23 +329,29 @@ self.onmessage = function (e) {
                 maxY = 0;
 
             for (const pos of positions) {
-                minX = Math.min(minX, pos.x);
-                minY = Math.min(minY, pos.y);
-                maxX = Math.max(
-                    maxX,
-                    pos.x + imagesSizes[pos.index].width * pos.scale
-                );
-                maxY = Math.max(
-                    maxY,
-                    pos.y + imagesSizes[pos.index].height * pos.scale
-                );
+                if (pos.placed) {
+                    minX = Math.min(minX, pos.x);
+                    minY = Math.min(minY, pos.y);
+                    maxX = Math.max(maxX, pos.x + pos.width);
+                    maxY = Math.max(maxY, pos.y + pos.height);
+                }
             }
 
-            // 返回位置信息，让主线程绘制最终图像
+            // 返回位置信息和变换矩阵，让主线程绘制最终图像
             self.postMessage({
                 type: "result",
                 data: {
-                    positions,
+                    positions: positions.map((pos) => ({
+                        index: pos.index,
+                        x: pos.x,
+                        y: pos.y,
+                        width: pos.width,
+                        height: pos.height,
+                        transform: pos.transform
+                            ? Array.from(pos.transform.data64F)
+                            : null,
+                        placed: pos.placed,
+                    })),
                     canvasInfo: {
                         width: maxX - minX,
                         height: maxY - minY,
@@ -330,6 +360,19 @@ self.onmessage = function (e) {
                     },
                 },
             });
+
+            // 释放 OpenCV 资源
+            for (const img of cvImages) {
+                img.delete();
+            }
+
+            for (const pos of positions) {
+                if (pos.transform) pos.transform.delete();
+            }
+
+            for (const match of matches) {
+                if (match.homography) match.homography.delete();
+            }
         } catch (error: any) {
             self.postMessage({ type: "error", data: error.message });
         }

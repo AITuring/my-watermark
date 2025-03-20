@@ -26,6 +26,7 @@
     "framer-motion": "^11.3.12",
     "html2canvas": "^1.4.1",
     "konva": "^9.2.3",
+    "opencv.js": "^1.2.1",
     "p-limit": "^6.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
