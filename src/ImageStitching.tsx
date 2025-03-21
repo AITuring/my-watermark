@@ -99,132 +99,37 @@ const ImageStitching: React.FC = () => {
             clearTimeout((window as any).stitchTimeoutId);
         }
 
-        const { positions, canvasInfo } = data;
-        const { width, height, offsetX, offsetY } = canvasInfo;
-
         setProgressStep("绘制最终图像");
         setProgressPercent(80);
 
-        // 创建最终画布
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
+        try {
+            // 从 Worker 接收全景图像数据
+            const { panoramaData, width, height } = data;
 
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-            alert("无法获取 canvas 上下文");
-            setIsProcessing(false);
-            return;
-        }
+            // 创建最终画布
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
 
-        // 加载所有图像并绘制
-        for (let i = 0; i < positions.length; i++) {
-            const pos = positions[i];
-            if (!pos.placed) continue;
-
-            setProgressPercent(80 + (i * 20) / positions.length);
-            setProgressDetail(`绘制图像 ${i + 1}/${positions.length}`);
-
-            // 加载图像
-            const img = new Image();
-            img.src = originalImages[pos.index];
-            await new Promise((resolve) => (img.onload = resolve));
-
-            // 如果有变换矩阵，使用 OpenCV 进行透视变换
-            if (pos.transform) {
-                try {
-                    // 确保 OpenCV 已加载
-                    if (!(window as any).cv) {
-                        await loadOpenCV();
-                    }
-
-                    const cv = (window as any).cv;
-
-                    // 创建临时画布用于变换
-                    const tempCanvas = document.createElement("canvas");
-                    tempCanvas.width = img.width;
-                    tempCanvas.height = img.height;
-                    const tempCtx = tempCanvas.getContext("2d");
-                    if (!tempCtx) throw new Error("无法获取临时画布上下文");
-
-                    // 绘制原始图像到临时画布
-                    tempCtx.drawImage(img, 0, 0);
-
-                    // 获取图像数据
-                    const imgData = tempCtx.getImageData(
-                        0,
-                        0,
-                        img.width,
-                        img.height
-                    );
-
-                    // 创建 OpenCV Mat
-                    const src = cv.matFromImageData(imgData);
-
-                    // 创建变换矩阵
-                    const transformMat = cv.matFromArray(
-                        3,
-                        3,
-                        cv.CV_64F,
-                        pos.transform
-                    );
-
-                    // 创建输出 Mat
-                    const dst = new cv.Mat();
-
-                    // 应用透视变换
-                    cv.warpPerspective(
-                        src,
-                        dst,
-                        transformMat,
-                        new cv.Size(pos.width, pos.height)
-                    );
-
-                    // 将结果绘制到主画布
-                    cv.imshow(canvas, dst);
-
-                    // 释放资源
-                    src.delete();
-                    dst.delete();
-                    transformMat.delete();
-                } catch (error) {
-                    console.error("OpenCV 处理错误:", error);
-
-                    // 如果 OpenCV 处理失败，回退到简单绘制
-                    ctx.drawImage(
-                        img,
-                        0,
-                        0,
-                        img.width,
-                        img.height,
-                        pos.x - offsetX,
-                        pos.y - offsetY,
-                        pos.width,
-                        pos.height
-                    );
-                }
-            } else {
-                // 没有变换矩阵，直接绘制
-                ctx.drawImage(
-                    img,
-                    0,
-                    0,
-                    img.width,
-                    img.height,
-                    pos.x - offsetX,
-                    pos.y - offsetY,
-                    pos.width,
-                    pos.height
-                );
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+                throw new Error("无法获取 canvas 上下文");
             }
+
+            // 将图像数据绘制到画布
+            ctx.putImageData(panoramaData, 0, 0);
+
+            setProgressStep("完成");
+            setProgressPercent(100);
+
+            // 设置拼接结果
+            setStitchedImage(canvas.toDataURL());
+        } catch (error) {
+            console.error("处理拼接结果时出错:", error);
+            alert("处理拼接结果失败");
+        } finally {
+            setIsProcessing(false);
         }
-
-        setProgressStep("完成");
-        setProgressPercent(100);
-
-        // 设置拼接结果
-        setStitchedImage(canvas.toDataURL());
-        setIsProcessing(false);
     };
 
     const onDrop = async (acceptedFiles: File[]) => {
