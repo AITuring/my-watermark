@@ -52,7 +52,7 @@ const ImageStitching: React.FC = () => {
             setProgressDetail(`正在上传 ${acceptedFiles.length} 张图像到服务器`);
 
             // 发送请求到后端 API
-            const response = await fetch("http://localhost:8000/stitch-sequential", {
+            const response = await fetch("http://localhost:8000/stitch", {
                 method: "POST",
                 body: formData,
             });
@@ -88,7 +88,7 @@ const ImageStitching: React.FC = () => {
     // 添加取消处理功能
     const handleCancel = () => {
         setIsProcessing(false);
-        setProgressStep("已取消");
+        setProgressStep("已取消")
         setProgressPercent(0);
     };
 

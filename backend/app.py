@@ -22,10 +22,26 @@ app.add_middleware(
 
 # 在文件顶部添加这个函数
 def stitch_two_images(img1, img2):
-    """手动拼接两张图像，针对古画类图像优化"""
+    """手动拼接两张图像，针对古画类图像优化，处理部分重叠的情况"""
     # 转换为灰度图
     gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+
+    # 增强对比度以提取更多特征
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray1 = clahe.apply(gray1)
+    gray2 = clahe.apply(gray2)
+
+    # # 检查图像尺寸，判断可能的拼接方向
+    # h1, w1 = img1.shape[:2]
+    # h2, w2 = img2.shape[:2]
+
+    # # 如果宽度相近，可能是垂直拼接；如果高度相近，可能是水平拼接
+    # vertical_stitch = abs(w1 - w2) < min(w1, w2) * 0.2
+    # horizontal_stitch = abs(h1 - h2) < min(h1, h2) * 0.2
+
+    # print(f"可能的拼接方向: {'垂直' if vertical_stitch else ''}{'水平' if horizontal_stitch else ''}{'未确定' if not vertical_stitch and not horizontal_stitch else ''}")
+    print("尝试通过特征匹配确定拼接关系")
 
     # 尝试多种特征检测器
     detectors = []
@@ -77,7 +93,8 @@ def stitch_two_images(img1, img2):
             # 应用比率测试筛选好的匹配
             good_matches = []
             for m, n in matches:
-                if m.distance < 0.8 * n.distance:  # 对于古画，使用更宽松的阈值
+                # 对于部分重叠的图像，使用更宽松的阈值
+                if m.distance < 0.85 * n.distance:
                     good_matches.append(m)
 
             print(f"{detector_name} - 找到 {len(good_matches)} 个好的匹配点")
@@ -92,11 +109,64 @@ def stitch_two_images(img1, img2):
             print(f"{detector_name} 检测失败: {str(e)}")
 
     # 如果没有找到足够的匹配点
-    if len(best_matches) < 4:
-        print(f"所有检测器都未找到足够的匹配点")
+    if len(best_matches) < 10:
+        print("尝试旋转图像后再匹配")
+        rotation_angles = [90, 180, 270]  # 尝试不同的旋转角度
+
+        for angle in rotation_angles:
+            print(f"尝试旋转 {angle} 度")
+            # 旋转第二张图像
+            h2, w2 = img2.shape[:2]
+            center = (w2 // 2, h2 // 2)
+            rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+            rotated_img2 = cv2.warpAffine(img2, rotation_matrix, (w2, h2))
+
+            # 对旋转后的图像进行特征匹配
+            rotated_gray2 = cv2.cvtColor(rotated_img2, cv2.COLOR_BGR2GRAY)
+            rotated_gray2 = clahe.apply(rotated_gray2)
+
+            for detector_name, detector in detectors:
+                try:
+                    kp1, des1 = detector.detectAndCompute(gray1, None)
+                    kp2, des2 = detector.detectAndCompute(rotated_gray2, None)
+
+                    if len(kp1) < 10 or len(kp2) < 10:
+                        continue
+
+                    # 根据检测器类型选择匹配器
+                    if detector_name in ["SIFT", "SURF"]:
+                        FLANN_INDEX_KDTREE = 1
+                        index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+                        search_params = dict(checks=50)
+                        matcher = cv2.FlannBasedMatcher(index_params, search_params)
+                    else:
+                        matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+
+                    matches = matcher.knnMatch(des1, des2, k=2)
+
+                    good_matches = []
+                    for m, n in matches:
+                        if m.distance < 0.85 * n.distance:
+                            good_matches.append(m)
+
+                    print(f"{detector_name} - 旋转 {angle} 度 - 找到 {len(good_matches)} 个好的匹配点")
+
+                    if len(good_matches) > len(best_matches):
+                        best_matches = good_matches
+                        best_detector_name = detector_name
+                        best_kp1 = kp1
+                        best_kp2 = kp2
+                        img2 = rotated_img2  # 使用旋转后的图像
+                        print(f"使用旋转 {angle} 度后的图像")
+                except Exception as e:
+                    print(f"{detector_name} 旋转匹配失败: {str(e)}")
+
+    # 如果仍然没有找到足够的匹配点，返回None
+    if len(best_matches) < 10:
+        print(f"匹配点不足({len(best_matches)}个)，无法拼接")
         return None
 
-    print(f"使用 {best_detector_name} 检测器，找到 {len(best_matches)} 个匹配点")
+    print(f"使用 {best_detector_name} 检测器，找到 {len(best_matches)} 个好的匹配点")
 
     # 提取匹配点的坐标
     src_pts = np.float32([best_kp1[m.queryIdx].pt for m in best_matches]).reshape(-1, 1, 2)
@@ -105,8 +175,12 @@ def stitch_two_images(img1, img2):
     # 计算单应性矩阵，使用RANSAC方法过滤异常值
     H, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
 
-    if H is None:
-        print("无法计算单应性矩阵")
+    # 计算单应性矩阵，使用RANSAC方法过滤异常值
+    H, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
+
+    # 检查单应性矩阵是否合理
+    if H is None or not is_homography_valid(H):
+        print("单应性矩阵无效，无法拼接")
         return None
 
     # 创建拼接结果
@@ -140,7 +214,59 @@ def stitch_two_images(img1, img2):
     # 应用透视变换将第二张图像拼接到结果中
     cv2.warpPerspective(img2, H_final, (panorama_width, panorama_height), panorama, borderMode=cv2.BORDER_TRANSPARENT)
 
+    # 增强拼接边缘的平滑过渡
+    try:
+        # 创建掩码，标识第一张图像的区域
+        mask1 = np.zeros((panorama_height, panorama_width), dtype=np.uint8)
+        mask1[-int(min_y):h1-int(min_y), -int(min_x):w1-int(min_x)] = 255
+
+        # 创建第二张图像的掩码
+        mask2 = np.zeros((panorama_height, panorama_width), dtype=np.uint8)
+        cv2.warpPerspective(np.ones((h2, w2), dtype=np.uint8) * 255,
+                           H_final, (panorama_width, panorama_height),
+                           mask2, borderMode=cv2.BORDER_TRANSPARENT)
+
+        # 找到重叠区域
+        overlap = cv2.bitwise_and(mask1, mask2)
+
+        # 在重叠区域应用渐变混合
+        # 计算距离变换
+        dist1 = cv2.distanceTransform(mask1, cv2.DIST_L2, 3)
+        dist2 = cv2.distanceTransform(mask2, cv2.DIST_L2, 3)
+
+        # 在重叠区域创建权重
+        overlap_pixels = np.where(overlap > 0)
+        for y, x in zip(overlap_pixels[0], overlap_pixels[1]):
+            weight1 = dist2[y, x] / (dist1[y, x] + dist2[y, x] + 1e-6)
+            weight2 = 1 - weight1
+            panorama[y, x] = weight1 * panorama[y, x] + weight2 * panorama[y, x]
+    except Exception as e:
+        print(f"边缘混合失败: {str(e)}")
+
     return panorama
+
+def is_homography_valid(H):
+    """检查单应性矩阵是否合理"""
+    # 检查矩阵是否包含NaN或无穷大
+    if np.isnan(H).any() or np.isinf(H).any():
+        return False
+
+    # 检查矩阵行列式是否接近于0（奇异矩阵）
+    det = np.linalg.det(H)
+    if abs(det) < 1e-6:
+        return False
+
+    # 检查变换是否过于极端
+    # 提取缩放和旋转部分
+    scale_x = np.sqrt(H[0, 0]**2 + H[0, 1]**2)
+    scale_y = np.sqrt(H[1, 0]**2 + H[1, 1]**2)
+
+    # 如果缩放因子过大或过小，可能是不合理的变换
+    if scale_x > 5 or scale_x < 0.2 or scale_y > 5 or scale_y < 0.2:
+        return False
+
+    return True
+
 
 @app.post("/stitch")
 async def stitch_images(files: List[UploadFile] = File(...)):
@@ -197,62 +323,144 @@ async def stitch_images(files: List[UploadFile] = File(...)):
         # 保存原始图像用于调试
         original_images = images.copy()
 
-        # 对于多张图像，尝试两两拼接的方法
+        # 实现基于基准图像的拼接策略
         if len(images) > 2:
-            print("尝试两两拼接多张图像")
-            try:
-                # 先拼接前两张
-                result = stitch_two_images(images[0], images[1])
-                if result is not None:
-                    # 逐步添加剩余图像
-                    for i in range(2, len(images)):
-                        temp_result = stitch_two_images(result, images[i])
-                        if temp_result is not None:
-                            result = temp_result
-                        else:
-                            # 尝试反向拼接
-                            temp_result = stitch_two_images(images[i], result)
-                            if temp_result is not None:
-                                result = temp_result
-                            else:
-                                print(f"无法拼接第 {i+1} 张图像")
+            print("使用基准图像拼接策略")
 
-                    # 如果成功拼接了所有图像
+            # 选择第一张图像作为基准图像
+            base_image = images[0]
+            remaining_images = images[1:]
+            used_indices = [0]  # 记录已使用的图像索引
+
+            # 循环直到所有图像都被拼接或无法继续拼接
+            while len(used_indices) < len(images):
+                best_match_index = -1
+                best_match_result = None
+
+                # 尝试找到能与当前基准图像拼接的最佳图像
+                for i, img in enumerate(remaining_images):
+                    if i + 1 in used_indices:  # +1 是因为remaining_images从images[1]开始
+                        continue
+
+                    # 尝试拼接
+                    result = stitch_two_images(base_image, img)
                     if result is not None:
-                        panorama = result
-                        status = cv2.Stitcher_OK
-                        print("多图像手动拼接成功")
-                    else:
-                        # 继续使用原始方法
-                        stitcher = cv2.Stitcher_create(cv2.Stitcher_PANORAMA)
-                        status, panorama = stitcher.stitch(images)
+                        best_match_index = i
+                        best_match_result = result
+                        break  # 找到第一个可以拼接的就使用
+
+                # 如果找不到可拼接的图像，尝试反向拼接
+                if best_match_result is None:
+                    for i, img in enumerate(remaining_images):
+                        if i + 1 in used_indices:
+                            continue
+
+                        result = stitch_two_images(img, base_image)
+                        if result is not None:
+                            best_match_index = i
+                            best_match_result = result
+                            break
+
+                # 如果仍然找不到可拼接的图像，尝试旋转后拼接
+                if best_match_result is None:
+                    for i, img in enumerate(remaining_images):
+                        if i + 1 in used_indices:
+                            continue
+
+                        # 尝试不同角度的旋转
+                        for angle in [90, 180, 270]:
+                            h, w = img.shape[:2]
+                            center = (w // 2, h // 2)
+                            rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+                            rotated_img = cv2.warpAffine(img, rotation_matrix, (w, h))
+
+                            result = stitch_two_images(base_image, rotated_img)
+                            if result is not None:
+                                best_match_index = i
+                                best_match_result = result
+                                remaining_images[i] = rotated_img  # 更新为旋转后的图像
+                                print(f"使用旋转 {angle} 度后的图像 {i+1}")
+                                break
+
+                            # 尝试反向拼接
+                            result = stitch_two_images(rotated_img, base_image)
+                            if result is not None:
+                                best_match_index = i
+                                best_match_result = result
+                                remaining_images[i] = rotated_img  # 更新为旋转后的图像
+                                print(f"使用旋转 {angle} 度后的图像 {i+1} (反向拼接)")
+                                break
+
+                        if best_match_result is not None:
+                            break
+
+                # 如果找到了可拼接的图像
+                if best_match_index != -1 and best_match_result is not None:
+                    base_image = best_match_result  # 更新基准图像
+                    used_indices.append(best_match_index + 1)  # 记录已使用的索引
+                    print(f"成功拼接图像 {best_match_index + 1}")
                 else:
-                    # 继续使用原始方法
-                    stitcher = cv2.Stitcher_create(cv2.Stitcher_PANORAMA)
-                    status, panorama = stitcher.stitch(images)
-            except Exception as e:
-                print(f"两两拼接失败: {str(e)}")
-                # 继续使用原始方法
+                    # 如果无法找到可拼接的图像，尝试使用另一张图像作为基准
+                    unused_indices = [i for i in range(len(images)) if i not in used_indices]
+                    if unused_indices:
+                        new_base_index = unused_indices[0]
+                        base_image = images[new_base_index]
+                        used_indices.append(new_base_index)
+                        print(f"无法继续拼接，使用图像 {new_base_index} 作为新的基准")
+                    else:
+                        print("所有图像都已尝试，但无法完全拼接")
+                        break
+
+            # 如果成功拼接了所有图像
+            if len(used_indices) == len(images):
+                panorama = base_image
+                status = cv2.Stitcher_OK
+                print("基准图像拼接策略成功")
+            else:
+                # 如果无法完全拼接，回退到标准拼接方法
+                print("基准图像拼接策略部分成功，回退到标准拼接")
                 stitcher = cv2.Stitcher_create(cv2.Stitcher_PANORAMA)
                 status, panorama = stitcher.stitch(images)
         else:
+            # 对于只有两张图像的情况，直接尝试拼接
+            result = stitch_two_images(images[0], images[1])
+            if result is not None:
+                panorama = result
+                status = cv2.Stitcher_OK
+                print("两张图像拼接成功")
+            else:
+                # 尝试反向拼接
+                result = stitch_two_images(images[1], images[0])
+                if result is not None:
+                    panorama = result
+                    status = cv2.Stitcher_OK
+                    print("两张图像反向拼接成功")
+                else:
+                    # 尝试旋转后拼接
+                    for angle in [90, 180, 270]:
+                        h, w = images[1].shape[:2]
+                        center = (w // 2, h // 2)
+                        rotation_matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+                        rotated_img = cv2.warpAffine(images[1], rotation_matrix, (w, h))
 
-            # 创建 Stitcher
-            stitcher = cv2.Stitcher_create(cv2.Stitcher_PANORAMA)
+                        result = stitch_two_images(images[0], rotated_img)
+                        if result is not None:
+                            panorama = result
+                            status = cv2.Stitcher_OK
+                            print(f"旋转 {angle} 度后拼接成功")
+                            break
 
-            # 设置 Stitcher 参数以提高质量
-            try:
-                # 尝试设置更高质量的参数
-                stitcher.setPanoConfidenceThresh(0.1)  # 降低置信度阈值，接受更多匹配点
-                stitcher.setRegistrationResol(0.4)  # 提高配准分辨率
-                stitcher.setSeamEstimationResol(0.1)  # 提高接缝估计分辨率
-                stitcher.setCompositingResol(1.0)  # 使用最高合成分辨率
-                stitcher.setWaveCorrection(True)  # 启用波浪校正
-            except:
-                print("无法设置所有 Stitcher 参数，使用默认值")
-
-        # 执行拼接
-        status, panorama = stitcher.stitch(images)
+                        # 尝试反向拼接
+                        result = stitch_two_images(rotated_img, images[0])
+                        if result is not None:
+                            panorama = result
+                            status = cv2.Stitcher_OK
+                            print(f"旋转 {angle} 度后反向拼接成功")
+                            break
+                    else:
+                        # 回退到标准拼接
+                        stitcher = cv2.Stitcher_create(cv2.Stitcher_PANORAMA)
+                        status, panorama = stitcher.stitch(images)
 
         if status != cv2.Stitcher_OK:
             # 如果全景模式失败，尝试扫描模式
@@ -288,99 +496,6 @@ async def stitch_images(files: List[UploadFile] = File(...)):
                         status, panorama = stitcher.stitch(processed_images)
                 except Exception as e:
                     print(f"预处理方法失败: {str(e)}")
-
-            # 如果两种模式都失败，尝试手动特征匹配（适用于两张图像）
-            if status != cv2.Stitcher_OK and len(images) == 2:
-                print("尝试使用手动特征匹配方法")
-                try:
-                    # 转换为灰度图
-                    gray1 = cv2.cvtColor(images[0], cv2.COLOR_BGR2GRAY)
-                    gray2 = cv2.cvtColor(images[1], cv2.COLOR_BGR2GRAY)
-
-                    # 尝试使用 SIFT 特征检测器
-                    try:
-                        detector = cv2.SIFT_create(nfeatures=5000)
-                    except:
-                        # 如果 SIFT 不可用，使用 ORB
-                        detector = cv2.ORB_create(nfeatures=5000)
-
-                    # 检测关键点和描述符
-                    kp1, des1 = detector.detectAndCompute(gray1, None)
-                    kp2, des2 = detector.detectAndCompute(gray2, None)
-
-                    print(f"图像1特征点: {len(kp1)}, 图像2特征点: {len(kp2)}")
-
-                    # 尝试使用 FLANN 匹配器
-                    try:
-                        if des1.dtype == np.float32:
-                            FLANN_INDEX_KDTREE = 1
-                            index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-                            search_params = dict(checks=50)
-                            matcher = cv2.FlannBasedMatcher(index_params, search_params)
-                        else:
-                            # ORB 使用汉明距离
-                            matcher = cv2.BFMatcher(cv2.NORM_HAMMING)
-
-                        matches = matcher.knnMatch(des1, des2, k=2)
-                    except Exception as e:
-                        print(f"FLANN匹配失败: {str(e)}")
-                        # 回退到暴力匹配
-                        matcher = cv2.BFMatcher()
-                        matches = matcher.knnMatch(des1, des2, k=2)
-
-                    # 应用比率测试筛选好的匹配
-                    good_matches = []
-                    for m, n in matches:
-                        if m.distance < 0.75 * n.distance:  # 降低阈值以获取更多匹配点
-                            good_matches.append(m)
-
-                    print(f"找到 {len(good_matches)} 个好的匹配点")
-
-                    if len(good_matches) >= 4:
-                        # 提取匹配点的坐标
-                        src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-                        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-
-                        # 计算单应性矩阵
-                        H, mask = cv2.findHomography(dst_pts, src_pts, cv2.RANSAC, 5.0)
-
-                        # 创建拼接结果
-                        h1, w1 = images[0].shape[:2]
-                        h2, w2 = images[1].shape[:2]
-
-                        # 计算变换后的图像尺寸
-                        pts = np.float32([[0, 0], [0, h2-1], [w2-1, h2-1], [w2-1, 0]]).reshape(-1, 1, 2)
-                        dst = cv2.perspectiveTransform(pts, H)
-
-                        # 计算最终图像的尺寸
-                        min_x = min(0, dst[0][0][0], dst[1][0][0], dst[2][0][0], dst[3][0][0])
-                        max_x = max(w1, dst[0][0][0], dst[1][0][0], dst[2][0][0], dst[3][0][0])
-                        min_y = min(0, dst[0][0][1], dst[1][0][1], dst[2][0][1], dst[3][0][1])
-                        max_y = max(h1, dst[0][0][1], dst[1][0][1], dst[2][0][1], dst[3][0][1])
-
-                        # 调整变换矩阵以适应新的尺寸
-                        H_adj = np.eye(3, dtype=np.float32)
-                        H_adj[0, 2] = -min_x
-                        H_adj[1, 2] = -min_y
-                        H_final = H_adj.dot(H)
-
-                        # 创建最终图像
-                        panorama_width = int(max_x - min_x)
-                        panorama_height = int(max_y - min_y)
-                        panorama = np.zeros((panorama_height, panorama_width, 3), dtype=np.uint8)
-
-                        # 将第一张图像复制到结果中
-                        panorama[-int(min_y):h1-int(min_y), -int(min_x):w1-int(min_x)] = images[0]
-
-                        # 应用透视变换将第二张图像拼接到结果中
-                        cv2.warpPerspective(images[1], H_final, (panorama_width, panorama_height), panorama, borderMode=cv2.BORDER_TRANSPARENT)
-
-                        status = cv2.Stitcher_OK
-                        print("手动特征匹配成功")
-                    else:
-                        print(f"匹配点不足: {len(good_matches)}")
-                except Exception as e:
-                    print(f"手动特征匹配失败: {str(e)}")
 
             if status != cv2.Stitcher_OK:
                 error_messages = {
@@ -468,7 +583,6 @@ async def stitch_images(files: List[UploadFile] = File(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"拼接过程中出错: {str(e)}")
-
 
 
 @app.post("/stitch-sequential")
