@@ -122,6 +122,19 @@ const FloatingButtons = () => {
                 }}
                 tooltip={<div>图片拼接</div>}
             />
+            <FloatButton
+                icon={
+                    <Icon
+                        icon="ri:restaurant-2-line"
+                        className=" w-5 h-5"
+                    />
+                }
+                type={location.pathname === "/restaurant" ? "primary": "default"}
+                onClick={() => {
+                    navigate("/restaurant");
+                }}
+                tooltip={<div>美食推荐</div>}
+            />
         </FloatButton.Group>
     );
 };
