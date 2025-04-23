@@ -8,6 +8,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import BackgroundGradientAnimation from "@/components/BackgroundGradientAnimation";
 import { Loader2 } from "lucide-react";
 import { Icon } from "@iconify/react";
 import {
@@ -235,17 +236,19 @@ const Watermark: React.FC = () => {
             {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>}
             <div>
                 {imageUploaderVisible ? (
-                    <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                        <ImageUploader
-                            ref={dropzoneRef}
-                            onUpload={handleImagesUpload}
-                            fileType="背景"
-                        >
-                            <div className="p-6 rounded-lg text-white text-2xl font-medium bg-opacity-90 bg-blue-500 cursor-pointer flex flex-col items-center hover:bg-blue-500 hover:shadow-md hover:shadow-gray-300 hover:shadow-offset-[-4px,-4px] hover:shadow-opacity-50">
-                                上传背景图片
-                            </div>
-                        </ImageUploader>
-                    </div>
+                    <BackgroundGradientAnimation>
+                        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
+                            <ImageUploader
+                                ref={dropzoneRef}
+                                onUpload={handleImagesUpload}
+                                fileType="背景"
+                            >
+                                <div className="p-6 rounded-lg text-white text-2xl font-medium bg-blue-500/90 backdrop-blur-sm cursor-pointer flex flex-col items-center hover:bg-blue-600 transition-all duration-300 shadow-lg hover:shadow-blue-300/30">
+                                    上传背景图片
+                                </div>
+                            </ImageUploader>
+                        </div>
+                    </BackgroundGradientAnimation>
                 ) : (
                     <div className="flex flex-col h-screen justify-between">
                         <div className="flex p-4 justify-between gap-2">
