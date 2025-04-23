@@ -1,24 +1,15 @@
 /* eslint-disable react/display-name */
 import React, { useState, useEffect, useRef, forwardRef } from "react";
-import { Button } from "@/components/ui/button";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-    ArrowUp,
-    ArrowDown,
-    ArrowLeft,
-    ArrowRight,
-    ArrowUpLeft,
-    ArrowUpRight,
-    ArrowDownLeft,
-    ArrowDownRight,
-    Plus,
-} from "lucide-react";
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
@@ -498,7 +489,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                     width={backgroundImageSize.width}
                     height={backgroundImageSize.height}
                     ref={stageRef}
-                    className="mx-auto"
+                    className="flex items-center justify-center"
                 >
                     <Layer>
                         {backgroundImage && (
@@ -559,179 +550,108 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 </Stage>
             </div>
 
-            <div className="space-y-4">
-                <Tabs defaultValue="batch" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger
-                            value="batch"
-                            onClick={() => setIsBatch(true)}
-                            className={isBatch ? "bg-primary text-primary-foreground" : ""}
-                        >
-                            批量操作
-                        </TabsTrigger>
-                        <TabsTrigger
-                            value="single"
-                            onClick={() => setIsBatch(false)}
-                            className={!isBatch ? "bg-primary text-primary-foreground" : ""}
-                        >
-                            单独操作
-                        </TabsTrigger>
-                    </TabsList>
-                </Tabs>
-
-                <div className="grid grid-cols-3 gap-2">
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={onTopLeft}
-                                >
-                                    <ArrowUpLeft className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>左上角</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={onTopMid}
-                                >
-                                    <ArrowUp className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>上</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={onTopRight}
-                                >
-                                    <ArrowUpRight className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>右上角</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={onMidLeft}
-                                >
-                                    <ArrowLeft className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>左</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={onCenterMid}
-                                >
-                                    <Plus className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>中</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={onMidRight}
-                                >
-                                    <ArrowRight className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>右</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={onBottomLeft}
-                                >
-                                    <ArrowDownLeft className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>左下角</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={onBottomMid}
-                                >
-                                    <ArrowDown className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>下</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={onBottomRight}
-                                >
-                                    <ArrowDownRight className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>右下角</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+            <div className="space-y-2">
+                <div className="flex flex-col space-y-2">
+                    <div className="flex items-center gap-4">
+                        <div className="text-xs font-medium">位置调整</div>
+                        <div className="flex items-center space-x-2">
+                            <span className="text-xs text-muted-foreground">
+                                单独调整
+                            </span>
+                            <button
+                                type="button"
+                                title="切换批量模式"
+                                onClick={() => setIsBatch(!isBatch)}
+                                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                    isBatch ? "bg-primary" : "bg-gray-200"
+                                }`}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                        isBatch
+                                            ? "translate-x-4"
+                                            : "translate-x-0"
+                                    }`}
+                                />
+                            </button>
+                            <span className="text-xs text-muted-foreground">
+                                批量模式
+                            </span>
+                        </div>
+                        {/* 使用下拉选择器替代九宫格按钮 */}
+                        <div className="flex flex-wrap gap-2">
+                            <Select
+                                defaultValue="center"
+                                onValueChange={(value) => {
+                                    switch (value) {
+                                        case "top-left":
+                                            onTopLeft();
+                                            break;
+                                        case "top-mid":
+                                            onTopMid();
+                                            break;
+                                        case "top-right":
+                                            onTopRight();
+                                            break;
+                                        case "mid-left":
+                                            onMidLeft();
+                                            break;
+                                        case "center":
+                                            onCenterMid();
+                                            break;
+                                        case "mid-right":
+                                            onMidRight();
+                                            break;
+                                        case "bottom-left":
+                                            onBottomLeft();
+                                            break;
+                                        case "bottom-mid":
+                                            onBottomMid();
+                                            break;
+                                        case "bottom-right":
+                                            onBottomRight();
+                                            break;
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className="w-[90px] h-6 text-xs py-0 px-2">
+                                    <SelectValue placeholder="选择位置" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectLabel>位置选择</SelectLabel>
+                                        <SelectItem value="top-left">
+                                            左上角
+                                        </SelectItem>
+                                        <SelectItem value="top-mid">
+                                            上
+                                        </SelectItem>
+                                        <SelectItem value="top-right">
+                                            右上角
+                                        </SelectItem>
+                                        <SelectItem value="mid-left">
+                                            左
+                                        </SelectItem>
+                                        <SelectItem value="center">
+                                            中心
+                                        </SelectItem>
+                                        <SelectItem value="mid-right">
+                                            右
+                                        </SelectItem>
+                                        <SelectItem value="bottom-left">
+                                            左下角
+                                        </SelectItem>
+                                        <SelectItem value="bottom-mid">
+                                            下
+                                        </SelectItem>
+                                        <SelectItem value="bottom-right">
+                                            右下角
+                                        </SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

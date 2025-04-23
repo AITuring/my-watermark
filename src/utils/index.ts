@@ -44,7 +44,7 @@ function calculateWatermarkPosition(
     position
 ) {
     // scaleX和scaleY是相等的，用随便一个就行
-    const scale = position.scaleX;
+    const scale = position.scaleX || position.scaleY || 1;
     const watermarkWidth = watermarkImage.width * scale;
     const watermarkHeight = watermarkImage.height * scale;
 
