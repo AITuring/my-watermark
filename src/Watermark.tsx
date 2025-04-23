@@ -1,5 +1,14 @@
 import React, { useState, useRef, useEffect } from "react";
-import { message, Spin,Switch, Tooltip, Button } from "antd";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Loader2 } from "lucide-react";
 import { Icon } from "@iconify/react";
 import {
     loadImageData,
@@ -8,18 +17,15 @@ import {
     adjustBatchSizeAndConcurrency,
 } from "./utils";
 import { ImageType, WatermarkPosition, ImgWithPosition } from "./types";
-// import { SpeedInsights } from "@vercel/speed-insights/react"
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
 import VerticalCarousel from "./VerticalCarousel";
 import pLimit from "p-limit";
-// import EmojiBg from './EmojiBg';
 import confetti from "canvas-confetti";
 import "./watermark.css";
 
 const Watermark: React.FC = () => {
     const [images, setImages] = useState<ImageType[]>([]);
-
     const editorHeight = window.innerHeight * 0.8;
 
     // 当前照片
@@ -51,19 +57,13 @@ const Watermark: React.FC = () => {
 
     const handleImagesUpload = async (files: File[]) => {
         const uploadImages = await loadImageData(files);
-        setImages(uploadImages);
-        setCurrentImg(uploadImages[0]);
-        setImageUploaderVisible(false);
-        // loadImageData(files).then((images) => {
-        //     setImages(images); // 现在这里更新状态
-        //     setCurrentImg(images[0]);
-        // });
-        // loadImages(files);
+        setImages(prevImages => {
+            // 如果之前没有图片，直接设置
+            if (prevImages.length === 0) {
+                setCurrentImg(uploadImages[0]);
+                setImageUploaderVisible(false);
 
-        if (files[0]) {
-            // Update the original image dimensions when a new image is uploaded
-            const image = new Image();
-            image.onload = () => {
+                // 初始化水印位置
                 setWatermarkPositions(
                     uploadImages.map((img) => ({
                         id: img.id,
@@ -74,9 +74,27 @@ const Watermark: React.FC = () => {
                         rotation: 0,
                     }))
                 );
-            };
-            image.src = URL.createObjectURL(files[0]);
-        }
+
+                return uploadImages;
+            } else {
+                // 如果已有图片，合并新上传的图片
+                const newImages = [...prevImages, ...uploadImages];
+
+                // 为新上传的图片初始化水印位置
+                const newPositions = uploadImages.map((img) => ({
+                    id: img.id,
+                    x: 0,
+                    y: 0,
+                    scaleX: 1,
+                    scaleY: 1,
+                    rotation: 0,
+                }));
+
+                setWatermarkPositions(prev => [...prev, ...newPositions]);
+
+                return newImages;
+            }
+        });
     };
 
     const handleWatermarkUpload = (files: File[]) => {
@@ -151,7 +169,8 @@ const Watermark: React.FC = () => {
                     downloadLink.download = `${sliceName}-mark.jpeg`;
                     downloadLink.click();
                     URL.revokeObjectURL(url);
-                    message.success(`图${i + index + 1}下载成功！`);
+                    // 使用自定义消息提示替代 antd message
+                    console.log(`图${i + index + 1}下载成功！`);
                     const progress =
                         ((i + index + 1) / imgPostionList.length) * 100;
                     setImgProgress(Math.min(progress, 100));
@@ -176,7 +195,7 @@ const Watermark: React.FC = () => {
 
     const handleApplyWatermark = async () => {
         if (!watermarkUrl) {
-            message.error("请上传水印图片！");
+            alert("请上传水印图片！");
             return;
         }
         setLoading(true);
@@ -184,7 +203,7 @@ const Watermark: React.FC = () => {
             adjustBatchSizeAndConcurrency(images);
         const watermarkImage = new Image();
         watermarkImage.onload = async () => {
-            message.success("水印下载开始！");
+            console.log("水印下载开始！");
 
             const allimageData: ImgWithPosition[] = images.map((img) => ({
                 id: img.id,
@@ -202,7 +221,7 @@ const Watermark: React.FC = () => {
         };
 
         watermarkImage.onerror = () => {
-            message.error("Failed to load the watermark image.");
+            alert("Failed to load the watermark image.");
             setLoading(false);
         };
         watermarkImage.src = watermarkUrl;
@@ -266,51 +285,60 @@ const Watermark: React.FC = () => {
                                 fileType="水印"
                                 className="w-20 rounded-md cursor-pointer bg-blue-500"
                             >
-                                <Tooltip title="点击上传水印图片">
-                                    <img
-                                        src={watermarkUrl} // 当 watermarkUrl 不存在时，显示默认图片
-                                        alt="watermark"
-                                    />
-                                </Tooltip>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <img
+                                                src={watermarkUrl}
+                                                alt="watermark"
+                                                className="cursor-pointer"
+                                            />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>点击上传水印图片</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </ImageUploader>
 
-                            {/* <div className="operation">
-                                <div className="buttonText">图片质量</div>
-                                <InputNumber
-                                    placeholder="图片质量"
-                                    min={0.5}
-                                    max={1}
-                                    step={0.01}
-                                    value={quality}
-                                    onChange={(e: number) => setQuality(e)}
-                                />
-                            </div> */}
                             <div className="flex flex-col items-center gap-2">
                                 <div className="flex items-center">
                                     水印背景模糊
-                                    <Tooltip title="开启后水印周围有一层高斯模糊">
-                                        <Icon
-                                            icon="ic:outline-help"
-                                            className=" w-4 h-4 ml-2"
-                                        />
-                                    </Tooltip>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Icon
+                                                    icon="ic:outline-help"
+                                                    className="w-4 h-4 ml-2 cursor-help"
+                                                />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>开启后水印周围有一层高斯模糊</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                 </div>
                                 <Switch
-                                    checkedChildren="开启"
-                                    unCheckedChildren="关闭"
                                     checked={watermarkBlur}
-                                    onChange={(checked) =>
-                                        setWatermarkBlur(checked)
-                                    }
+                                    onCheckedChange={setWatermarkBlur}
                                 />
                             </div>
+
+                            {imgProgress > 0 && (
+                                <Progress value={imgProgress} className="w-32" />
+                            )}
+
                             <Button
-                                type="primary"
                                 onClick={handleApplyWatermarkDebounced}
-                                size="large"
+                                size="lg"
                                 disabled={loading}
+                                className="bg-blue-500 hover:bg-blue-600"
                             >
-                                {loading ? <Spin /> : "水印生成"}
+                                {loading ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                    "水印生成"
+                                )}
                             </Button>
                         </div>
                     </div>

@@ -1,13 +1,31 @@
 /* eslint-disable react/display-name */
 import React, { useState, useEffect, useRef, forwardRef } from "react";
-import { Tooltip, Button, Segmented } from "antd";
-import { Icon } from "@iconify/react";
+import { Button } from "@/components/ui/button";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    ArrowUp,
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight,
+    ArrowUpLeft,
+    ArrowUpRight,
+    ArrowDownLeft,
+    ArrowDownRight,
+    Plus,
+} from "lucide-react";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
 import { WatermarkPosition } from "./types";
 
 import "./watermark.css";
+
 interface ImageWithFixedWidthProps {
     src: string;
     fixedWidth: number;
@@ -129,6 +147,7 @@ interface WatermarkEditorProps {
         rotation: number;
     }) => void;
 }
+
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     watermarkUrl,
     backgroundImageFile,
@@ -136,20 +155,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     onTransform,
     onAllTransform,
 }) => {
-    // TODO
-    // 1.水印的缩放比例应该要和背景图片的比例保持一致 done
-    // 2.保存水印位置时，统一都用百分比百分比，而不是尺寸
-    // 3.水印统一一个scale， 不用scaleX和scaleY，也就是说水印的长宽比不变，要不然会拉伸 done
-    // 4.水印的透明度，可以设置
-    // 5.水印的旋转角度，可以设置
-    // 6.背景图片放大是在预览图宽高范围内放大，不应该超过这个区域
-    // 7.设置水印颜色
-    // 8.编辑撤销重做
-
     // 背景图片相关设置
-    // 背景图片的固定宽度（或者高度），预览时图片固定就这么大，太大超过屏幕
-    // 这些都是固定的
-    // 将固定宽度的常量转换为状态
     const [backgroundFixWidthVW, setBackgroundFixWidthVW] = useState(
         () => window.innerHeight * 0.8
     );
@@ -163,7 +169,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     });
     // 背景图片的缩放比例（预览/原图）
     const [backgroundScale, setBackgroundScale] = useState(0.2);
-    // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例，搞错了）
+    // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例）
     const [currentScale, setCurrentScale] = useState(1);
 
     // 批量or单独
@@ -171,7 +177,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     // 水印相关设置
     const [watermarkImage] = useImage(watermarkUrl);
-    const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 }); // 新增水印尺寸状态
+    const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 });
     const [position, setPosition] = useState(
         currentWatermarkPosition || {
             x: 0.1,
@@ -184,27 +190,21 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     const watermarkRef = useRef<Konva.Image>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
-
-    // 添加新的状态来控制背景图片缩放的滑动条的值
     const [backgroundSliderValue, setBackgroundSliderValue] = useState(1);
-
     const stageRef = useRef(null);
 
     // 处理背景图片缩放滑动条变化的函数
     const handleBackgroundSliderChange = (e) => {
         const newScale = parseFloat(e.target.value);
         setBackgroundSliderValue(newScale);
-        // 更新背景图片的缩放状态
-        // setBackgroundScale(newScale);
     };
 
     // 更新参考线的函数
     const updateGuideLines = () => {
-        const stage = stageRef.current; // 获取Stage引用
+        const stage = stageRef.current;
         if (!stage) return;
 
-        const layer = stage.getLayers()[0]; // 假设只有一个图层
-        // 只移除具有'guide-line'名称的元素
+        const layer = stage.getLayers()[0];
         const guideLines = layer.find(".guide-line");
         guideLines.forEach((line) => line.destroy());
 
@@ -212,25 +212,24 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             layer,
             backgroundImageSize.width,
             backgroundImageSize.height
-        ); // 绘制新的参考线
+        );
     };
 
     // 更新背景图片宽度的状态
     const updateBackgroundWidth = () => {
-        const vwWidth = window.innerHeight * 0.8; // 假设你想要80vw的宽度
+        const vwWidth = window.innerHeight * 0.8;
         setBackgroundFixWidthVW(vwWidth);
     };
 
-    // 添加resize事件监听器，以便在窗口大小改变时更新背景图片宽度
+    // 添加resize事件监听器
     useEffect(() => {
         window.addEventListener("resize", updateBackgroundWidth);
-        // 当窗口大小改变时，同时更新背景图片和水印的尺寸和位置
         const handleResize = () => {
             updateBackgroundWidth();
             updateWatermarkSize(currentScale);
         };
         window.addEventListener("resize", handleResize);
-        handleResize(); // 初始化尺寸和位置
+        handleResize();
         return () => {
             window.removeEventListener("resize", updateBackgroundWidth);
             window.removeEventListener("resize", handleResize);
@@ -243,7 +242,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             const width = watermarkImage.naturalWidth * backgroundScale * scale;
             const height =
                 watermarkImage.naturalHeight * backgroundScale * scale;
-            // 确保水印尺寸不为0
             if (width > 0 && height > 0) {
                 setWatermarkSize({
                     width: width,
@@ -269,7 +267,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 backgroundFixWidthVW / backgroundImage.naturalWidth;
             const windowHeight = window.innerHeight * 0.74;
             const scaleHeight = windowHeight / backgroundImage.naturalHeight;
-            // 选择宽度和高度中较小的缩放比例，以确保图片完全可见
             const scale = Math.min(scaleWidth, scaleHeight);
 
             const ratio =
@@ -279,7 +276,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             setBackgroundImageSize({ width, height });
             updateGuideLines();
             setCurrentScale(scale);
-            // updateWatermarkSize(scale); // 更新水印的缩放比例
         }
     }, [backgroundImage, backgroundImageStatus, backgroundFixWidthVW]);
 
@@ -300,15 +296,15 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     }, [watermarkImage, backgroundScale]);
 
     useEffect(() => {
-        const stage = stageRef.current; // 获取Stage引用
+        const stage = stageRef.current;
         if (!stage) return;
 
-        const layer = stage.getLayers()[0]; // 假设只有一个图层
+        const layer = stage.getLayers()[0];
         drawGuideLines(
             layer,
             backgroundImageSize.width,
             backgroundImageSize.height
-        ); // 绘制辅助线
+        );
     }, [backgroundImageSize.width, backgroundImageSize.height]);
 
     // 清理背景图片的 URL
@@ -338,24 +334,20 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         let newX = node.x();
         let newY = node.y();
 
-        // 检查是否超出背景的左边界
+        // 检查是否超出背景的边界
         if (newX < 0) {
-            console.log(newX, "x < 0");
             newX = 0;
         }
-        // 检查是否超出背景的上边界
         if (newY < 0) {
             newY = 0;
         }
-        // 检查是否超出背景的右边界
         if (newX + watermarkSize.width > backgroundImageSize.width) {
             newX = backgroundImageSize.width - watermarkSize.width;
         }
-        // 检查是否超出背景的下边界
         if (newY + watermarkSize.height > backgroundImageSize.height) {
             newY = backgroundImageSize.height - watermarkSize.height;
         }
-        // 确保水印位置更新
+
         node.position({ x: newX, y: newY });
 
         // 计算水印在原图上的实际位置和尺寸
@@ -365,7 +357,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         const actualRotation = node.rotation();
 
         setCurrentScale(actualScaleX);
-
         updateWatermarkSize(actualScaleX);
 
         setPosition({
@@ -386,7 +377,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 rotation: actualRotation,
             });
         } else {
-            console.log("single");
             onTransform({
                 x: actualX,
                 y: actualY,
@@ -396,29 +386,24 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             });
         }
 
-        // 使更改生效并重新绘制层
         node.getLayer().batchDraw();
     };
 
     const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
-        console.log("transform");
         const node = e.target;
         let newX = node.x();
         let newY = node.y();
 
-        // 检查是否超出背景的左边界
+        // 检查是否超出背景的边界
         if (newX < 0) {
             newX = 0;
         }
-        // 检查是否超出背景的上边界
         if (newY < 0) {
             newY = 0;
         }
-        // 检查是否超出背景的右边界
         if (newX + watermarkSize.width > backgroundImageSize.width) {
             newX = backgroundImageSize.width - watermarkSize.width;
         }
-        // 检查是否超出背景的下边界
         if (newY + watermarkSize.height > backgroundImageSize.height) {
             newY = backgroundImageSize.height - watermarkSize.height;
         }
@@ -430,7 +415,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         const actualRotation = node.rotation();
 
         setCurrentScale(actualScaleX);
-
         updateWatermarkSize(actualScaleX);
 
         const newPosition = {
@@ -497,267 +481,258 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     };
 
     // 按钮回调函数，设置水印位置
-    const onTopLeft = () => {
-        updateWatermarkPosition(0, 0);
-    };
-    const onTopMid = () => {
-        updateWatermarkPosition(0.5, 0);
-    };
-    const onTopRight = () => {
-        updateWatermarkPosition(1, 0);
-    };
-    const onMidLeft = () => {
-        updateWatermarkPosition(0, 0.5);
-    };
-    const onCenterMid = () => {
-        updateWatermarkPosition(0.5, 0.5);
-    };
-    const onMidRight = () => {
-        updateWatermarkPosition(1, 0.5);
-    };
-    const onBottomLeft = () => {
-        updateWatermarkPosition(0, 1);
-    };
-    const onBottomMid = () => {
-        updateWatermarkPosition(0.5, 1);
-    };
-    const onBottomRight = () => {
-        updateWatermarkPosition(1, 1);
-    };
+    const onTopLeft = () => updateWatermarkPosition(0, 0);
+    const onTopMid = () => updateWatermarkPosition(0.5, 0);
+    const onTopRight = () => updateWatermarkPosition(1, 0);
+    const onMidLeft = () => updateWatermarkPosition(0, 0.5);
+    const onCenterMid = () => updateWatermarkPosition(0.5, 0.5);
+    const onMidRight = () => updateWatermarkPosition(1, 0.5);
+    const onBottomLeft = () => updateWatermarkPosition(0, 1);
+    const onBottomMid = () => updateWatermarkPosition(0.5, 1);
+    const onBottomRight = () => updateWatermarkPosition(1, 1);
 
     return (
-        <div className="flex flex-1 flex-col justify-center items-center">
-            {/* <h2>水印添加</h2> */}
-            {/* 显示背景图片原始宽高信息 */}
-            {/* {backgroundImage && (
-        <div>
-          <p>背景图片</p>
-          <p>原始宽度: {backgroundImage.naturalWidth}px</p>
-          <p>原始高度: {backgroundImage.naturalHeight}px</p>
-          <p>当前缩放比例: {backgroundScale}</p>
-          <p>当前宽度: {backgroundImageSize.width}px</p>
-          <p>当前高度: {backgroundImageSize.height}px</p>
-        </div>
-      )} */}
-
-            {/* 显示背景图片缩放的滑动条 */}
-            {/* <div>
-        <label htmlFor="background-scale-slider">背景缩放: </label>
-        <input
-          id="background-scale-slider"
-          type="range"
-          min="0.1"
-          max="4"
-          step="0.01"
-          value={backgroundSliderValue}
-          onChange={handleBackgroundSliderChange}
-        />
-        <span>{getCurrentScalePercentage()}%</span>
-      </div> */}
-
-            {/* 显示水印图片原始宽高信息 */}
-            {/* {watermarkImage && (
-        <div>
-          <p>水印图片</p>
-          <p>原始宽度: {watermarkImage.naturalWidth}px</p>
-          <p>原始高度: {watermarkImage.naturalHeight}px</p>
-          <p>
-            当前缩放比例: {watermarkSize.width / watermarkImage.naturalWidth}
-          </p>
-          <p>当前宽度: {watermarkSize.width}px</p>
-          <p>当前高度: {watermarkSize.height}px</p>
-        </div>
-      )} */}
-
-            <Stage
-                width={backgroundImageSize.width}
-                height={backgroundImageSize.height}
-                ref={stageRef}
-            >
-                <Layer>
-                    {backgroundImage && (
-                        <KonvaImage
-                            image={backgroundImage}
-                            width={
-                                backgroundImageSize.width *
-                                backgroundSliderValue
-                            }
-                            height={
-                                backgroundImageSize.height *
-                                backgroundSliderValue
-                            }
-                        />
-                    )}
-                    {watermarkImage && (
-                        <>
-                            <ImageWithFixedWidth
-                                src={watermarkUrl}
-                                fixedWidth={
-                                    watermarkImage.naturalWidth *
-                                    backgroundScale
-                                } // 使用固定宽度
-                                x={position.x * backgroundImageSize.width}
-                                y={position.y * backgroundImageSize.height}
-                                scaleX={position.scaleX}
-                                scaleY={position.scaleY}
-                                draggable
-                                ref={watermarkRef}
-                                onClick={onWatermarkClick}
-                                onTap={onWatermarkClick}
-                                onDragEnd={handleDragEnd}
-                                onTransformEnd={handleTransform}
+        <div className="flex flex-1 flex-col space-y-4">
+            <div className="relative bg-muted rounded-lg overflow-hidden">
+                <Stage
+                    width={backgroundImageSize.width}
+                    height={backgroundImageSize.height}
+                    ref={stageRef}
+                    className="mx-auto"
+                >
+                    <Layer>
+                        {backgroundImage && (
+                            <KonvaImage
+                                image={backgroundImage}
+                                width={
+                                    backgroundImageSize.width *
+                                    backgroundSliderValue
+                                }
+                                height={
+                                    backgroundImageSize.height *
+                                    backgroundSliderValue
+                                }
                             />
-                            <Transformer
-                                ref={transformerRef}
-                                enabledAnchors={[
-                                    "top-left",
-                                    "top-right",
-                                    "bottom-left",
-                                    "bottom-right",
-                                ]} // 设置只有对角线上的锚点
-                                keepRatio // 新增属性，保持长宽比
-                                centeredScaling={false}
-                                boundBoxFunc={(oldBox, newBox) => {
-                                    if (newBox.width < 5 || newBox.height < 5) {
-                                        return oldBox;
+                        )}
+                        {watermarkImage && (
+                            <>
+                                <ImageWithFixedWidth
+                                    src={watermarkUrl}
+                                    fixedWidth={
+                                        watermarkImage.naturalWidth *
+                                        backgroundScale
                                     }
-                                    return newBox;
-                                }}
-                            />
-                        </>
-                    )}
-                </Layer>
-            </Stage>
-            
-            <div className="my-4 flex items-center gap-2">
-                <Segmented
-                    options={[
-                        {
-                            value: "batch",
-                            icon: (
-                                <Icon
-                                    icon="ri:archive-stack-line"
-                                    className="w-6 h-6"
+                                    x={position.x * backgroundImageSize.width}
+                                    y={position.y * backgroundImageSize.height}
+                                    scaleX={position.scaleX}
+                                    scaleY={position.scaleY}
+                                    draggable
+                                    ref={watermarkRef}
+                                    onClick={onWatermarkClick}
+                                    onTap={onWatermarkClick}
+                                    onDragEnd={handleDragEnd}
+                                    onTransformEnd={handleTransform}
                                 />
-                            ),
-                        },
-                        {
-                            value: "alone",
-                            icon: (
-                                <Icon
-                                    icon="ri:file-image-line"
-                                    className="w-6 h-6"
+                                <Transformer
+                                    ref={transformerRef}
+                                    enabledAnchors={[
+                                        "top-left",
+                                        "top-right",
+                                        "bottom-left",
+                                        "bottom-right",
+                                    ]}
+                                    keepRatio
+                                    centeredScaling={false}
+                                    boundBoxFunc={(oldBox, newBox) => {
+                                        if (
+                                            newBox.width < 5 ||
+                                            newBox.height < 5
+                                        ) {
+                                            return oldBox;
+                                        }
+                                        return newBox;
+                                    }}
                                 />
-                            ),
-                        },
-                    ]}
-                    onChange={(e) =>
-                        e === "alone" ? setIsBatch(false) : setIsBatch(true)
-                    }
-                />
-                {isBatch ? <div>批量操作</div> : <div>单独操作</div>}
+                            </>
+                        )}
+                    </Layer>
+                </Stage>
             </div>
-            <div className="flex justify-center align-center space-x-6 w-full flex-wrap">
-                <Tooltip title="左上角" placement="top">
-                    <Button
-                        shape="circle"
-                        icon={
-                            <Icon
-                                icon="ri:arrow-left-up-line"
-                                className="w-6 h-6"
-                            />
-                        }
-                        onClick={onTopLeft}
-                    ></Button>
-                </Tooltip>
-                <Tooltip title="上" placement="top">
-                    <Button
-                        shape="circle"
-                        icon={
-                            <Icon icon="ri:arrow-up-line" className="w-6 h-6" />
-                        }
-                        onClick={onTopMid}
-                    ></Button>
-                </Tooltip>
-                <Tooltip title="右上角" placement="top">
-                    <Button
-                        shape="circle"
-                        icon={
-                            <Icon
-                                icon="ri:arrow-right-up-line"
-                                className="w-6 h-6"
-                            />
-                        }
-                        onClick={onTopRight}
-                    ></Button>
-                </Tooltip>
-                <Tooltip title="左" placement="top">
-                    <Button
-                        shape="circle"
-                        icon={
-                            <Icon
-                                icon="ri:arrow-left-line"
-                                className="w-6 h-6"
-                            />
-                        }
-                        onClick={onMidLeft}
-                    ></Button>
-                </Tooltip>
-                <Tooltip title="中" placement="top">
-                    <Button
-                        shape="circle"
-                        icon={<Icon icon="ri:add-fill" className="w-6 h-6" />}
-                        onClick={onCenterMid}
-                    ></Button>
-                </Tooltip>
-                <Tooltip title="右" placement="top">
-                    <Button
-                        shape="circle"
-                        icon={
-                            <Icon
-                                icon="ri:arrow-right-line"
-                                className="w-6 h-6"
-                            />
-                        }
-                        onClick={onMidRight}
-                    ></Button>
-                </Tooltip>
-                <Tooltip title="左下角" placement="top">
-                    <Button
-                        shape="circle"
-                        icon={
-                            <Icon
-                                icon="ri:arrow-left-down-line"
-                                className="w-6 h-6"
-                            />
-                        }
-                        onClick={onBottomLeft}
-                    ></Button>
-                </Tooltip>
-                <Tooltip title="下" placement="top">
-                    <Button
-                        shape="circle"
-                        icon={
-                            <Icon
-                                icon="ri:arrow-down-line"
-                                className="w-6 h-6"
-                            />
-                        }
-                        onClick={onBottomMid}
-                    ></Button>
-                </Tooltip>
-                <Tooltip title="右下角" placement="top">
-                    <Button
-                        shape="circle"
-                        icon={
-                            <Icon
-                                icon="ri:arrow-right-down-line"
-                                className="w-6 h-6"
-                            />
-                        }
-                        onClick={onBottomRight}
-                    ></Button>
-                </Tooltip>
+
+            <div className="space-y-4">
+                <Tabs defaultValue="batch" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger
+                            value="batch"
+                            onClick={() => setIsBatch(true)}
+                            className={isBatch ? "bg-primary text-primary-foreground" : ""}
+                        >
+                            批量操作
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="single"
+                            onClick={() => setIsBatch(false)}
+                            className={!isBatch ? "bg-primary text-primary-foreground" : ""}
+                        >
+                            单独操作
+                        </TabsTrigger>
+                    </TabsList>
+                </Tabs>
+
+                <div className="grid grid-cols-3 gap-2">
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={onTopLeft}
+                                >
+                                    <ArrowUpLeft className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>左上角</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={onTopMid}
+                                >
+                                    <ArrowUp className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>上</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={onTopRight}
+                                >
+                                    <ArrowUpRight className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>右上角</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={onMidLeft}
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>左</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={onCenterMid}
+                                >
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>中</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={onMidRight}
+                                >
+                                    <ArrowRight className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>右</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={onBottomLeft}
+                                >
+                                    <ArrowDownLeft className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>左下角</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={onBottomMid}
+                                >
+                                    <ArrowDown className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>下</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={onBottomRight}
+                                >
+                                    <ArrowDownRight className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>右下角</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
             </div>
         </div>
     );

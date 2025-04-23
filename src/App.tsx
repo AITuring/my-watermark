@@ -13,6 +13,7 @@ import Lottery from "./Lottery";
 import ChangeColor from "./ChangeColor";
 import PhotoCollage from "./PhotoCollage";
 import ImageStitching from "./ImageStitching";
+import RestaurantFinder from "./RestaurantFinder";
 import "./App.css";
 
 const menuItems = [
@@ -33,6 +34,13 @@ const menuItems = [
         id: "stitch",
         url: "/stitch",
         component: <ImageStitching />,
+    },
+    {
+        label: "餐厅搜索",
+        id: "restaurant",
+        url: "/restaurant",
+        component: <RestaurantFinder />,
+
     }
     // {
     //     label: "微博抽奖",
