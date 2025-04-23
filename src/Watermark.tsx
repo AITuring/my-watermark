@@ -57,7 +57,7 @@ const Watermark: React.FC = () => {
 
     const handleImagesUpload = async (files: File[]) => {
         const uploadImages = await loadImageData(files);
-        setImages(prevImages => {
+        setImages((prevImages) => {
             // 如果之前没有图片，直接设置
             if (prevImages.length === 0) {
                 setCurrentImg(uploadImages[0]);
@@ -90,7 +90,7 @@ const Watermark: React.FC = () => {
                     rotation: 0,
                 }));
 
-                setWatermarkPositions(prev => [...prev, ...newPositions]);
+                setWatermarkPositions((prev) => [...prev, ...newPositions]);
 
                 return newImages;
             }
@@ -247,7 +247,7 @@ const Watermark: React.FC = () => {
                         </ImageUploader>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-between">
+                    <div className="flex flex-col h-screen justify-between">
                         <div className="flex p-4 justify-between gap-2">
                             {images.length > 0 && (
                                 <VerticalCarousel
@@ -279,65 +279,98 @@ const Watermark: React.FC = () => {
                                 />
                             )}
                         </div>
-                        <div className="flex flex-1 justify-around items-center backdrop-blur-lg shadow-inner pt-4">
-                            <ImageUploader
-                                onUpload={handleWatermarkUpload}
-                                fileType="水印"
-                                className="w-20 rounded-md cursor-pointer bg-blue-500"
-                            >
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <img
-                                                src={watermarkUrl}
-                                                alt="watermark"
-                                                className="cursor-pointer"
-                                            />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>点击上传水印图片</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </ImageUploader>
-
-                            <div className="flex flex-col items-center gap-2">
-                                <div className="flex items-center">
-                                    水印背景模糊
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Icon
-                                                    icon="ic:outline-help"
-                                                    className="w-4 h-4 ml-2 cursor-help"
-                                                />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>开启后水印周围有一层高斯模糊</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                        <div className="flex items-baseline backdrop-blur-lg shadow-inner p-4 border-t border-gray-200 dark:border-gray-800 gap-10">
+                            <div className="flex items-center gap-4">
+                                <div className="relative group">
+                                    <ImageUploader
+                                        onUpload={handleWatermarkUpload}
+                                        fileType="水印"
+                                        className="w-16 h-16 rounded-md cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors duration-200"
+                                    >
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <img
+                                                            src={watermarkUrl}
+                                                            alt="watermark"
+                                                            className="max-w-full max-h-full object-contain group-hover:opacity-80 transition-opacity"
+                                                        />
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    <p>点击上传水印图片</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </ImageUploader>
+                                    <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-xs px-1 rounded-sm">
+                                        水印
+                                    </div>
                                 </div>
-                                <Switch
-                                    checked={watermarkBlur}
-                                    onCheckedChange={setWatermarkBlur}
-                                />
                             </div>
 
-                            {imgProgress > 0 && (
-                                <Progress value={imgProgress} className="w-32" />
-                            )}
+                            <div className="flex items-center gap-8">
+                                <div className="flex items-center gap-3 px-4 py-2">
+                                    <div className="flex items-center">
+                                        <Switch
+                                            checked={watermarkBlur}
+                                            onCheckedChange={setWatermarkBlur}
+                                            className="data-[state=checked]:bg-blue-500"
+                                        />
+                                    </div>
+                                    <div className="flex items-center text-sm font-medium">
+                                        水印背景模糊
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Icon
+                                                        icon="ic:outline-help"
+                                                        className="w-4 h-4 ml-2 cursor-help text-gray-500"
+                                                    />
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    <p>
+                                                        开启后水印周围有一层高斯模糊
+                                                    </p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                </div>
+
+                                {imgProgress > 0 && (
+                                    <div className="flex flex-col items-center gap-1">
+                                        <span className="text-xs text-gray-500">
+                                            {Math.round(imgProgress)}%
+                                        </span>
+                                        <Progress
+                                            value={imgProgress}
+                                            className="w-32 h-2"
+                                        />
+                                    </div>
+                                )}
+                            </div>
 
                             <Button
                                 onClick={handleApplyWatermarkDebounced}
                                 size="lg"
                                 disabled={loading}
-                                className="bg-blue-500 hover:bg-blue-600"
+                                className="bg-blue-500 hover:bg-blue-600 px-6 shadow-md transition-all duration-200 hover:translate-y-[-2px]"
                             >
                                 {loading ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        处理中...
+                                    </>
                                 ) : (
-                                    "水印生成"
+                                    <>
+                                        <Icon
+                                            icon="mdi:image-filter-center-focus"
+                                            className="mr-2 h-5 w-5"
+                                        />
+                                        水印生成
+                                    </>
                                 )}
                             </Button>
                         </div>

@@ -97,20 +97,44 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
             className="flex flex-col bg-background border rounded-lg shadow-sm overflow-hidden"
             style={{ height: `${height}px`, width: '30%', flexShrink: 0 }}
         >
-            <div className="p-3 border-b flex justify-between items-center">
+                       <div className="p-3 border-b flex justify-between items-center">
                 <Badge variant="outline" className="text-sm">
                     背景图片 ({images.length})
                 </Badge>
-                <ImageUploader
-                    onUpload={handleImagesUpload}
-                    fileType="背景"
-                    className="inline-block"
-                >
-                    <Button variant="ghost" size="sm" className="h-8 px-2">
-                        <Plus className="h-4 w-4 mr-1" />
-                        添加
-                    </Button>
-                </ImageUploader>
+                <div className="flex gap-2">
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() => {
+                                        setImages([]);
+                                        setImageUploaderVisible(true);
+                                        setCurrentImg(null);
+                                    }}
+                                >
+                                    <X className="h-4 w-4" />
+                                    清空
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>清空所有背景图片</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                    <ImageUploader
+                        onUpload={handleImagesUpload}
+                        fileType="背景"
+                        className="inline-block"
+                    >
+                        <Button variant="ghost" size="sm" className="h-8">
+                            <Plus className="h-4 w-4" />
+                            添加
+                        </Button>
+                    </ImageUploader>
+                </div>
             </div>
 
             <ScrollArea className="flex-1">
