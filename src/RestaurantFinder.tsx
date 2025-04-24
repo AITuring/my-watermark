@@ -1,15 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef } from "react";
 import AMapLoader from "@amap/amap-jsapi-loader";
-import {
-    MapPin,
-    Utensils,
-    RefreshCw,
-    Navigation,
-    Compass,
-    LocateFixed,
-    X,
-} from "lucide-react";
+import { MapPin, Utensils, RefreshCw, Navigation, Compass } from "lucide-react";
+import flagIcon from "@/assets/flag.svg";
+import BeerIcon from "@/assets/Beer.svg";
+import BreadIcon from "@/assets/Bread.svg";
+import ChickenIcon from "@/assets/Chicken.svg";
+import CurryRiceIcon from "@/assets/CurryRice.svg";
+import FrenchFriesIcon from "@/assets/FrenchFries.svg";
+import GreenSaladIcon from "@/assets/GreenSalad.svg";
+import PanOfFoodIcon from "@/assets/PanOfFood.svg";
+import RiceIcon from "@/assets/Rice.svg";
+import ShallowPanOfFoodIcon from "@/assets/ShallowPanOfFood.svg";
+import WineIcon from "@/assets/Wine.svg";
+import DumplingIcon from "@/assets/Dumpling.svg";
+import SteamingBowlIcon from "@/assets/SteamingBowl.svg";
+import TeacupIcon from "@/assets/Teacup.svg";
+import WaterMelonIcon from "@/assets/WaterMelon.svg";
+import IceCreamIcon from "@/assets/IceCream.svg";
 import { motion } from "framer-motion";
 
 // 定义餐厅类型接口
@@ -42,6 +50,104 @@ const RestaurantFinder = () => {
     const positionMarker = useRef<any>(null);
     const geocoder = useRef<any>(null); // 添加地理编码器引用
 
+    const randomIcons = [
+        BeerIcon,
+        BreadIcon,
+        ChickenIcon,
+        CurryRiceIcon,
+        FrenchFriesIcon,
+        GreenSaladIcon,
+        PanOfFoodIcon,
+        RiceIcon,
+        ShallowPanOfFoodIcon,
+        TeacupIcon,
+        WineIcon,
+        DumplingIcon,
+        SteamingBowlIcon,
+        TeacupIcon,
+        WaterMelonIcon,
+        IceCreamIcon,
+    ];
+
+    const getRestaurantIcon = (
+        restaurantName: string,
+        restaurantType: string
+    ) => {
+        const name = restaurantName.toLowerCase();
+        const type = restaurantType?.toLowerCase() || "";
+
+        // 根据餐厅名称或类型中的关键词选择图标
+        if (
+            name.includes("茶") ||
+            name.includes("奶茶") ||
+            type.includes("茶")
+        ) {
+            return TeacupIcon;
+        } else if (
+            name.includes("酒") ||
+            name.includes("bar") ||
+            type.includes("酒吧")
+        ) {
+            return WineIcon;
+        } else if (name.includes("啤酒") || name.includes("beer")) {
+            return BeerIcon;
+        } else if (
+            name.includes("面包") ||
+            name.includes("蛋糕") ||
+            name.includes("bakery")
+        ) {
+            return BreadIcon;
+        } else if (
+            name.includes("鸡") ||
+            name.includes("炸鸡") ||
+            type.includes("快餐")
+        ) {
+            return ChickenIcon;
+        } else if (name.includes("咖喱") || name.includes("curry")) {
+            return CurryRiceIcon;
+        } else if (name.includes("薯条") || name.includes("炸薯")) {
+            return FrenchFriesIcon;
+        } else if (
+            name.includes("沙拉") ||
+            name.includes("salad") ||
+            name.includes("轻食")
+        ) {
+            return GreenSaladIcon;
+        } else if (
+            name.includes("米饭") ||
+            name.includes("rice") ||
+            name.includes("饭店")
+        ) {
+            return RiceIcon;
+        } else if (
+            name.includes("火锅") ||
+            name.includes("hot pot") ||
+            name.includes("中餐") ||
+            name.includes("川") ||
+            name.includes("湘") ||
+            name.includes("粤")
+        ) {
+            return PanOfFoodIcon;
+        } else if (
+            name.includes("包子") ||
+            name.includes("dumpling") ||
+            name.includes("饺") ||
+            name.includes("馄饨") ||
+            name.includes("抄手")
+        ) {
+            return DumplingIcon;
+        } else if (name.includes("水果") || name.includes("瓜果")) {
+            return WaterMelonIcon;
+        } else if (name.includes("小吃") || name.includes("snack")) {
+            return ShallowPanOfFoodIcon;
+        } else if (name.includes("冰") || name.includes("雪")) {
+            return IceCreamIcon;
+        }
+
+        // 如果没有匹配到关键词，则随机选择一个图标
+        return randomIcons[Math.floor(Math.random() * randomIcons.length)];
+    };
+
     useEffect(() => {
         (window as any)._AMapSecurityConfig = {
             securityJsCode: "8d5961ba4c131a09904cab742029ca42",
@@ -68,6 +174,11 @@ const RestaurantFinder = () => {
                     type: "餐饮服务",
                 });
 
+                geocoder.current = new AMap.Geocoder({
+                    radius: 1000,
+                    extensions: "all",
+                });
+
                 // 添加地图点击事件，允许用户手动选择位置
                 mapInstance.current.on("click", (e: any) => {
                     updateUserPosition(e.lnglat.getLng(), e.lnglat.getLat());
@@ -80,25 +191,40 @@ const RestaurantFinder = () => {
     }, []);
 
     const getLocationName = (lng: number, lat: number) => {
+        console.log("getLocationName", lng, lat, geocoder.current);
         if (!geocoder.current) return;
 
         geocoder.current.getAddress(
             [lng, lat],
             (status: string, result: any) => {
-              console.log(status, result);
-                if (status === "complete" && result.regeocode) {
-                    const address = result.regeocode.formattedAddress;
-                    const addressComponent = result.regeocode.addressComponent;
-                    // 提取更简洁的位置名称
-                    const simpleName =
-                        addressComponent.township ||
-                        addressComponent.district ||
-                        addressComponent.city ||
-                        "未知位置";
-                    setLocationName(simpleName);
-                } else {
-                    setLocationName("未知位置");
-                }
+                console.log(status, result);
+                const address = result.regeocode.formattedAddress;
+                const addressComponent = result.regeocode.addressComponent;
+
+                // 从完整地址中提取更精确的位置名称
+                let simpleName = "未知位置";
+
+                // if (address) {
+                //     // 尝试去除前面的区、路、街道等信息
+                //     const parts = address.split(/[市区县]/).filter(Boolean);
+                //     console.log("parts", parts);
+                //     if (parts.length > 1) {
+                //         // 取最后一部分，通常是最具体的位置
+                //         const lastPart = parts[parts.length - 1];
+                //         // 进一步处理，去除可能的"路街道"等前缀
+                //         simpleName = lastPart.replace(
+                //             /^.*?(街道|路|大道|胡同|巷|乡|镇)/,
+                //             ""
+                //         );
+                //         // 如果处理后为空，则使用原始地址
+                //         if (!simpleName.trim()) {
+                //             simpleName = lastPart;
+                //         }
+                //     } else {
+                //         simpleName = address;
+                //     }
+                // }
+                setLocationName(address);
             }
         );
     };
@@ -120,9 +246,9 @@ const RestaurantFinder = () => {
                 map: mapInstance.current,
                 draggable: true,
                 icon: new mapSDK.current.Icon({
-                    size: new mapSDK.current.Size(25, 34),
-                    image: "https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png",
-                    imageSize: new mapSDK.current.Size(25, 34),
+                    size: new mapSDK.current.Size(35, 44),
+                    image: flagIcon,
+                    imageSize: new mapSDK.current.Size(35, 44),
                 }),
                 title: "我的位置（可拖动调整）",
             });
@@ -242,7 +368,7 @@ const RestaurantFinder = () => {
                 map: mapInstance.current,
                 icon: new mapSDK.current.Icon({
                     size: new mapSDK.current.Size(25, 34),
-                    image: "https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png",
+                    image: getRestaurantIcon(selected.name, selected.type),
                     imageSize: new mapSDK.current.Size(25, 34),
                 }),
                 title: selected.name,
@@ -349,7 +475,7 @@ const RestaurantFinder = () => {
                             )}
                         </div>
 
-                        {position && (
+                        {/* {position && (
                             <div className="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-100">
                                 <p className="flex items-center">
                                     <MapPin className="h-4 w-4 mr-1 text-blue-500" />
@@ -361,7 +487,7 @@ const RestaurantFinder = () => {
                                     来调整位置
                                 </p>
                             </div>
-                        )}
+                        )} */}
 
                         {restaurant && (
                             <motion.div
@@ -421,7 +547,7 @@ const RestaurantFinder = () => {
                             <MapPin className="mr-2" />
                             当前位置附近地图
                         </h2>
-                        {position && (
+                        {/* {position && (
                             <button
                                 onClick={() =>
                                     position &&
@@ -435,7 +561,7 @@ const RestaurantFinder = () => {
                                 <RefreshCw className="h-3 w-3 mr-1" />
                                 刷新搜索
                             </button>
-                        )}
+                        )} */}
                     </div>
                     <div
                         ref={mapContainerRef}
