@@ -10,25 +10,6 @@ import {
 import useImage from "use-image";
 import { WatermarkPosition } from "./types";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import {
-    RotateCcw,
-    ZoomIn,
-    ZoomOut,
-    RotateCw,
-    Grid,
-    Move,
-    CornerRightDown,
-    CornerLeftDown,
-    CornerLeftUp,
-    CornerRightUp,
-    AlignCenter,
-    AlignHorizontalJustifyCenter,
-    AlignVerticalJustifyCenter,
-    ChevronLeft,
-    ChevronRight,
-} from "lucide-react";
-import Konva from "konva";
 import {
     Select,
     SelectContent,
@@ -38,11 +19,56 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
+import Konva from "konva";
+
+// 绘制辅助线函数
+const drawGuideLines = (
+    layer: Konva.Layer,
+    width: number,
+    height: number
+) => {
+    const lineStroke = "red";
+    const lineStrokeWidth = 1;
+    const dash = [4, 6];
+
+    // 清除旧的参考线
+    const oldLines = layer.find(".guide-line");
+    oldLines.forEach((line) => line.destroy());
+
+    // 生成多条水平辅助线
+    for (let i = 1; i <= 3; i++) {
+        const yPos = (height / 4) * i;
+        const horizontalLine = new Konva.Line({
+            points: [0, yPos, width, yPos],
+            stroke: lineStroke,
+            strokeWidth: lineStrokeWidth,
+            dash: dash,
+            name: "guide-line", // 给参考线添加名称
+        });
+        layer.add(horizontalLine);
+    }
+
+    // 生成多条垂直辅助线
+    for (let i = 1; i <= 3; i++) {
+        const xPos = (width / 4) * i;
+        const verticalLine = new Konva.Line({
+            points: [xPos, 0, xPos, height],
+            stroke: lineStroke,
+            strokeWidth: lineStrokeWidth,
+            dash: dash,
+            name: "guide-line", // 给参考线添加名称
+        });
+        layer.add(verticalLine);
+    }
+
+    layer.batchDraw(); // 重新绘制图层以显示所有辅助线
+};
 
 interface MobileWatermarkEditorProps {
     watermarkUrl: string;
-    backgroundImageFile: File | null;
-    currentWatermarkPosition: WatermarkPosition | undefined;
+    backgroundImageFile: File;
+    currentWatermarkPosition?: WatermarkPosition;
     onTransform: (position: {
         x: number;
         y: number;
@@ -62,61 +88,6 @@ interface MobileWatermarkEditorProps {
     onPrevImage?: () => void;
     onNextImage?: () => void;
 }
-
-// 绘制辅助线函数
-const drawGuideLines = (
-    layer: Konva.Layer,
-    stageWidth: number,
-    stageHeight: number,
-    offsetX: number = 0,
-    offsetY: number = 0
-) => {
-    const lineStroke = "red";
-    const lineStrokeWidth = 1;
-    const dash = [4, 6];
-
-    // 清除旧的参考线
-    const oldLines = layer.find(".guide-line");
-    oldLines.forEach((line) => line.destroy());
-
-    // 生成多条水平辅助线
-    for (let i = 1; i <= 3; i++) {
-        const yPos = (stageHeight / 4) * i;
-        const horizontalLine = new Konva.Line({
-            points: [
-                offsetX,
-                offsetY + yPos,
-                offsetX + stageWidth,
-                offsetY + yPos,
-            ],
-            stroke: lineStroke,
-            strokeWidth: lineStrokeWidth,
-            dash: dash,
-            name: "guide-line", // 给参考线添加名称
-        });
-        layer.add(horizontalLine);
-    }
-
-    // 生成多条垂直辅助线
-    for (let i = 1; i <= 3; i++) {
-        const xPos = (stageWidth / 4) * i;
-        const verticalLine = new Konva.Line({
-            points: [
-                offsetX + xPos,
-                offsetY,
-                offsetX + xPos,
-                offsetY + stageHeight,
-            ],
-            stroke: lineStroke,
-            strokeWidth: lineStrokeWidth,
-            dash: dash,
-            name: "guide-line", // 给参考线添加名称
-        });
-        layer.add(verticalLine);
-    }
-
-    layer.batchDraw(); // 重新绘制图层以显示所有辅助线
-};
 
 const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     watermarkUrl,
@@ -184,25 +155,35 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             const containerWidth = window.innerWidth;
             const containerHeight = window.innerHeight * 0.6;
 
-            const imageRatio =
-                backgroundImage.naturalWidth / backgroundImage.naturalHeight;
-            let width = containerWidth;
-            let height = width / imageRatio;
+            const imageRatio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
 
-            if (height > containerHeight) {
+            let width, height;
+
+            // 根据图片比例决定宽高
+            if (imageRatio >= 1) { // 横图
+                width = containerWidth;
+                height = width / imageRatio;
+                if (height > containerHeight) {
+                    height = containerHeight;
+                    width = height * imageRatio;
+                }
+            } else { // 竖图
                 height = containerHeight;
                 width = height * imageRatio;
+                if (width > containerWidth) {
+                    width = containerWidth;
+                    height = width / imageRatio;
+                }
             }
 
             setBackgroundImageSize({ width, height });
-            updateGuideLines();
-            setStageSize({ width: containerWidth, height: containerHeight });
+            setStageSize({ width, height });
         }
     }, [backgroundImage, backgroundImageStatus]);
 
     // 当水印图片加载完成时，更新水印尺寸
     useEffect(() => {
-        if (watermarkImage) {
+        if (watermarkImage && backgroundImageSize.width > 0) {
             // 设置水印初始大小为背景图的20%宽度
             const scale =
                 (backgroundImageSize.width * 0.2) / watermarkImage.naturalWidth;
@@ -236,14 +217,10 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             backgroundImageSize.width > 0 &&
             backgroundImageSize.height > 0
         ) {
-            const offsetX = (stageSize.width - backgroundImageSize.width) / 2;
-            const offsetY = (stageSize.height - backgroundImageSize.height) / 2;
             drawGuideLines(
                 layerRef.current,
                 backgroundImageSize.width,
-                backgroundImageSize.height,
-                offsetX,
-                offsetY
+                backgroundImageSize.height
             );
         } else if (layerRef.current && !showGuideLines) {
             // 清除辅助线
@@ -309,23 +286,12 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     // 更新参考线的函数
     const updateGuideLines = () => {
-        const stage = stageRef.current;
-        if (!stage) return;
-
-        // 计算背景图片在舞台上的偏移量
-        const offsetX = (stageSize.width - backgroundImageSize.width) / 2;
-        const offsetY = (stageSize.height - backgroundImageSize.height) / 2;
-
-        const layer = stage.getLayers()[0];
-        const guideLines = layer.find(".guide-line");
-        guideLines.forEach((line) => line.destroy());
+        if (!layerRef.current || !showGuideLines || backgroundImageSize.width <= 0 || backgroundImageSize.height <= 0) return;
 
         drawGuideLines(
-            layer,
+            layerRef.current,
             backgroundImageSize.width,
-            backgroundImageSize.height,
-            offsetX,
-            offsetY
+            backgroundImageSize.height
         );
     };
 
@@ -388,22 +354,6 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     const toggleGuideLines = () => {
         setShowGuideLines(!showGuideLines);
     };
-
-    // 绘制辅助线
-    useEffect(() => {
-        if (layerRef.current && showGuideLines) {
-            drawGuideLines(
-                layerRef.current,
-                backgroundImageSize.width,
-                backgroundImageSize.height
-            );
-        } else if (layerRef.current && !showGuideLines) {
-            // 清除辅助线
-            const oldLines = layerRef.current.find(".guide-line");
-            oldLines.forEach((line) => line.destroy());
-            layerRef.current.batchDraw();
-        }
-    }, [showGuideLines, backgroundImageSize, layerRef.current]);
 
     // 九宫格位置设置
     const setWatermarkPosition = (positionName: string) => {
@@ -492,7 +442,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     return (
         <div ref={containerRef} className="flex flex-col h-full">
-            <div className="flex-1 relative">
+            <div className="flex-1 relative flex justify-center items-center">
                 {/* 图片索引指示器 */}
                 {totalImages > 0 && (
                     <div className="absolute top-2 left-0 right-0 z-10 flex justify-center">
@@ -528,11 +478,16 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
                 <Stage
                     ref={stageRef}
-                    width={stageSize.width}
-                    height={stageSize.height}
+                    width={backgroundImageSize.width}
+                    height={backgroundImageSize.height}
                     className="bg-gray-100"
                     onClick={handleStageClick}
                     onTap={handleStageClick}
+                    style={{
+                        margin: '0 auto',
+                        maxWidth: '100%',
+                        maxHeight: '100%'
+                    }}
                 >
                     <Layer ref={layerRef}>
                         {backgroundImage && (
@@ -540,16 +495,8 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 image={backgroundImage}
                                 width={backgroundImageSize.width}
                                 height={backgroundImageSize.height}
-                                x={
-                                    (stageSize.width -
-                                        backgroundImageSize.width) /
-                                    2
-                                }
-                                y={
-                                    (stageSize.height -
-                                        backgroundImageSize.height) /
-                                    2
-                                }
+                                x={0}
+                                y={0}
                             />
                         )}
                         {watermarkImage && (
@@ -562,9 +509,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 scaleY={position.scaleY}
                                 rotation={position.rotation}
                                 draggable
+                                onDragEnd={handleDragEnd}
                                 onClick={handleWatermarkClick}
                                 onTap={handleWatermarkClick}
-                                onDragEnd={handleDragEnd}
                                 onTransformEnd={handleTransformEnd}
                             />
                         )}
@@ -572,7 +519,10 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                             ref={transformerRef}
                             boundBoxFunc={(oldBox, newBox) => {
                                 // 限制变换的最小尺寸
-                                if (newBox.width < 5 || newBox.height < 5) {
+                                if (
+                                    newBox.width < 5 ||
+                                    newBox.height < 5
+                                ) {
                                     return oldBox;
                                 }
                                 return newBox;
@@ -584,135 +534,128 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 "bottom-right",
                             ]}
                             rotationSnaps={[0, 90, 180, 270]}
+                            visible={isSelected}
                         />
                     </Layer>
                 </Stage>
             </div>
 
-            {/* 移动端水印控制面板 */}
+            {/* 移动端控制面板 */}
             <div className="p-3 bg-white border-t">
-                {/* 单独/批量选择和九宫格位置选择放在同一行 */}
-                <div className="flex gap-2 mb-3">
-                    <div className="flex-1">
-                        <Select
-                            defaultValue="single"
-                            onValueChange={handleModeChange}
+                <div className="flex flex-col gap-3">
+                    <div className="flex justify-between">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={toggleGuideLines}
                         >
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="选择应用模式" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectLabel>应用模式</SelectLabel>
-                                    <SelectItem value="single">
-                                        单独调整
-                                    </SelectItem>
-                                    <SelectItem value="batch">
-                                        批量调整
-                                    </SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+                            {showGuideLines ? (
+                                <>
+                                    <EyeOff className="h-4 w-4 mr-1" />
+                                    隐藏辅助线
+                                </>
+                            ) : (
+                                <>
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    显示辅助线
+                                </>
+                            )}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={applyToAll}
+                        >
+                            应用到所有图片
+                        </Button>
                     </div>
-                    <div className="flex-1">
-                        <Select onValueChange={handlePositionChange}>
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="选择水印位置" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                    <SelectLabel>水印位置</SelectLabel>
-                                    <SelectItem value="topLeft">
-                                        左上角
-                                    </SelectItem>
-                                    <SelectItem value="topCenter">
-                                        上居中
-                                    </SelectItem>
-                                    <SelectItem value="topRight">
-                                        右上角
-                                    </SelectItem>
-                                    <SelectItem value="middleLeft">
-                                        左居中
-                                    </SelectItem>
-                                    <SelectItem value="middleCenter">
-                                        正中间
-                                    </SelectItem>
-                                    <SelectItem value="middleRight">
-                                        右居中
-                                    </SelectItem>
-                                    <SelectItem value="bottomLeft">
-                                        左下角
-                                    </SelectItem>
-                                    <SelectItem value="bottomCenter">
-                                        下居中
-                                    </SelectItem>
-                                    <SelectItem value="bottomRight">
-                                        右下角
-                                    </SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <Select onValueChange={handlePositionChange}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="选择位置" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectLabel>水印位置</SelectLabel>
+                                        <SelectItem value="topLeft">
+                                            左上角
+                                        </SelectItem>
+                                        <SelectItem value="topCenter">
+                                            顶部居中
+                                        </SelectItem>
+                                        <SelectItem value="topRight">
+                                            右上角
+                                        </SelectItem>
+                                        <SelectItem value="middleLeft">
+                                            左侧居中
+                                        </SelectItem>
+                                        <SelectItem value="middleCenter">
+                                            正中心
+                                        </SelectItem>
+                                        <SelectItem value="middleRight">
+                                            右侧居中
+                                        </SelectItem>
+                                        <SelectItem value="bottomLeft">
+                                            左下角
+                                        </SelectItem>
+                                        <SelectItem value="bottomCenter">
+                                            底部居中
+                                        </SelectItem>
+                                        <SelectItem value="bottomRight">
+                                            右下角
+                                        </SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Select onValueChange={handleModeChange}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="应用模式" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        <SelectLabel>应用模式</SelectLabel>
+                                        <SelectItem value="single">
+                                            单独应用
+                                        </SelectItem>
+                                        <SelectItem value="batch">
+                                            批量应用
+                                        </SelectItem>
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
-                </div>
 
-                {/* 旋转和缩放控制 */}
-                <div className="flex justify-between mb-3">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRotate("left")}
-                    >
-                        <RotateCcw className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleScale("decrease")}
-                    >
-                        <ZoomOut className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => toggleGuideLines()}
-                    >
-                        <Grid className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleScale("increase")}
-                    >
-                        <ZoomIn className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRotate("right")}
-                    >
-                        <RotateCw className="h-4 w-4" />
-                    </Button>
-                </div>
-
-                <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => selectWatermark()}
-                    >
-                        <Move className="h-4 w-4 mr-1" />
-                        选择调整
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        className="flex-1"
-                        onClick={applyToAll}
-                        disabled={!isBatch}
-                    >
-                        应用到所有图片
-                    </Button>
+                    <div className="grid grid-cols-4 gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => handleRotate("left")}
+                        >
+                            左旋转
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => handleRotate("right")}
+                        >
+                            右旋转
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => handleScale("increase")}
+                        >
+                            放大
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => handleScale("decrease")}
+                        >
+                            缩小
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>
