@@ -367,9 +367,9 @@ const RestaurantFinder = () => {
                 position: selected.location,
                 map: mapInstance.current,
                 icon: new mapSDK.current.Icon({
-                    size: new mapSDK.current.Size(25, 34),
+                    size: new mapSDK.current.Size(35, 44),
                     image: getRestaurantIcon(selected.name, selected.type),
-                    imageSize: new mapSDK.current.Size(25, 34),
+                    imageSize: new mapSDK.current.Size(35, 44),
                 }),
                 title: selected.name,
             });

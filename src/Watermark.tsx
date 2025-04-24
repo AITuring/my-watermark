@@ -9,7 +9,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import BackgroundGradientAnimation from "@/components/BackgroundGradientAnimation";
-import { Loader2 } from "lucide-react";
+import { Loader2, Menu } from "lucide-react";
 import { Icon } from "@iconify/react";
 import {
     loadImageData,
@@ -17,17 +17,23 @@ import {
     processImage,
     adjustBatchSizeAndConcurrency,
 } from "./utils";
+import { useDeviceDetect } from "@/hooks";
 import { ImageType, WatermarkPosition, ImgWithPosition } from "./types";
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
+import MobileWatermarkEditor from "./MobileWatermarkEditor";
 import VerticalCarousel from "./VerticalCarousel";
+import MobileImageGallery from "./MobileImageGallery";
 import pLimit from "p-limit";
 import confetti from "canvas-confetti";
 import "./watermark.css";
 
 const Watermark: React.FC = () => {
     const [images, setImages] = useState<ImageType[]>([]);
-    const editorHeight = window.innerHeight * 0.8;
+    const deviceType = useDeviceDetect(); // 获取设备类型
+    const isMobile = deviceType === "mobile";
+
+    const editorHeight = window.innerHeight * (isMobile ? 0.6 : 0.8);
 
     // 当前照片
     const [currentImg, setCurrentImg] = useState<ImageType | null>();
@@ -49,6 +55,13 @@ const Watermark: React.FC = () => {
     const [quality, setQuality] = useState<number>(0.9);
     // 水印背景模糊
     const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
+
+    // 移动端菜单状态
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    // 移动端当前视图（编辑器/图库）
+    const [mobileView, setMobileView] = useState<"editor" | "gallery">(
+        "editor"
+    );
 
     useEffect(() => {
         if (images.length === 0) {
@@ -231,154 +244,334 @@ const Watermark: React.FC = () => {
     // 使用 debounce 包裹你的事件处理函数
     const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
 
+    // 渲染移动端界面
+    const renderMobileUI = () => {
+        if (imageUploaderVisible) {
+            return (
+                <BackgroundGradientAnimation>
+                    <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
+                        <ImageUploader
+                            ref={dropzoneRef}
+                            onUpload={handleImagesUpload}
+                            fileType="背景"
+                        >
+                            <div className="p-4 rounded-lg text-white text-xl font-medium bg-blue-500/90 backdrop-blur-sm cursor-pointer flex flex-col items-center hover:bg-blue-600 transition-all duration-300 shadow-lg hover:shadow-blue-300/30">
+                                上传背景图片
+                            </div>
+                        </ImageUploader>
+                    </div>
+                </BackgroundGradientAnimation>
+            );
+        }
+
+        return (
+            <div className="flex flex-col h-screen">
+                {/* 移动端顶部导航 */}
+                <div className="flex justify-between items-center p-3 bg-white/90 backdrop-blur-sm shadow-sm">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    >
+                        <Menu className="h-5 w-5" />
+                    </Button>
+                    <div className="text-center font-medium">
+                        {mobileView === "editor" ? "水印编辑" : "图片库"}
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                                setMobileView(
+                                    mobileView === "editor"
+                                        ? "gallery"
+                                        : "editor"
+                                )
+                            }
+                        >
+                            {mobileView === "editor" ? "图片库" : "编辑器"}
+                        </Button>
+                    </div>
+                </div>
+
+                {/* 移动端主内容区 */}
+                <div className="flex-1 overflow-hidden">
+                    {mobileView === "editor" && currentImg ? (
+                        <MobileWatermarkEditor
+                            watermarkUrl={watermarkUrl}
+                            backgroundImageFile={currentImg.file}
+                            currentWatermarkPosition={watermarkPositions.find(
+                                (pos) => pos.id === currentImg.id
+                            )}
+                            onTransform={(position) => {
+                                handleWatermarkTransform(
+                                    currentImg.id,
+                                    position
+                                );
+                            }}
+                            totalImages={images.length}
+                            currentIndex={
+                                images.findIndex(
+                                    (img) => img.id === currentImg.id
+                                ) + 1}
+                            onAllTransform={handleAllWatermarkTransform}
+                            onPrevImage={() => {
+                                const currentIndex = images.findIndex(
+                                    (img) => img.id === currentImg.id
+                                );
+                                if (currentIndex > 0) {
+                                    const prevImg = images[currentIndex - 1];
+                                    setCurrentImg(prevImg);
+                                }
+                            }}
+                            onNextImage={() => {
+                                const currentIndex = images.findIndex(
+                                    (img) => img.id === currentImg.id
+                                );
+                                if (currentIndex < images.length - 1) {
+                                    const nextImg = images[currentIndex + 1];
+                                    setCurrentImg(nextImg);
+                                }
+                            }}
+                        />
+                    ) : (
+                        <MobileImageGallery
+                            images={images}
+                            setImages={setImages}
+                            setImageUploaderVisible={setImageUploaderVisible}
+                            setCurrentImg={setCurrentImg}
+                            currentImageId={currentImg?.id}
+                            onImageSelect={() => setMobileView("editor")}
+                        />
+                    )}
+                </div>
+
+                {/* 移动端底部工具栏 */}
+                <div className="p-3 border-t bg-white/90 backdrop-blur-sm">
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                            <div className="relative group">
+                                <ImageUploader
+                                    onUpload={handleWatermarkUpload}
+                                    fileType="水印"
+                                    className="w-12 h-12 rounded-md cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors duration-200"
+                                >
+                                    <div className="w-full h-full flex items-center justify-center">
+                                        <img
+                                            src={watermarkUrl}
+                                            alt="watermark"
+                                            className="max-w-full max-h-full object-contain"
+                                        />
+                                    </div>
+                                </ImageUploader>
+                                <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-xs px-1 rounded-sm">
+                                    水印
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm">模糊</span>
+                                <Switch
+                                    checked={watermarkBlur}
+                                    onCheckedChange={setWatermarkBlur}
+                                    className="data-[state=checked]:bg-blue-500"
+                                />
+                            </div>
+                        </div>
+
+                        {imgProgress > 0 && (
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs text-gray-500">
+                                    {Math.round(imgProgress)}%
+                                </span>
+                                <Progress
+                                    value={imgProgress}
+                                    className="w-full h-2"
+                                />
+                            </div>
+                        )}
+
+                        <Button
+                            onClick={handleApplyWatermarkDebounced}
+                            size="lg"
+                            disabled={loading}
+                            className="w-full bg-blue-500 hover:bg-blue-600 shadow-md transition-all duration-200"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    处理中...
+                                </>
+                            ) : (
+                                <>
+                                    <Icon
+                                        icon="mdi:image-filter-center-focus"
+                                        className="mr-2 h-5 w-5"
+                                    />
+                                    水印生成
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // 渲染桌面端界面
+    const renderDesktopUI = () => {
+        if (imageUploaderVisible) {
+            return (
+                <BackgroundGradientAnimation>
+                    <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
+                        <ImageUploader
+                            ref={dropzoneRef}
+                            onUpload={handleImagesUpload}
+                            fileType="背景"
+                        >
+                            <div className="p-6 rounded-lg text-white text-2xl font-medium bg-blue-500/90 backdrop-blur-sm cursor-pointer flex flex-col items-center hover:bg-blue-600 transition-all duration-300 shadow-lg hover:shadow-blue-300/30">
+                                上传背景图片
+                            </div>
+                        </ImageUploader>
+                    </div>
+                </BackgroundGradientAnimation>
+            );
+        }
+
+        return (
+            <div className="flex flex-col h-screen justify-between">
+                <div className="flex p-4 justify-between gap-2">
+                    {images.length > 0 && (
+                        <VerticalCarousel
+                            images={images}
+                            setImages={setImages}
+                            setImageUploaderVisible={setImageUploaderVisible}
+                            setCurrentImg={setCurrentImg}
+                            height={editorHeight}
+                        />
+                    )}
+                    {watermarkUrl && currentImg && (
+                        <WatermarkEditor
+                            watermarkUrl={watermarkUrl}
+                            backgroundImageFile={currentImg.file}
+                            currentWatermarkPosition={watermarkPositions.find(
+                                (pos) => pos.id === currentImg.id
+                            )}
+                            onTransform={(position) => {
+                                handleWatermarkTransform(
+                                    currentImg.id,
+                                    position
+                                );
+                            }}
+                            onAllTransform={(position) => {
+                                handleAllWatermarkTransform(position);
+                            }}
+                        />
+                    )}
+                </div>
+                <div className="flex items-baseline backdrop-blur-lg shadow-inner p-4 border-t border-gray-200 dark:border-gray-800 gap-10">
+                    <div className="flex items-center gap-4">
+                        <div className="relative group">
+                            <ImageUploader
+                                onUpload={handleWatermarkUpload}
+                                fileType="水印"
+                                className="w-16 h-16 rounded-md cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors duration-200"
+                            >
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="w-full h-full flex items-center justify-center">
+                                                <img
+                                                    src={watermarkUrl}
+                                                    alt="watermark"
+                                                    className="max-w-full max-h-full object-contain group-hover:opacity-80 transition-opacity"
+                                                />
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <p>点击上传水印图片</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </ImageUploader>
+                            <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-xs px-1 rounded-sm">
+                                水印
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-3 px-4 py-2">
+                            <div className="flex items-center">
+                                <Switch
+                                    checked={watermarkBlur}
+                                    onCheckedChange={setWatermarkBlur}
+                                    className="data-[state=checked]:bg-blue-500"
+                                />
+                            </div>
+                            <div className="flex items-center text-sm font-medium">
+                                水印背景模糊
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Icon
+                                                icon="ic:outline-help"
+                                                className="w-4 h-4 ml-2 cursor-help text-gray-500"
+                                            />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <p>开启后水印周围有一层高斯模糊</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                        </div>
+
+                        {imgProgress > 0 && (
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs text-gray-500">
+                                    {Math.round(imgProgress)}%
+                                </span>
+                                <Progress
+                                    value={imgProgress}
+                                    className="w-32 h-2"
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <Button
+                        onClick={handleApplyWatermarkDebounced}
+                        size="lg"
+                        disabled={loading}
+                        className="bg-blue-500 hover:bg-blue-600 px-6 shadow-md transition-all duration-200 hover:translate-y-[-2px]"
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                处理中...
+                            </>
+                        ) : (
+                            <>
+                                <Icon
+                                    icon="mdi:image-filter-center-focus"
+                                    className="mr-2 h-5 w-5"
+                                />
+                                水印生成
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="relative w-screen h-screen">
             {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>}
             <div>
-                {imageUploaderVisible ? (
-                    <BackgroundGradientAnimation>
-                        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
-                            <ImageUploader
-                                ref={dropzoneRef}
-                                onUpload={handleImagesUpload}
-                                fileType="背景"
-                            >
-                                <div className="p-6 rounded-lg text-white text-2xl font-medium bg-blue-500/90 backdrop-blur-sm cursor-pointer flex flex-col items-center hover:bg-blue-600 transition-all duration-300 shadow-lg hover:shadow-blue-300/30">
-                                    上传背景图片
-                                </div>
-                            </ImageUploader>
-                        </div>
-                    </BackgroundGradientAnimation>
-                ) : (
-                    <div className="flex flex-col h-screen justify-between">
-                        <div className="flex p-4 justify-between gap-2">
-                            {images.length > 0 && (
-                                <VerticalCarousel
-                                    images={images}
-                                    setImages={setImages}
-                                    setImageUploaderVisible={
-                                        setImageUploaderVisible
-                                    }
-                                    setCurrentImg={setCurrentImg}
-                                    height={editorHeight}
-                                />
-                            )}
-                            {watermarkUrl && currentImg && (
-                                <WatermarkEditor
-                                    watermarkUrl={watermarkUrl}
-                                    backgroundImageFile={currentImg.file}
-                                    currentWatermarkPosition={watermarkPositions.find(
-                                        (pos) => pos.id === currentImg.id
-                                    )}
-                                    onTransform={(position) => {
-                                        handleWatermarkTransform(
-                                            currentImg.id,
-                                            position
-                                        );
-                                    }}
-                                    onAllTransform={(position) => {
-                                        handleAllWatermarkTransform(position);
-                                    }}
-                                />
-                            )}
-                        </div>
-                        <div className="flex items-baseline backdrop-blur-lg shadow-inner p-4 border-t border-gray-200 dark:border-gray-800 gap-10">
-                            <div className="flex items-center gap-4">
-                                <div className="relative group">
-                                    <ImageUploader
-                                        onUpload={handleWatermarkUpload}
-                                        fileType="水印"
-                                        className="w-16 h-16 rounded-md cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors duration-200"
-                                    >
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <img
-                                                            src={watermarkUrl}
-                                                            alt="watermark"
-                                                            className="max-w-full max-h-full object-contain group-hover:opacity-80 transition-opacity"
-                                                        />
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top">
-                                                    <p>点击上传水印图片</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </ImageUploader>
-                                    <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-xs px-1 rounded-sm">
-                                        水印
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-8">
-                                <div className="flex items-center gap-3 px-4 py-2">
-                                    <div className="flex items-center">
-                                        <Switch
-                                            checked={watermarkBlur}
-                                            onCheckedChange={setWatermarkBlur}
-                                            className="data-[state=checked]:bg-blue-500"
-                                        />
-                                    </div>
-                                    <div className="flex items-center text-sm font-medium">
-                                        水印背景模糊
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Icon
-                                                        icon="ic:outline-help"
-                                                        className="w-4 h-4 ml-2 cursor-help text-gray-500"
-                                                    />
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top">
-                                                    <p>
-                                                        开启后水印周围有一层高斯模糊
-                                                    </p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </div>
-                                </div>
-
-                                {imgProgress > 0 && (
-                                    <div className="flex flex-col items-center gap-1">
-                                        <span className="text-xs text-gray-500">
-                                            {Math.round(imgProgress)}%
-                                        </span>
-                                        <Progress
-                                            value={imgProgress}
-                                            className="w-32 h-2"
-                                        />
-                                    </div>
-                                )}
-                            </div>
-
-                            <Button
-                                onClick={handleApplyWatermarkDebounced}
-                                size="lg"
-                                disabled={loading}
-                                className="bg-blue-500 hover:bg-blue-600 px-6 shadow-md transition-all duration-200 hover:translate-y-[-2px]"
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        处理中...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Icon
-                                            icon="mdi:image-filter-center-focus"
-                                            className="mr-2 h-5 w-5"
-                                        />
-                                        水印生成
-                                    </>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                )}
+                {isMobile? renderMobileUI() : renderDesktopUI()}
             </div>
         </div>
     );
