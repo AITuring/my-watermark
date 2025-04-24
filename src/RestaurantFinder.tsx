@@ -16,7 +16,7 @@ import WineIcon from "@/assets/Wine.svg";
 import DumplingIcon from "@/assets/Dumpling.svg";
 import SteamingBowlIcon from "@/assets/SteamingBowl.svg";
 import TeacupIcon from "@/assets/Teacup.svg";
-import WaterMelonIcon from "@/assets/WaterMelon.svg";
+import WaterMelonIcon from "@/assets/Watermelon.svg";
 import IceCreamIcon from "@/assets/IceCream.svg";
 import { motion } from "framer-motion";
 
