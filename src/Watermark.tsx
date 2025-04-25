@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import {
     Tooltip,
@@ -9,7 +8,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import BackgroundGradientAnimation from "@/components/BackgroundGradientAnimation";
-import { Loader2, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Icon } from "@iconify/react";
 import {
     loadImageData,
@@ -27,6 +26,51 @@ import MobileImageGallery from "./MobileImageGallery";
 import pLimit from "p-limit";
 import confetti from "canvas-confetti";
 import "./watermark.css";
+
+interface ProgressButtonProps {
+    onClick: () => void;
+    loading: boolean;
+    progress: number;
+    children: React.ReactNode;
+    className?: string;
+    disabled?: boolean;
+}
+
+const ProgressButton: React.FC<ProgressButtonProps> = ({
+    onClick,
+    loading,
+    progress,
+    children,
+    className = "",
+    disabled = false,
+}) => {
+    return (
+        <Button
+            onClick={onClick}
+            size="lg"
+            disabled={loading || disabled}
+            className={`relative overflow-hidden ${className}`}
+        >
+            {loading ? (
+                <>
+                    <div
+                        className="absolute inset-0 bg-blue-600"
+                        style={{
+                            width: `${progress}%`,
+                            transition: "width 0.3s ease",
+                        }}
+                    ></div>
+                    <span className="relative z-10 flex items-center">
+                        图片生成中: {Math.round(progress)}%
+                    </span>
+                </>
+            ) : (
+                children
+            )}
+        </Button>
+    );
+};
+
 
 const Watermark: React.FC = () => {
     const [images, setImages] = useState<ImageType[]>([]);
@@ -62,6 +106,48 @@ const Watermark: React.FC = () => {
     const [mobileView, setMobileView] = useState<"editor" | "gallery">(
         "editor"
     );
+
+    // 添加平滑进度状态
+    const [smoothProgress, setSmoothProgress] = useState<number>(0);
+    const progressRef = useRef<number>(0);
+    const animationRef = useRef<number | null>(null);
+
+    // 平滑更新进度的函数
+    const updateProgressSmoothly = (targetProgress: number) => {
+        if (animationRef.current) {
+            cancelAnimationFrame(animationRef.current);
+        }
+
+        const animate = () => {
+            const currentProgress = progressRef.current;
+            const diff = targetProgress - currentProgress;
+
+            // 如果差距很小或已达到目标，直接设置为目标值
+            if (Math.abs(diff) < 0.5) {
+                progressRef.current = targetProgress;
+                setSmoothProgress(targetProgress);
+                return;
+            }
+
+            // 否则平滑过渡 (每次更新约5%的差距)
+            const newProgress = currentProgress + diff * 0.05;
+            progressRef.current = newProgress;
+            setSmoothProgress(newProgress);
+
+            animationRef.current = requestAnimationFrame(animate);
+        };
+
+        animationRef.current = requestAnimationFrame(animate);
+    };
+
+    // 在组件卸载时清理动画
+    useEffect(() => {
+        return () => {
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         if (images.length === 0) {
@@ -164,6 +250,11 @@ const Watermark: React.FC = () => {
         downloadLink.style.display = "none";
         document.body.appendChild(downloadLink);
 
+        // 重置进度
+        setImgProgress(0);
+        progressRef.current = 0;
+        setSmoothProgress(0);
+
         // 按照 batchSize 分批处理
         for (let i = 0; i < imgPostionList.length; i += batchSize) {
             const batch = imgPostionList.slice(i, i + batchSize); // 当前批次的图片
@@ -171,6 +262,8 @@ const Watermark: React.FC = () => {
             const tasks = batch.map((img, index) =>
                 limit(async () => {
                     const { file, position } = img;
+                    // 开始处理图片时先更新一个中间进度状态
+                    const startProgress = ((i + index) / imgPostionList.length) * 100;
                     const { url, name } = await processImage(
                         file,
                         watermarkImage,
@@ -183,11 +276,11 @@ const Watermark: React.FC = () => {
                     downloadLink.download = `${sliceName}-mark.jpeg`;
                     downloadLink.click();
                     URL.revokeObjectURL(url);
-                    // 使用自定义消息提示替代 antd message
-                    console.log(`图${i + index + 1}下载成功！`);
-                    const progress =
-                        ((i + index + 1) / imgPostionList.length) * 100;
+
+                    // 图片处理完成后更新最终进度
+                    const progress = ((i + index + 1) / imgPostionList.length) * 100;
                     setImgProgress(Math.min(progress, 100));
+                    updateProgressSmoothly(Math.min(progress, 100));
                 })
             );
 
@@ -204,7 +297,13 @@ const Watermark: React.FC = () => {
             particleCount: 600,
             spread: 360,
         });
-        setImgProgress(0);
+
+        // 确保进度条完成后再重置
+        setTimeout(() => {
+            setImgProgress(0);
+            setSmoothProgress(0);
+            progressRef.current = 0;
+        }, 500);
     }
 
     const handleApplyWatermark = async () => {
@@ -305,16 +404,20 @@ const Watermark: React.FC = () => {
                                 (pos) => pos.id === currentImg.id
                             )}
                             onTransform={(position) => {
+                                console.log(
+                                    "position",
+                                    position,
+                                    currentImg.id
+                                );
                                 handleWatermarkTransform(
                                     currentImg.id,
                                     position
                                 );
                             }}
                             totalImages={images.length}
-                            currentIndex={
-                                images.findIndex(
-                                    (img) => img.id === currentImg.id
-                                ) + 1}
+                            currentIndex={images.findIndex(
+                                (img) => img.id === currentImg.id
+                            )}
                             onAllTransform={handleAllWatermarkTransform}
                             onPrevImage={() => {
                                 const currentIndex = images.findIndex(
@@ -350,7 +453,7 @@ const Watermark: React.FC = () => {
                 {/* 移动端底部工具栏 */}
                 <div className="p-3 border-t bg-white/90 backdrop-blur-sm">
                     <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-baseline gap-6">
                             <div className="relative group">
                                 <ImageUploader
                                     onUpload={handleWatermarkUpload}
@@ -378,41 +481,19 @@ const Watermark: React.FC = () => {
                                     className="data-[state=checked]:bg-blue-500"
                                 />
                             </div>
-                        </div>
-
-                        {imgProgress > 0 && (
-                            <div className="flex flex-col items-center gap-1">
-                                <span className="text-xs text-gray-500">
-                                    {Math.round(imgProgress)}%
-                                </span>
-                                <Progress
-                                    value={imgProgress}
-                                    className="w-full h-2"
+                            <ProgressButton
+                                onClick={handleApplyWatermarkDebounced}
+                                loading={loading}
+                                progress={smoothProgress}
+                                className="bg-blue-500 hover:bg-blue-600 shadow-md transition-all duration-200"
+                            >
+                                <Icon
+                                    icon="mdi:image-filter-center-focus"
+                                    className="mr-2 h-5 w-5"
                                 />
-                            </div>
-                        )}
-
-                        <Button
-                            onClick={handleApplyWatermarkDebounced}
-                            size="lg"
-                            disabled={loading}
-                            className="w-full bg-blue-500 hover:bg-blue-600 shadow-md transition-all duration-200"
-                        >
-                            {loading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    处理中...
-                                </>
-                            ) : (
-                                <>
-                                    <Icon
-                                        icon="mdi:image-filter-center-focus"
-                                        className="mr-2 h-5 w-5"
-                                    />
-                                    水印生成
-                                </>
-                            )}
-                        </Button>
+                                水印生成
+                            </ProgressButton>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -527,21 +608,9 @@ const Watermark: React.FC = () => {
                                 </TooltipProvider>
                             </div>
                         </div>
-
-                        {imgProgress > 0 && (
-                            <div className="flex flex-col items-center gap-1">
-                                <span className="text-xs text-gray-500">
-                                    {Math.round(imgProgress)}%
-                                </span>
-                                <Progress
-                                    value={imgProgress}
-                                    className="w-32 h-2"
-                                />
-                            </div>
-                        )}
                     </div>
 
-                    <Button
+                    {/* <Button
                         onClick={handleApplyWatermarkDebounced}
                         size="lg"
                         disabled={loading}
@@ -561,7 +630,19 @@ const Watermark: React.FC = () => {
                                 水印生成
                             </>
                         )}
-                    </Button>
+                    </Button> */}
+                    <ProgressButton
+                        onClick={handleApplyWatermarkDebounced}
+                        loading={loading}
+                        progress={smoothProgress}
+                        className="bg-blue-500 hover:bg-blue-600 shadow-md transition-all duration-200"
+                    >
+                        <Icon
+                            icon="mdi:image-filter-center-focus"
+                            className="mr-2 h-5 w-5"
+                        />
+                        水印生成
+                    </ProgressButton>
                 </div>
             </div>
         );
@@ -570,9 +651,7 @@ const Watermark: React.FC = () => {
     return (
         <div className="relative w-screen h-screen">
             {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>}
-            <div>
-                {isMobile? renderMobileUI() : renderDesktopUI()}
-            </div>
+            <div>{isMobile ? renderMobileUI() : renderDesktopUI()}</div>
         </div>
     );
 };

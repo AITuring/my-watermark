@@ -19,15 +19,27 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+    ChevronLeft,
+    ChevronRight,
+    Eye,
+    EyeOff,
+    RotateCcw,
+    RotateCw,
+    ZoomIn,
+    ZoomOut,
+} from "lucide-react";
 import Konva from "konva";
+import ImageWithFixedWidth from "./ImageWithFixedWidth";
 
 // 绘制辅助线函数
-const drawGuideLines = (
-    layer: Konva.Layer,
-    width: number,
-    height: number
-) => {
+const drawGuideLines = (layer: Konva.Layer, width: number, height: number) => {
     const lineStroke = "red";
     const lineStrokeWidth = 1;
     const dash = [4, 6];
@@ -128,10 +140,17 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     // 是否显示辅助线
     const [showGuideLines, setShowGuideLines] = useState(true);
-    // 是否选中水印
-    const [isSelected, setIsSelected] = useState(false);
+
     // 批量or单独
-    const [isBatch, setIsBatch] = useState<boolean>(false);
+    const [isBatch, setIsBatch] = useState<boolean>(true);
+
+    const [backgroundScale, setBackgroundScale] = useState(0.2);
+    // 添加：当前设置的比例，为了方便按钮操作
+    const [currentScale, setCurrentScale] = useState(1);
+
+    const [backgroundFixWidthVW, setBackgroundFixWidthVW] = useState(
+        () => window.innerHeight * 0.8
+    );
 
     const watermarkRef = useRef<Konva.Image>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
@@ -139,7 +158,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     const layerRef = useRef<Konva.Layer>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // 当背景图片文件改变时，更新背景图片的 URL
+    // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
     useEffect(() => {
         if (backgroundImageFile) {
             const objectURL = URL.createObjectURL(backgroundImageFile);
@@ -148,6 +167,25 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         }
     }, [backgroundImageFile]);
 
+    // 当背景图片加载完成时，更新背景图片的尺寸
+    useEffect(() => {
+        if (backgroundImage && backgroundImageStatus === "loaded") {
+            const scaleWidth =
+                backgroundFixWidthVW / backgroundImage.naturalWidth;
+            const windowHeight = window.innerHeight * 0.74;
+            const scaleHeight = windowHeight / backgroundImage.naturalHeight;
+            const scale = Math.min(scaleWidth, scaleHeight);
+
+            const ratio =
+                backgroundImage.naturalWidth / backgroundImage.naturalHeight;
+            const width = windowHeight * ratio;
+            const height = windowHeight;
+            setBackgroundImageSize({ width, height });
+            updateGuideLines();
+            setCurrentScale(scale);
+        }
+    }, [backgroundImage, backgroundImageStatus, backgroundFixWidthVW]);
+
     // 当背景图片加载完成时，更新背景图片的尺寸和舞台尺寸
     useEffect(() => {
         if (backgroundImage && backgroundImageStatus === "loaded") {
@@ -155,19 +193,22 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             const containerWidth = window.innerWidth;
             const containerHeight = window.innerHeight * 0.6;
 
-            const imageRatio = backgroundImage.naturalWidth / backgroundImage.naturalHeight;
+            const imageRatio =
+                backgroundImage.naturalWidth / backgroundImage.naturalHeight;
 
             let width, height;
 
             // 根据图片比例决定宽高
-            if (imageRatio >= 1) { // 横图
+            if (imageRatio >= 1) {
+                // 横图
                 width = containerWidth;
                 height = width / imageRatio;
                 if (height > containerHeight) {
                     height = containerHeight;
                     width = height * imageRatio;
                 }
-            } else { // 竖图
+            } else {
+                // 竖图
                 height = containerHeight;
                 width = height * imageRatio;
                 if (width > containerWidth) {
@@ -178,6 +219,11 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
             setBackgroundImageSize({ width, height });
             setStageSize({ width, height });
+            const scaleWidth = width / backgroundImage.naturalWidth;
+            const scaleHeight = height / backgroundImage.naturalHeight;
+            const scale = Math.min(scaleWidth, scaleHeight);
+            setBackgroundScale(scale);
+            setCurrentScale(scale);
         }
     }, [backgroundImage, backgroundImageStatus]);
 
@@ -186,7 +232,8 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         if (watermarkImage && backgroundImageSize.width > 0) {
             // 设置水印初始大小为背景图的20%宽度
             const scale =
-                (backgroundImageSize.width * 0.2) / watermarkImage.naturalWidth;
+                (backgroundImageSize.height * 0.2) /
+                watermarkImage.naturalHeight;
             setWatermarkSize({
                 width: watermarkImage.naturalWidth * scale,
                 height: watermarkImage.naturalHeight * scale,
@@ -235,6 +282,34 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         backgroundImageFile,
     ]);
 
+    // 初始化水印尺寸
+    useEffect(() => {
+        if (watermarkImage) {
+            console.log(
+                "watermarkImage",
+                watermarkImage.naturalWidth,
+                watermarkImage.naturalHeight,
+                backgroundScale
+            );
+            setWatermarkSize({
+                width: watermarkImage.naturalWidth * backgroundScale,
+                height: watermarkImage.naturalHeight * backgroundScale,
+            });
+        }
+    }, [watermarkImage, backgroundScale]);
+
+    useEffect(() => {
+        const stage = stageRef.current;
+        if (!stage) return;
+
+        const layer = stage.getLayers()[0];
+        drawGuideLines(
+            layer,
+            backgroundImageSize.width,
+            backgroundImageSize.height
+        );
+    }, [backgroundImageSize.width, backgroundImageSize.height]);
+
     // 当位置变化时，通知父组件
     useEffect(() => {
         if (currentWatermarkPosition) {
@@ -244,49 +319,187 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     // 清理背景图片的 URL
     useEffect(() => {
-        return () => {
-            if (backgroundImageFile) {
-                URL.revokeObjectURL(URL.createObjectURL(backgroundImageFile));
-            }
-        };
+        if (backgroundImageFile) {
+            URL.revokeObjectURL(URL.createObjectURL(backgroundImageFile));
+        }
     }, [backgroundImageFile]);
+
+    const updateWatermarkPosition = (percentX, percentY) => {
+        // 计算水印图片中心的坐标（百分比）
+        const centerX = Math.max(0, Math.min(1, percentX));
+        const centerY = Math.max(0, Math.min(1, percentY));
+
+        // 计算水印图片左上角的坐标（百分比）
+        const leftTopX =
+            centerX - watermarkSize.width / 2 / backgroundImageSize.width;
+        const leftTopY =
+            centerY - watermarkSize.height / 2 / backgroundImageSize.height;
+
+        // 调整坐标以确保水印不会超出背景图片的范围
+        const adjustedLeftTopX = Math.max(
+            0,
+            Math.min(
+                1 - watermarkSize.width / backgroundImageSize.width,
+                leftTopX
+            )
+        );
+        const adjustedLeftTopY = Math.max(
+            0,
+            Math.min(
+                1 - watermarkSize.height / backgroundImageSize.height,
+                leftTopY
+            )
+        );
+
+        // 设置水印图片的新位置和缩放
+        const newPosition = {
+            x: adjustedLeftTopX,
+            y: adjustedLeftTopY,
+            scaleX: currentScale,
+            scaleY: currentScale,
+            rotation: 0,
+        };
+
+        setPosition(newPosition);
+
+        if (isBatch) {
+            onAllTransform(newPosition);
+        } else {
+            onTransform(newPosition);
+        }
+    };
 
     // 处理水印拖动结束事件
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
-        const newPos = {
-            ...position,
-            x: e.target.x(),
-            y: e.target.y(),
-        };
-        setPosition(newPos);
-        onTransform(newPos);
+        const node = e.target;
+        let newX = node.x();
+        let newY = node.y();
+
+        // 检查是否超出背景的边界
+        if (newX < 0) {
+            newX = 0;
+        }
+        if (newY < 0) {
+            newY = 0;
+        }
+        if (newX + watermarkSize.width > backgroundImageSize.width) {
+            newX = backgroundImageSize.width - watermarkSize.width;
+        }
+        if (newY + watermarkSize.height > backgroundImageSize.height) {
+            newY = backgroundImageSize.height - watermarkSize.height;
+        }
+
+        node.position({ x: newX, y: newY });
+
+        // 计算水印在原图上的实际位置和尺寸
+        const actualX = newX / backgroundImageSize.width;
+        const actualY = newY / backgroundImageSize.height;
+        const actualScaleX = node.scaleX();
+        const actualRotation = node.rotation();
+
+        setCurrentScale(actualScaleX);
+        updateWatermarkSize(actualScaleX);
+
+        setPosition({
+            x: actualX,
+            y: actualY,
+            scaleX: actualScaleX,
+            scaleY: actualScaleX,
+            rotation: actualRotation,
+        });
+
+        // 传递给onTransform回调
+        if (isBatch) {
+            onAllTransform({
+                x: actualX,
+                y: actualY,
+                scaleX: actualScaleX,
+                scaleY: actualScaleX,
+                rotation: actualRotation,
+            });
+        } else {
+            onTransform({
+                x: actualX,
+                y: actualY,
+                scaleX: actualScaleX,
+                scaleY: actualScaleX,
+                rotation: actualRotation,
+            });
+        }
+
+        node.getLayer().batchDraw();
+    };
+
+    // 更新水印尺寸
+    const updateWatermarkSize = (scale) => {
+        if (watermarkImage) {
+            const width = watermarkImage.naturalWidth * backgroundScale * scale;
+            const height =
+                watermarkImage.naturalHeight * backgroundScale * scale;
+            if (width > 0 && height > 0) {
+                setWatermarkSize({
+                    width: width,
+                    height: height,
+                });
+            }
+        }
     };
 
     // 处理水印变换结束事件
-    const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
-        if (!watermarkRef.current) return;
+    const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
+        const node = e.target;
+        let newX = node.x();
+        let newY = node.y();
 
-        const node = watermarkRef.current;
-        const scaleX = node.scaleX();
-        const scaleY = node.scaleY();
-        const rotation = node.rotation();
+        // 检查是否超出背景的边界
+        if (newX < 0) {
+            newX = 0;
+        }
+        if (newY < 0) {
+            newY = 0;
+        }
+        if (newX + watermarkSize.width > backgroundImageSize.width) {
+            newX = backgroundImageSize.width - watermarkSize.width;
+        }
+        if (newY + watermarkSize.height > backgroundImageSize.height) {
+            newY = backgroundImageSize.height - watermarkSize.height;
+        }
 
-        const newPos = {
-            ...position,
-            x: node.x(),
-            y: node.y(),
-            scaleX,
-            scaleY,
-            rotation,
+        // 计算水印在原图上的实际位置和尺寸
+        const actualX = newX / backgroundImageSize.width;
+        const actualY = newY / backgroundImageSize.height;
+        const actualScaleX = node.scaleX();
+        const actualRotation = node.rotation();
+
+        setCurrentScale(actualScaleX);
+        updateWatermarkSize(actualScaleX);
+
+        const newPosition = {
+            x: actualX,
+            y: actualY,
+            scaleX: actualScaleX,
+            scaleY: actualScaleX,
+            rotation: actualRotation,
         };
 
-        setPosition(newPos);
-        onTransform(newPos);
+        setPosition(newPosition);
+
+        if (isBatch) {
+            onAllTransform(newPosition);
+        } else {
+            onTransform(newPosition);
+        }
     };
 
     // 更新参考线的函数
     const updateGuideLines = () => {
-        if (!layerRef.current || !showGuideLines || backgroundImageSize.width <= 0 || backgroundImageSize.height <= 0) return;
+        if (
+            !layerRef.current ||
+            !showGuideLines ||
+            backgroundImageSize.width <= 0 ||
+            backgroundImageSize.height <= 0
+        )
+            return;
 
         drawGuideLines(
             layerRef.current,
@@ -301,7 +514,24 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             position.rotation + (direction === "left" ? -15 : 15);
         const newPos = { ...position, rotation: newRotation };
         setPosition(newPos);
-        onTransform(newPos);
+
+        // 根据批量模式决定调用哪个函数
+        if (isBatch) {
+            onAllTransform(newPos);
+        } else {
+            onTransform(newPos);
+        }
+
+        // 更新水印的旋转角度
+        if (watermarkRef.current) {
+            watermarkRef.current.rotation(newRotation);
+            watermarkRef.current.getLayer()?.batchDraw();
+
+            if (transformerRef.current) {
+                transformerRef.current.nodes([watermarkRef.current]);
+                transformerRef.current.getLayer()?.batchDraw();
+            }
+        }
     };
 
     const handleScale = (action: "increase" | "decrease") => {
@@ -312,7 +542,11 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             scaleY: position.scaleY * scaleFactor,
         };
         setPosition(newPos);
-        onTransform(newPos);
+        if (isBatch) {
+            onAllTransform(newPos);
+        } else {
+            onTransform(newPos);
+        }
     };
 
     // 应用到所有图片
@@ -320,34 +554,12 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         onAllTransform(position);
     };
 
-    // 选择水印
-    const selectWatermark = () => {
-        setIsSelected(true);
-        if (transformerRef.current && watermarkRef.current) {
-            transformerRef.current.nodes([watermarkRef.current]);
-            transformerRef.current.getLayer()?.batchDraw();
-        }
-    };
-
-    // 取消选择水印
-    const deselectWatermark = () => {
-        setIsSelected(false);
-        if (transformerRef.current) {
-            transformerRef.current.nodes([]);
-            transformerRef.current.getLayer()?.batchDraw();
-        }
-    };
-
-    // 处理舞台点击事件
-    const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-        if (e.target === e.target.getStage()) {
-            deselectWatermark();
-        }
-    };
-
     // 处理水印点击事件
-    const handleWatermarkClick = () => {
-        selectWatermark();
+    const onWatermarkClick = () => {
+        if (watermarkRef.current && transformerRef.current) {
+            transformerRef.current.nodes([watermarkRef.current]);
+            transformerRef.current.getLayer().batchDraw();
+        }
     };
 
     // 切换辅助线显示状态
@@ -355,71 +567,39 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         setShowGuideLines(!showGuideLines);
     };
 
-    // 九宫格位置设置
-    const setWatermarkPosition = (positionName: string) => {
-        if (
-            !watermarkRef.current ||
-            !backgroundImageSize.width ||
-            !backgroundImageSize.height
-        )
-            return;
-
-        const watermarkWidth = watermarkRef.current.width() * position.scaleX;
-        const watermarkHeight = watermarkRef.current.height() * position.scaleY;
-
-        let x = 0;
-        let y = 0;
-
-        // 根据位置设置水印坐标
-        switch (positionName) {
-            case "topLeft":
-                x = 10;
-                y = 10;
-                break;
-            case "topCenter":
-                x = backgroundImageSize.width / 2 - watermarkWidth / 2;
-                y = 10;
-                break;
-            case "topRight":
-                x = backgroundImageSize.width - watermarkWidth - 10;
-                y = 10;
-                break;
-            case "middleLeft":
-                x = 10;
-                y = backgroundImageSize.height / 2 - watermarkHeight / 2;
-                break;
-            case "middleCenter":
-                x = backgroundImageSize.width / 2 - watermarkWidth / 2;
-                y = backgroundImageSize.height / 2 - watermarkHeight / 2;
-                break;
-            case "middleRight":
-                x = backgroundImageSize.width - watermarkWidth - 10;
-                y = backgroundImageSize.height / 2 - watermarkHeight / 2;
-                break;
-            case "bottomLeft":
-                x = 10;
-                y = backgroundImageSize.height - watermarkHeight - 10;
-                break;
-            case "bottomCenter":
-                x = backgroundImageSize.width / 2 - watermarkWidth / 2;
-                y = backgroundImageSize.height - watermarkHeight - 10;
-                break;
-            case "bottomRight":
-                x = backgroundImageSize.width - watermarkWidth - 10;
-                y = backgroundImageSize.height - watermarkHeight - 10;
-                break;
-            default:
-                break;
-        }
-
-        const newPos = { ...position, x, y };
-        setPosition(newPos);
-        onTransform(newPos);
-    };
-
     // 处理位置选择变化
     const handlePositionChange = (value: string) => {
-        setWatermarkPosition(value);
+        switch (value) {
+            case "topLeft":
+                updateWatermarkPosition(0, 0);
+                break;
+            case "topCenter":
+                updateWatermarkPosition(0.5, 0);
+                break;
+            case "topRight":
+                updateWatermarkPosition(1, 0);
+                break;
+            case "middleLeft":
+                updateWatermarkPosition(0, 0.5);
+                break;
+            case "middleCenter":
+                updateWatermarkPosition(0.5, 0.5);
+                break;
+            case "middleRight":
+                updateWatermarkPosition(1, 0.5);
+                break;
+            case "bottomLeft":
+                updateWatermarkPosition(0, 1);
+                break;
+            case "bottomCenter":
+                updateWatermarkPosition(0.5, 1);
+                break;
+            case "bottomRight":
+                updateWatermarkPosition(1, 1);
+                break;
+            default:
+                updateWatermarkPosition(0.5, 0.5);
+        }
     };
 
     // 处理批量/单独模式切换
@@ -481,12 +661,10 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     width={backgroundImageSize.width}
                     height={backgroundImageSize.height}
                     className="bg-gray-100"
-                    onClick={handleStageClick}
-                    onTap={handleStageClick}
                     style={{
-                        margin: '0 auto',
-                        maxWidth: '100%',
-                        maxHeight: '100%'
+                        margin: "0 auto",
+                        maxWidth: "100%",
+                        maxHeight: "100%",
                     }}
                 >
                     <Layer ref={layerRef}>
@@ -500,29 +678,29 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                             />
                         )}
                         {watermarkImage && (
-                            <KonvaImage
-                                ref={watermarkRef}
-                                image={watermarkImage}
-                                x={position.x}
-                                y={position.y}
+                            <ImageWithFixedWidth
+                                src={watermarkUrl}
+                                fixedWidth={
+                                    watermarkImage.naturalWidth *
+                                    backgroundScale
+                                }
+                                x={position.x * backgroundImageSize.width}
+                                y={position.y * backgroundImageSize.height}
                                 scaleX={position.scaleX}
                                 scaleY={position.scaleY}
-                                rotation={position.rotation}
                                 draggable
+                                ref={watermarkRef}
+                                onClick={onWatermarkClick}
+                                onTap={onWatermarkClick}
                                 onDragEnd={handleDragEnd}
-                                onClick={handleWatermarkClick}
-                                onTap={handleWatermarkClick}
-                                onTransformEnd={handleTransformEnd}
+                                onTransformEnd={handleTransform}
                             />
                         )}
                         <Transformer
                             ref={transformerRef}
                             boundBoxFunc={(oldBox, newBox) => {
                                 // 限制变换的最小尺寸
-                                if (
-                                    newBox.width < 5 ||
-                                    newBox.height < 5
-                                ) {
+                                if (newBox.width < 5 || newBox.height < 5) {
                                     return oldBox;
                                 }
                                 return newBox;
@@ -534,7 +712,6 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 "bottom-right",
                             ]}
                             rotationSnaps={[0, 90, 180, 270]}
-                            visible={isSelected}
                         />
                     </Layer>
                 </Stage>
@@ -544,30 +721,80 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             <div className="p-3 bg-white border-t">
                 <div className="flex flex-col gap-3">
                     <div className="flex justify-between">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={toggleGuideLines}
-                        >
-                            {showGuideLines ? (
-                                <>
-                                    <EyeOff className="h-4 w-4 mr-1" />
-                                    隐藏辅助线
-                                </>
-                            ) : (
-                                <>
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    显示辅助线
-                                </>
-                            )}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={applyToAll}
-                        >
-                            应用到所有图片
-                        </Button>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={toggleGuideLines}
+                                    >
+                                        {showGuideLines ? (
+                                            <EyeOff className="h-5 w-5" />
+                                        ) : (
+                                            <Eye className="h-5 w-5" />
+                                        )}
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    {showGuideLines
+                                        ? "隐藏辅助线"
+                                        : "显示辅助线"}
+                                </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleRotate("left")}
+                                    >
+                                        <RotateCcw className="h-5 w-5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>左旋转</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleRotate("right")}
+                                    >
+                                        <RotateCw className="h-5 w-5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>右旋转</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleScale("increase")}
+                                    >
+                                        <ZoomIn className="h-5 w-5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>放大</TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        onClick={() => handleScale("decrease")}
+                                    >
+                                        <ZoomOut className="h-5 w-5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>缩小</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
@@ -611,7 +838,10 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                             </Select>
                         </div>
                         <div>
-                            <Select onValueChange={handleModeChange}>
+                            <Select
+                                onValueChange={handleModeChange}
+                                defaultValue="batch"
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="应用模式" />
                                 </SelectTrigger>
@@ -628,33 +858,6 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 </SelectContent>
                             </Select>
                         </div>
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => handleRotate("left")}
-                        >
-                            左旋转
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => handleRotate("right")}
-                        >
-                            右旋转
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => handleScale("increase")}
-                        >
-                            放大
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => handleScale("decrease")}
-                        >
-                            缩小
-                        </Button>
                     </div>
                 </div>
             </div>
