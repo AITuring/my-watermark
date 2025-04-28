@@ -161,6 +161,86 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     const layerRef = useRef<Konva.Layer>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
+    // 添加触摸相关状态
+    const [touchStartDistance, setTouchStartDistance] = useState<number | null>(null);
+    const [touchStartRotation, setTouchStartRotation] = useState<number | null>(null);
+    const [initialScale, setInitialScale] = useState<number>(1);
+    const [initialRotation, setInitialRotation] = useState<number>(0);
+
+    // 计算两个触摸点之间的距离
+    const getDistance = (touch1: Touch, touch2: Touch) => {
+        return Math.sqrt(
+            Math.pow(touch2.clientX - touch1.clientX, 2) +
+            Math.pow(touch2.clientY - touch1.clientY, 2)
+        );
+    };
+
+    // 计算两个触摸点形成的角度
+    const getRotation = (touch1: Touch, touch2: Touch) => {
+        return Math.atan2(
+            touch2.clientY - touch1.clientY,
+            touch2.clientX - touch1.clientX
+        );
+    };
+
+    useEffect(() => {
+        if (watermarkRef.current) {
+            // 处理触摸开始事件
+            watermarkRef.current.on('touchstart', (e) => {
+                const touches = e.evt.touches;
+                if (touches.length === 2) {
+                    e.evt.preventDefault();
+                    const distance = getDistance(touches[0], touches[1]);
+                    const rotation = getRotation(touches[0], touches[1]);
+                    setTouchStartDistance(distance);
+                    setTouchStartRotation(rotation);
+                    setInitialScale(position.scaleX);
+                    setInitialRotation(position.rotation);
+                }
+            });
+
+            // 处理触摸移动事件
+            watermarkRef.current.on('touchmove', (e) => {
+                const touches = e.evt.touches;
+                if (touches.length === 2 && touchStartDistance && touchStartRotation !== null) {
+                    e.evt.preventDefault();
+                    const distance = getDistance(touches[0], touches[1]);
+                    const rotation = getRotation(touches[0], touches[1]);
+
+                    // 计算缩放比例
+                    const scale = (distance / touchStartDistance) * initialScale;
+                    // 计算旋转角度
+                    const newRotation = initialRotation +
+                        ((rotation - touchStartRotation) * 180) / Math.PI;
+
+                    // 更新位置
+                    const newPosition = {
+                        ...position,
+                        scaleX: Math.max(0.1, Math.min(5, scale)),
+                        scaleY: Math.max(0.1, Math.min(5, scale)),
+                        rotation: newRotation
+                    };
+                    setPosition(newPosition);
+                    onTransform(newPosition);
+                }
+            });
+
+            // 处理触摸结束事件
+            watermarkRef.current.on('touchend', () => {
+                setTouchStartDistance(null);
+                setTouchStartRotation(null);
+            });
+        }
+
+        return () => {
+            if (watermarkRef.current) {
+                watermarkRef.current.off('touchstart');
+                watermarkRef.current.off('touchmove');
+                watermarkRef.current.off('touchend');
+            }
+        };
+    }, [position, initialScale, initialRotation, onTransform]);
+
     // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
     useEffect(() => {
         if (backgroundImageFile) {
