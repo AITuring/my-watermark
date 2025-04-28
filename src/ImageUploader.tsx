@@ -37,15 +37,19 @@ const ImageUploader = forwardRef<HTMLDivElement, ImageUploaderProps>(
             >
                 <input {...getInputProps()} />
                 {children || (
-                    <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                        {isDragActive ? (
-                            <UploadCloud className="w-12 h-12 text-primary mb-2" />
-                        ) : (
-                            <Upload className="w-12 h-12 text-gray-400 mb-2" />
-                        )}
-                        <p className="text-sm text-gray-600">
+                    <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-white/30 rounded-xl bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-300 shadow-lg">
+                        <div className="relative">
+                            <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-purple-500/30 to-green-500/30 blur-xl opacity-70 animate-pulse"></div>
+                            {isDragActive ? (
+                                <UploadCloud className="w-12 h-12 text-green-400 mb-2 relative z-10" />
+                            ) : (
+                                <Upload className="w-12 h-12 text-white/70 mb-2 relative z-10" />
+                            )}
+                        </div>
+                        <p className="text-sm text-white/90 font-medium mt-2 relative z-10">
                             拖拽{fileType}到此处，或点击上传
                         </p>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-green-500/20 blur-xl"></div>
                     </div>
                 )}
             </div>
