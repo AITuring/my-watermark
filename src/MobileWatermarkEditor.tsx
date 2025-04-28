@@ -152,6 +152,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         () => window.innerHeight * 0.8
     );
 
+    // 添加加载状态
+    const [isLoading, setIsLoading] = useState(true);
+
     const watermarkRef = useRef<Konva.Image>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
     const stageRef = useRef<Konva.Stage>(null);
@@ -161,15 +164,26 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
     useEffect(() => {
         if (backgroundImageFile) {
+            setIsLoading(true);
+            // 释放之前的URL
+            if (backgroundImageUrl) {
+                URL.revokeObjectURL(backgroundImageUrl);
+            }
+
+            // 创建新的URL
             const objectURL = URL.createObjectURL(backgroundImageFile);
             setBackgroundImageUrl(objectURL);
-            return () => URL.revokeObjectURL(objectURL);
+
+            return () => {
+                URL.revokeObjectURL(objectURL);
+            };
         }
     }, [backgroundImageFile]);
 
     // 当背景图片加载完成时，更新背景图片的尺寸
     useEffect(() => {
         if (backgroundImage && backgroundImageStatus === "loaded") {
+            setIsLoading(false);
             const scaleWidth =
                 backgroundFixWidthVW / backgroundImage.naturalWidth;
             const windowHeight = window.innerHeight * 0.74;
@@ -549,11 +563,6 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         }
     };
 
-    // 应用到所有图片
-    const applyToAll = () => {
-        onAllTransform(position);
-    };
-
     // 处理水印点击事件
     const onWatermarkClick = () => {
         if (watermarkRef.current && transformerRef.current) {
@@ -621,7 +630,17 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     };
 
     return (
-        <div ref={containerRef} className="flex flex-col h-full">
+        <div ref={containerRef} className="relative flex flex-col h-full">
+            {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 z-50">
+                    <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                        <p className="mt-2 text-sm text-gray-600">
+                            加载图片中...
+                        </p>
+                    </div>
+                </div>
+            )}
             <div className="flex-1 relative flex justify-center items-center">
                 {/* 图片索引指示器 */}
                 {totalImages > 0 && (

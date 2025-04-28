@@ -27,15 +27,39 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewIndex, setPreviewIndex] = useState(0);
     const [imageUrls, setImageUrls] = useState<string[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
 
-    // 生成图片URL列表
+    // 优化图片URL生成，使用懒加载方式
     useEffect(() => {
-        const urls = images.map(image => URL.createObjectURL(image.file));
-        setImageUrls(urls);
+        // 清理旧的URLs
+        imageUrls.forEach((url) => URL.revokeObjectURL(url));
+
+        // 只为可见的图片创建URL
+        const urls: string[] = [];
+        const createUrls = async () => {
+            // 每次处理10张图片，避免一次性处理太多导致卡顿
+            for (let i = 0; i < images.length; i += 10) {
+                const batch = images.slice(i, i + 10);
+                const batchUrls = batch.map((image) =>
+                    URL.createObjectURL(image.file)
+                );
+                urls.push(...batchUrls);
+
+                // 更新状态，让UI能够逐步显示图片
+                setImageUrls([...urls]);
+
+                // 如果不是最后一批，等待一小段时间再处理下一批
+                if (i + 10 < images.length) {
+                    await new Promise((resolve) => setTimeout(resolve, 50));
+                }
+            }
+        };
+
+        createUrls();
 
         // 清理函数
         return () => {
-            urls.forEach(url => URL.revokeObjectURL(url));
+            urls.forEach((url) => URL.revokeObjectURL(url));
         };
     }, [images]);
 
@@ -59,20 +83,33 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
 
     const handleImagesUpload = async (files: File[]) => {
         try {
+            setIsUploading(true);
             // 导入 loadImageData 函数
-            const { loadImageData } = await import('./utils');
-            const newImages = await loadImageData(files);
+            const { loadImageData } = await import("./utils");
+            // 分批处理图片，避免一次性处理太多
+            const batchSize = 5;
+            for (let i = 0; i < files.length; i += batchSize) {
+                const batch = files.slice(i, i + batchSize);
+                const newImages = await loadImageData(batch);
 
-            // 合并新上传的图片和现有图片
-            setImages(prevImages => [...prevImages, ...newImages]);
+                // 合并新上传的图片和现有图片
+                setImages((prevImages) => [...prevImages, ...newImages]);
 
-            // 如果是第一张图片，设置为当前图片
-            if (newImages.length > 0 && images.length === 0) {
-                setCurrentImg(newImages[0]);
-                onImageSelect();
+                // 如果是第一张图片，设置为当前图片
+                if (i === 0 && images.length === 0) {
+                    setCurrentImg(newImages[0]);
+                    onImageSelect();
+                }
+
+                // 如果不是最后一批，等待一小段时间再处理下一批
+                if (i + batchSize < files.length) {
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+                }
             }
         } catch (error) {
             console.error("上传图片失败", error);
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -107,9 +144,23 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
                         fileType="背景"
                         className="inline-block"
                     >
-                        <Button variant="ghost" size="sm" className="h-8">
-                            <Plus className="h-4 w-4 mr-1" />
-                            添加
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8"
+                            disabled={isUploading}
+                        >
+                            {isUploading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mr-1"></div>
+                                    上传中
+                                </>
+                            ) : (
+                                <>
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    添加
+                                </>
+                            )}
                         </Button>
                     </ImageUploader>
                 </div>
@@ -142,7 +193,9 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
                                     variant="outline"
                                     size="icon"
                                     className="h-6 w-6 bg-white/80 opacity-70 hover:opacity-100 transition-opacity"
-                                    onClick={(e) => handlePreviewImage(e, index)}
+                                    onClick={(e) =>
+                                        handlePreviewImage(e, index)
+                                    }
                                 >
                                     <Maximize2 className="h-3 w-3" />
                                 </Button>
@@ -150,7 +203,9 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
                                     variant="destructive"
                                     size="icon"
                                     className="h-6 w-6 opacity-70 hover:opacity-100 transition-opacity"
-                                    onClick={(e) => handleDeleteImage(image.id, e)}
+                                    onClick={(e) =>
+                                        handleDeleteImage(image.id, e)
+                                    }
                                 >
                                     <X className="h-3 w-3" />
                                 </Button>
