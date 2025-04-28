@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:miniapp": "cd miniapp && taro build --type weapp",
+    "dev:miniapp": "cd miniapp && npm run build:weapp -- --watch"
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
