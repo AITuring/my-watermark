@@ -394,6 +394,28 @@ const RestaurantFinder = () => {
                 }
             }
         );
+
+        // 构建调起手机高德地图的URL
+        const startPoint = `${position.lng},${position.lat}`;
+        const endPoint = `${restaurant.location.lng},${restaurant.location.lat}`;
+        const endName = encodeURIComponent(restaurant.name);
+
+        // 高德地图URL Scheme
+        const amapUrl = `androidamap://route?sourceApplication=appname&slat=${position.lat}&slon=${position.lng}&dlat=${restaurant.location.lat}&dlon=${restaurant.location.lng}&dname=${endName}&dev=0&t=2`;
+
+        // iOS和Android通用的URI API
+        const webUrl = `https://uri.amap.com/navigation?from=${startPoint},我的位置&to=${endPoint},${endName}&mode=walk&callnative=1`;
+
+        // 检测设备类型并打开相应链接
+        if (/android/i.test(navigator.userAgent)) {
+            window.location.href = amapUrl;
+            // 如果无法打开应用，延迟后跳转到网页版
+            setTimeout(() => {
+                window.location.href = webUrl;
+            }, 2000);
+        } else {
+            window.location.href = webUrl;
+        }
     };
 
     return (
