@@ -658,7 +658,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                             {dominantColors.map((color, index) => (
                                 <button
                                     key={index}
-                                    className={`w-8 h-8 rounded-full border-2 ${
+                                    className={`w-8 h-8 rounded-full ${
                                         isProcessingColor
                                             ? "opacity-50 cursor-not-allowed"
                                             : ""

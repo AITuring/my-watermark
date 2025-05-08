@@ -274,16 +274,25 @@ const extractDominantColors = (imageElement, numColors = 5) => {
     // 创建一个临时canvas来处理图像
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = imageElement.width;
-    canvas.height = imageElement.height;
-    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+
+    // 限制处理尺寸，提高性能
+    const maxDimension = 100; // 限制最大尺寸为100px
+    const scale = Math.min(1, maxDimension / Math.max(imageElement.width, imageElement.height));
+    const width = Math.floor(imageElement.width * scale);
+    const height = Math.floor(imageElement.height * scale);
+
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(imageElement, 0, 0, width, height);
 
     // 获取图像数据
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, width, height);
     const pixels = imageData.data;
 
-    // 颜色计数对象
-    const colorCounts = {};
+    // 使用Map代替对象，提高性能
+    const colorCounts = new Map();
+    // 量化步长，可以调整以平衡精度和性能
+    const quantizeStep = 32;
 
     // 分析每个像素
     for (let i = 0; i < pixels.length; i += 4) {
@@ -296,39 +305,45 @@ const extractDominantColors = (imageElement, numColors = 5) => {
         if (a < 128) continue;
 
         // 简化颜色值以减少唯一颜色数量（量化）
-        const quantizedR = Math.round(r / 32) * 32;
-        const quantizedG = Math.round(g / 32) * 32;
-        const quantizedB = Math.round(b / 32) * 32;
+        const quantizedR = Math.round(r / quantizeStep) * quantizeStep;
+        const quantizedG = Math.round(g / quantizeStep) * quantizeStep;
+        const quantizedB = Math.round(b / quantizeStep) * quantizeStep;
 
         const colorKey = `${quantizedR},${quantizedG},${quantizedB}`;
 
-        if (colorCounts[colorKey]) {
-            colorCounts[colorKey]++;
-        } else {
-            colorCounts[colorKey] = 1;
-        }
+        colorCounts.set(colorKey, (colorCounts.get(colorKey) || 0) + 1);
     }
 
+    // 计算亮度的辅助函数
+    const calculateBrightness = (r, g, b) => (r * 299 + g * 587 + b * 114) / 1000;
+
     // 转换为数组并排序
-    const colorEntries = Object.entries(colorCounts).map(([color, count]) => {
+    const colorEntries = Array.from(colorCounts.entries()).map(([color, count]) => {
         const [r, g, b] = color.split(',').map(Number);
         return {
             color: `rgb(${r}, ${g}, ${b})`,
             count,
             r, g, b,
-            // 计算亮度
-            brightness: (r * 299 + g * 587 + b * 114) / 1000
+            brightness: calculateBrightness(r, g, b)
         };
     });
 
     // 按出现频率排序
-    colorEntries.sort((a, b) => (b.count as number) - (a.count as number));
+    colorEntries.sort((a, b) => b.count - a.count);
 
     // 确保颜色多样性 - 选择亮度差异较大的颜色
     const result = [];
     const brightnessThreshold = 50; // 亮度差异阈值
 
-    for (const entry of colorEntries) {
+    // 优先选择出现频率最高的颜色
+    if (colorEntries.length > 0) {
+        result.push(colorEntries[0]);
+    }
+
+    // 然后选择与已选颜色有足够亮度差异的颜色
+    for (let i = 1; i < colorEntries.length && result.length < numColors; i++) {
+        const entry = colorEntries[i];
+
         // 检查这个颜色是否与已选颜色有足够的亮度差异
         const isDifferentEnough = result.every(
             selectedColor => Math.abs(selectedColor.brightness - entry.brightness) > brightnessThreshold
@@ -337,8 +352,15 @@ const extractDominantColors = (imageElement, numColors = 5) => {
         if (isDifferentEnough) {
             result.push(entry);
         }
+    }
 
-        if (result.length >= numColors) break;
+    // 如果没有足够的颜色满足亮度差异要求，添加剩余的颜色
+    if (result.length < numColors) {
+        for (let i = 0; i < colorEntries.length && result.length < numColors; i++) {
+            if (!result.includes(colorEntries[i])) {
+                result.push(colorEntries[i]);
+            }
+        }
     }
 
     return result;
