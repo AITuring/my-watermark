@@ -159,6 +159,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                                     {image.file.name}
                                 </p>
                             </div>
+
                             <div className="absolute top-1 right-1 flex gap-1">
                                 <TooltipProvider>
                                     <Tooltip>

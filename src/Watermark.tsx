@@ -71,7 +71,6 @@ const ProgressButton: React.FC<ProgressButtonProps> = ({
     );
 };
 
-
 const Watermark: React.FC = () => {
     const [images, setImages] = useState<ImageType[]>([]);
     const deviceType = useDeviceDetect(); // 获取设备类型
@@ -86,6 +85,11 @@ const Watermark: React.FC = () => {
     const [watermarkPositions, setWatermarkPositions] = useState<
         WatermarkPosition[]
     >([]);
+
+    // 水印颜色状态数组，为每张图片存储对应的颜色base64地址
+    const [watermarkColorUrls, setWatermarkColorUrls] = useState<{
+        [key: string]: string;
+    }>({});
 
     const dropzoneRef = useRef(null);
 
@@ -175,6 +179,13 @@ const Watermark: React.FC = () => {
                     }))
                 );
 
+                // 初始化水印颜色（默认为空，表示使用原始颜色）
+                const newColors = {};
+                uploadImages.forEach((img) => {
+                    newColors[img.id] = "";
+                });
+                setWatermarkColorUrls((prev) => ({ ...prev, ...newColors }));
+
                 return uploadImages;
             } else {
                 // 如果已有图片，合并新上传的图片
@@ -190,11 +201,30 @@ const Watermark: React.FC = () => {
                     rotation: 0,
                 }));
 
+                // 初始化水印颜色（默认为空，表示使用原始颜色）
+                const newColors = {};
+                uploadImages.forEach((img) => {
+                    newColors[img.id] = "";
+                });
+                setWatermarkColorUrls((prev) => ({ ...prev, ...newColors }));
+
                 setWatermarkPositions((prev) => [...prev, ...newPositions]);
 
                 return newImages;
             }
         });
+    };
+
+    // 更新水印颜色
+    const handleWatermarkColorChange = (
+        imageId: string,
+        newWatermarkUrl: string
+    ) => {
+
+        setWatermarkColorUrls((prev) => ({
+            ...prev,
+            [imageId]: newWatermarkUrl,
+        }));
     };
 
     const handleWatermarkUpload = (files: File[]) => {
@@ -241,7 +271,6 @@ const Watermark: React.FC = () => {
 
     async function downloadImagesWithWatermarkBatch(
         imgPostionList,
-        watermarkImage,
         batchSize = 5,
         globalConcurrency = 10
     ) {
@@ -261,12 +290,31 @@ const Watermark: React.FC = () => {
 
             const tasks = batch.map((img, index) =>
                 limit(async () => {
+                    console.log(`开始处理图片 ${img.id}`, watermarkColorUrls[img.id]);
                     const { file, position } = img;
+
+                    // 创建并加载水印图像
+                    const watermarkImg = new Image();
+                    try {
+                        await new Promise((resolve, reject) => {
+                            watermarkImg.onload = resolve;
+                            watermarkImg.onerror = (e) => {
+                                console.error("水印图像加载失败:", e);
+                                reject(new Error("水印图像加载失败"));
+                            };
+                            watermarkImg.src =
+                                watermarkColorUrls[img.id] || '/logo.png';
+                        });
+                    } catch (error) {
+                        console.error(`图片 ${img.id} 的水印加载失败:`, error);
+                        throw new Error(`图片 ${img.id} 的水印加载失败`);
+                    }
                     // 开始处理图片时先更新一个中间进度状态
-                    const startProgress = ((i + index) / imgPostionList.length) * 100;
+                    const startProgress =
+                        ((i + index) / imgPostionList.length) * 100;
                     const { url, name } = await processImage(
                         file,
-                        watermarkImage,
+                        watermarkImg,
                         position,
                         watermarkBlur,
                         quality
@@ -278,7 +326,8 @@ const Watermark: React.FC = () => {
                     URL.revokeObjectURL(url);
 
                     // 图片处理完成后更新最终进度
-                    const progress = ((i + index + 1) / imgPostionList.length) * 100;
+                    const progress =
+                        ((i + index + 1) / imgPostionList.length) * 100;
                     setImgProgress(Math.min(progress, 100));
                     updateProgressSmoothly(Math.min(progress, 100));
                 })
@@ -314,8 +363,8 @@ const Watermark: React.FC = () => {
         setLoading(true);
         const { batchSize, globalConcurrency } =
             adjustBatchSizeAndConcurrency(images);
-        const watermarkImage = new Image();
-        watermarkImage.onload = async () => {
+
+        try {
             console.log("水印下载开始！");
 
             const allimageData: ImgWithPosition[] = images.map((img) => ({
@@ -327,17 +376,14 @@ const Watermark: React.FC = () => {
             console.log("allimageData", allimageData);
             await downloadImagesWithWatermarkBatch(
                 allimageData,
-                watermarkImage,
                 batchSize,
                 globalConcurrency
             );
-        };
-
-        watermarkImage.onerror = () => {
-            alert("Failed to load the watermark image.");
+        } catch (error) {
+            console.error("处理水印失败:", error);
+            alert("处理水印失败，请重试。");
             setLoading(false);
-        };
-        watermarkImage.src = watermarkUrl;
+        }
     };
 
     // 使用 debounce 包裹你的事件处理函数
@@ -548,6 +594,12 @@ const Watermark: React.FC = () => {
                             onAllTransform={(position) => {
                                 handleAllWatermarkTransform(position);
                             }}
+                            watermarkColor={
+                                watermarkColorUrls[currentImg.id] || ""
+                            }
+                            onColorChange={(color) =>
+                                handleWatermarkColorChange(currentImg.id, color)
+                            }
                         />
                     )}
                 </div>

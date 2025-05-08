@@ -92,7 +92,13 @@ function debounce(func, wait) {
 }
 
 // 图片处理
-async function processImage(file: File, watermarkImage: HTMLImageElement, position, watermarkBlur: boolean, quality: number): Promise<{ url: string; name: string }> {
+async function processImage(
+    file: File,
+    watermarkImage: HTMLImageElement,
+    position,
+    watermarkBlur: boolean,
+    quality: number,
+): Promise<{ url: string; name: string }> {
     const startTime = performance.now();
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -263,5 +269,190 @@ function adjustBatchSizeAndConcurrency(
     return { batchSize, globalConcurrency };
 }
 
+// 提取图像的主要颜色
+const extractDominantColors = (imageElement, numColors = 5) => {
+    // 创建一个临时canvas来处理图像
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = imageElement.width;
+    canvas.height = imageElement.height;
+    ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
 
-export { uuid, loadImageData, calculateWatermarkPosition, debounce, processImage, adjustBatchSizeAndConcurrency };
+    // 获取图像数据
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imageData.data;
+
+    // 颜色计数对象
+    const colorCounts = {};
+
+    // 分析每个像素
+    for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        const a = pixels[i + 3];
+
+        // 忽略透明像素
+        if (a < 128) continue;
+
+        // 简化颜色值以减少唯一颜色数量（量化）
+        const quantizedR = Math.round(r / 32) * 32;
+        const quantizedG = Math.round(g / 32) * 32;
+        const quantizedB = Math.round(b / 32) * 32;
+
+        const colorKey = `${quantizedR},${quantizedG},${quantizedB}`;
+
+        if (colorCounts[colorKey]) {
+            colorCounts[colorKey]++;
+        } else {
+            colorCounts[colorKey] = 1;
+        }
+    }
+
+    // 转换为数组并排序
+    const colorEntries = Object.entries(colorCounts).map(([color, count]) => {
+        const [r, g, b] = color.split(',').map(Number);
+        return {
+            color: `rgb(${r}, ${g}, ${b})`,
+            count,
+            r, g, b,
+            // 计算亮度
+            brightness: (r * 299 + g * 587 + b * 114) / 1000
+        };
+    });
+
+    // 按出现频率排序
+    colorEntries.sort((a, b) => (b.count as number) - (a.count as number));
+
+    // 确保颜色多样性 - 选择亮度差异较大的颜色
+    const result = [];
+    const brightnessThreshold = 50; // 亮度差异阈值
+
+    for (const entry of colorEntries) {
+        // 检查这个颜色是否与已选颜色有足够的亮度差异
+        const isDifferentEnough = result.every(
+            selectedColor => Math.abs(selectedColor.brightness - entry.brightness) > brightnessThreshold
+        );
+
+        if (isDifferentEnough) {
+            result.push(entry);
+        }
+
+        if (result.length >= numColors) break;
+    }
+
+    return result;
+};
+
+// 将十六进制颜色转换为RGB数组
+function hexToRgb(hex) {
+    const rgb = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return rgb
+        ? [parseInt(rgb[1], 16), parseInt(rgb[2], 16), parseInt(rgb[3], 16)]
+        : null;
+}
+
+// 创建渐变对象
+function createGradient(ctx, color1, color2) {
+    const gradient = ctx.createLinearGradient(0, 0, ctx.canvas.width, 0);
+    gradient.addColorStop(0, color1);
+    gradient.addColorStop(1, color2);
+    return gradient;
+}
+
+// 解析颜色字符串为RGB数组
+function parseColor(color) {
+    // 处理十六进制颜色
+    if (color.startsWith('#')) {
+        return hexToRgb(color);
+    }
+
+    // 处理RGB格式颜色
+    const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (rgbMatch) {
+        return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
+    }
+
+    // 默认返回黑色
+    return [0, 0, 0];
+}
+
+// 应用颜色到水印
+async function applyColorToWatermark(watermarkUrl, color) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = "Anonymous"; // 确保跨域支持
+        image.onload = () => {
+            // 创建canvas元素
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = image.width;
+            canvas.height = image.height;
+
+            // 绘制原始图片
+            ctx.drawImage(image, 0, 0);
+
+            let colorOrGradient;
+
+            // 判断颜色类型（单色或渐变色）
+            if (typeof color === 'string') {
+                // 单色情况 - 使用parseColor函数处理不同格式的颜色
+                colorOrGradient = parseColor(color);
+            } else if (Array.isArray(color) && color.length === 2) {
+                // 渐变色情况
+                colorOrGradient = createGradient(ctx, color[0], color[1]);
+            } else {
+                console.error("不支持的颜色格式:", color);
+                // 默认使用黑色
+                colorOrGradient = [0, 0, 0];
+            }
+
+            // 如果是渐变色，设置 fillStyle 并填充矩形
+            if (colorOrGradient instanceof CanvasGradient) {
+                ctx.fillStyle = colorOrGradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // 获取图像数据
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            // 修改非透明像素的颜色
+            for (let i = 0; i < data.length; i += 4) {
+                // 如果像素不是完全透明
+                if (data[i + 3] > 0) {
+                    if (!(colorOrGradient instanceof CanvasGradient)) {
+                        data[i] = colorOrGradient[0];     // R
+                        data[i + 1] = colorOrGradient[1]; // G
+                        data[i + 2] = colorOrGradient[2]; // B
+                        // Alpha保持不变
+                    }
+                }
+            }
+
+            // 将修改后的数据放回canvas
+            ctx.putImageData(imageData, 0, 0);
+
+            // 转换为DataURL并返回
+            const dataURL = canvas.toDataURL("image/png");
+            resolve(dataURL);
+        };
+        image.onerror = (e) => {
+            console.error("加载水印图片失败:", e);
+            reject(new Error("加载水印图片失败"));
+        };
+        image.src = watermarkUrl;
+    });
+}
+
+
+export {
+    uuid,
+    loadImageData,
+    calculateWatermarkPosition,
+    debounce,
+    processImage,
+    adjustBatchSizeAndConcurrency,
+    extractDominantColors,
+    applyColorToWatermark,
+};

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Input, Button } from "antd";
+import { Input, Button, message } from "antd";
 
 function changeImageColor(ctx, canvas, colorOrGradient) {
   // 如果是渐变色，设置 fillStyle 并填充矩形
@@ -93,30 +93,63 @@ function ChangeColor() {
   const [color1, setColor1] = useState("#ff0000");
   const [color2, setColor2] = useState("#0000ff");
   const [applyGradient, setApplyGradient] = useState(false);
-  const [applyClicked, setApplyClicked] = useState(false); // 新状态，用于检测按钮点击
+  const [applyClicked, setApplyClicked] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const canvasRef = useRef(null);
 
   const loadImageAndApplyColor = () => {
     const canvas = canvasRef.current;
+    if (!canvas) {
+      console.error("Canvas 元素不存在");
+      return;
+    }
+
     const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      console.error("无法获取 Canvas 上下文");
+      return;
+    }
+
     const image = new Image();
+    image.crossOrigin = "anonymous"; // 添加跨域支持
+
     image.onload = () => {
+      setImageLoaded(true);
       canvas.width = image.width;
       canvas.height = image.height;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(image, 0, 0);
+
       let colorOrGradient;
       if (applyGradient) {
-        // TODO 这个函数还有问题，没效果还卡住
-        // applyGradientToImage(ctx, canvas, image, color1, color2);
         colorOrGradient = GradientCreator(ctx, color1, color2);
       } else {
         colorOrGradient = hexToRgb(currentColor);
       }
-      changeImageColor(ctx, canvas, colorOrGradient);
+
+      if (colorOrGradient) {
+        changeImageColor(ctx, canvas, colorOrGradient);
+      } else {
+        message.error("颜色格式无效");
+      }
     };
-    image.onerror = () => console.error("图像加载失败");
+
+    image.onerror = (e) => {
+      console.error("图像加载失败", e);
+      message.error("水印图片加载失败，请检查图片路径是否正确");
+    };
+
+    // 尝试使用绝对路径加载图片
     image.src = "/logo.png";
+
+    // 如果 5 秒后图片仍未加载，尝试使用相对路径
+    const timer = setTimeout(() => {
+      if (!imageLoaded) {
+        image.src = "./logo.png";
+      }
+    }, 5000);
+
+    return () => clearTimeout(timer);
   };
 
   useEffect(() => {
@@ -131,7 +164,7 @@ function ChangeColor() {
   };
 
   const handleApplyColor = () => {
-    setApplyClicked(!applyClicked); // 在每次点击时切换 applyClicked 的值，确保 useEffect 每次都会触发
+    setApplyClicked(!applyClicked);
   };
 
   return (
@@ -203,7 +236,7 @@ function ChangeColor() {
           应用颜色
         </Button>
       </div>
-      <canvas ref={canvasRef} style={{ background: "#000", width: "40vw" }} />
+      <canvas ref={canvasRef} style={{ background: "#000", width: "40vw", marginTop: "20px" }} />
     </div>
   );
 }

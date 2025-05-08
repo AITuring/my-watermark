@@ -41,18 +41,18 @@ const menuItems = [
         url: "/restaurant",
         component: <RestaurantFinder />,
 
-    }
+    },
+    {
+        label: "图片颜色调整",
+        id: "change",
+        url: "/change",
+        component: <ChangeColor />,
+    },
     // {
     //     label: "微博抽奖",
     //     id: "lottery",
     //     url: "/lottery",
     //     component: <Lottery />,
-    // },
-    // {
-    //     label: "图片颜色调整",
-    //     id: "change",
-    //     url: "/change",
-    //     component: <ChangeColor />,
     // },
     // {
     //     label: "组件测试",

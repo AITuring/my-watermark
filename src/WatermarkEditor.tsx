@@ -14,7 +14,8 @@ import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
 import { WatermarkPosition } from "./types";
-import ImageWithFixedWidth from './ImageWithFixedWidth';
+import { extractDominantColors, applyColorToWatermark } from "./utils";
+import ImageWithFixedWidth from "./ImageWithFixedWidth";
 import "./watermark.css";
 
 const drawGuideLines = (layer, stageWidth, stageHeight) => {
@@ -73,6 +74,17 @@ interface WatermarkEditorProps {
         scaleY: number;
         rotation: number;
     }) => void;
+    watermarkColor?: string; // 添加当前水印颜色
+    onColorChange?: (color: string) => void; // 添加颜色变更回调
+}
+
+interface Color {
+    color: string; // rgb(255, 255, 255)
+    b: number;
+    g: number;
+    r: number;
+    brightness: number;
+    count: number;
 }
 
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
@@ -81,6 +93,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     currentWatermarkPosition,
     onTransform,
     onAllTransform,
+    watermarkColor = "",
+    onColorChange,
 }) => {
     // 背景图片相关设置
     const [backgroundFixWidthVW, setBackgroundFixWidthVW] = useState(
@@ -103,7 +117,12 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const [isBatch, setIsBatch] = useState<boolean>(true);
 
     // 水印相关设置
-    const [watermarkImage] = useImage(watermarkUrl);
+    // logo颜色状态
+    const [dominantColors, setDominantColors] = useState<Color[]>([]);
+    const [coloredWatermarkUrl, setColoredWatermarkUrl] =
+        useState(watermarkUrl);
+    const [isProcessingColor, setIsProcessingColor] = useState(false);
+    const [watermarkImage] = useImage(coloredWatermarkUrl);
     const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 });
     const [position, setPosition] = useState(
         currentWatermarkPosition || {
@@ -119,6 +138,44 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const transformerRef = useRef<Konva.Transformer>(null);
     const [backgroundSliderValue, setBackgroundSliderValue] = useState(1);
     const stageRef = useRef(null);
+
+    // 应用水印颜色的函数
+    const applyWatermarkColor = async (color: string) => {
+        if (!color || isProcessingColor) return;
+
+        setIsProcessingColor(true);
+        try {
+            const newWatermarkUrl = await applyColorToWatermark(
+                watermarkUrl,
+                color
+            );
+
+            setColoredWatermarkUrl(newWatermarkUrl as string);
+            onColorChange?.(newWatermarkUrl as string);
+        } catch (error) {
+            console.error("应用颜色到水印失败:", error);
+        } finally {
+            // 延迟重置处理状态，避免快速连续点击
+            setTimeout(() => {
+                setIsProcessingColor(false);
+            }, 300);
+        }
+    };
+
+
+    // 当水印URL改变时，重置彩色水印URL
+    useEffect(() => {
+        setColoredWatermarkUrl(watermarkUrl);
+    }, [watermarkUrl]);
+
+    // 当传入的水印颜色改变时，应用颜色
+    useEffect(() => {
+        if (watermarkColor && watermarkUrl) {
+            applyWatermarkColor(watermarkColor);
+        } else if (!watermarkColor) {
+            setColoredWatermarkUrl(watermarkUrl);
+        }
+    }, [watermarkColor, watermarkUrl]);
 
     // 处理背景图片缩放滑动条变化的函数
     const handleBackgroundSliderChange = (e) => {
@@ -203,6 +260,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             setBackgroundImageSize({ width, height });
             updateGuideLines();
             setCurrentScale(scale);
+            // 提取图片颜色
+            const colors = extractDominantColors(backgroundImage, 5);
+            console.log("colors", colors);
+            setDominantColors(colors);
         }
     }, [backgroundImage, backgroundImageStatus, backgroundFixWidthVW]);
 
@@ -444,7 +505,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                         {watermarkImage && (
                             <>
                                 <ImageWithFixedWidth
-                                    src={watermarkUrl}
+                                    src={coloredWatermarkUrl}
                                     fixedWidth={
                                         watermarkImage.naturalWidth *
                                         backgroundScale
@@ -589,6 +650,44 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                         </div>
                     </div>
                 </div>
+                {/* 颜色选择区域 */}
+                {dominantColors.length > 0 && (
+                    <div className="mt-4">
+                        <h3 className="text-sm font-medium mb-2">背景主色调</h3>
+                        <div className="flex gap-2">
+                            {dominantColors.map((color, index) => (
+                                <button
+                                    key={index}
+                                    className={`w-8 h-8 rounded-full border-2 ${
+                                        isProcessingColor
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : ""
+                                    }`}
+                                    style={{ backgroundColor: color.color }}
+                                    onClick={() =>
+                                        !isProcessingColor &&
+                                        applyWatermarkColor(color.color)
+                                    }
+                                    disabled={isProcessingColor}
+                                />
+                            ))}
+                            <button
+                                className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center ${
+                                    isProcessingColor
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : ""
+                                }`}
+                                onClick={() =>
+                                    !isProcessingColor &&
+                                    applyWatermarkColor("transparent")
+                                }
+                                disabled={isProcessingColor}
+                            >
+                                <span className="text-xs">原色</span>
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
