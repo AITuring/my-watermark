@@ -870,7 +870,7 @@ const Puzzle = () => {
                                     <InputNumber
                                         className="w-16 ml-4"
                                         min={0}
-                                        max={10}
+                                        max={15}
                                         onChange={(value) =>
                                             setInputColumns(value)
                                         }
