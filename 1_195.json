@@ -2,7 +2,7 @@
     {
         "id": 1,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "铸客大铜鼎",
         "era": "战国",
         "excavationLocation": "安徽省寿县",
@@ -57,7 +57,7 @@
     {
         "id": 6,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "㝬簋",
         "era": "西周",
         "excavationLocation": "陕西扶风法门镇产村",
@@ -68,7 +68,7 @@
     {
         "id": 7,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "逨盘",
         "era": "西周",
         "excavationLocation": "陕西眉县杨家村窖藏",
@@ -79,7 +79,7 @@
     {
         "id": 8,
         "batch": "第三批",
-         "type": "金银",
+        "type": "金银",
         "name": "太阳神鸟金箔片",
         "era": "商",
         "excavationLocation": "四川成都金沙遗址",
@@ -101,7 +101,7 @@
     {
         "id": 10,
         "batch": "第三批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "镂雕东王公西王母纹玉座屏",
         "era": "东汉",
         "excavationLocation": "河北定州中山穆王刘畅墓",
@@ -123,7 +123,7 @@
     {
         "id": 12,
         "batch": "第一批",
-         "type": "金银",
+        "type": "金银",
         "name": "银花双轮十二环锡杖",
         "era": "唐",
         "excavationLocation": "陕西省宝鸡市",
@@ -134,7 +134,7 @@
     {
         "id": 13,
         "batch": "第一批",
-         "type": "金银",
+        "type": "金银",
         "name": "八重宝函",
         "era": "唐",
         "excavationLocation": "陕西省宝鸡市",
@@ -145,7 +145,7 @@
     {
         "id": 14,
         "batch": "第一批",
-         "type": "金银",
+        "type": "金银",
         "name": "鎏金铜浮屠",
         "era": "唐",
         "excavationLocation": "陕西省宝鸡市",
@@ -167,7 +167,7 @@
     {
         "id": 16,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "铜奔马",
         "era": "东汉",
         "excavationLocation": "甘肃省武威市",
@@ -607,7 +607,7 @@
     {
         "id": 56,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "铜立人像",
         "era": "商",
         "excavationLocation": "四川广汉三星堆遗址2号祭祀坑",
@@ -618,7 +618,7 @@
     {
         "id": 57,
         "batch": "第三批",
-         "type": "金银",
+        "type": "金银",
         "name": "金杖",
         "era": "商",
         "excavationLocation": "",
@@ -640,7 +640,7 @@
     {
         "id": 59,
         "batch": "第一批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "水晶杯",
         "era": "战国",
         "excavationLocation": "浙江省杭州市",
@@ -651,7 +651,7 @@
     {
         "id": 60,
         "batch": "第一批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "刘胜金缕玉衣",
         "era": "西汉",
         "excavationLocation": "河北省满城县",
@@ -662,7 +662,7 @@
     {
         "id": 61,
         "batch": "第一批",
-         "type": "金银",
+        "type": "金银",
         "name": "长信宫灯",
         "era": "西汉",
         "excavationLocation": "河北省满城县",
@@ -673,7 +673,7 @@
     {
         "id": 62,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "中山王铁足铜鼎",
         "era": "战国",
         "excavationLocation": "河北省平山县",
@@ -684,7 +684,7 @@
     {
         "id": 63,
         "batch": "第三批",
-         "type": "金银",
+        "type": "金银",
         "name": "错金银镶松石狩猎纹铜伞铤",
         "era": "西汉",
         "excavationLocation": "",
@@ -695,7 +695,7 @@
     {
         "id": 64,
         "batch": "第一批",
-         "type": "金银",
+        "type": "金银",
         "name": "铜错金银四龙四凤方案",
         "era": "战国",
         "excavationLocation": "河北省平山县",
@@ -717,7 +717,7 @@
     {
         "id": 66,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "淅川出土铜禁",
         "era": "春秋",
         "excavationLocation": "河南省南阳市",
@@ -728,7 +728,7 @@
     {
         "id": 67,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "越王勾践剑",
         "era": "春秋",
         "excavationLocation": "湖北江陵望山",
@@ -739,7 +739,7 @@
     {
         "id": 68,
         "batch": "第三批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "多节活环套练玉佩",
         "era": "战国",
         "excavationLocation": "湖北随县曾侯乙墓",
@@ -783,7 +783,7 @@
     {
         "id": 72,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "曾侯乙编钟",
         "era": "战国",
         "excavationLocation": "湖北省随县",
@@ -805,7 +805,7 @@
     {
         "id": 74,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "曾侯乙青铜尊盘",
         "era": "战国",
         "excavationLocation": "湖北省随县",
@@ -816,7 +816,7 @@
     {
         "id": 75,
         "batch": "第一批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "大玉戈",
         "era": "商",
         "excavationLocation": "湖北省武汉市",
@@ -838,7 +838,7 @@
     {
         "id": 77,
         "batch": "第三批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "神兽纹玉樽",
         "era": "西晋",
         "excavationLocation": "湖南安乡西晋刘弘墓",
@@ -860,7 +860,7 @@
     {
         "id": 79,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "大禾方鼎",
         "era": "商",
         "excavationLocation": "湖南宁乡",
@@ -1080,7 +1080,7 @@
     {
         "id": 99,
         "batch": "第三批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "七孔玉刀",
         "era": "夏",
         "excavationLocation": "河南偃师二里头遗址",
@@ -1124,7 +1124,7 @@
     {
         "id": 103,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "摇钱树",
         "era": "东汉",
         "excavationLocation": "四川省绵阳市",
@@ -1135,7 +1135,7 @@
     {
         "id": 104,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "错金银镶嵌丝网套铜壶",
         "era": "战国",
         "excavationLocation": "江苏时胎南窑庄",
@@ -1212,7 +1212,7 @@
     {
         "id": 111,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "铜车马",
         "era": "秦",
         "excavationLocation": "陕西省西安市",
@@ -1267,7 +1267,7 @@
     {
         "id": 116,
         "batch": "第三批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "晋侯夫人组玉佩",
         "era": "西周",
         "excavationLocation": "山西曲沃M63墓 (晋穆侯次夫人墓)出土",
@@ -1278,7 +1278,7 @@
     {
         "id": 117,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "晋侯鸟尊",
         "era": "西周",
         "excavationLocation": "山西曲沃北赵村晋侯慕地114号墓",
@@ -1289,7 +1289,7 @@
     {
         "id": 118,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "龙纹兜觥",
         "era": "商",
         "excavationLocation": "山西石楼桃花庄",
@@ -1366,7 +1366,7 @@
     {
         "id": 125,
         "batch": "第三批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "“皇后之玺”玉玺",
         "era": "西汉",
         "excavationLocation": "陕西咸阳汉高祖长陵附近",
@@ -1421,7 +1421,7 @@
     {
         "id": 130,
         "batch": "第一批",
-         "type": "金银",
+        "type": "金银",
         "name": "舞马衔杯仿皮囊式银壶",
         "era": "唐",
         "excavationLocation": "陕西省西安市",
@@ -1432,7 +1432,7 @@
     {
         "id": 131,
         "batch": "第一批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "镶金兽首玛瑙杯",
         "era": "唐",
         "excavationLocation": "陕西省西安市",
@@ -1443,7 +1443,7 @@
     {
         "id": 132,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "淳化大鼎",
         "era": "西周",
         "excavationLocation": "陕西省咸阳市",
@@ -1487,7 +1487,7 @@
     {
         "id": 136,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "商鞅方升",
         "era": "战国",
         "excavationLocation": "",
@@ -1520,7 +1520,7 @@
     {
         "id": 139,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "大克鼎",
         "era": "西周",
         "excavationLocation": "陕西省宝鸡市",
@@ -1531,7 +1531,7 @@
     {
         "id": 140,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "西周晋侯苏钟 (一套16件）",
         "era": "西周",
         "excavationLocation": "山西省曲沃县北赵村",
@@ -1542,7 +1542,7 @@
     {
         "id": 141,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "伯矩鬲",
         "era": "西周",
         "excavationLocation": "北京房山琉璃河燕国墓地251号墓",
@@ -1553,7 +1553,7 @@
     {
         "id": 142,
         "batch": "第一批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "三星堆出土玉边璋",
         "era": "商",
         "excavationLocation": "四川省广汉市",
@@ -1564,7 +1564,7 @@
     {
         "id": 143,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "青铜神树",
         "era": "商",
         "excavationLocation": "四川省广汉市",
@@ -1608,7 +1608,7 @@
     {
         "id": 147,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "太保鼎",
         "era": "西周",
         "excavationLocation": "山东省梁山",
@@ -1641,7 +1641,7 @@
     {
         "id": 150,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "景云铜钟",
         "era": "唐景云年间",
         "excavationLocation": "",
@@ -1652,7 +1652,7 @@
     {
         "id": 151,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "彩绘人物车马镜",
         "era": "西汉",
         "excavationLocation": "陕西西安红庙坡",
@@ -1663,7 +1663,7 @@
     {
         "id": 152,
         "batch": "第三批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "“统领释教大元国师之印”龙钮玉印",
         "era": "元",
         "excavationLocation": "",
@@ -1674,7 +1674,7 @@
     {
         "id": 153,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "铜屏风构件5件",
         "era": "西汉",
         "excavationLocation": "广东省广州市",
@@ -1685,7 +1685,7 @@
     {
         "id": 154,
         "batch": "第一批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "角形玉杯",
         "era": "西汉",
         "excavationLocation": "广东省广州市",
@@ -1751,7 +1751,7 @@
     {
         "id": 160,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "莲鹤铜方壶",
         "era": "春秋中期",
         "excavationLocation": "河南省郑州市新郑",
@@ -1762,7 +1762,7 @@
     {
         "id": 161,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "杀人祭柱场面贮贝器",
         "era": "西汉",
         "excavationLocation": "云南晋宁石寨山",
@@ -1773,7 +1773,7 @@
     {
         "id": 162,
         "batch": "第三批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "良渚文化神人兽面纹玉钺",
         "era": "",
         "excavationLocation": "浙江余杭反山12号墓",
@@ -1817,7 +1817,7 @@
     {
         "id": 166,
         "batch": "第一批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "良渚出土玉琮王",
         "era": "新石器时代",
         "excavationLocation": "浙江省余杭县",
@@ -1828,7 +1828,7 @@
     {
         "id": 167,
         "batch": "第三批",
-         "type": "金银",
+        "type": "金银",
         "name": "龟负论语玉烛酒筹銮金银筒",
         "era": "唐",
         "excavationLocation": "江苏丹徒丁卯桥唐代窖藏",
@@ -1850,7 +1850,7 @@
     {
         "id": 169,
         "batch": "第三批",
-         "type": "金银",
+        "type": "金银",
         "name": "包金镶玉嵌琉璃银带钩",
         "era": "战国",
         "excavationLocation": "河南辉县固围村5号战国墓",
@@ -1861,7 +1861,7 @@
     {
         "id": 170,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "四羊方尊",
         "era": "商",
         "excavationLocation": "湖南宁乡月山铺",
@@ -1883,7 +1883,7 @@
     {
         "id": 172,
         "batch": "第三批",
-         "type": "玉器",
+        "type": "玉器",
         "name": "红山文化玉龙",
         "era": "新石器时代",
         "excavationLocation": "内蒙古翁牛特旗赛沁塔拉村",
@@ -1971,7 +1971,7 @@
     {
         "id": 180,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "诅盟场面贮贝器",
         "era": "西汉",
         "excavationLocation": "云南晋宁石寨山",
@@ -1982,7 +1982,7 @@
     {
         "id": 181,
         "batch": "第三批",
-         "type": "金银",
+        "type": "金银",
         "name": "“滇王之印”金印",
         "era": "西汉",
         "excavationLocation": "云南晋宁石寨山古墓群",
@@ -1993,7 +1993,7 @@
     {
         "id": 182,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "天亡簋",
         "era": "西周",
         "excavationLocation": "",
@@ -2004,7 +2004,7 @@
     {
         "id": 183,
         "batch": "第三批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "子龙鼎",
         "era": "商",
         "excavationLocation": "",
@@ -2026,7 +2026,7 @@
     {
         "id": 185,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "后母戊鼎 (旧称司母戊鼎）",
         "era": "商",
         "excavationLocation": "河南省安阳市",
@@ -2048,7 +2048,7 @@
     {
         "id": 187,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "大盂鼎",
         "era": "西周",
         "excavationLocation": "陕西省宝鸡市",
@@ -2059,7 +2059,7 @@
     {
         "id": 188,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "虢季子白盘",
         "era": "西周",
         "excavationLocation": "陕西省宝鸡市",
@@ -2081,7 +2081,7 @@
     {
         "id": 190,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "利簋",
         "era": "西周",
         "excavationLocation": "陕西省西安市",
@@ -2136,7 +2136,7 @@
     {
         "id": 195,
         "batch": "第一批",
-         "type": "青铜",
+        "type": "青铜",
         "name": "齐王墓青铜方镜",
         "era": "西汉",
         "excavationLocation": "山东省淄博市",

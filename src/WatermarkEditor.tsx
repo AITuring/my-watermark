@@ -139,6 +139,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const [backgroundSliderValue, setBackgroundSliderValue] = useState(1);
     const stageRef = useRef(null);
 
+    const [customColor, setCustomColor] = useState(""); // 自定义颜色状态
+
     // 应用水印颜色的函数
     const applyWatermarkColor = async (color: string) => {
         if (!color || isProcessingColor) return;
@@ -156,12 +158,13 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             console.error("应用颜色到水印失败:", error);
         } finally {
             // 延迟重置处理状态，避免快速连续点击
-            setTimeout(() => {
-                setIsProcessingColor(false);
-            }, 300);
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    setIsProcessingColor(false);
+                }, 300);
+            });
         }
     };
-
 
     // 当水印URL改变时，重置彩色水印URL
     useEffect(() => {
@@ -651,43 +654,71 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                     </div>
                 </div>
                 {/* 颜色选择区域 */}
-                {dominantColors.length > 0 && (
-                    <div className="mt-4">
-                        <h3 className="text-sm font-medium mb-2">背景主色调</h3>
-                        <div className="flex gap-2">
-                            {dominantColors.map((color, index) => (
-                                <button
-                                    key={index}
-                                    className={`w-8 h-8 rounded-full ${
-                                        isProcessingColor
-                                            ? "opacity-50 cursor-not-allowed"
-                                            : ""
-                                    }`}
-                                    style={{ backgroundColor: color.color }}
-                                    onClick={() =>
-                                        !isProcessingColor &&
-                                        applyWatermarkColor(color.color)
-                                    }
-                                    disabled={isProcessingColor}
-                                />
-                            ))}
-                            <button
-                                className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center ${
-                                    isProcessingColor
-                                        ? "opacity-50 cursor-not-allowed"
-                                        : ""
-                                }`}
-                                onClick={() =>
-                                    !isProcessingColor &&
-                                    applyWatermarkColor("transparent")
-                                }
-                                disabled={isProcessingColor}
-                            >
-                                <span className="text-xs">原色</span>
-                            </button>
-                        </div>
+                {/* 颜色选择区域 */}
+{dominantColors.length > 0 && (
+    <div className="mt-4">
+        <h3 className="text-sm font-medium mb-2">背景主色调</h3>
+        <div className="flex gap-2">
+            {dominantColors.map((color, index) => (
+                <button
+                    title="点击应用此颜色"
+                    key={index}
+                    className={`w-8 h-8 rounded-full transition-opacity duration-200 ${isProcessingColor ? "opacity-50 cursor-not-allowed" : ""}`}
+                    style={{ backgroundColor: color.color }}
+                    onClick={() =>
+                        !isProcessingColor &&
+                        applyWatermarkColor(color.color)
+                    }
+                    disabled={isProcessingColor}
+                />
+            ))}
+            <button
+                className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center transition-opacity duration-200 ${isProcessingColor ? "opacity-50 cursor-not-allowed" : ""}`}
+                onClick={() =>
+                    !isProcessingColor &&
+                    applyWatermarkColor("transparent")
+                }
+                disabled={isProcessingColor}
+            >
+                <span className="text-xs">原色</span>
+            </button>
+            <div className="relative">
+                <button
+                    title="选择自定义颜色"
+                    className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center overflow-hidden transition-opacity duration-200 ${isProcessingColor ? "opacity-50 cursor-not-allowed" : ""}`}
+                    disabled={isProcessingColor}
+                >
+                    <div
+                        className="w-8 h-8 rounded-full absolute inset-0 flex items-center justify-center transition-colors duration-200"
+                        style={{
+                            backgroundColor:
+                                customColor || "#ffffff",
+                        }}
+                    >
+                        {!customColor && (
+                            <span className="text-xs">
+                                自选
+                            </span>
+                        )}
                     </div>
-                )}
+                    <input
+                        type="color"
+                        value={customColor || "#ffffff"}
+                        onChange={(e) => {
+                            setCustomColor(e.target.value);
+                            !isProcessingColor &&
+                                applyWatermarkColor(
+                                    e.target.value
+                                );
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        disabled={isProcessingColor}
+                    />
+                </button>
+            </div>
+        </div>
+    </div>
+)}
             </div>
         </div>
     );
