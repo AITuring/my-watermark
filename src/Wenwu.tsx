@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Search, Filter, Grid, List, MapPin, Calendar, Landmark } from 'lucide-react';
+import { Search, Filter, Grid, List, MapPin, Calendar, Landmark, Map as MapIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // 文物数据类型定义
@@ -23,6 +23,22 @@ interface Artifact {
   desc: string;
 }
 
+// 位置坐标接口
+interface LocationCoordinate {
+  lng: number;
+  lat: number;
+  address: string;
+  artifacts: Artifact[];
+}
+
+// 高德地图全局变量声明
+declare global {
+  interface Window {
+    AMap: any;
+    _AMapSecurityConfig: any;
+  }
+}
+
 // 导入JSON数据
 import artifactsData from './195.json';
 
@@ -33,13 +49,18 @@ const Wenwu: React.FC = () => {
   const [selectedBatch, setSelectedBatch] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedCollection, setSelectedCollection] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
+  // 地图相关状态
+  const [mapInstance, setMapInstance] = useState<any>(null);
+  const [locationCache, setLocationCache] = useState<Map<string, LocationCoordinate>>(new Map());
+  const [isLoadingMap, setIsLoadingMap] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
   // 提取单个博物馆名称的函数
-    // 提取单个博物馆名称的函数
   const extractMuseumNames = (collectionLocation: string): string[] => {
     const museums = new Set<string>();
 
@@ -93,7 +114,6 @@ const Wenwu: React.FC = () => {
     return Array.from(museums).sort();
   };
 
-
   // 获取所有唯一的批次、类型、馆藏
   const batches = useMemo(() => {
     const uniqueBatches = [...new Set(artifacts.map(item => item.batch))];
@@ -116,6 +136,169 @@ const Wenwu: React.FC = () => {
     return Array.from(allMuseums).sort();
   }, [artifacts]);
 
+  // 高德地图初始化
+  useEffect(() => {
+    if (viewMode === 'map' && !mapInstance) {
+      loadAMapScript();
+    }
+  }, [viewMode]);
+
+  // 加载高德地图脚本
+  const loadAMapScript = () => {
+    if (window.AMap) {
+      initializeMap();
+      return;
+    }
+
+    setIsLoadingMap(true);
+
+    // 设置安全密钥（需要替换为实际的安全密钥）
+    window._AMapSecurityConfig = {
+      securityJsCode: '3ba01835420271d5405dccba5e089b46'
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://webapi.amap.com/maps?v=1.4.15&key=7a9513e700e06c00890363af1bd2d926&plugin=AMap.Geocoder';
+    script.async = true;
+    script.onload = () => {
+      initializeMap();
+      setIsLoadingMap(false);
+    };
+    script.onerror = () => {
+      console.error('高德地图加载失败');
+      setIsLoadingMap(false);
+    };
+    document.head.appendChild(script);
+  };
+
+  // 初始化地图
+  const initializeMap = () => {
+    if (!mapContainerRef.current || !window.AMap) return;
+
+    const map = new window.AMap.Map(mapContainerRef.current, {
+      zoom: 5,
+      center: [116.397428, 39.90923], // 北京坐标
+      mapStyle: 'amap://styles/normal'
+    });
+
+    setMapInstance(map);
+  };
+
+  // 地理编码函数
+  const geocodeLocation = async (address: string): Promise<LocationCoordinate | null> => {
+    // 检查缓存
+    if (locationCache.has(address)) {
+      return locationCache.get(address)!;
+    }
+
+    return new Promise((resolve) => {
+      if (!window.AMap) {
+        resolve(null);
+        return;
+      }
+
+      const geocoder = new window.AMap.Geocoder({
+        city: '全国'
+      });
+
+      geocoder.getLocation(address, (status: string, result: any) => {
+        if (status === 'complete' && result.geocodes.length > 0) {
+          const location = result.geocodes[0].location;
+          const coordinate: LocationCoordinate = {
+            lng: location.lng,
+            lat: location.lat,
+            address: address,
+            artifacts: []
+          };
+
+          // 缓存结果
+          setLocationCache(prev => new Map(prev.set(address, coordinate)));
+          resolve(coordinate);
+        } else {
+          resolve(null);
+        }
+      });
+    });
+  };
+
+  // 更新地图标记
+  const updateMapMarkers = async () => {
+    if (!mapInstance || !window.AMap) return;
+
+    // 清除现有标记
+    mapInstance.clearMap();
+
+    // 获取唯一的馆藏地点
+    const locationGroups = new Map<string, Artifact[]>();
+    filteredArtifacts.forEach(artifact => {
+      const location = artifact.collectionLocation;
+      if (!locationGroups.has(location)) {
+        locationGroups.set(location, []);
+      }
+      locationGroups.get(location)!.push(artifact);
+    });
+
+    const markers: any[] = [];
+    const coordinates: [number, number][] = [];
+
+    // 为每个位置创建标记
+    for (const [location, artifacts] of locationGroups) {
+      const coordinate = await geocodeLocation(location);
+      if (coordinate) {
+        coordinate.artifacts = artifacts;
+        coordinates.push([coordinate.lng, coordinate.lat]);
+
+        // 创建自定义标记
+        const marker = new window.AMap.Marker({
+          position: [coordinate.lng, coordinate.lat],
+          content: `
+            <div class="custom-marker">
+              <div class="marker-content">
+                <span class="marker-count">${artifacts.length}</span>
+              </div>
+            </div>
+          `,
+          offset: new window.AMap.Pixel(-15, -30)
+        });
+
+        // 添加点击事件
+        marker.on('click', () => {
+          const infoWindow = new window.AMap.InfoWindow({
+            content: `
+              <div class="info-window">
+                <h4>${location}</h4>
+                <p>文物数量: ${artifacts.length}件</p>
+                <div class="artifact-list">
+                  ${artifacts.slice(0, 3).map(artifact =>
+                    `<div class="artifact-item">${artifact.name}</div>`
+                  ).join('')}
+                  ${artifacts.length > 3 ? `<div class="more-items">还有${artifacts.length - 3}件...</div>` : ''}
+                </div>
+              </div>
+            `,
+            offset: new window.AMap.Pixel(0, -30)
+          });
+          infoWindow.open(mapInstance, marker.getPosition());
+        });
+
+        markers.push(marker);
+        mapInstance.add(marker);
+      }
+    }
+
+    // 调整地图视野以适应所有标记
+    if (coordinates.length > 0) {
+      mapInstance.setFitView(markers);
+    }
+  };
+
+  // 监听筛选变化，更新地图
+  useEffect(() => {
+    if (viewMode === 'map' && mapInstance) {
+      updateMapMarkers();
+    }
+  }, [filteredArtifacts, mapInstance, viewMode]);
+
   // 筛选逻辑
   useEffect(() => {
     let filtered = artifacts;
@@ -126,7 +309,8 @@ const Wenwu: React.FC = () => {
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.desc.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.era.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.excavationLocation.toLowerCase().includes(searchTerm.toLowerCase())
+        item.excavationLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.collectionLocation.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -220,7 +404,7 @@ const Wenwu: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
-                  placeholder="搜索文物名称、描述、年代、出土地点..."
+                  placeholder="搜索文物名称、描述、年代、出土地点、馆藏地点..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -293,11 +477,53 @@ const Wenwu: React.FC = () => {
             >
               <List className="w-4 h-4" />
             </Button>
+            <Button
+              variant={viewMode === 'map' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('map')}
+            >
+              <MapIcon className="w-4 h-4" />
+            </Button>
           </div>
         </div>
 
         {/* 文物展示区域 */}
-        {viewMode === 'grid' ? (
+        {viewMode === 'map' ? (
+          <div className="mb-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapIcon className="w-5 h-5" />
+                  文物地图分布
+                </CardTitle>
+                <CardDescription>
+                  点击地图标记查看该位置的文物详情
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingMap ? (
+                  <div className="h-96 flex items-center justify-center bg-slate-50 rounded-lg">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                      <p className="text-slate-600">正在加载地图...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    ref={mapContainerRef}
+                    className="h-96 w-full rounded-lg border"
+                    style={{ minHeight: '400px' }}
+                  />
+                )}
+                <div className="mt-4 text-sm text-slate-600">
+                  <p>• 标记数字表示该位置的文物数量</p>
+                  <p>• 点击标记可查看详细信息</p>
+                  <p>• 地图会根据筛选条件实时更新</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
             {paginatedArtifacts.map((artifact) => (
               <Dialog key={artifact.id}>
@@ -487,8 +713,8 @@ const Wenwu: React.FC = () => {
           </div>
         )}
 
-        {/* 分页 */}
-        {totalPages > 1 && (
+        {/* 分页 - 地图视图下不显示分页 */}
+        {viewMode !== 'map' && totalPages > 1 && (
           <div className="flex justify-center items-center gap-2 mt-8">
             <Button
               variant="outline"
@@ -561,6 +787,66 @@ const Wenwu: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* 地图标记样式 */}
+      <style>{`
+        .custom-marker {
+          position: relative;
+        }
+
+        .marker-content {
+          background: #1e40af;
+          border: 2px solid #ffffff;
+          border-radius: 50%;
+          width: 30px;
+          height: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .marker-content:hover {
+          transform: scale(1.1);
+          background: #1d4ed8;
+        }
+
+        .marker-count {
+          color: white;
+          font-size: 12px;
+          font-weight: bold;
+        }
+
+        .info-window {
+          padding: 10px;
+          min-width: 200px;
+        }
+
+        .info-window h4 {
+          margin: 0 0 8px 0;
+          font-size: 14px;
+          font-weight: bold;
+        }
+
+        .artifact-list {
+          margin-top: 8px;
+        }
+
+        .artifact-item {
+          padding: 2px 0;
+          font-size: 12px;
+          border-bottom: 1px solid #eee;
+        }
+
+        .more-items {
+          padding: 2px 0;
+          font-size: 12px;
+          color: #666;
+          font-style: italic;
+        }
+      `}</style>
     </div>
   );
 };

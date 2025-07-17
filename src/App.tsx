@@ -14,7 +14,7 @@ import ChangeColor from "./ChangeColor";
 import PhotoCollage from "./PhotoCollage";
 import ImageStitching from "./ImageStitching";
 import RestaurantFinder from "./RestaurantFinder";
-import Wenwu from "./wenwu";
+import Wenwu from "./Wenwu";
 import "./App.css";
 
 const menuItems = [
