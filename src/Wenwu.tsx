@@ -64,54 +64,20 @@ const Wenwu: React.FC = () => {
   const extractMuseumNames = (collectionLocation: string): string[] => {
     const museums = new Set<string>();
 
-    // 预定义的博物馆名称映射，用于标准化
-    const museumMapping = {
-      '故宫博物院': '故宫博物院',
-      '北京故宫博物院': '故宫博物院',
-      '台北故宫博物院': '台北故宫博物院',
-      '河南博物院': '河南博物院',
-      '山西博物院': '山西博物院',
-      '山西博物馆': '山西博物馆'
-    };
-
-    // 更精确的博物馆名称匹配模式
-    const patterns = [
-      // 匹配标准的博物馆/博物院名称
-      /([\u4e00-\u9fa5]{2,8}博物院)/g,
-      /([\u4e00-\u9fa5]{2,8}博物馆)/g,
-      /([\u4e00-\u9fa5]{2,8}美术馆)/g,
-      /([\u4e00-\u9fa5]{2,8}文物局)/g,
-      /([\u4e00-\u9fa5]{2,8}考古[所院])/g,
-      /([\u4e00-\u9fa5]{2,8}研究院)/g,
-      /([\u4e00-\u9fa5]{2,8}文物考古研究所)/g
-    ];
-
-    // 使用正则表达式提取博物馆名称
-    for (const pattern of patterns) {
-      const matches = collectionLocation.match(pattern);
-      if (matches) {
-        matches.forEach(match => {
-          const cleaned = match.trim();
-          // 过滤掉过短的匹配
-          if (cleaned.length >= 4) {
-            // 检查是否有映射，使用标准化名称
-            const standardName = museumMapping[cleaned as keyof typeof museumMapping] || cleaned;
-            museums.add(standardName);
-          }
-        });
-      }
+  // 直接将collectionLocation作为博物馆名称添加到Set中
+  if (collectionLocation && collectionLocation.trim()) {
+    if (collectionLocation === '原物为一对，一件藏于北京故宫博物院，另一件藏于河南博物院') {
+      museums.add('故宫博物院');
+      museums.add('河南博物院');
+    } else if (collectionLocation === '上海博物馆、山西博物馆各收藏一半') {
+      museums.add('上海博物馆');
+      museums.add('山西博物馆');
+    } else {
+      museums.add(collectionLocation.trim());
     }
+  }
 
-    // 特殊处理：如果没有匹配到任何博物馆，但包含特定关键词，则直接添加
-    if (museums.size === 0) {
-      Object.keys(museumMapping).forEach(key => {
-        if (collectionLocation.includes(key)) {
-          museums.add(museumMapping[key as keyof typeof museumMapping]);
-        }
-      });
-    }
-
-    return Array.from(museums).sort();
+  return Array.from(museums).sort();
   };
 
   // 获取所有唯一的批次、类型、馆藏
@@ -135,6 +101,10 @@ const Wenwu: React.FC = () => {
 
     return Array.from(allMuseums).sort();
   }, [artifacts]);
+
+
+
+
 
   // 高德地图初始化
   useEffect(() => {
