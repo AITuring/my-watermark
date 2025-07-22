@@ -19,7 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import {
     Dialog,
     DialogContent,
@@ -40,7 +40,6 @@ import {
     Landmark,
     Map as MapIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 // 文物数据类型定义
 interface Artifact {
@@ -162,10 +161,9 @@ const Wenwu: React.FC = () => {
     const [selectedBatch, setSelectedBatch] = useState<string>("all");
     const [selectedType, setSelectedType] = useState<string>("all");
     const [selectedCollection, setSelectedCollection] = useState<string>("all");
+    const [selectedEra, setSelectedEra] = useState<string>("all");
     const [viewMode, setViewMode] = useState<"grid" | "list" | "map">("grid");
-    const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(
-        null
-    );
+
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 12;
 
@@ -223,6 +221,11 @@ const Wenwu: React.FC = () => {
         });
 
         return Array.from(allMuseums).sort();
+    }, [artifacts]);
+
+    const eras = useMemo(() => {
+        const uniqueEras = [...new Set(artifacts.map((item) => item.era))];
+        return uniqueEras.sort();
     }, [artifacts]);
 
     // 高德地图初始化
@@ -486,6 +489,10 @@ const Wenwu: React.FC = () => {
                 item.collectionLocation.includes(selectedCollection)
             );
         }
+        // 按时代筛选
+        if (selectedEra !== "all") {
+            filtered = filtered.filter((item) => item.era === selectedEra);
+        }
 
         setFilteredArtifacts(filtered);
         setCurrentPage(1);
@@ -495,6 +502,7 @@ const Wenwu: React.FC = () => {
         selectedType,
         selectedCollection,
         artifacts,
+        selectedEra,
     ]);
 
     // 分页逻辑
@@ -511,6 +519,7 @@ const Wenwu: React.FC = () => {
         setSelectedBatch("all");
         setSelectedType("all");
         setSelectedCollection("all");
+        setSelectedEra("all");
     };
 
     // 获取批次颜色
@@ -544,17 +553,43 @@ const Wenwu: React.FC = () => {
         );
     };
 
+    // 获取时代颜色
+    const getEraColor = (era: string) => {
+        const colors = {
+            新石器时代: "bg-red-100 text-red-800",
+            商: "bg-red-100 text-red-800",
+            西周: "bg-orange-100 text-orange-800",
+            春秋: "bg-yellow-100 text-yellow-800",
+            战国: "bg-green-100 text-green-800",
+            秦: "bg-teal-100 text-teal-800",
+            西汉: "bg-blue-100 text-blue-800",
+            东汉: "bg-indigo-100 text-indigo-800",
+            三国: "bg-purple-100 text-purple-800",
+            西晋: "bg-pink-100 text-pink-800",
+            东晋: "bg-rose-100 text-rose-800",
+            南北朝: "bg-cyan-100 text-cyan-800",
+            隋: "bg-lime-100 text-lime-800",
+            唐: "bg-emerald-100 text-emerald-800",
+            五代: "bg-sky-100 text-sky-800",
+            北宋: "bg-violet-100 text-violet-800",
+            南宋: "bg-fuchsia-100 text-fuchsia-800",
+            元: "bg-amber-100 text-amber-800",
+            明: "bg-red-100 text-red-800",
+            清: "bg-blue-100 text-blue-800",
+        };
+        return (
+            colors[era as keyof typeof colors] || "bg-slate-100 text-slate-800"
+        );
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6">
             <div className="max-w-7xl mx-auto">
                 {/* 页面标题 */}
                 <div className="text-center mb-8">
-                    <h1 className="text-4xl md:text-5xl font-bold text-slate-800 mb-4">
+                    <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-4">
                         195件禁止出境文物
-                    </h1>
-                    <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-                        探索中华文明瑰宝，感受千年历史传承
-                    </p>
+                    </h2>
                 </div>
 
                 {/* 搜索和筛选区域 */}
@@ -619,6 +654,25 @@ const Wenwu: React.FC = () => {
                                         {types.map((type) => (
                                             <SelectItem key={type} value={type}>
                                                 {type}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+
+                                <Select
+                                    value={selectedEra}
+                                    onValueChange={setSelectedEra}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="选择时代" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            全部时代
+                                        </SelectItem>
+                                        {eras.map((era) => (
+                                            <SelectItem key={era} value={era}>
+                                                {era}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -762,7 +816,12 @@ const Wenwu: React.FC = () => {
                                                 {artifact.name}
                                             </CardTitle>
                                             <CardDescription className="text-sm">
-                                                {artifact.era}
+                                               <Badge
+                                                    variant="outline"
+                                                    className={getEraColor(artifact.era)}
+                                                >
+                                                    {artifact.era}
+                                                </Badge>
                                             </CardDescription>
                                         </CardHeader>
                                         <CardContent>
@@ -798,20 +857,18 @@ const Wenwu: React.FC = () => {
                                         <DialogTitle className="text-xl">
                                             {artifact.name}
                                         </DialogTitle>
-                                        <DialogDescription className="text-base">
-                                            {artifact.era} · {artifact.type}
-                                        </DialogDescription>
+
                                     </DialogHeader>
                                     <ScrollArea className="max-h-96">
                                         <div className="space-y-4">
                                             <div className="flex flex-wrap gap-2">
-                                                <Badge
-                                                    className={getBatchColor(
-                                                        artifact.batch
-                                                    )}
+                                              <Badge
+                                                    variant="outline"
+                                                    className={getEraColor(artifact.era)}
                                                 >
-                                                    {artifact.batch}
+                                                    {artifact.era}
                                                 </Badge>
+
                                                 <Badge
                                                     variant="secondary"
                                                     className={getTypeColor(
@@ -819,6 +876,13 @@ const Wenwu: React.FC = () => {
                                                     )}
                                                 >
                                                     {artifact.type}
+                                                </Badge>
+                                                <Badge
+                                                    className={getBatchColor(
+                                                        artifact.batch
+                                                    )}
+                                                >
+                                                    {artifact.batch}
                                                 </Badge>
                                             </div>
 
@@ -907,7 +971,12 @@ const Wenwu: React.FC = () => {
                                                         {artifact.name}
                                                     </h3>
                                                     <p className="text-slate-600 mb-3">
-                                                        {artifact.era}
+                                                        <Badge
+                                                    variant="outline"
+                                                    className={getEraColor(artifact.era)}
+                                                >
+                                                    {artifact.era}
+                                                </Badge>
                                                     </p>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-600">
                                                         <div className="flex items-center gap-1">
