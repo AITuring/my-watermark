@@ -14,6 +14,7 @@ import ChangeColor from "./ChangeColor";
 import PhotoCollage from "./PhotoCollage";
 import ImageStitching from "./ImageStitching";
 import RestaurantFinder from "./RestaurantFinder";
+import Wenwu from "./Wenwu";
 import "./App.css";
 
 const menuItems = [
@@ -48,6 +49,12 @@ const menuItems = [
         url: "/change",
         component: <ChangeColor />,
     },
+    {
+        label: "195禁出",
+        id: "wenwu",
+        url: "/wenwu",
+        component: <Wenwu />,
+    }
     // {
     //     label: "微博抽奖",
     //     id: "lottery",
