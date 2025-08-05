@@ -584,3 +584,73 @@
 picker {
   width: 100%;
 }
+
+/* 自定义图标样式 */
+.custom-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  
+  svg {
+    display: block;
+    transition: all 0.2s ease;
+  }
+  
+  &.picker-icon {
+    color: #666;
+    margin-left: 8px;
+  }
+}
+
+/* 图标悬停效果 */
+.picker-display:hover .custom-icon.picker-icon svg,
+.modal-close:hover .custom-icon svg {
+  transform: scale(1.1);
+}
+
+.reset-btn .custom-icon {
+  margin-right: 4px;
+}
+
+.meta-item .custom-icon {
+  margin-right: 4px;
+  color: #999;
+}
+
+.info-label .custom-icon {
+  margin-right: 6px;
+  color: #007aff;
+}
+
+.description-header .custom-icon {
+  margin-right: 6px;
+  color: #007aff;
+}
+
+/* 自定义图标在模态框中的样式 */
+.modal-content {
+  .info-label .custom-icon {
+    color: #667eea;
+    font-size: 18px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+    border-radius: 8px;
+  }
+
+  .description-header .custom-icon {
+    color: #667eea;
+    font-size: 20px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+    border-radius: 10px;
+  }
+}

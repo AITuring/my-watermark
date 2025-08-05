@@ -43,10 +43,17 @@ function calculateWatermarkPosition(
     imageHeight,
     position
 ) {
-    // scaleX和scaleY是相等的，用随便一个就行
-    const scale = position.scaleX || position.scaleY || 1;
-    const watermarkWidth = watermarkImage.width * scale;
-    const watermarkHeight = watermarkImage.height * scale;
+    // 计算基于图片较短边的标准化水印大小
+    const minDimension = Math.min(imageWidth, imageHeight);
+    const standardWatermarkSize = minDimension * 0.1; // 水印大小为较短边的10%
+    const standardScale = standardWatermarkSize / watermarkImage.width;
+
+    // 应用用户调整的缩放比例
+    const userScale = position.scaleX || position.scaleY || 1;
+    const finalScale = standardScale * userScale;
+
+    const watermarkWidth = watermarkImage.width * finalScale;
+    const watermarkHeight = watermarkImage.height * finalScale;
 
     // 水印的左上角坐标
     let watermarkX = position.x * imageWidth;

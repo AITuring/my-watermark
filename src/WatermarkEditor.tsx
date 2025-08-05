@@ -111,6 +111,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 背景图片的缩放比例（预览/原图）
     const [backgroundScale, setBackgroundScale] = useState(0.2);
     // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例）
+
+    // 水印相对于背景图片的标准化比例（基于图片较短边的百分比）
+    const [watermarkStandardScale, setWatermarkStandardScale] = useState(0.1);
+    // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例）
     const [currentScale, setCurrentScale] = useState(1);
 
     // 批量or单独
@@ -225,10 +229,17 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     // 更新水印尺寸
     const updateWatermarkSize = (scale) => {
-        if (watermarkImage) {
-            const width = watermarkImage.naturalWidth * backgroundScale * scale;
-            const height =
-                watermarkImage.naturalHeight * backgroundScale * scale;
+        if (watermarkImage && backgroundImage) {
+            // 使用标准化比例计算水印大小，不再乘以backgroundScale
+            const standardWatermarkWidth =
+                watermarkImage.naturalWidth * watermarkStandardScale;
+            const standardWatermarkHeight =
+                watermarkImage.naturalHeight * watermarkStandardScale;
+
+            // 应用当前缩放比例，但需要考虑预览缩放
+            const width = standardWatermarkWidth * backgroundScale * scale;
+            const height = standardWatermarkHeight * backgroundScale * scale;
+
             if (width > 0 && height > 0) {
                 setWatermarkSize({
                     width: width,
@@ -261,30 +272,60 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             const width = windowHeight * ratio;
             const height = windowHeight;
             setBackgroundImageSize({ width, height });
+            setBackgroundScale(scale);
             updateGuideLines();
-            setCurrentScale(scale);
+            setCurrentScale(1); // 重置为1，因为我们现在使用标准化比例
+
+            // 计算水印的标准化比例 - 基于原图较短边的10%
+            if (watermarkImage) {
+                const minDimension = Math.min(
+                    backgroundImage.naturalWidth,
+                    backgroundImage.naturalHeight
+                );
+                const standardWatermarkSize = minDimension * 0.1; // 水印大小为较短边的10%
+                const standardScale =
+                    standardWatermarkSize / watermarkImage.naturalWidth;
+                setWatermarkStandardScale(standardScale);
+            }
+
             // 提取图片颜色
             const colors = extractDominantColors(backgroundImage, 5);
             console.log("colors", colors);
             setDominantColors(colors);
         }
-    }, [backgroundImage, backgroundImageStatus, backgroundFixWidthVW]);
+    }, [
+        backgroundImage,
+        backgroundImageStatus,
+        backgroundFixWidthVW,
+        watermarkImage,
+    ]);
 
     // 初始化水印尺寸
     useEffect(() => {
-        if (watermarkImage) {
-            console.log(
-                "watermarkImage",
-                watermarkImage.naturalWidth,
-                watermarkImage.naturalHeight,
-                backgroundScale
+        if (watermarkImage && backgroundImage) {
+            // 计算标准化水印大小
+            const minDimension = Math.min(
+                backgroundImage.naturalWidth,
+                backgroundImage.naturalHeight
             );
+            const standardWatermarkSize = minDimension * 0.1;
+            const standardScale =
+                standardWatermarkSize / watermarkImage.naturalWidth;
+            setWatermarkStandardScale(standardScale);
+
+            // 设置预览中的水印大小
             setWatermarkSize({
-                width: watermarkImage.naturalWidth * backgroundScale,
-                height: watermarkImage.naturalHeight * backgroundScale,
+                width:
+                    watermarkImage.naturalWidth *
+                    standardScale *
+                    backgroundScale,
+                height:
+                    watermarkImage.naturalHeight *
+                    standardScale *
+                    backgroundScale,
             });
         }
-    }, [watermarkImage, backgroundScale]);
+    }, [watermarkImage, backgroundScale, backgroundImage]);
 
     useEffect(() => {
         const stage = stageRef.current;
@@ -511,7 +552,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                     src={coloredWatermarkUrl}
                                     fixedWidth={
                                         watermarkImage.naturalWidth *
-                                        backgroundScale
+                                        watermarkStandardScale *
+                                        backgroundScale *
+                                        currentScale
                                     }
                                     x={position.x * backgroundImageSize.width}
                                     y={position.y * backgroundImageSize.height}
@@ -655,70 +698,82 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 </div>
                 {/* 颜色选择区域 */}
                 {/* 颜色选择区域 */}
-{dominantColors.length > 0 && (
-    <div className="mt-4">
-        <h3 className="text-sm font-medium mb-2">背景主色调</h3>
-        <div className="flex gap-2">
-            {dominantColors.map((color, index) => (
-                <button
-                    title="点击应用此颜色"
-                    key={index}
-                    className={`w-8 h-8 rounded-full transition-opacity duration-200 ${isProcessingColor ? "opacity-50 cursor-not-allowed" : ""}`}
-                    style={{ backgroundColor: color.color }}
-                    onClick={() =>
-                        !isProcessingColor &&
-                        applyWatermarkColor(color.color)
-                    }
-                    disabled={isProcessingColor}
-                />
-            ))}
-            <button
-                className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center transition-opacity duration-200 ${isProcessingColor ? "opacity-50 cursor-not-allowed" : ""}`}
-                onClick={() =>
-                    !isProcessingColor &&
-                    applyWatermarkColor("transparent")
-                }
-                disabled={isProcessingColor}
-            >
-                <span className="text-xs">原色</span>
-            </button>
-            <div className="relative">
-                <button
-                    title="选择自定义颜色"
-                    className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center overflow-hidden transition-opacity duration-200 ${isProcessingColor ? "opacity-50 cursor-not-allowed" : ""}`}
-                    disabled={isProcessingColor}
-                >
-                    <div
-                        className="w-8 h-8 rounded-full absolute inset-0 flex items-center justify-center transition-colors duration-200"
-                        style={{
-                            backgroundColor:
-                                customColor || "#ffffff",
-                        }}
-                    >
-                        {!customColor && (
-                            <span className="text-xs">
-                                自选
-                            </span>
-                        )}
+                {dominantColors.length > 0 && (
+                    <div className="mt-4">
+                        <h3 className="text-sm font-medium mb-2">背景主色调</h3>
+                        <div className="flex gap-2">
+                            {dominantColors.map((color, index) => (
+                                <button
+                                    title="点击应用此颜色"
+                                    key={index}
+                                    className={`w-8 h-8 rounded-full transition-opacity duration-200 ${
+                                        isProcessingColor
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : ""
+                                    }`}
+                                    style={{ backgroundColor: color.color }}
+                                    onClick={() =>
+                                        !isProcessingColor &&
+                                        applyWatermarkColor(color.color)
+                                    }
+                                    disabled={isProcessingColor}
+                                />
+                            ))}
+                            <button
+                                className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center transition-opacity duration-200 ${
+                                    isProcessingColor
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : ""
+                                }`}
+                                onClick={() =>
+                                    !isProcessingColor &&
+                                    applyWatermarkColor("transparent")
+                                }
+                                disabled={isProcessingColor}
+                            >
+                                <span className="text-xs">原色</span>
+                            </button>
+                            <div className="relative">
+                                <button
+                                    title="选择自定义颜色"
+                                    className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center overflow-hidden transition-opacity duration-200 ${
+                                        isProcessingColor
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : ""
+                                    }`}
+                                    disabled={isProcessingColor}
+                                >
+                                    <div
+                                        className="w-8 h-8 rounded-full absolute inset-0 flex items-center justify-center transition-colors duration-200"
+                                        style={{
+                                            backgroundColor:
+                                                customColor || "#ffffff",
+                                        }}
+                                    >
+                                        {!customColor && (
+                                            <span className="text-xs">
+                                                自选
+                                            </span>
+                                        )}
+                                    </div>
+                                    <input
+                                        type="color"
+                                        value={customColor || "#ffffff"}
+                                        onChange={(e) => {
+                                            setCustomColor(e.target.value);
+                                            !isProcessingColor &&
+                                                applyWatermarkColor(
+                                                    e.target.value
+                                                );
+                                        }}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        disabled={isProcessingColor}
+                                    />
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <input
-                        type="color"
-                        value={customColor || "#ffffff"}
-                        onChange={(e) => {
-                            setCustomColor(e.target.value);
-                            !isProcessingColor &&
-                                applyWatermarkColor(
-                                    e.target.value
-                                );
-                        }}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        disabled={isProcessingColor}
-                    />
-                </button>
-            </div>
-        </div>
-    </div>
-)}
+                )}
             </div>
         </div>
     );

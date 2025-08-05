@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { View, Text, ScrollView, Picker } from "@tarojs/components";
-import { AtButton, AtCard, AtTag, AtSearchBar, AtIcon } from "taro-ui";
+import { AtButton, AtCard, AtTag, AtSearchBar } from "taro-ui";
 import Taro from "@tarojs/taro";
+import MyIcon from "@/components/MyIcon";
 
 import './index.less'
 
@@ -19,7 +20,7 @@ interface Artifact {
 }
 
 // 导入JSON数据
-import artifactsData from "../../195.json";
+import artifactsData from "@/195.json";
 
 const Index: React.FC = () => {
     const [artifacts] = useState<Artifact[]>(artifactsData);
@@ -269,7 +270,7 @@ const Index: React.FC = () => {
                     >
                         <View className="picker-display">
                             <Text className="picker-text">{getBatchDisplayText()}</Text>
-                            <AtIcon value="chevron-down" size="16" className="picker-icon" />
+                            <MyIcon name="chevron-down" size={16} className="picker-icon" />
                         </View>
                     </Picker>
                 </View>
@@ -285,7 +286,7 @@ const Index: React.FC = () => {
                     >
                         <View className="picker-display">
                             <Text className="picker-text">{getTypeDisplayText()}</Text>
-                            <AtIcon value="chevron-down" size="16" className="picker-icon" />
+                            <MyIcon name="chevron-down" size={16} className="picker-icon" />
                         </View>
                     </Picker>
                 </View>
@@ -301,7 +302,7 @@ const Index: React.FC = () => {
                     >
                         <View className="picker-display">
                             <Text className="picker-text">{getEraDisplayText()}</Text>
-                            <AtIcon value="chevron-down" size="16" className="picker-icon" />
+                            <MyIcon name="chevron-down" size={16} className="picker-icon" />
                         </View>
                     </Picker>
                 </View>
@@ -317,7 +318,7 @@ const Index: React.FC = () => {
                     >
                         <View className="picker-display">
                             <Text className="picker-text">{getCollectionDisplayText()}</Text>
-                            <AtIcon value="chevron-down" size="16" className="picker-icon" />
+                            <MyIcon name="chevron-down" size={16} className="picker-icon" />
                         </View>
                     </Picker>
                 </View>
@@ -326,7 +327,7 @@ const Index: React.FC = () => {
             <View className="filter-actions">
                 <View className="action-buttons">
                     <AtButton size="small" onClick={resetFilters} className="reset-btn">
-                        <AtIcon value="refresh" size="14" />
+                        <MyIcon name="refresh" size={14} />
                         重置筛选
                     </AtButton>
                 </View>
@@ -364,11 +365,11 @@ const Index: React.FC = () => {
                         <View className="card-content">
                             <View className="meta-info">
                                 <View className="meta-item">
-                                    <AtIcon value="map-pin" size="12" />
+                                    <MyIcon name="map-pin" size={12} />
                                     <Text className="meta-text">{artifact.excavationLocation}</Text>
                                 </View>
                                 <View className="meta-item">
-                                    <AtIcon value="home" size="12" />
+                                    <MyIcon name="home" size={12} />
                                     <Text className="meta-text">
                                         {artifact.collectionLocation.length > 12
                                             ? `${artifact.collectionLocation.substring(0, 12)}...`
@@ -403,10 +404,10 @@ const Index: React.FC = () => {
                         <View className="custom-modal-header">
                             <Text className="modal-title">{selectedArtifact?.name}</Text>
                             <View className="modal-close" onClick={closeModal}>
-                                <AtIcon value="close" size="20" />
+                                <MyIcon name="close" size={20} />
                             </View>
                         </View>
-                        
+
                         <ScrollView className="custom-modal-content" scrollY>
                             {selectedArtifact && (
                                 <View className="modal-content">
@@ -426,21 +427,21 @@ const Index: React.FC = () => {
                                         <View className="info-section">
                                             <View className="info-item">
                                                 <View className="info-label">
-                                                    <AtIcon value="map-pin" size="16" />
+                                                    <MyIcon name="map-pin" size={16} />
                                                     <Text className="label-text">出土地点</Text>
                                                 </View>
                                                 <Text className="info-value">{selectedArtifact.excavationLocation}</Text>
                                             </View>
                                             <View className="info-item">
                                                 <View className="info-label">
-                                                    <AtIcon value="calendar" size="16" />
+                                                    <MyIcon name="calendar" size={16} />
                                                     <Text className="label-text">出土时间</Text>
                                                 </View>
                                                 <Text className="info-value">{selectedArtifact.excavationTime}</Text>
                                             </View>
                                             <View className="info-item">
                                                 <View className="info-label">
-                                                    <AtIcon value="home" size="16" />
+                                                    <MyIcon name="home" size={16} />
                                                     <Text className="label-text">收藏地点</Text>
                                                 </View>
                                                 <Text className="info-value">{selectedArtifact.collectionLocation}</Text>
@@ -450,7 +451,7 @@ const Index: React.FC = () => {
 
                                     <View className="modal-description">
                                         <View className="description-header">
-                                            <AtIcon value="file-text" size="16" />
+                                            <MyIcon name="file-text" size={16} />
                                             <Text className="description-title">文物描述</Text>
                                         </View>
                                         <Text className="description-content">
@@ -460,7 +461,7 @@ const Index: React.FC = () => {
                                 </View>
                             )}
                         </ScrollView>
-                        
+
                         <View className="custom-modal-footer">
                             <AtButton onClick={closeModal} className="modal-close-btn">关闭</AtButton>
                         </View>

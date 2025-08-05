@@ -16,12 +16,18 @@
     "baseUrl": ".",
     "rootDir": ".",
     "jsx": "react-jsx",
-    
+
     "allowJs": true,
     "resolveJsonModule": true,
     "typeRoots": [
       "node_modules/@types"
-    ]
+    ],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/pages/*": ["./src/pages/*"],
+      "@/utils/*": ["./src/utils/*"]
+    }
   },
   "include": ["./src", "./types"],
   "compileOnSave": false

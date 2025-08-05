@@ -145,6 +145,8 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     const [isBatch, setIsBatch] = useState<boolean>(true);
 
     const [backgroundScale, setBackgroundScale] = useState(0.2);
+
+    const [watermarkStandardScale, setWatermarkStandardScale] = useState(0.1);
     // 添加：当前设置的比例，为了方便按钮操作
     const [currentScale, setCurrentScale] = useState(1);
 
@@ -162,8 +164,12 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
 
     // 添加触摸相关状态
-    const [touchStartDistance, setTouchStartDistance] = useState<number | null>(null);
-    const [touchStartRotation, setTouchStartRotation] = useState<number | null>(null);
+    const [touchStartDistance, setTouchStartDistance] = useState<number | null>(
+        null
+    );
+    const [touchStartRotation, setTouchStartRotation] = useState<number | null>(
+        null
+    );
     const [initialScale, setInitialScale] = useState<number>(1);
     const [initialRotation, setInitialRotation] = useState<number>(0);
 
@@ -171,7 +177,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     const getDistance = (touch1: Touch, touch2: Touch) => {
         return Math.sqrt(
             Math.pow(touch2.clientX - touch1.clientX, 2) +
-            Math.pow(touch2.clientY - touch1.clientY, 2)
+                Math.pow(touch2.clientY - touch1.clientY, 2)
         );
     };
 
@@ -186,7 +192,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     useEffect(() => {
         if (watermarkRef.current) {
             // 处理触摸开始事件
-            watermarkRef.current.on('touchstart', (e) => {
+            watermarkRef.current.on("touchstart", (e) => {
                 const touches = e.evt.touches;
                 if (touches.length === 2) {
                     e.evt.preventDefault();
@@ -200,17 +206,23 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             });
 
             // 处理触摸移动事件
-            watermarkRef.current.on('touchmove', (e) => {
+            watermarkRef.current.on("touchmove", (e) => {
                 const touches = e.evt.touches;
-                if (touches.length === 2 && touchStartDistance && touchStartRotation !== null) {
+                if (
+                    touches.length === 2 &&
+                    touchStartDistance &&
+                    touchStartRotation !== null
+                ) {
                     e.evt.preventDefault();
                     const distance = getDistance(touches[0], touches[1]);
                     const rotation = getRotation(touches[0], touches[1]);
 
                     // 计算缩放比例
-                    const scale = (distance / touchStartDistance) * initialScale;
+                    const scale =
+                        (distance / touchStartDistance) * initialScale;
                     // 计算旋转角度
-                    const newRotation = initialRotation +
+                    const newRotation =
+                        initialRotation +
                         ((rotation - touchStartRotation) * 180) / Math.PI;
 
                     // 更新位置
@@ -218,7 +230,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                         ...position,
                         scaleX: Math.max(0.1, Math.min(5, scale)),
                         scaleY: Math.max(0.1, Math.min(5, scale)),
-                        rotation: newRotation
+                        rotation: newRotation,
                     };
                     setPosition(newPosition);
                     onTransform(newPosition);
@@ -226,7 +238,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             });
 
             // 处理触摸结束事件
-            watermarkRef.current.on('touchend', () => {
+            watermarkRef.current.on("touchend", () => {
                 setTouchStartDistance(null);
                 setTouchStartRotation(null);
             });
@@ -234,9 +246,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
         return () => {
             if (watermarkRef.current) {
-                watermarkRef.current.off('touchstart');
-                watermarkRef.current.off('touchmove');
-                watermarkRef.current.off('touchend');
+                watermarkRef.current.off("touchstart");
+                watermarkRef.current.off("touchmove");
+                watermarkRef.current.off("touchend");
             }
         };
     }, [position, initialScale, initialRotation, onTransform]);
@@ -260,7 +272,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         }
     }, [backgroundImageFile]);
 
-    // 当背景图片加载完成时，更新背景图片的尺寸
+    // 当背景图片加载完成时，计算并设置 watermarkStandardScale
     useEffect(() => {
         if (backgroundImage && backgroundImageStatus === "loaded") {
             setIsLoading(false);
@@ -277,8 +289,25 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             setBackgroundImageSize({ width, height });
             updateGuideLines();
             setCurrentScale(scale);
+
+            // 添加：计算水印标准化比例
+            if (watermarkImage) {
+                const minDimension = Math.min(
+                    backgroundImage.naturalWidth,
+                    backgroundImage.naturalHeight
+                );
+                const standardWatermarkSize = minDimension * 0.1; // 水印大小为较短边的10%
+                const standardScale =
+                    standardWatermarkSize / watermarkImage.naturalWidth;
+                setWatermarkStandardScale(standardScale);
+            }
         }
-    }, [backgroundImage, backgroundImageStatus, backgroundFixWidthVW]);
+    }, [
+        backgroundImage,
+        backgroundImageStatus,
+        backgroundFixWidthVW,
+        watermarkImage,
+    ]);
 
     // 当背景图片加载完成时，更新背景图片的尺寸和舞台尺寸
     useEffect(() => {
@@ -526,18 +555,20 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     // 更新水印尺寸
     const updateWatermarkSize = (scale) => {
-        if (watermarkImage) {
-            const width = watermarkImage.naturalWidth * backgroundScale * scale;
-            const height =
-                watermarkImage.naturalHeight * backgroundScale * scale;
-            if (width > 0 && height > 0) {
-                setWatermarkSize({
-                    width: width,
-                    height: height,
-                });
-            }
+    if (watermarkImage) {
+        const standardWatermarkWidth = watermarkImage.naturalWidth * watermarkStandardScale;
+        const standardWatermarkHeight = watermarkImage.naturalHeight * watermarkStandardScale;
+
+        const width = standardWatermarkWidth * backgroundScale * scale;
+        const height = standardWatermarkHeight * backgroundScale * scale;
+        if (width > 0 && height > 0) {
+            setWatermarkSize({
+                width: width,
+                height: height,
+            });
         }
-    };
+    }
+};
 
     // 处理水印变换结束事件
     const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
@@ -780,8 +811,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                             <ImageWithFixedWidth
                                 src={watermarkUrl}
                                 fixedWidth={
-                                    watermarkImage.naturalWidth *
-                                    backgroundScale
+                                   watermarkImage.naturalWidth * watermarkStandardScale * backgroundScale
                                 }
                                 x={position.x * backgroundImageSize.width}
                                 y={position.y * backgroundImageSize.height}
