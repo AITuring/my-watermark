@@ -344,7 +344,7 @@ interface BatchProcessResult {
 async function processBatchImages(
     imgPositionList: Array<{ id: string; file: File; position: any }>,
     watermarkImage: HTMLImageElement,
-    watermarkBlur: number,
+    watermarkBlur: boolean,
     quality: number,
     batchSize = 5,
     globalConcurrency = 10,
@@ -357,7 +357,7 @@ async function processBatchImages(
     // 分批处理
     for (let i = 0; i < imgPositionList.length; i += batchSize) {
         const batch = imgPositionList.slice(i, i + batchSize);
-        
+
         const batchPromises = batch.map((img, index) =>
             taskQueue.add(async () => {
                 try {
@@ -373,11 +373,11 @@ async function processBatchImages(
                             onProgress?.(overallProgress);
                         }
                     );
-                    
+
                     completedCount++;
                     const overallProgress = (completedCount / imgPositionList.length) * 100;
                     onProgress?.(overallProgress);
-                    
+
                     return {
                         url,
                         name,
@@ -387,7 +387,7 @@ async function processBatchImages(
                     completedCount++;
                     const overallProgress = (completedCount / imgPositionList.length) * 100;
                     onProgress?.(overallProgress);
-                    
+
                     return {
                         url: '',
                         name: img.file.name,
