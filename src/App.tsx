@@ -149,6 +149,19 @@ const FloatingButtons = () => {
                 }}
                 tooltip={<div>美食推荐</div>}
             />
+             <FloatButton
+                icon={
+                    <Icon
+                        icon="ri:news-line"
+                        className=" w-5 h-5"
+                    />
+                }
+                type={location.pathname === "/news" ? "primary": "default"}
+                onClick={() => {
+                    navigate("/news");
+                }}
+                tooltip={<div>新闻</div>}
+            />
         </FloatButton.Group>
     );
 };
