@@ -7,6 +7,7 @@ import { Icon } from "@iconify/react";
 import Puzzle from "./Puzzle";
 import Watermark from "./Watermark";
 import CompTest from "./CompTest";
+import NewsApp from "./News";
 
 // import BorderWatermark from "./BorderWatermark";
 import Lottery from "./Lottery";
@@ -54,7 +55,13 @@ const menuItems = [
         id: "wenwu",
         url: "/wenwu",
         component: <Wenwu />,
-    }
+    },
+    {
+        label: "新闻",
+        id: "news",
+        url: "/news",
+        component: <NewsApp />,
+    },
     // {
     //     label: "微博抽奖",
     //     id: "lottery",
