@@ -1,6 +1,415 @@
 import { ImageType } from "@/types";
 import * as StackBlur from "stackblur-canvas";
 
+// ===== 性能优化：内存管理 =====
+
+// Canvas 池管理器
+class CanvasPool {
+    private static instance: CanvasPool;
+    private pool: HTMLCanvasElement[] = [];
+    private readonly maxPoolSize = 10;
+
+    static getInstance(): CanvasPool {
+        if (!CanvasPool.instance) {
+            CanvasPool.instance = new CanvasPool();
+        }
+        return CanvasPool.instance;
+    }
+
+    getCanvas(): HTMLCanvasElement {
+        if (this.pool.length > 0) {
+            return this.pool.pop()!;
+        }
+        return document.createElement("canvas");
+    }
+
+    releaseCanvas(canvas: HTMLCanvasElement): void {
+        if (this.pool.length < this.maxPoolSize) {
+            // 清理canvas
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // 重置canvas状态
+                ctx.globalCompositeOperation = "source-over";
+                ctx.globalAlpha = 1;
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+            }
+            this.pool.push(canvas);
+        }
+    }
+
+    cleanup(): void {
+        this.pool = [];
+    }
+}
+
+// 内存管理器
+class MemoryManager {
+    private static instance: MemoryManager;
+    private canvasPool: CanvasPool;
+    private urlCache = new Set<string>();
+
+    static getInstance(): MemoryManager {
+        if (!MemoryManager.instance) {
+            MemoryManager.instance = new MemoryManager();
+        }
+        return MemoryManager.instance;
+    }
+
+    constructor() {
+        this.canvasPool = CanvasPool.getInstance();
+    }
+
+    getCanvas(): HTMLCanvasElement {
+        return this.canvasPool.getCanvas();
+    }
+
+    releaseCanvas(canvas: HTMLCanvasElement): void {
+        this.canvasPool.releaseCanvas(canvas);
+    }
+
+    // URL 管理
+    createObjectURL(blob: Blob): string {
+        const url = URL.createObjectURL(blob);
+        this.urlCache.add(url);
+        return url;
+    }
+
+    revokeObjectURL(url: string): void {
+        if (this.urlCache.has(url)) {
+            URL.revokeObjectURL(url);
+            this.urlCache.delete(url);
+        }
+    }
+
+    // 清理所有缓存的URL
+    cleanup(): void {
+        this.urlCache.forEach(url => URL.revokeObjectURL(url));
+        this.urlCache.clear();
+        this.canvasPool.cleanup();
+    }
+
+    // 获取内存使用情况
+    getMemoryInfo(): { usedJSHeapSize?: number; totalJSHeapSize?: number; jsHeapSizeLimit?: number } {
+        if ('memory' in performance) {
+            return (performance as any).memory;
+        }
+        return {};
+    }
+}
+
+// ===== 性能优化：图片缓存 =====
+
+interface CachedImage {
+    image: HTMLImageElement;
+    timestamp: number;
+    size: number;
+}
+
+class ImageCache {
+    private static instance: ImageCache;
+    private cache = new Map<string, CachedImage>();
+    private readonly maxSize = 50; // 最大缓存数量
+    private readonly maxAge = 30 * 60 * 1000; // 30分钟过期
+    private readonly maxMemorySize = 100 * 1024 * 1024; // 100MB内存限制
+    private currentMemorySize = 0;
+
+    static getInstance(): ImageCache {
+        if (!ImageCache.instance) {
+            ImageCache.instance = new ImageCache();
+        }
+        return ImageCache.instance;
+    }
+
+    async getImage(url: string): Promise<HTMLImageElement> {
+        // 检查缓存
+        const cached = this.cache.get(url);
+        if (cached && Date.now() - cached.timestamp < this.maxAge) {
+            return cached.image;
+        }
+
+        // 加载新图片
+        const image = await this.loadImage(url);
+
+        // 估算图片内存大小
+        const size = this.estimateImageSize(image);
+
+        // 清理过期缓存
+        this.cleanupExpired();
+
+        // 如果缓存已满，删除最旧的
+        this.ensureCapacity(size);
+
+        // 添加到缓存
+        this.cache.set(url, {
+            image,
+            timestamp: Date.now(),
+            size
+        });
+        this.currentMemorySize += size;
+
+        return image;
+    }
+
+    private loadImage(url: string): Promise<HTMLImageElement> {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = reject;
+            image.src = url;
+        });
+    }
+
+    private estimateImageSize(image: HTMLImageElement): number {
+        // 估算图片在内存中的大小 (width * height * 4 bytes per pixel)
+        return image.width * image.height * 4;
+    }
+
+    private cleanupExpired(): void {
+        const now = Date.now();
+        for (const [url, cached] of this.cache.entries()) {
+            if (now - cached.timestamp > this.maxAge) {
+                this.currentMemorySize -= cached.size;
+                this.cache.delete(url);
+            }
+        }
+    }
+
+    private ensureCapacity(newImageSize: number): void {
+        // 如果新图片会超出内存限制，清理最旧的缓存
+        while (
+            (this.cache.size >= this.maxSize ||
+             this.currentMemorySize + newImageSize > this.maxMemorySize) &&
+            this.cache.size > 0
+        ) {
+            const oldestEntry = this.getOldestEntry();
+            if (oldestEntry) {
+                this.currentMemorySize -= oldestEntry.cached.size;
+                this.cache.delete(oldestEntry.url);
+            }
+        }
+    }
+
+    private getOldestEntry(): { url: string; cached: CachedImage } | null {
+        let oldest: { url: string; cached: CachedImage } | null = null;
+
+        for (const [url, cached] of this.cache.entries()) {
+            if (!oldest || cached.timestamp < oldest.cached.timestamp) {
+                oldest = { url, cached };
+            }
+        }
+
+        return oldest;
+    }
+
+    clear(): void {
+        this.cache.clear();
+        this.currentMemorySize = 0;
+    }
+
+    getStats(): { size: number; memorySize: number; maxSize: number; maxMemorySize: number } {
+        return {
+            size: this.cache.size,
+            memorySize: this.currentMemorySize,
+            maxSize: this.maxSize,
+            maxMemorySize: this.maxMemorySize
+        };
+    }
+}
+
+// ===== 性能优化：图片预处理 =====
+
+interface PreprocessedImage {
+    thumbnail: string;
+    dimensions: { width: number; height: number };
+    size: number;
+    aspectRatio: number;
+}
+
+async function preprocessImage(file: File): Promise<PreprocessedImage> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const image = new Image();
+            image.onload = () => {
+                const memoryManager = MemoryManager.getInstance();
+                const canvas = memoryManager.getCanvas();
+                const ctx = canvas.getContext("2d")!;
+
+                try {
+                    // 创建缩略图
+                    const maxSize = 200;
+                    const scale = Math.min(maxSize / image.width, maxSize / image.height);
+                    canvas.width = Math.floor(image.width * scale);
+                    canvas.height = Math.floor(image.height * scale);
+
+                    // 使用高质量缩放
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+                    const thumbnail = canvas.toDataURL("image/jpeg", 0.8);
+
+                    resolve({
+                        thumbnail,
+                        dimensions: { width: image.width, height: image.height },
+                        size: file.size,
+                        aspectRatio: image.width / image.height
+                    });
+                } catch (error) {
+                    reject(error);
+                } finally {
+                    memoryManager.releaseCanvas(canvas);
+                }
+            };
+            image.onerror = reject;
+            image.src = e.target?.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// ===== 性能优化：批处理优化 =====
+
+// 任务队列管理器
+class TaskQueue {
+    private static instance: TaskQueue;
+    private queue: Array<() => Promise<any>> = [];
+    private running = 0;
+    private maxConcurrency: number;
+
+    static getInstance(maxConcurrency = 4): TaskQueue {
+        if (!TaskQueue.instance) {
+            TaskQueue.instance = new TaskQueue(maxConcurrency);
+        }
+        return TaskQueue.instance;
+    }
+
+    constructor(maxConcurrency = 4) {
+        this.maxConcurrency = maxConcurrency;
+    }
+
+    async add<T>(task: () => Promise<T>): Promise<T> {
+        return new Promise((resolve, reject) => {
+            this.queue.push(async () => {
+                try {
+                    const result = await task();
+                    resolve(result);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+            this.process();
+        });
+    }
+
+    private async process(): Promise<void> {
+        if (this.running >= this.maxConcurrency || this.queue.length === 0) {
+            return;
+        }
+
+        this.running++;
+        const task = this.queue.shift()!;
+
+        try {
+            await task();
+        } finally {
+            this.running--;
+            this.process(); // 处理下一个任务
+        }
+    }
+
+    setMaxConcurrency(max: number): void {
+        this.maxConcurrency = max;
+    }
+
+    getStats(): { running: number; queued: number; maxConcurrency: number } {
+        return {
+            running: this.running,
+            queued: this.queue.length,
+            maxConcurrency: this.maxConcurrency
+        };
+    }
+}
+
+// ===== 批量处理函数 =====
+interface BatchProcessResult {
+    url: string;
+    name: string;
+    success: boolean;
+    error?: string;
+}
+
+async function processBatchImages(
+    imgPositionList: Array<{ id: string; file: File; position: any }>,
+    watermarkImage: HTMLImageElement,
+    watermarkBlur: number,
+    quality: number,
+    batchSize = 5,
+    globalConcurrency = 10,
+    onProgress?: (progress: number) => void
+): Promise<BatchProcessResult[]> {
+    const taskQueue = TaskQueue.getInstance(globalConcurrency);
+    const results: BatchProcessResult[] = [];
+    let completedCount = 0;
+
+    // 分批处理
+    for (let i = 0; i < imgPositionList.length; i += batchSize) {
+        const batch = imgPositionList.slice(i, i + batchSize);
+        
+        const batchPromises = batch.map((img, index) =>
+            taskQueue.add(async () => {
+                try {
+                    const { url, name } = await processImage(
+                        img.file,
+                        watermarkImage,
+                        img.position,
+                        watermarkBlur,
+                        quality,
+                        (progress) => {
+                            // 单个图片的进度回调
+                            const overallProgress = ((completedCount + progress / 100) / imgPositionList.length) * 100;
+                            onProgress?.(overallProgress);
+                        }
+                    );
+                    
+                    completedCount++;
+                    const overallProgress = (completedCount / imgPositionList.length) * 100;
+                    onProgress?.(overallProgress);
+                    
+                    return {
+                        url,
+                        name,
+                        success: true
+                    };
+                } catch (error) {
+                    completedCount++;
+                    const overallProgress = (completedCount / imgPositionList.length) * 100;
+                    onProgress?.(overallProgress);
+                    
+                    return {
+                        url: '',
+                        name: img.file.name,
+                        success: false,
+                        error: error instanceof Error ? error.message : '处理失败'
+                    };
+                }
+            })
+        );
+
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+
+        // 批次间的小延时
+        if (i + batchSize < imgPositionList.length) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+
+    return results;
+}
+
 
 function uuid(): string {
     let idStr = Date.now().toString(36);
@@ -105,133 +514,179 @@ async function processImage(
     position,
     watermarkBlur: boolean,
     quality: number,
+    onProgress?: (progress: number) => void
 ): Promise<{ url: string; name: string }> {
+    const memoryManager = MemoryManager.getInstance();
     const startTime = performance.now();
+
     return new Promise((resolve, reject) => {
+        // 输入验证
+        if (!file || !watermarkImage) {
+            reject(new Error("缺少必要的文件或水印图片"));
+            return;
+        }
+
+        if (file.size > 50 * 1024 * 1024) { // 50MB限制
+            reject(new Error(`文件大小超过限制（50MB），当前大小：${(file.size / 1024 / 1024).toFixed(2)}MB`));
+            return;
+        }
+
+        onProgress?.(10);
+
         const reader = new FileReader();
         reader.onload = async (e) => {
+            onProgress?.(30);
+
             const image = new Image();
             image.onload = async () => {
-                // 创建一个canvas元素
-                const canvas = document.createElement("canvas");
-                const ctx = canvas.getContext("2d");
-                canvas.width = image.width;
-                canvas.height = image.height;
+                let canvas: HTMLCanvasElement | null = null;
+                let tempCanvas: HTMLCanvasElement | null = null;
 
-                // 绘制原始图片
-                ctx.drawImage(image, 0, 0, image.width, image.height);
+                try {
+                    onProgress?.(50);
 
-                // 应用水印位置和变换
-                const watermarkPosition = calculateWatermarkPosition(
-                    watermarkImage,
-                    image.width,
-                    image.height,
-                    position
-                );
-                const watermarkX = watermarkPosition.x;
-                const watermarkY = watermarkPosition.y;
-                const watermarkWidth = watermarkPosition.width;
-                const watermarkHeight = watermarkPosition.height;
+                    // 取消检查图片尺寸
+                    // if (image.width > 8000 || image.height > 8000) {
+                    //     throw new Error(`图片尺寸过大：${image.width}x${image.height}，最大支持8000x8000`);
+                    // }
 
-                if (watermarkBlur) {
-                    // 创建一个临时canvas来应用模糊效果
-                    const tempCanvas = document.createElement("canvas");
-                    const tempCtx = tempCanvas.getContext("2d");
-                    tempCanvas.width = image.width;
-                    tempCanvas.height = image.height;
-                    tempCtx.drawImage(image, 0, 0, image.width, image.height);
+                    // 使用内存池中的canvas
+                    canvas = memoryManager.getCanvas();
+                    const ctx = canvas.getContext("2d");
 
-                    // 应用全图高斯模糊
-                    StackBlur.canvasRGBA(
-                        tempCanvas,
-                        0,
-                        0,
+                    if (!ctx) {
+                        throw new Error("无法创建Canvas上下文");
+                    }
+
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+
+                    // 绘制原始图片
+                    ctx.drawImage(image, 0, 0, image.width, image.height);
+
+                    onProgress?.(60);
+
+                    // 应用水印位置和变换
+                    const watermarkPosition = calculateWatermarkPosition(
+                        watermarkImage,
                         image.width,
                         image.height,
-                        20
+                        position
                     );
-                    // 创建径向渐变
-                    const centerX = watermarkX + watermarkWidth / 2;
-                    const centerY = watermarkY + watermarkHeight / 2;
+                    const watermarkX = watermarkPosition.x;
+                    const watermarkY = watermarkPosition.y;
+                    const watermarkWidth = watermarkPosition.width;
+                    const watermarkHeight = watermarkPosition.height;
 
-                    const innerRadius = 0; // 从中心开始渐变
-                    const outerRadius = Math.max(
+                    onProgress?.(70);
+
+                    if (watermarkBlur) {
+                        // 使用另一个canvas处理模糊效果
+                        tempCanvas = memoryManager.getCanvas();
+                        const tempCtx = tempCanvas.getContext("2d")!;
+                        tempCanvas.width = image.width;
+                        tempCanvas.height = image.height;
+                        tempCtx.drawImage(image, 0, 0, image.width, image.height);
+
+                        // 应用全图高斯模糊
+                        StackBlur.canvasRGBA(
+                            tempCanvas,
+                            0,
+                            0,
+                            image.width,
+                            image.height,
+                            20
+                        );
+
+                        // 创建径向渐变
+                        const centerX = watermarkX + watermarkWidth / 2;
+                        const centerY = watermarkY + watermarkHeight / 2;
+                        const innerRadius = 0;
+                        const outerRadius = Math.max(watermarkWidth, watermarkHeight);
+
+                        const gradient = ctx.createRadialGradient(
+                            centerX, centerY, innerRadius,
+                            centerX, centerY, outerRadius
+                        );
+                        gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
+                        gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+                        // 应用径向渐变作为蒙版
+                        ctx.globalCompositeOperation = "destination-out";
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(watermarkX, watermarkY, watermarkWidth, watermarkHeight);
+
+                        // 绘制模糊的背景图片
+                        ctx.globalCompositeOperation = "destination-over";
+                        ctx.drawImage(tempCanvas, 0, 0);
+                    }
+
+                    onProgress?.(80);
+
+                    // 绘制清晰的水印
+                    ctx.globalCompositeOperation = "source-over";
+                    ctx.save();
+
+                    // 将canvas的原点移动到水印的中心位置
+                    ctx.translate(
+                        watermarkX + watermarkWidth / 2,
+                        watermarkY + watermarkHeight / 2
+                    );
+
+                    // 绕原点旋转画布
+                    ctx.rotate((position.rotation * Math.PI) / 180);
+
+                    // 绘制水印
+                    ctx.drawImage(
+                        watermarkImage,
+                        -watermarkWidth / 2,
+                        -watermarkHeight / 2,
                         watermarkWidth,
                         watermarkHeight
-                    ); // 渐变扩散的半径
-
-                    const gradient = ctx.createRadialGradient(
-                        centerX,
-                        centerY,
-                        innerRadius,
-                        centerX,
-                        centerY,
-                        outerRadius
-                    );
-                    gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
-                    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-                    // 应用径向渐变作为蒙版
-                    ctx.globalCompositeOperation = "destination-out";
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(
-                        watermarkX,
-                        watermarkY,
-                        watermarkWidth,
-                        watermarkHeight
                     );
 
-                    // 绘制模糊的背景图片
-                    ctx.globalCompositeOperation = "destination-over";
-                    ctx.drawImage(tempCanvas, 0, 0);
+                    ctx.restore();
+
+                    onProgress?.(90);
+
+                    // 导出最终的图片
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                const url = memoryManager.createObjectURL(blob);
+                                onProgress?.(100);
+
+                                const endTime = performance.now();
+                                console.log(`处理图片耗时: ${(endTime - startTime).toFixed(2)} ms`);
+
+                                resolve({ url, name: file.name });
+                            } else {
+                                reject(new Error("图片导出失败"));
+                            }
+                        },
+                        "image/jpeg",
+                        quality
+                    );
+                } catch (error) {
+                    reject(error);
+                } finally {
+                    // 清理资源
+                    if (canvas) memoryManager.releaseCanvas(canvas);
+                    if (tempCanvas) memoryManager.releaseCanvas(tempCanvas);
                 }
-
-                // 绘制清晰的水印
-                ctx.globalCompositeOperation = "source-over";
-                // 保存当前context的状态
-                ctx.save();
-
-                // 将canvas的原点移动到水印的中心位置
-                ctx.translate(
-                    watermarkX + watermarkWidth / 2,
-                    watermarkY + watermarkHeight / 2
-                );
-
-                // 绕原点旋转画布
-                ctx.rotate((position.rotation * Math.PI) / 180); // position.rotation是角度，需要转换为弧度
-
-                // 因为canvas是绕新的原点旋转的，所以你需要将图片绘制在中心的相反位置
-                ctx.drawImage(
-                    watermarkImage,
-                    -watermarkWidth / 2,
-                    -watermarkHeight / 2,
-                    watermarkWidth,
-                    watermarkHeight
-                );
-
-                // 恢复canvas状态
-                ctx.restore();
-
-                // 导出最终的图片
-                canvas.toBlob(
-                    (blob) => {
-                        if (blob) {
-                            const url = URL.createObjectURL(blob);
-                            resolve({ url, name: file.name });
-                        } else {
-                            reject(new Error("Canvas to Blob failed"));
-                        }
-                    },
-                    "image/jpeg",
-                    quality
-                );
             };
-            image.onerror = reject;
-            image.src = e.target.result as string;
-            const endTime = performance.now();
-        console.log(`处理图片耗时: ${endTime - startTime} ms`);
+
+            image.onerror = () => {
+                reject(new Error("图片加载失败"));
+            };
+
+            image.src = e.target?.result as string;
         };
-        reader.onerror = reject;
+
+        reader.onerror = () => {
+            reject(new Error("文件读取失败"));
+        };
+
         reader.readAsDataURL(file);
     });
 }
