@@ -303,7 +303,7 @@ const Watermark: React.FC = () => {
                                 reject(new Error("水印图像加载失败"));
                             };
                             watermarkImg.src =
-                                watermarkColorUrls[img.id] || '/logo.png';
+                            watermarkColorUrls[img.id] || watermarkUrl;
                         });
                     } catch (error) {
                         console.error(`图片 ${img.id} 的水印加载失败:`, error);

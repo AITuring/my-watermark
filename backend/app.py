@@ -280,20 +280,231 @@ def stitch_with_homography(img1, img2, H):
         traceback.print_exc()
         return None
 
-def simple_stitch_two_images(img1, img2):
-    """改进的两图拼接函数"""
+def enhanced_stitch_with_perspective(img1, img2, H):
+    """增强的透视变换拼接，优化重叠区域处理"""
     try:
-        print("开始拼接两张图像...")
+        h1, w1 = img1.shape[:2]
+        h2, w2 = img2.shape[:2]
+
+        # 计算变换后的角点
+        corners2 = np.float32([[0, 0], [w2, 0], [w2, h2], [0, h2]]).reshape(-1, 1, 2)
+        corners2_transformed = cv2.perspectiveTransform(corners2, H)
+
+        # 计算输出图像的边界
+        corners1 = np.float32([[0, 0], [w1, 0], [w1, h1], [0, h1]]).reshape(-1, 1, 2)
+        all_corners = np.concatenate([corners1, corners2_transformed], axis=0)
+
+        min_x = int(np.min(all_corners[:, 0, 0]))
+        max_x = int(np.max(all_corners[:, 0, 0]))
+        min_y = int(np.min(all_corners[:, 0, 1]))
+        max_y = int(np.max(all_corners[:, 0, 1]))
+
+        output_width = max_x - min_x
+        output_height = max_y - min_y
+
+        print(f"输出图像尺寸: {output_width}x{output_height}")
+
+        # 检查输出尺寸是否合理
+        if output_width <= 0 or output_height <= 0 or output_width > 20000 or output_height > 20000:
+            print("输出图像尺寸不合理")
+            return None
+
+        # 调整变换矩阵
+        translation_matrix = np.array([[1, 0, -min_x], [0, 1, -min_y], [0, 0, 1]])
+        H_adjusted = translation_matrix @ H
+
+        # 创建输出图像和掩码
+        result = np.zeros((output_height, output_width, 3), dtype=np.uint8)
+        mask1 = np.zeros((output_height, output_width), dtype=np.uint8)
+        mask2 = np.zeros((output_height, output_width), dtype=np.uint8)
+
+        # 放置第一张图像
+        y1_start = -min_y
+        y1_end = y1_start + h1
+        x1_start = -min_x
+        x1_end = x1_start + w1
+
+        result[y1_start:y1_end, x1_start:x1_end] = img1
+        mask1[y1_start:y1_end, x1_start:x1_end] = 255
+
+        # 变换第二张图像
+        warped_img2 = cv2.warpPerspective(img2, H_adjusted, (output_width, output_height))
+
+        # 创建第二张图像的掩码
+        temp_mask = np.ones((h2, w2), dtype=np.uint8) * 255
+        warped_mask2 = cv2.warpPerspective(temp_mask, H_adjusted, (output_width, output_height))
+        mask2 = warped_mask2
+
+        # 找到重叠区域
+        overlap_mask = (mask1 > 0) & (mask2 > 0)
+
+        if np.any(overlap_mask):
+            print(f"检测到重叠区域，像素数: {np.sum(overlap_mask)}")
+
+            # 使用距离变换进行渐变融合
+            # 计算到边界的距离
+            dist1 = cv2.distanceTransform(mask1, cv2.DIST_L2, 5)
+            dist2 = cv2.distanceTransform(mask2, cv2.DIST_L2, 5)
+
+            # 在重叠区域计算权重
+            total_dist = dist1 + dist2
+            total_dist[total_dist == 0] = 1  # 避免除零
+
+            weight1 = dist1 / total_dist
+            weight2 = dist2 / total_dist
+
+            # 应用加权融合
+            for c in range(3):  # 对每个颜色通道
+                result[overlap_mask, c] = (
+                    weight1[overlap_mask] * result[overlap_mask, c] +
+                    weight2[overlap_mask] * warped_img2[overlap_mask, c]
+                ).astype(np.uint8)
+
+        # 非重叠区域直接复制第二张图像
+        non_overlap_mask2 = (mask2 > 0) & (mask1 == 0)
+        result[non_overlap_mask2] = warped_img2[non_overlap_mask2]
+
+        print("增强透视拼接完成")
+        return result
+
+    except Exception as e:
+        print(f"增强透视拼接失败: {e}")
+        traceback.print_exc()
+        return None
+
+def improved_feature_matching(img1, img2, detector_type='sift'):
+    """改进的特征匹配，提高透视变换精度"""
+    try:
+        print(f"使用{detector_type}进行改进特征匹配...")
+
+        # 图像预处理 - 增强对比度和锐化
+        def preprocess_for_matching(img):
+            # 转换为灰度图
+            if len(img.shape) == 3:
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = img.copy()
+
+            # 应用CLAHE增强对比度
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+            enhanced = clahe.apply(gray)
+
+            # 轻度高斯模糊去噪
+            denoised = cv2.GaussianBlur(enhanced, (3, 3), 0)
+
+            return denoised
+
+        gray1 = preprocess_for_matching(img1)
+        gray2 = preprocess_for_matching(img2)
+
+        # 创建检测器
+        detector = safe_create_detector(detector_type)
+        if detector is None:
+            return None
+
+        # 检测特征点
+        kp1, des1 = detector.detectAndCompute(gray1, None)
+        kp2, des2 = detector.detectAndCompute(gray2, None)
+
+        if des1 is None or des2 is None or len(kp1) < 15 or len(kp2) < 15:
+            print(f"特征点不足: img1={len(kp1) if kp1 else 0}, img2={len(kp2) if kp2 else 0}")
+            return None
+
+        print(f"找到特征点: img1={len(kp1)}, img2={len(kp2)}")
+
+        # 特征匹配
+        if detector_type in ['sift', 'akaze']:
+            # 使用FLANN匹配器
+            FLANN_INDEX_KDTREE = 1
+            index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+            search_params = dict(checks=50)
+            flann = cv2.FlannBasedMatcher(index_params, search_params)
+            matches = flann.knnMatch(des1, des2, k=2)
+        else:
+            # 使用BF匹配器
+            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+            matches = bf.knnMatch(des1, des2, k=2)
+
+        # 改进的Lowe's ratio test
+        good_matches = []
+        for match_pair in matches:
+            if len(match_pair) == 2:
+                m, n = match_pair
+                # 使用更严格的比例测试
+                if m.distance < 0.65 * n.distance:  # 从0.7降到0.65
+                    good_matches.append(m)
+
+        print(f"找到{len(good_matches)}个好的匹配点")
+
+        if len(good_matches) < 15:  # 提高最小匹配点要求
+            print("匹配点不足")
+            return None
+
+        # 提取匹配点坐标
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+
+        # 使用更严格的RANSAC参数计算单应性矩阵
+        H, mask = cv2.findHomography(dst_pts, src_pts,
+                                   cv2.RANSAC,
+                                   ransacReprojThreshold=3.0,  # 从5.0降到3.0
+                                   maxIters=10000,  # 增加迭代次数
+                                   confidence=0.999)  # 提高置信度
+
+        if H is None:
+            print("无法计算单应性矩阵")
+            return None
+
+        # 验证单应性矩阵的质量
+        inliers = np.sum(mask)
+        inlier_ratio = inliers / len(good_matches)
+        matches_count = len(good_matches)
+
+        print(f"内点数量: {inliers}, 内点比例: {inlier_ratio:.2f}")
+
+        # 提高质量要求
+        if inlier_ratio < 0.4 or inliers < 10:  # 提高内点比例要求
+            print("单应性矩阵质量不佳")
+            return None
+
+        # 验证单应性矩阵的合理性
+        det = np.linalg.det(H[:2, :2])
+        if abs(det) < 0.1 or abs(det) > 10:  # 检查变换是否过于极端
+            print(f"单应性矩阵变换过于极端，行列式: {det}")
+            return None
+
+        return H, matches_count, inlier_ratio
+
+    except Exception as e:
+        print(f"改进特征匹配失败: {e}")
+        return None
+
+def enhanced_simple_stitch_two_images(img1, img2):
+    """增强的两图拼接函数，优化透视变换和重叠处理"""
+    try:
+        print("开始增强两图拼接...")
 
         # 预处理图像
         img1 = preprocess_image_simple(img1)
         img2 = preprocess_image_simple(img2)
 
-        # 首先尝试多检测器拼接
-        result = multi_detector_stitch(img1, img2)
+        # 尝试多种检测器进行改进的特征匹配
+        detectors = ['sift', 'akaze', 'orb', 'brisk']
 
-        if result is not None:
-            return result
+        for detector_type in detectors:
+            print(f"尝试使用{detector_type}检测器...")
+            result = improved_feature_matching(img1, img2, detector_type)
+
+            if result is not None:
+                H, matches_count, inlier_ratio = result
+                print(f"{detector_type}检测器成功找到匹配，匹配点数：{matches_count}，内点比例：{inlier_ratio:.2f}")
+
+                # 使用增强的透视变换拼接
+                stitched = enhanced_stitch_with_perspective(img1, img2, H)
+                if stitched is not None:
+                    return stitched
+            else:
+                print(f"{detector_type}检测器匹配失败")
 
         print("特征匹配失败，尝试简单拼接...")
 
@@ -302,11 +513,10 @@ def simple_stitch_two_images(img1, img2):
         h2, w2 = img2.shape[:2]
 
         # 尝试水平拼接
-        if abs(h1 - h2) < min(h1, h2) * 0.3:  # 高度相近
+        if abs(h1 - h2) < min(h1, h2) * 0.3:
             print("尝试水平拼接...")
             target_height = max(h1, h2)
 
-            # 调整图像高度
             if h1 != target_height:
                 img1 = cv2.resize(img1, (w1, target_height))
             if h2 != target_height:
@@ -317,11 +527,10 @@ def simple_stitch_two_images(img1, img2):
             return result
 
         # 尝试垂直拼接
-        if abs(w1 - w2) < min(w1, w2) * 0.3:  # 宽度相近
+        if abs(w1 - w2) < min(w1, w2) * 0.3:
             print("尝试垂直拼接...")
             target_width = max(w1, w2)
 
-            # 调整图像宽度
             if w1 != target_width:
                 img1 = cv2.resize(img1, (target_width, h1))
             if w2 != target_width:
@@ -331,15 +540,246 @@ def simple_stitch_two_images(img1, img2):
             print("垂直拼接完成")
             return result
 
-        print("无法进行简单拼接")
+        print("无法进行拼接")
         return None
 
     except Exception as e:
-        print(f"拼接过程出错: {e}")
+        print(f"增强拼接过程出错: {e}")
         traceback.print_exc()
         return None
     finally:
         gc.collect()
+
+def validate_homography_and_size(H, img1_shape, img2_shape, max_size=15000, max_ratio=5.0):
+    """验证单应性矩阵和输出尺寸的合理性"""
+    try:
+        h1, w1 = img1_shape[:2]
+        h2, w2 = img2_shape[:2]
+
+        # 检查矩阵条件数
+        cond_num = np.linalg.cond(H)
+        if cond_num > 1000:  # 条件数过大表示矩阵接近奇异
+            print(f"单应性矩阵条件数过大: {cond_num}")
+            return False
+
+        # 检查尺度变化
+        det = np.linalg.det(H[:2, :2])
+        if abs(det) < 0.1 or abs(det) > 10:
+            print(f"尺度变化过于极端: {det}")
+            return False
+
+        # 检查透视参数
+        if abs(H[2, 0]) > 0.001 or abs(H[2, 1]) > 0.001:
+            print(f"透视变换过于极端: {H[2, 0]}, {H[2, 1]}")
+            return False
+
+        # 计算输出尺寸
+        corners2 = np.float32([[0, 0], [w2, 0], [w2, h2], [0, h2]]).reshape(-1, 1, 2)
+        corners2_transformed = cv2.perspectiveTransform(corners2, H)
+        corners1 = np.float32([[0, 0], [w1, 0], [w1, h1], [0, h1]]).reshape(-1, 1, 2)
+        all_corners = np.concatenate([corners1, corners2_transformed], axis=0)
+
+        min_x = np.min(all_corners[:, 0, 0])
+        max_x = np.max(all_corners[:, 0, 0])
+        min_y = np.min(all_corners[:, 0, 1])
+        max_y = np.max(all_corners[:, 0, 1])
+
+        output_width = max_x - min_x
+        output_height = max_y - min_y
+
+        # 检查输出尺寸
+        if output_width <= 0 or output_height <= 0:
+            print("输出尺寸无效")
+            return False
+
+        if output_width > max_size or output_height > max_size:
+            print(f"输出尺寸过大: {output_width}x{output_height}")
+            return False
+
+        # 检查尺寸比例
+        size_ratio = max(output_width/w1, output_height/h1, output_width/w2, output_height/h2)
+        if size_ratio > max_ratio:
+            print(f"输出尺寸比例过大: {size_ratio}")
+            return False
+
+        return True
+
+    except Exception as e:
+        print(f"验证单应性矩阵失败: {e}")
+        return False
+
+def robust_feature_matching_for_overlap(img1, img2, detector_type='sift'):
+    """专门针对重叠图片的鲁棒特征匹配"""
+    try:
+        print(f"使用{detector_type}进行重叠图片特征匹配...")
+
+        # 增强图像预处理
+        def enhance_for_overlap_detection(img):
+            if len(img.shape) == 3:
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = img.copy()
+
+            # 直方图均衡化
+            equalized = cv2.equalizeHist(gray)
+
+            # CLAHE增强对比度
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            enhanced = clahe.apply(equalized)
+
+            # 轻度锐化
+            kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+            sharpened = cv2.filter2D(enhanced, -1, kernel)
+
+            return sharpened
+
+        gray1 = enhance_for_overlap_detection(img1)
+        gray2 = enhance_for_overlap_detection(img2)
+
+        # 创建检测器
+        detector = safe_create_detector(detector_type)
+        if detector is None:
+            return None
+
+        # 检测特征点
+        kp1, des1 = detector.detectAndCompute(gray1, None)
+        kp2, des2 = detector.detectAndCompute(gray2, None)
+
+        if des1 is None or des2 is None or len(kp1) < 20 or len(kp2) < 20:
+            print(f"特征点不足: img1={len(kp1) if kp1 else 0}, img2={len(kp2) if kp2 else 0}")
+            return None
+
+        print(f"找到特征点: img1={len(kp1)}, img2={len(kp2)}")
+
+        # 特征匹配
+        if detector_type in ['sift', 'akaze']:
+            FLANN_INDEX_KDTREE = 1
+            index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+            search_params = dict(checks=100)  # 增加搜索精度
+            flann = cv2.FlannBasedMatcher(index_params, search_params)
+            matches = flann.knnMatch(des1, des2, k=2)
+        else:
+            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+            matches = bf.knnMatch(des1, des2, k=2)
+
+        # 更严格的Lowe's ratio test
+        good_matches = []
+        for match_pair in matches:
+            if len(match_pair) == 2:
+                m, n = match_pair
+                if m.distance < 0.6 * n.distance:  # 更严格的比例
+                    good_matches.append(m)
+
+        print(f"找到{len(good_matches)}个好的匹配点")
+
+        if len(good_matches) < 20:  # 提高最小匹配点要求
+            print("匹配点不足")
+            return None
+
+        # 提取匹配点坐标
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+
+        # 使用更严格的RANSAC参数
+        H, mask = cv2.findHomography(dst_pts, src_pts,
+                                   cv2.RANSAC,
+                                   ransacReprojThreshold=2.0,  # 更严格的阈值
+                                   maxIters=15000,
+                                   confidence=0.999)
+
+        if H is None:
+            print("无法计算单应性矩阵")
+            return None
+
+        # 验证单应性矩阵质量
+        inliers = np.sum(mask)
+        inlier_ratio = inliers / len(good_matches)
+
+        print(f"内点数量: {inliers}, 内点比例: {inlier_ratio:.2f}")
+
+        if inlier_ratio < 0.5 or inliers < 15:  # 更严格的质量要求
+            print("单应性矩阵质量不佳")
+            return None
+
+        # 验证矩阵和输出尺寸的合理性
+        if not validate_homography_and_size(H, img1.shape, img2.shape):
+            print("单应性矩阵或输出尺寸不合理")
+            return None
+
+        return H, len(good_matches), inlier_ratio
+
+    except Exception as e:
+        print(f"重叠图片特征匹配失败: {e}")
+        return None
+
+
+
+def fallback_simple_stitch(img1, img2):
+    """简单拼接回退方案"""
+    try:
+        h1, w1 = img1.shape[:2]
+        h2, w2 = img2.shape[:2]
+
+        # 尝试水平拼接
+        if abs(h1 - h2) < min(h1, h2) * 0.3:
+            target_height = max(h1, h2)
+            if h1 != target_height:
+                img1 = cv2.resize(img1, (w1, target_height))
+            if h2 != target_height:
+                img2 = cv2.resize(img2, (w2, target_height))
+            return np.hstack([img1, img2])
+
+        # 尝试垂直拼接
+        if abs(w1 - w2) < min(w1, w2) * 0.3:
+            target_width = max(w1, w2)
+            if w1 != target_width:
+                img1 = cv2.resize(img1, (target_width, h1))
+            if w2 != target_width:
+                img2 = cv2.resize(img2, (target_width, h2))
+            return np.vstack([img1, img2])
+
+        return None
+
+    except Exception as e:
+        print(f"简单拼接失败: {e}")
+        return None
+
+def simple_stitch_two_images(img1, img2):
+    """优化的两图拼接函数"""
+    try:
+        print("开始优化两图拼接...")
+
+        # 预处理图像
+        img1 = preprocess_image_simple(img1)
+        img2 = preprocess_image_simple(img2)
+
+        # 尝试多种检测器进行鲁棒特征匹配
+        detectors = ['sift', 'akaze', 'orb']
+
+        for detector_type in detectors:
+            print(f"尝试使用{detector_type}检测器...")
+            result = robust_feature_matching_for_overlap(img1, img2, detector_type)
+
+            if result is not None:
+                H, matches_count, inlier_ratio = result
+                print(f"{detector_type}检测器成功，匹配点数：{matches_count}，内点比例：{inlier_ratio:.2f}")
+
+                # 使用验证过的单应性矩阵进行拼接
+                stitched = stitch_with_homography(img1, img2, H)
+                if stitched is not None:
+                    return stitched
+            else:
+                print(f"{detector_type}检测器匹配失败")
+
+        # 如果特征匹配失败，回退到简单拼接
+        print("特征匹配失败，尝试简单拼接...")
+        return fallback_simple_stitch(img1, img2)
+
+    except Exception as e:
+        print(f"拼接过程出错: {e}")
+        return fallback_simple_stitch(img1, img2)
+
+
 
 def find_best_stitch_order(images):
     """找到最佳的拼接顺序"""
@@ -701,18 +1141,107 @@ def smart_multi_image_stitch(images):
         traceback.print_exc()
         return None
 
+def simple_multi_image_stitch(images):
+    """简化的多图拼接 - 循环调用两图拼接"""
+    try:
+        print("开始简化多图拼接...")
+
+        if len(images) < 2:
+            return None
+
+        if len(images) == 2:
+            return simple_stitch_two_images(images[0], images[1])
+
+        # 从第一张图开始
+        result = images[0]
+        print(f"以图像1作为基础图像，尺寸: {result.shape}")
+
+        # 逐一拼接后续图像
+        for i in range(1, len(images)):
+            print(f"正在拼接第{i+1}张图像...")
+
+            # 尝试正向拼接
+            temp_result = simple_stitch_two_images(result, images[i])
+
+            if temp_result is None:
+                # 尝试反向拼接
+                print(f"正向拼接失败，尝试反向拼接第{i+1}张图像...")
+                temp_result = simple_stitch_two_images(images[i], result)
+
+            if temp_result is not None:
+                result = temp_result
+                print(f"成功拼接第{i+1}张图像，当前结果尺寸: {result.shape}")
+            else:
+                print(f"无法拼接第{i+1}张图像，跳过该图像")
+                continue
+
+        return result
+
+    except Exception as e:
+        print(f"简化多图拼接失败: {e}")
+        traceback.print_exc()
+        return None
+
+def smart_order_multi_stitch(images):
+    """智能排序的多图拼接"""
+    try:
+        print("开始智能排序多图拼接...")
+
+        if len(images) < 2:
+            return None
+
+        if len(images) == 2:
+            return simple_stitch_two_images(images[0], images[1])
+
+        # 尝试找到最佳的起始图像对
+        best_result = None
+        best_order = None
+
+        # 尝试不同的起始图像对
+        for i in range(len(images)):
+            for j in range(i+1, len(images)):
+                print(f"尝试以图像{i+1}和图像{j+1}作为起始对...")
+
+                # 尝试拼接起始对
+                initial_result = simple_stitch_two_images(images[i], images[j])
+                if initial_result is None:
+                    initial_result = simple_stitch_two_images(images[j], images[i])
+
+                if initial_result is not None:
+                    # 创建剩余图像列表
+                    remaining_images = [images[k] for k in range(len(images)) if k != i and k != j]
+
+                    # 继续拼接剩余图像
+                    current_result = initial_result
+                    success_count = 2  # 已成功拼接的图像数
+
+                    for img in remaining_images:
+                        temp_result = simple_stitch_two_images(current_result, img)
+                        if temp_result is None:
+                            temp_result = simple_stitch_two_images(img, current_result)
+
+                        if temp_result is not None:
+                            current_result = temp_result
+                            success_count += 1
+
+                    # 如果这个顺序拼接了更多图像，记录为最佳结果
+                    if best_result is None or success_count > len(best_order):
+                        best_result = current_result
+                        best_order = [i, j] + list(range(len(images)))
+                        print(f"找到更好的拼接顺序，成功拼接{success_count}张图像")
+
+        return best_result
+
+    except Exception as e:
+        print(f"智能排序多图拼接失败: {e}")
+        traceback.print_exc()
+        return None
+
+# 修改主要的多图拼接函数
 def advanced_multi_image_stitch(images):
-    """改进的多图拼接算法 - 使用智能拼接"""
+    """改进的多图拼接算法 - 优先使用简化方法"""
     try:
         print("开始高级多图拼接...")
-
-        # 首先尝试智能拼接
-        result = smart_multi_image_stitch(images)
-
-        if result is not None:
-            return result
-
-        print("智能拼接失败，回退到传统方法...")
 
         # 预处理所有图像
         processed_images = []
@@ -721,11 +1250,29 @@ def advanced_multi_image_stitch(images):
             processed_images.append(processed)
             print(f"预处理图像{i+1}完成")
 
-        # 尝试OpenCV Stitcher
-        stitcher_modes = [
-            cv2.Stitcher_PANORAMA,
-            cv2.Stitcher_SCANS
-        ]
+        # 首先尝试简化的循环拼接
+        print("尝试简化循环拼接...")
+        result = simple_multi_image_stitch(processed_images)
+        if result is not None:
+            print("简化循环拼接成功")
+            return result
+
+        # 尝试智能排序拼接
+        print("尝试智能排序拼接...")
+        result = smart_order_multi_stitch(processed_images)
+        if result is not None:
+            print("智能排序拼接成功")
+            return result
+
+        # 回退到原有的复杂方法
+        print("回退到智能拼接方法...")
+        result = smart_multi_image_stitch(processed_images)
+        if result is not None:
+            return result
+
+        # 最后尝试OpenCV Stitcher
+        print("尝试OpenCV Stitcher...")
+        stitcher_modes = [cv2.Stitcher_PANORAMA, cv2.Stitcher_SCANS]
 
         for mode in stitcher_modes:
             try:
@@ -745,21 +1292,8 @@ def advanced_multi_image_stitch(images):
                 print(f"拼接模式{mode}失败: {e}")
                 continue
 
-        # 最后的回退方案：简单顺序拼接
-        print("使用简单顺序拼接作为最后方案...")
-        result = processed_images[0]
-
-        for i in range(1, len(processed_images)):
-            print(f"拼接图像{i+1}...")
-            temp_result = simple_stitch_two_images(result, processed_images[i])
-
-            if temp_result is not None:
-                result = temp_result
-                print(f"成功拼接图像{i+1}")
-            else:
-                print(f"无法拼接图像{i+1}，跳过")
-
-        return result
+        print("所有拼接方法都失败了")
+        return None
 
     except Exception as e:
         print(f"多图拼接失败: {e}")
