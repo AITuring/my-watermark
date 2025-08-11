@@ -221,7 +221,6 @@ const Watermark: React.FC = () => {
         imageId: string,
         newWatermarkUrl: string
     ) => {
-
         setWatermarkColorUrls((prev) => ({
             ...prev,
             [imageId]: newWatermarkUrl,
@@ -291,7 +290,10 @@ const Watermark: React.FC = () => {
 
             const tasks = batch.map((img, index) =>
                 limit(async () => {
-                    console.log(`开始处理图片 ${img.id}`, watermarkColorUrls[img.id]);
+                    console.log(
+                        `开始处理图片 ${img.id}`,
+                        watermarkColorUrls[img.id]
+                    );
                     const { file, position } = img;
 
                     // 创建并加载水印图像
@@ -304,7 +306,7 @@ const Watermark: React.FC = () => {
                                 reject(new Error("水印图像加载失败"));
                             };
                             watermarkImg.src =
-                            watermarkColorUrls[img.id] || watermarkUrl;
+                                watermarkColorUrls[img.id] || watermarkUrl;
                         });
                     } catch (error) {
                         console.error(`图片 ${img.id} 的水印加载失败:`, error);
@@ -401,13 +403,90 @@ const Watermark: React.FC = () => {
                             onUpload={handleImagesUpload}
                             fileType="背景"
                         >
-                            <div className="p-8 rounded-2xl text-slate-700 text-2xl font-medium bg-white/80 backdrop-blur-md cursor-pointer flex flex-col items-center hover:bg-white/90 transition-all duration-300 shadow-xl border border-white/20">
-                                <Icon
-                                    icon="mdi:cloud-upload-outline"
-                                    className="mb-4 h-12 w-12 text-slate-600"
-                                />
-                                <span className="text-lg font-light tracking-wide">上传背景图片</span>
-                                <span className="text-sm text-slate-500 mt-2">支持 JPG、PNG 格式</span>
+                            <div className="group p-6 md:p-8 rounded-3xl text-slate-700 bg-white/20 backdrop-blur-xl cursor-pointer flex flex-col items-center hover:bg-white/30 transition-all duration-500 shadow-2xl border border-white/30 hover:border-white/50 hover:shadow-3xl hover:scale-105 transform">
+                                {/* 图片动画容器 */}
+                                <div className="relative mb-3 md:mb-4 w-16 h-12 md:w-18 md:h-14">
+                                    {/* 底层图片 */}
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg shadow-lg transform transition-all duration-700 ease-out group-hover:translate-x-3 group-hover:translate-y-2 group-hover:rotate-6 group-hover:scale-95">
+                                        <div className="w-full h-full rounded-lg overflow-hidden relative">
+                                            {/* 图片内容 - 风景 */}
+                                            <div className="absolute inset-0 bg-gradient-to-b from-blue-200 to-green-200"></div>
+                                            <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-green-300 to-transparent"></div>
+                                            <div className="absolute bottom-1/3 left-1/4 w-3 h-2 bg-green-400 rounded-full opacity-60"></div>
+                                            <div className="absolute bottom-1/4 right-1/3 w-2 h-1.5 bg-green-500 rounded-full opacity-40"></div>
+                                        </div>
+                                    </div>
+
+                                    {/* 中层图片 */}
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg shadow-xl transform transition-all duration-600 ease-out group-hover:-translate-x-2 group-hover:translate-y-1 group-hover:-rotate-3 group-hover:scale-105 z-10">
+                                        <div className="w-full h-full rounded-lg overflow-hidden relative">
+                                            {/* 图片内容 - 城市 */}
+                                            <div className="absolute inset-0 bg-gradient-to-b from-orange-200 to-yellow-200"></div>
+                                            <div className="absolute bottom-0 left-0 w-2 h-3 bg-gray-400 opacity-70"></div>
+                                            <div className="absolute bottom-0 left-2 w-1.5 h-4 bg-gray-500 opacity-60"></div>
+                                            <div className="absolute bottom-0 right-2 w-2 h-2.5 bg-gray-400 opacity-80"></div>
+                                            <div className="absolute top-1/4 right-1/4 w-4 h-1 bg-yellow-300 rounded-full opacity-60"></div>
+                                        </div>
+                                    </div>
+
+                                    {/* 顶层图片 */}
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-white to-slate-100 rounded-lg shadow-2xl transform transition-all duration-500 ease-out group-hover:-translate-x-4 group-hover:-translate-y-2 group-hover:-rotate-8 group-hover:scale-110 z-20">
+                                        <div className="w-full h-full rounded-lg overflow-hidden relative">
+                                            {/* 图片内容 - 山景 */}
+                                            <div className="absolute inset-0 bg-gradient-to-b from-blue-100 to-purple-100"></div>
+                                            <div className="absolute bottom-0 left-0 right-0 h-2/3">
+                                                <svg
+                                                    className="w-full h-full text-purple-300/60"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 100 60"
+                                                >
+                                                    <path d="M0 60 L20 30 L40 45 L60 20 L80 35 L100 15 L100 60 Z" />
+                                                </svg>
+                                            </div>
+                                            <div className="absolute top-1/4 right-1/3 w-3 h-1 bg-yellow-200 rounded-full opacity-80"></div>
+                                        </div>
+                                    </div>
+
+                                    {/* 上传指示器 */}
+                                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 delay-300 z-30">
+                                        <div className="bg-white/90 rounded-full p-2 shadow-lg backdrop-blur-sm">
+                                            <Icon
+                                                icon="mdi:plus"
+                                                className="h-3 w-3 md:h-4 md:w-4 text-slate-600"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* 新图片飞入效果 */}
+                                    <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 transform translate-y-6 rotate-12 group-hover:translate-y-0 group-hover:rotate-0 transition-all duration-800 delay-400 z-30">
+                                        <div className="w-4 h-3 md:w-5 md:h-4 bg-gradient-to-br from-pink-200 to-pink-300 rounded-md shadow-lg border border-white/40 overflow-hidden">
+                                            <div className="w-full h-full bg-gradient-to-b from-pink-100 to-rose-200 relative">
+                                                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-pink-200/30"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="absolute -top-2 -right-6 opacity-0 group-hover:opacity-100 transform translate-y-8 rotate-45 group-hover:translate-y-0 group-hover:rotate-12 transition-all duration-900 delay-500 z-30">
+                                        <div className="w-3 h-2.5 md:w-4 md:h-3 bg-gradient-to-br from-emerald-200 to-emerald-300 rounded-md shadow-lg border border-white/40 overflow-hidden">
+                                            <div className="w-full h-full bg-gradient-to-b from-emerald-100 to-teal-200 relative">
+                                                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-emerald-200/30"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <span className="text-base md:text-lg font-light tracking-wide text-slate-700/90 text-center group-hover:text-slate-800 transition-colors duration-300">
+                                    上传背景图片
+                                </span>
+                                <span className="text-xs md:text-sm text-slate-600/70 mt-1 md:mt-2 text-center group-hover:text-slate-700/80 transition-colors duration-300">
+                                    支持 JPG、PNG 格式
+                                </span>
+
+                                {/* 移动端优化的触摸提示 */}
+                                <div className="mt-2 md:hidden">
+                                    <span className="text-xs text-slate-500/60 group-hover:text-slate-600/80 transition-colors duration-300">
+                                        轻触上传
+                                    </span>
+                                </div>
                             </div>
                         </ImageUploader>
                     </div>
@@ -563,13 +642,83 @@ const Watermark: React.FC = () => {
                             onUpload={handleImagesUpload}
                             fileType="背景"
                         >
-                            <div className="p-8 rounded-2xl text-slate-700 text-2xl font-medium bg-white/80 backdrop-blur-md cursor-pointer flex flex-col items-center hover:bg-white/90 transition-all duration-300 shadow-xl border border-white/20">
-                                <Icon
-                                    icon="mdi:cloud-upload-outline"
-                                    className="mb-4 h-12 w-12 text-slate-600"
-                                />
-                                <span className="text-lg font-light tracking-wide">上传背景图片</span>
-                                <span className="text-sm text-slate-500 mt-2">支持 JPG、PNG 格式</span>
+                            <div className="group p-6 md:p-8 rounded-3xl text-slate-700 bg-white/20 backdrop-blur-xl cursor-pointer flex flex-col items-center hover:bg-white/30 transition-all duration-500 shadow-2xl border border-white/30 hover:border-white/50 hover:shadow-3xl hover:scale-105 transform">
+                                {/* 图片动画容器 */}
+                                <div className="relative mb-3 md:mb-4 w-16 h-12 md:w-18 md:h-14">
+                                    {/* 底层图片 */}
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg shadow-lg transform transition-all duration-700 ease-out group-hover:translate-x-3 group-hover:translate-y-2 group-hover:rotate-6 group-hover:scale-95">
+                                        <div className="w-full h-full rounded-lg overflow-hidden relative">
+                                            {/* 图片内容 - 风景 */}
+                                            <div className="absolute inset-0 bg-gradient-to-b from-blue-200 to-green-200"></div>
+                                            <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-green-300 to-transparent"></div>
+                                            <div className="absolute bottom-1/3 left-1/4 w-3 h-2 bg-green-400 rounded-full opacity-60"></div>
+                                            <div className="absolute bottom-1/4 right-1/3 w-2 h-1.5 bg-green-500 rounded-full opacity-40"></div>
+                                        </div>
+                                    </div>
+
+                                    {/* 中层图片 */}
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg shadow-xl transform transition-all duration-600 ease-out group-hover:-translate-x-2 group-hover:translate-y-1 group-hover:-rotate-3 group-hover:scale-105 z-10">
+                                        <div className="w-full h-full rounded-lg overflow-hidden relative">
+                                            {/* 图片内容 - 城市 */}
+                                            <div className="absolute inset-0 bg-gradient-to-b from-orange-200 to-yellow-200"></div>
+                                            <div className="absolute bottom-0 left-0 w-2 h-3 bg-gray-400 opacity-70"></div>
+                                            <div className="absolute bottom-0 left-2 w-1.5 h-4 bg-gray-500 opacity-60"></div>
+                                            <div className="absolute bottom-0 right-2 w-2 h-2.5 bg-gray-400 opacity-80"></div>
+                                            <div className="absolute top-1/4 right-1/4 w-4 h-1 bg-yellow-300 rounded-full opacity-60"></div>
+                                        </div>
+                                    </div>
+
+                                    {/* 顶层图片 */}
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-white to-slate-100 rounded-lg shadow-2xl transform transition-all duration-500 ease-out group-hover:-translate-x-4 group-hover:-translate-y-2 group-hover:-rotate-8 group-hover:scale-110 z-20">
+                                        <div className="w-full h-full rounded-lg overflow-hidden relative">
+                                            {/* 图片内容 - 山景 */}
+                                            <div className="absolute inset-0 bg-gradient-to-b from-blue-100 to-purple-100"></div>
+                                            <div className="absolute bottom-0 left-0 right-0 h-2/3">
+                                                <svg
+                                                    className="w-full h-full text-purple-300/60"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 100 60"
+                                                >
+                                                    <path d="M0 60 L20 30 L40 45 L60 20 L80 35 L100 15 L100 60 Z" />
+                                                </svg>
+                                            </div>
+                                            <div className="absolute top-1/4 right-1/3 w-3 h-1 bg-yellow-200 rounded-full opacity-80"></div>
+                                        </div>
+                                    </div>
+
+                                    {/* 上传指示器 */}
+                                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 delay-300 z-30">
+                                        <div className="bg-white/90 rounded-full p-2 shadow-lg backdrop-blur-sm">
+                                            <Icon
+                                                icon="mdi:plus"
+                                                className="h-3 w-3 md:h-4 md:w-4 text-slate-600"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* 新图片飞入效果 */}
+                                    <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 transform translate-y-6 rotate-12 group-hover:translate-y-0 group-hover:rotate-0 transition-all duration-800 delay-400 z-30">
+                                        <div className="w-4 h-3 md:w-5 md:h-4 bg-gradient-to-br from-pink-200 to-pink-300 rounded-md shadow-lg border border-white/40 overflow-hidden">
+                                            <div className="w-full h-full bg-gradient-to-b from-pink-100 to-rose-200 relative">
+                                                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-pink-200/30"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="absolute -top-2 -right-6 opacity-0 group-hover:opacity-100 transform translate-y-8 rotate-45 group-hover:translate-y-0 group-hover:rotate-12 transition-all duration-900 delay-500 z-30">
+                                        <div className="w-3 h-2.5 md:w-4 md:h-3 bg-gradient-to-br from-emerald-200 to-emerald-300 rounded-md shadow-lg border border-white/40 overflow-hidden">
+                                            <div className="w-full h-full bg-gradient-to-b from-emerald-100 to-teal-200 relative">
+                                                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-emerald-200/30"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <span className="text-base md:text-lg font-light tracking-wide text-slate-700/90 text-center group-hover:text-slate-800 transition-colors duration-300">
+                                    上传背景图片
+                                </span>
+                                <span className="text-xs md:text-sm text-slate-600/70 mt-1 md:mt-2 text-center group-hover:text-slate-700/80 transition-colors duration-300">
+                                    支持 JPG、PNG 格式
+                                </span>
                             </div>
                         </ImageUploader>
                     </div>
