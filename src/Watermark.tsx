@@ -669,20 +669,51 @@ const Watermark: React.FC = () => {
                                     </div>
 
                                     {/* 顶层图片 */}
+                                                                        {/* 顶层图片 */}
                                     <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-white to-slate-100 rounded-lg shadow-2xl transform transition-all duration-500 ease-out group-hover:-translate-x-4 group-hover:-translate-y-2 group-hover:-rotate-8 group-hover:scale-110 z-20">
                                         <div className="w-full h-full rounded-lg overflow-hidden relative">
-                                            {/* 图片内容 - 山景 */}
-                                            <div className="absolute inset-0 bg-gradient-to-b from-blue-100 to-purple-100"></div>
-                                            <div className="absolute bottom-0 left-0 right-0 h-2/3">
+                                            {/* 图片内容 - 自然山景 */}
+                                            <div className="absolute inset-0 bg-gradient-to-b from-sky-200 via-blue-100 to-emerald-100"></div>
+
+                                            {/* 远山层 */}
+                                            <div className="absolute bottom-0 left-0 right-0 h-3/4">
                                                 <svg
-                                                    className="w-full h-full text-purple-300/60"
+                                                    className="w-full h-full text-slate-300/40"
                                                     fill="currentColor"
                                                     viewBox="0 0 100 60"
                                                 >
-                                                    <path d="M0 60 L20 30 L40 45 L60 20 L80 35 L100 15 L100 60 Z" />
+                                                    <path d="M0 60 L15 45 L25 50 L35 35 L50 40 L65 25 L80 30 L100 20 L100 60 Z" />
                                                 </svg>
                                             </div>
-                                            <div className="absolute top-1/4 right-1/3 w-3 h-1 bg-yellow-200 rounded-full opacity-80"></div>
+
+                                            {/* 中山层 */}
+                                            <div className="absolute bottom-0 left-0 right-0 h-2/3">
+                                                <svg
+                                                    className="w-full h-full text-emerald-400/50"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 100 60"
+                                                >
+                                                    <path d="M0 60 L20 40 L35 45 L50 30 L70 35 L85 25 L100 30 L100 60 Z" />
+                                                </svg>
+                                            </div>
+
+                                            {/* 近山层 */}
+                                            {/* <div className="absolute bottom-0 left-0 right-0 h-1/2">
+                                                <svg
+                                                    className="w-full h-full text-green-500/60"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 100 60"
+                                                >
+                                                    <path d="M0 60 L25 45 L40 50 L55 35 L75 40 L90 30 L100 35 L100 60 Z" />
+                                                </svg>
+                                            </div> */}
+
+                                            {/* 太阳 */}
+                                            <div className="absolute top-1/4 right-1/4 w-2 h-2 bg-gradient-to-br from-yellow-200 to-orange-200 rounded-full opacity-90 shadow-sm"></div>
+
+                                            {/* 云朵 */}
+                                            {/* <div className="absolute top-1/3 left-1/4 w-3 h-1 bg-white/60 rounded-full opacity-70"></div>
+                                            <div className="absolute top-1/3 left-1/3 w-2 h-0.5 bg-white/50 rounded-full opacity-60"></div> */}
                                         </div>
                                     </div>
 
