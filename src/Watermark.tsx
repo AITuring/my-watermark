@@ -8,6 +8,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import BackgroundGradientAnimation from "@/components/BackgroundGradientAnimation";
+import ChineseWaveBackground from "./components/ChineseWaveBackground";
 import { Menu } from "lucide-react";
 import { Icon } from "@iconify/react";
 import {
@@ -393,19 +394,24 @@ const Watermark: React.FC = () => {
     const renderMobileUI = () => {
         if (imageUploaderVisible) {
             return (
-                <BackgroundGradientAnimation>
+                <ChineseWaveBackground>
                     <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
                         <ImageUploader
                             ref={dropzoneRef}
                             onUpload={handleImagesUpload}
                             fileType="背景"
                         >
-                            <div className="p-4 rounded-lg text-white text-xl font-medium bg-blue-500/90 backdrop-blur-sm cursor-pointer flex flex-col items-center hover:bg-blue-600 transition-all duration-300 shadow-lg hover:shadow-blue-300/30">
-                                上传背景图片
+                            <div className="p-8 rounded-2xl text-slate-700 text-2xl font-medium bg-white/80 backdrop-blur-md cursor-pointer flex flex-col items-center hover:bg-white/90 transition-all duration-300 shadow-xl border border-white/20">
+                                <Icon
+                                    icon="mdi:cloud-upload-outline"
+                                    className="mb-4 h-12 w-12 text-slate-600"
+                                />
+                                <span className="text-lg font-light tracking-wide">上传背景图片</span>
+                                <span className="text-sm text-slate-500 mt-2">支持 JPG、PNG 格式</span>
                             </div>
                         </ImageUploader>
                     </div>
-                </BackgroundGradientAnimation>
+                </ChineseWaveBackground>
             );
         }
 
@@ -550,19 +556,24 @@ const Watermark: React.FC = () => {
     const renderDesktopUI = () => {
         if (imageUploaderVisible) {
             return (
-                <BackgroundGradientAnimation>
+                <ChineseWaveBackground>
                     <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
                         <ImageUploader
                             ref={dropzoneRef}
                             onUpload={handleImagesUpload}
                             fileType="背景"
                         >
-                            <div className="p-6 rounded-lg text-white text-2xl font-medium bg-blue-500/90 backdrop-blur-sm cursor-pointer flex flex-col items-center hover:bg-blue-600 transition-all duration-300 shadow-lg hover:shadow-blue-300/30">
-                                上传背景图片
+                            <div className="p-8 rounded-2xl text-slate-700 text-2xl font-medium bg-white/80 backdrop-blur-md cursor-pointer flex flex-col items-center hover:bg-white/90 transition-all duration-300 shadow-xl border border-white/20">
+                                <Icon
+                                    icon="mdi:cloud-upload-outline"
+                                    className="mb-4 h-12 w-12 text-slate-600"
+                                />
+                                <span className="text-lg font-light tracking-wide">上传背景图片</span>
+                                <span className="text-sm text-slate-500 mt-2">支持 JPG、PNG 格式</span>
                             </div>
                         </ImageUploader>
                     </div>
-                </BackgroundGradientAnimation>
+                </ChineseWaveBackground>
             );
         }
 
