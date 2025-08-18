@@ -132,8 +132,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         currentWatermarkPosition || {
             x: 0.1,
             y: 0.1,
-            scaleX: backgroundScale,
-            scaleY: backgroundScale,
+            scaleX: 1,
+            scaleY: 1,
             rotation: 0,
         }
     );
@@ -230,15 +230,15 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 更新水印尺寸
     const updateWatermarkSize = (scale) => {
         if (watermarkImage && backgroundImage) {
-            // 使用标准化比例计算水印大小，不再乘以backgroundScale
+            // 使用标准化比例计算水印大小
             const standardWatermarkWidth =
                 watermarkImage.naturalWidth * watermarkStandardScale;
             const standardWatermarkHeight =
                 watermarkImage.naturalHeight * watermarkStandardScale;
 
-            // 应用当前缩放比例，但需要考虑预览缩放
-            const width = standardWatermarkWidth * backgroundScale * scale;
-            const height = standardWatermarkHeight * backgroundScale * scale;
+            // 应用当前缩放比例，移除backgroundScale以保持与实际生成一致
+            const width = standardWatermarkWidth * scale;
+            const height = standardWatermarkHeight * scale;
 
             if (width > 0 && height > 0) {
                 setWatermarkSize({
@@ -313,19 +313,13 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 standardWatermarkSize / watermarkImage.naturalWidth;
             setWatermarkStandardScale(standardScale);
 
-            // 设置预览中的水印大小
+            // 设置预览中的水印大小，移除backgroundScale
             setWatermarkSize({
-                width:
-                    watermarkImage.naturalWidth *
-                    standardScale *
-                    backgroundScale,
-                height:
-                    watermarkImage.naturalHeight *
-                    standardScale *
-                    backgroundScale,
+                width: watermarkImage.naturalWidth * standardScale,
+                height: watermarkImage.naturalHeight * standardScale,
             });
         }
-    }, [watermarkImage, backgroundScale, backgroundImage]);
+    }, [watermarkImage, backgroundImage]); // 移除backgroundScale依赖
 
     useEffect(() => {
         const stage = stageRef.current;
@@ -366,18 +360,45 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         let newX = node.x();
         let newY = node.y();
 
+        // 将水印尺寸转换为预览尺寸进行边界检测
+        const previewWatermarkWidth = watermarkSize.width * backgroundScale;
+        const previewWatermarkHeight = watermarkSize.height * backgroundScale;
+
+        // 计算4像素偏移在预览中的对应值
+        const pixelOffset = 4;
+        const previewOffsetX = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalWidth) *
+              backgroundImageSize.width
+            : 0;
+        const previewOffsetY = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalHeight) *
+              backgroundImageSize.height
+            : 0;
+
         // 检查是否超出背景的边界
-        if (newX < 0) {
-            newX = 0;
+        if (newX < previewOffsetX) {
+            newX = previewOffsetX;
         }
-        if (newY < 0) {
-            newY = 0;
+        if (newY < previewOffsetY) {
+            newY = previewOffsetY;
         }
-        if (newX + watermarkSize.width > backgroundImageSize.width) {
-            newX = backgroundImageSize.width - watermarkSize.width;
+        if (
+            newX + previewWatermarkWidth >
+            backgroundImageSize.width - previewOffsetX
+        ) {
+            newX =
+                backgroundImageSize.width -
+                previewWatermarkWidth -
+                previewOffsetX;
         }
-        if (newY + watermarkSize.height > backgroundImageSize.height) {
-            newY = backgroundImageSize.height - watermarkSize.height;
+        if (
+            newY + previewWatermarkHeight >
+            backgroundImageSize.height - previewOffsetY
+        ) {
+            newY =
+                backgroundImageSize.height -
+                previewWatermarkHeight -
+                previewOffsetY;
         }
 
         node.position({ x: newX, y: newY });
@@ -426,18 +447,45 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         let newX = node.x();
         let newY = node.y();
 
+        // 将水印尺寸转换为预览尺寸进行边界检测
+        const previewWatermarkWidth = watermarkSize.width * backgroundScale;
+        const previewWatermarkHeight = watermarkSize.height * backgroundScale;
+
+        // 计算4像素偏移在预览中的对应值
+        const pixelOffset = 4;
+        const previewOffsetX = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalWidth) *
+              backgroundImageSize.width
+            : 0;
+        const previewOffsetY = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalHeight) *
+              backgroundImageSize.height
+            : 0;
+
         // 检查是否超出背景的边界
-        if (newX < 0) {
-            newX = 0;
+        if (newX < previewOffsetX) {
+            newX = previewOffsetX;
         }
-        if (newY < 0) {
-            newY = 0;
+        if (newY < previewOffsetY) {
+            newY = previewOffsetY;
         }
-        if (newX + watermarkSize.width > backgroundImageSize.width) {
-            newX = backgroundImageSize.width - watermarkSize.width;
+        if (
+            newX + previewWatermarkWidth >
+            backgroundImageSize.width - previewOffsetX
+        ) {
+            newX =
+                backgroundImageSize.width -
+                previewWatermarkWidth -
+                previewOffsetX;
         }
-        if (newY + watermarkSize.height > backgroundImageSize.height) {
-            newY = backgroundImageSize.height - watermarkSize.height;
+        if (
+            newY + previewWatermarkHeight >
+            backgroundImageSize.height - previewOffsetY
+        ) {
+            newY =
+                backgroundImageSize.height -
+                previewWatermarkHeight -
+                previewOffsetY;
         }
 
         // 计算水印在原图上的实际位置和尺寸
@@ -467,29 +515,51 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     };
 
     // 更新水印位置的辅助函数
+    // 更新水印位置的辅助函数
     const updateWatermarkPosition = (percentX, percentY) => {
         // 计算水印图片中心的坐标（百分比）
         const centerX = Math.max(0, Math.min(1, percentX));
         const centerY = Math.max(0, Math.min(1, percentY));
 
+        // 将水印尺寸转换为预览尺寸
+        const previewWatermarkWidth = watermarkSize.width * backgroundScale;
+        const previewWatermarkHeight = watermarkSize.height * backgroundScale;
+
+        // 计算4像素偏移在预览中的对应值
+        const pixelOffset = 4;
+        const previewOffsetX = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalWidth) *
+              backgroundImageSize.width
+            : 0;
+        const previewOffsetY = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalHeight) *
+              backgroundImageSize.height
+            : 0;
+
         // 计算水印图片左上角的坐标（百分比）
         const leftTopX =
-            centerX - watermarkSize.width / 2 / backgroundImageSize.width;
+            centerX - previewWatermarkWidth / 2 / backgroundImageSize.width;
         const leftTopY =
-            centerY - watermarkSize.height / 2 / backgroundImageSize.height;
+            centerY - previewWatermarkHeight / 2 / backgroundImageSize.height;
 
-        // 调整坐标以确保水印不会超出背景图片的范围
+        // 调整坐标以确保水印不会超出背景图片的范围（添加4像素偏移）
         const adjustedLeftTopX = Math.max(
-            0,
+            previewOffsetX / backgroundImageSize.width,
             Math.min(
-                1 - watermarkSize.width / backgroundImageSize.width,
+                (backgroundImageSize.width -
+                    previewWatermarkWidth -
+                    previewOffsetX) /
+                    backgroundImageSize.width,
                 leftTopX
             )
         );
         const adjustedLeftTopY = Math.max(
-            0,
+            previewOffsetY / backgroundImageSize.height,
             Math.min(
-                1 - watermarkSize.height / backgroundImageSize.height,
+                (backgroundImageSize.height -
+                    previewWatermarkHeight -
+                    previewOffsetY) /
+                    backgroundImageSize.height,
                 leftTopY
             )
         );
@@ -551,10 +621,36 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                 <ImageWithFixedWidth
                                     src={coloredWatermarkUrl}
                                     fixedWidth={
-                                        watermarkImage.naturalWidth *
-                                        watermarkStandardScale *
-                                        backgroundScale *
-                                        currentScale
+                                        // 使用与实际生成相同的计算逻辑
+                                        (() => {
+                                            if (
+                                                !backgroundImage ||
+                                                !watermarkImage
+                                            )
+                                                return 0;
+
+                                            // 计算基于背景图较短边的标准化水印大小
+                                            const minDimension = Math.min(
+                                                backgroundImage.naturalWidth,
+                                                backgroundImage.naturalHeight
+                                            );
+                                            const standardWatermarkSize =
+                                                minDimension * 0.1;
+                                            const standardScale =
+                                                standardWatermarkSize /
+                                                watermarkImage.naturalWidth;
+
+                                            // 应用当前缩放比例
+                                            const finalScale =
+                                                standardScale * currentScale;
+
+                                            // 转换为预览尺寸
+                                            return (
+                                                watermarkImage.naturalWidth *
+                                                finalScale *
+                                                backgroundScale
+                                            );
+                                        })()
                                     }
                                     x={position.x * backgroundImageSize.width}
                                     y={position.y * backgroundImageSize.height}

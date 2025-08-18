@@ -84,14 +84,18 @@ class MemoryManager {
 
     // 清理所有缓存的URL
     cleanup(): void {
-        this.urlCache.forEach(url => URL.revokeObjectURL(url));
+        this.urlCache.forEach((url) => URL.revokeObjectURL(url));
         this.urlCache.clear();
         this.canvasPool.cleanup();
     }
 
     // 获取内存使用情况
-    getMemoryInfo(): { usedJSHeapSize?: number; totalJSHeapSize?: number; jsHeapSizeLimit?: number } {
-        if ('memory' in performance) {
+    getMemoryInfo(): {
+        usedJSHeapSize?: number;
+        totalJSHeapSize?: number;
+        jsHeapSizeLimit?: number;
+    } {
+        if ("memory" in performance) {
             return (performance as any).memory;
         }
         return {};
@@ -144,7 +148,7 @@ class ImageCache {
         this.cache.set(url, {
             image,
             timestamp: Date.now(),
-            size
+            size,
         });
         this.currentMemorySize += size;
 
@@ -179,7 +183,7 @@ class ImageCache {
         // 如果新图片会超出内存限制，清理最旧的缓存
         while (
             (this.cache.size >= this.maxSize ||
-             this.currentMemorySize + newImageSize > this.maxMemorySize) &&
+                this.currentMemorySize + newImageSize > this.maxMemorySize) &&
             this.cache.size > 0
         ) {
             const oldestEntry = this.getOldestEntry();
@@ -207,12 +211,17 @@ class ImageCache {
         this.currentMemorySize = 0;
     }
 
-    getStats(): { size: number; memorySize: number; maxSize: number; maxMemorySize: number } {
+    getStats(): {
+        size: number;
+        memorySize: number;
+        maxSize: number;
+        maxMemorySize: number;
+    } {
         return {
             size: this.cache.size,
             memorySize: this.currentMemorySize,
             maxSize: this.maxSize,
-            maxMemorySize: this.maxMemorySize
+            maxMemorySize: this.maxMemorySize,
         };
     }
 }
@@ -239,22 +248,28 @@ async function preprocessImage(file: File): Promise<PreprocessedImage> {
                 try {
                     // 创建缩略图
                     const maxSize = 200;
-                    const scale = Math.min(maxSize / image.width, maxSize / image.height);
+                    const scale = Math.min(
+                        maxSize / image.width,
+                        maxSize / image.height
+                    );
                     canvas.width = Math.floor(image.width * scale);
                     canvas.height = Math.floor(image.height * scale);
 
                     // 使用高质量缩放
                     ctx.imageSmoothingEnabled = true;
-                    ctx.imageSmoothingQuality = 'high';
+                    ctx.imageSmoothingQuality = "high";
                     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
                     const thumbnail = canvas.toDataURL("image/jpeg", 0.8);
 
                     resolve({
                         thumbnail,
-                        dimensions: { width: image.width, height: image.height },
+                        dimensions: {
+                            width: image.width,
+                            height: image.height,
+                        },
                         size: file.size,
-                        aspectRatio: image.width / image.height
+                        aspectRatio: image.width / image.height,
                     });
                 } catch (error) {
                     reject(error);
@@ -328,7 +343,7 @@ class TaskQueue {
         return {
             running: this.running,
             queued: this.queue.length,
-            maxConcurrency: this.maxConcurrency
+            maxConcurrency: this.maxConcurrency,
         };
     }
 }
@@ -369,30 +384,36 @@ async function processBatchImages(
                         quality,
                         (progress) => {
                             // 单个图片的进度回调
-                            const overallProgress = ((completedCount + progress / 100) / imgPositionList.length) * 100;
+                            const overallProgress =
+                                ((completedCount + progress / 100) /
+                                    imgPositionList.length) *
+                                100;
                             onProgress?.(overallProgress);
                         }
                     );
 
                     completedCount++;
-                    const overallProgress = (completedCount / imgPositionList.length) * 100;
+                    const overallProgress =
+                        (completedCount / imgPositionList.length) * 100;
                     onProgress?.(overallProgress);
 
                     return {
                         url,
                         name,
-                        success: true
+                        success: true,
                     };
                 } catch (error) {
                     completedCount++;
-                    const overallProgress = (completedCount / imgPositionList.length) * 100;
+                    const overallProgress =
+                        (completedCount / imgPositionList.length) * 100;
                     onProgress?.(overallProgress);
 
                     return {
-                        url: '',
+                        url: "",
                         name: img.file.name,
                         success: false,
-                        error: error instanceof Error ? error.message : '处理失败'
+                        error:
+                            error instanceof Error ? error.message : "处理失败",
                     };
                 }
             })
@@ -403,13 +424,12 @@ async function processBatchImages(
 
         // 批次间的小延时
         if (i + batchSize < imgPositionList.length) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
         }
     }
 
     return results;
 }
-
 
 function uuid(): string {
     let idStr = Date.now().toString(36);
@@ -446,6 +466,7 @@ async function loadImageData(files: File[]): Promise<ImageType[]> {
 }
 
 // 计算水印的位置
+// 计算水印的位置
 function calculateWatermarkPosition(
     watermarkImage,
     imageWidth,
@@ -464,26 +485,24 @@ function calculateWatermarkPosition(
     const watermarkWidth = watermarkImage.width * finalScale;
     const watermarkHeight = watermarkImage.height * finalScale;
 
-    // 水印的左上角坐标
+    // 水印的左上角坐标 - 直接使用预览传入的百分比坐标
     let watermarkX = position.x * imageWidth;
     let watermarkY = position.y * imageHeight;
 
-    // 边缘检测
-    // 检查水印是否超出图片的左边界
-    if (watermarkX < 0) {
-        watermarkX = 4;
+    // 边缘检测 - 确保水印不超出边界（保持4像素边距）
+    const pixelOffset = 4;
+
+    if (watermarkX < pixelOffset) {
+        watermarkX = pixelOffset;
     }
-    // 检查水印是否超出图片的右边界
-    if (watermarkX + watermarkWidth > imageWidth) {
-        watermarkX = imageWidth - watermarkWidth - 4;
+    if (watermarkX + watermarkWidth > imageWidth - pixelOffset) {
+        watermarkX = imageWidth - watermarkWidth - pixelOffset;
     }
-    // 检查水印是否超出图片的顶边界
-    if (watermarkY < 0) {
-        watermarkY = 4;
+    if (watermarkY < pixelOffset) {
+        watermarkY = pixelOffset;
     }
-    // 检查水印是否超出图片的底边界
-    if (watermarkY + watermarkHeight > imageHeight) {
-        watermarkY = imageHeight - watermarkHeight - 4;
+    if (watermarkY + watermarkHeight > imageHeight - pixelOffset) {
+        watermarkY = imageHeight - watermarkHeight - pixelOffset;
     }
 
     return {
@@ -526,8 +545,17 @@ async function processImage(
             return;
         }
 
-        if (file.size > 50 * 1024 * 1024) { // 50MB限制
-            reject(new Error(`文件大小超过限制（50MB），当前大小：${(file.size / 1024 / 1024).toFixed(2)}MB`));
+        if (file.size > 50 * 1024 * 1024) {
+            // 50MB限制
+            reject(
+                new Error(
+                    `文件大小超过限制（50MB），当前大小：${(
+                        file.size /
+                        1024 /
+                        1024
+                    ).toFixed(2)}MB`
+                )
+            );
             return;
         }
 
@@ -586,7 +614,13 @@ async function processImage(
                         const tempCtx = tempCanvas.getContext("2d")!;
                         tempCanvas.width = image.width;
                         tempCanvas.height = image.height;
-                        tempCtx.drawImage(image, 0, 0, image.width, image.height);
+                        tempCtx.drawImage(
+                            image,
+                            0,
+                            0,
+                            image.width,
+                            image.height
+                        );
 
                         // 应用全图高斯模糊
                         StackBlur.canvasRGBA(
@@ -602,11 +636,18 @@ async function processImage(
                         const centerX = watermarkX + watermarkWidth / 2;
                         const centerY = watermarkY + watermarkHeight / 2;
                         const innerRadius = 0;
-                        const outerRadius = Math.max(watermarkWidth, watermarkHeight);
+                        const outerRadius = Math.max(
+                            watermarkWidth,
+                            watermarkHeight
+                        );
 
                         const gradient = ctx.createRadialGradient(
-                            centerX, centerY, innerRadius,
-                            centerX, centerY, outerRadius
+                            centerX,
+                            centerY,
+                            innerRadius,
+                            centerX,
+                            centerY,
+                            outerRadius
                         );
                         gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
                         gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
@@ -614,7 +655,12 @@ async function processImage(
                         // 应用径向渐变作为蒙版
                         ctx.globalCompositeOperation = "destination-out";
                         ctx.fillStyle = gradient;
-                        ctx.fillRect(watermarkX, watermarkY, watermarkWidth, watermarkHeight);
+                        ctx.fillRect(
+                            watermarkX,
+                            watermarkY,
+                            watermarkWidth,
+                            watermarkHeight
+                        );
 
                         // 绘制模糊的背景图片
                         ctx.globalCompositeOperation = "destination-over";
@@ -657,7 +703,11 @@ async function processImage(
                                 onProgress?.(100);
 
                                 const endTime = performance.now();
-                                console.log(`处理图片耗时: ${(endTime - startTime).toFixed(2)} ms`);
+                                console.log(
+                                    `处理图片耗时: ${(
+                                        endTime - startTime
+                                    ).toFixed(2)} ms`
+                                );
 
                                 resolve({ url, name: file.name });
                             } else {
@@ -704,9 +754,10 @@ function getDevicePerformance(): { cores: number; memory: number } {
 }
 
 // 根据设备性能动态调整批次大小和并发数
-function adjustBatchSizeAndConcurrency(
-    images: { file: File }[]
-): { batchSize: number; globalConcurrency: number } {
+function adjustBatchSizeAndConcurrency(images: { file: File }[]): {
+    batchSize: number;
+    globalConcurrency: number;
+} {
     const { cores, memory } = getDevicePerformance();
 
     // 图片文件大小统计
@@ -734,12 +785,15 @@ function adjustBatchSizeAndConcurrency(
 // 提取图像的主要颜色
 const extractDominantColors = (imageElement, numColors = 5) => {
     // 创建一个临时canvas来处理图像
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
 
     // 限制处理尺寸，提高性能
     const maxDimension = 100; // 限制最大尺寸为100px
-    const scale = Math.min(1, maxDimension / Math.max(imageElement.width, imageElement.height));
+    const scale = Math.min(
+        1,
+        maxDimension / Math.max(imageElement.width, imageElement.height)
+    );
     const width = Math.floor(imageElement.width * scale);
     const height = Math.floor(imageElement.height * scale);
 
@@ -777,18 +831,23 @@ const extractDominantColors = (imageElement, numColors = 5) => {
     }
 
     // 计算亮度的辅助函数
-    const calculateBrightness = (r, g, b) => (r * 299 + g * 587 + b * 114) / 1000;
+    const calculateBrightness = (r, g, b) =>
+        (r * 299 + g * 587 + b * 114) / 1000;
 
     // 转换为数组并排序
-    const colorEntries = Array.from(colorCounts.entries()).map(([color, count]) => {
-        const [r, g, b] = color.split(',').map(Number);
-        return {
-            color: `rgb(${r}, ${g}, ${b})`,
-            count,
-            r, g, b,
-            brightness: calculateBrightness(r, g, b)
-        };
-    });
+    const colorEntries = Array.from(colorCounts.entries()).map(
+        ([color, count]) => {
+            const [r, g, b] = color.split(",").map(Number);
+            return {
+                color: `rgb(${r}, ${g}, ${b})`,
+                count,
+                r,
+                g,
+                b,
+                brightness: calculateBrightness(r, g, b),
+            };
+        }
+    );
 
     // 按出现频率排序
     colorEntries.sort((a, b) => b.count - a.count);
@@ -808,7 +867,9 @@ const extractDominantColors = (imageElement, numColors = 5) => {
 
         // 检查这个颜色是否与已选颜色有足够的亮度差异
         const isDifferentEnough = result.every(
-            selectedColor => Math.abs(selectedColor.brightness - entry.brightness) > brightnessThreshold
+            (selectedColor) =>
+                Math.abs(selectedColor.brightness - entry.brightness) >
+                brightnessThreshold
         );
 
         if (isDifferentEnough) {
@@ -818,7 +879,11 @@ const extractDominantColors = (imageElement, numColors = 5) => {
 
     // 如果没有足够的颜色满足亮度差异要求，添加剩余的颜色
     if (result.length < numColors) {
-        for (let i = 0; i < colorEntries.length && result.length < numColors; i++) {
+        for (
+            let i = 0;
+            i < colorEntries.length && result.length < numColors;
+            i++
+        ) {
             if (!result.includes(colorEntries[i])) {
                 result.push(colorEntries[i]);
             }
@@ -847,14 +912,18 @@ function createGradient(ctx, color1, color2) {
 // 解析颜色字符串为RGB数组
 function parseColor(color) {
     // 处理十六进制颜色
-    if (color.startsWith('#')) {
+    if (color.startsWith("#")) {
         return hexToRgb(color);
     }
 
     // 处理RGB格式颜色
     const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
     if (rgbMatch) {
-        return [parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3])];
+        return [
+            parseInt(rgbMatch[1]),
+            parseInt(rgbMatch[2]),
+            parseInt(rgbMatch[3]),
+        ];
     }
 
     // 默认返回黑色
@@ -879,7 +948,7 @@ async function applyColorToWatermark(watermarkUrl, color) {
             let colorOrGradient;
 
             // 判断颜色类型（单色或渐变色）
-            if (typeof color === 'string') {
+            if (typeof color === "string") {
                 // 单色情况 - 使用parseColor函数处理不同格式的颜色
                 colorOrGradient = parseColor(color);
             } else if (Array.isArray(color) && color.length === 2) {
@@ -898,7 +967,12 @@ async function applyColorToWatermark(watermarkUrl, color) {
             }
 
             // 获取图像数据
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(
+                0,
+                0,
+                canvas.width,
+                canvas.height
+            );
             const data = imageData.data;
 
             // 修改非透明像素的颜色
@@ -906,7 +980,7 @@ async function applyColorToWatermark(watermarkUrl, color) {
                 // 如果像素不是完全透明
                 if (data[i + 3] > 0) {
                     if (!(colorOrGradient instanceof CanvasGradient)) {
-                        data[i] = colorOrGradient[0];     // R
+                        data[i] = colorOrGradient[0]; // R
                         data[i + 1] = colorOrGradient[1]; // G
                         data[i + 2] = colorOrGradient[2]; // B
                         // Alpha保持不变
@@ -928,7 +1002,6 @@ async function applyColorToWatermark(watermarkUrl, color) {
         image.src = watermarkUrl;
     });
 }
-
 
 export {
     uuid,

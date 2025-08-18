@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const API_CONFIG = {
   // 主要端点 - 按优先级排序
   primary: [
+    'https://60s.shspku365.workers.dev',
     'https://60s.viki.moe',           // 主域名 (Deno Deploy)
     'https://60s.b23.run',           // 备用域名 1 (Deno Deploy)
     'https://60s-api-cf.viki.moe',   // 备用域名 2 (CF Workers)

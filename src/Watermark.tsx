@@ -669,12 +669,10 @@ const Watermark: React.FC = () => {
                                     </div>
 
                                     {/* 顶层图片 */}
-                                                                        {/* 顶层图片 */}
                                     <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-white to-slate-100 rounded-lg shadow-2xl transform transition-all duration-500 ease-out group-hover:-translate-x-4 group-hover:-translate-y-2 group-hover:-rotate-8 group-hover:scale-110 z-20">
                                         <div className="w-full h-full rounded-lg overflow-hidden relative">
                                             {/* 图片内容 - 自然山景 */}
                                             <div className="absolute inset-0 bg-gradient-to-b from-sky-200 via-blue-100 to-emerald-100"></div>
-
                                             {/* 远山层 */}
                                             <div className="absolute bottom-0 left-0 right-0 h-3/4">
                                                 <svg
