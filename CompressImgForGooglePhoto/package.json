@@ -1,0 +1,25 @@
+{
+  "name": "image-compressor",
+  "version": "1.0.0",
+  "description": "无损压缩JPG图片",
+  "main": "compress.js",
+  "scripts": {
+    "start": "node compress.js",
+    "compress": "node compress.js"
+  },
+  "dependencies": {
+    "cli-progress": "^3.12.0",
+    "colors": "^1.4.0",
+    "fs-extra": "^11.1.1",
+    "path": "^0.12.7",
+    "sharp": "^0.32.6"
+  },
+  "keywords": [
+    "image",
+    "compression",
+    "jpg",
+    "jpeg"
+  ],
+  "author": "",
+  "license": "MIT"
+}
