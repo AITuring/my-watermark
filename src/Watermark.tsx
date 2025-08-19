@@ -370,11 +370,26 @@ const Watermark: React.FC = () => {
         try {
             console.log("水印下载开始！");
 
-            const allimageData: ImgWithPosition[] = images.map((img) => ({
-                id: img.id,
-                file: img.file,
-                position: watermarkPositions.find((pos) => pos.id === img.id)!,
-            }));
+            const allimageData: ImgWithPosition[] = images.map((img) => {
+                const position = watermarkPositions.find(
+                    (pos) => pos.id === img.id
+                );
+                // 如果找不到对应的 position，使用默认值
+                const defaultPosition = {
+                    id: img.id,
+                    x: 0.1,
+                    y: 0.1,
+                    scaleX: 1,
+                    scaleY: 1,
+                    rotation: 0,
+                };
+
+                return {
+                    id: img.id,
+                    file: img.file,
+                    position: position || defaultPosition,
+                };
+            });
 
             console.log("allimageData", allimageData);
             await downloadImagesWithWatermarkBatch(

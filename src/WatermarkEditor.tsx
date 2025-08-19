@@ -120,6 +120,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 批量or单独
     const [isBatch, setIsBatch] = useState<boolean>(true);
 
+    // 添加选择位置的状态
+    const [selectedPosition, setSelectedPosition] = useState("center");
+
     // 水印相关设置
     // logo颜色状态
     const [dominantColors, setDominantColors] = useState<Color[]>([]);
@@ -183,6 +186,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             setColoredWatermarkUrl(watermarkUrl);
         }
     }, [watermarkColor, watermarkUrl]);
+
 
     // 处理背景图片缩放滑动条变化的函数
     const handleBackgroundSliderChange = (e) => {
@@ -720,8 +724,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                         {/* 使用下拉选择器替代九宫格按钮 */}
                         <div className="flex flex-wrap gap-2">
                             <Select
-                                defaultValue="center"
+                                value={selectedPosition}
                                 onValueChange={(value) => {
+                                    setSelectedPosition(value);
                                     switch (value) {
                                         case "top-left":
                                             onTopLeft();

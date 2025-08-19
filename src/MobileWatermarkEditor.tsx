@@ -154,6 +154,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         () => window.innerHeight * 0.8
     );
 
+     // 添加选择位置的状态
+    const [selectedPosition, setSelectedPosition] = useState("middleCenter");
+
     // 添加加载状态
     const [isLoading, setIsLoading] = useState(true);
 
@@ -755,6 +758,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     // 处理位置选择变化
     const handlePositionChange = (value: string) => {
+        setSelectedPosition(value);
         switch (value) {
             case "topLeft":
                 updateWatermarkPosition(0, 0);
@@ -996,7 +1000,10 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
                     <div className="grid grid-cols-2 gap-2">
                         <div>
-                            <Select onValueChange={handlePositionChange}>
+                            <Select
+                                value={selectedPosition}
+                                onValueChange={handlePositionChange}
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="选择位置" />
                                 </SelectTrigger>

@@ -472,6 +472,11 @@ function calculateWatermarkPosition(
     imageHeight,
     position
 ) {
+    // 添加参数验证
+    if (!position) {
+        console.error("Position parameter is undefined, using default values");
+        position = { x: 0.1, y: 0.1, scaleX: 1, scaleY: 1, rotation: 0 };
+    }
     // 计算基于图片较短边的标准化水印大小
     const minDimension = Math.min(imageWidth, imageHeight);
     const standardWatermarkSize = minDimension * 0.1; // 水印大小为较短边的10%
