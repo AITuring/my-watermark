@@ -8,6 +8,7 @@ import Puzzle from "./Puzzle";
 import Watermark from "./Watermark";
 import CompTest from "./CompTest";
 import NewsApp from "./News";
+import ImageCollage from "./ImageCollage";
 
 // import BorderWatermark from "./BorderWatermark";
 import Lottery from "./Lottery";
@@ -67,6 +68,13 @@ const menuItems = [
         url: "/news",
         component: <NewsApp />,
         icon: "ri:news-line",
+    },
+    {
+        label: "图片拼接",
+        id: "collage",
+        url: "/collage",
+        component: <ImageCollage />,
+        icon: "material-symbols:photo-library-outline",
     },
 ];
 
