@@ -452,24 +452,41 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         const centerX = Math.max(0, Math.min(1, percentX));
         const centerY = Math.max(0, Math.min(1, percentY));
 
+        // 计算4像素偏移在预览中的对应值
+        const pixelOffset = 4;
+        const previewOffsetX = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalWidth) *
+              backgroundImageSize.width
+            : 0;
+        const previewOffsetY = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalHeight) *
+              backgroundImageSize.height
+            : 0;
+
         // 计算水印图片左上角的坐标（百分比）
         const leftTopX =
             centerX - watermarkSize.width / 2 / backgroundImageSize.width;
         const leftTopY =
             centerY - watermarkSize.height / 2 / backgroundImageSize.height;
 
-        // 调整坐标以确保水印不会超出背景图片的范围
+        // 调整坐标以确保水印不会超出背景图片的范围（添加4像素偏移）
         const adjustedLeftTopX = Math.max(
-            0,
+            previewOffsetX / backgroundImageSize.width,
             Math.min(
-                1 - watermarkSize.width / backgroundImageSize.width,
+                (backgroundImageSize.width -
+                    watermarkSize.width -
+                    previewOffsetX) /
+                    backgroundImageSize.width,
                 leftTopX
             )
         );
         const adjustedLeftTopY = Math.max(
-            0,
+            previewOffsetY / backgroundImageSize.height,
             Math.min(
-                1 - watermarkSize.height / backgroundImageSize.height,
+                (backgroundImageSize.height -
+                    watermarkSize.height -
+                    previewOffsetY) /
+                    backgroundImageSize.height,
                 leftTopY
             )
         );
@@ -493,23 +510,47 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     };
 
     // 处理水印拖动结束事件
+    // 处理水印拖动结束事件
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         const node = e.target;
         let newX = node.x();
         let newY = node.y();
 
-        // 检查是否超出背景的边界
-        if (newX < 0) {
-            newX = 0;
+        // 计算4像素偏移在预览中的对应值
+        const pixelOffset = 4;
+        const previewOffsetX = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalWidth) *
+              backgroundImageSize.width
+            : 0;
+        const previewOffsetY = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalHeight) *
+              backgroundImageSize.height
+            : 0;
+
+        // 检查是否超出背景的边界（添加4像素偏移）
+        if (newX < previewOffsetX) {
+            newX = previewOffsetX;
         }
-        if (newY < 0) {
-            newY = 0;
+        if (newY < previewOffsetY) {
+            newY = previewOffsetY;
         }
-        if (newX + watermarkSize.width > backgroundImageSize.width) {
-            newX = backgroundImageSize.width - watermarkSize.width;
+        if (
+            newX + watermarkSize.width >
+            backgroundImageSize.width - previewOffsetX
+        ) {
+            newX =
+                backgroundImageSize.width -
+                watermarkSize.width -
+                previewOffsetX;
         }
-        if (newY + watermarkSize.height > backgroundImageSize.height) {
-            newY = backgroundImageSize.height - watermarkSize.height;
+        if (
+            newY + watermarkSize.height >
+            backgroundImageSize.height - previewOffsetY
+        ) {
+            newY =
+                backgroundImageSize.height -
+                watermarkSize.height -
+                previewOffsetY;
         }
 
         node.position({ x: newX, y: newY });
@@ -555,20 +596,22 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     // 更新水印尺寸
     const updateWatermarkSize = (scale) => {
-    if (watermarkImage) {
-        const standardWatermarkWidth = watermarkImage.naturalWidth * watermarkStandardScale;
-        const standardWatermarkHeight = watermarkImage.naturalHeight * watermarkStandardScale;
+        if (watermarkImage) {
+            const standardWatermarkWidth =
+                watermarkImage.naturalWidth * watermarkStandardScale;
+            const standardWatermarkHeight =
+                watermarkImage.naturalHeight * watermarkStandardScale;
 
-        const width = standardWatermarkWidth * backgroundScale * scale;
-        const height = standardWatermarkHeight * backgroundScale * scale;
-        if (width > 0 && height > 0) {
-            setWatermarkSize({
-                width: width,
-                height: height,
-            });
+            const width = standardWatermarkWidth * backgroundScale * scale;
+            const height = standardWatermarkHeight * backgroundScale * scale;
+            if (width > 0 && height > 0) {
+                setWatermarkSize({
+                    width: width,
+                    height: height,
+                });
+            }
         }
-    }
-};
+    };
 
     // 处理水印变换结束事件
     const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
@@ -576,18 +619,41 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         let newX = node.x();
         let newY = node.y();
 
-        // 检查是否超出背景的边界
-        if (newX < 0) {
-            newX = 0;
+        // 计算4像素偏移在预览中的对应值
+        const pixelOffset = 4;
+        const previewOffsetX = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalWidth) *
+              backgroundImageSize.width
+            : 0;
+        const previewOffsetY = backgroundImage
+            ? (pixelOffset / backgroundImage.naturalHeight) *
+              backgroundImageSize.height
+            : 0;
+
+        // 检查是否超出背景的边界（添加4像素偏移）
+        if (newX < previewOffsetX) {
+            newX = previewOffsetX;
         }
-        if (newY < 0) {
-            newY = 0;
+        if (newY < previewOffsetY) {
+            newY = previewOffsetY;
         }
-        if (newX + watermarkSize.width > backgroundImageSize.width) {
-            newX = backgroundImageSize.width - watermarkSize.width;
+        if (
+            newX + watermarkSize.width >
+            backgroundImageSize.width - previewOffsetX
+        ) {
+            newX =
+                backgroundImageSize.width -
+                watermarkSize.width -
+                previewOffsetX;
         }
-        if (newY + watermarkSize.height > backgroundImageSize.height) {
-            newY = backgroundImageSize.height - watermarkSize.height;
+        if (
+            newY + watermarkSize.height >
+            backgroundImageSize.height - previewOffsetY
+        ) {
+            newY =
+                backgroundImageSize.height -
+                watermarkSize.height -
+                previewOffsetY;
         }
 
         // 计算水印在原图上的实际位置和尺寸
@@ -811,7 +877,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                             <ImageWithFixedWidth
                                 src={watermarkUrl}
                                 fixedWidth={
-                                   watermarkImage.naturalWidth * watermarkStandardScale * backgroundScale
+                                    watermarkImage.naturalWidth *
+                                    watermarkStandardScale *
+                                    backgroundScale
                                 }
                                 x={position.x * backgroundImageSize.width}
                                 y={position.y * backgroundImageSize.height}

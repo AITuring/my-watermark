@@ -466,7 +466,6 @@ async function loadImageData(files: File[]): Promise<ImageType[]> {
 }
 
 // 计算水印的位置
-// 计算水印的位置
 function calculateWatermarkPosition(
     watermarkImage,
     imageWidth,
