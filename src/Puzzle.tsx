@@ -117,7 +117,7 @@ const PhotoFrame = memo(
                     width: overlay
                         ? `calc(100% - ${2 * layoutOptions.padding}px)`
                         : style.width,
-                    padding: margin || 0,
+                    // padding: margin || 0,
                     boxSizing: "border-box",
                     position: "relative",
                     // borderRadius: margin > 2 ? "4px" : 0,
@@ -577,8 +577,9 @@ const Puzzle = () => {
                 id="gallery"
                 style={{
                     ...containerProps.style,
-                    margin: `-${margin}px`, // 抵消最外层的 padding
+                    // margin: `-${margin}px`, // 抵消最外层的 padding
                     padding: `${margin}px`,
+                    boxSizing: 'border-box',
                     // TODO 这里可以自定义背景颜色
                 }}
             >
@@ -649,7 +650,7 @@ const Puzzle = () => {
                     layout={layout}
                     photos={images}
                     padding={0}
-                    spacing={0}
+                    spacing={margin}
                     columns={inputColumns}
                     renderContainer={renderContainer}
                     renderPhoto={renderPhoto}
