@@ -101,7 +101,7 @@ const Watermark: React.FC = () => {
     const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
 
     // 图片质量
-    const [quality, setQuality] = useState<number>(0.9);
+    const [quality, setQuality] = useState<number>(1);
     // 水印背景模糊
     const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
 
