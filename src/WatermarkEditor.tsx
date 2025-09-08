@@ -357,6 +357,29 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     };
 
+     useEffect(() => {
+        // 同步用于边界判断的水印尺寸（预览前的“原图尺寸”）
+        if (!backgroundImage || !watermarkImage) return;
+
+        // 与渲染时 fixedWidth 完全一致的计算逻辑：基于背景图较短边的 10%
+        const minDimension = Math.min(
+            backgroundImage.naturalWidth,
+            backgroundImage.naturalHeight
+        );
+        const standardWatermarkSize = minDimension * 0.1;
+        const standardScale =
+            standardWatermarkSize / watermarkImage.naturalWidth;
+
+        const finalScale = standardScale * currentScale;
+
+        // watermarkSize 存储的是未乘以 backgroundScale 的“原图尺寸”，
+        // 后续在边界判断里会乘以 backgroundScale 转为预览尺寸
+        setWatermarkSize({
+            width: watermarkImage.naturalWidth * finalScale,
+            height: watermarkImage.naturalHeight * finalScale,
+        });
+    }, [backgroundImage, watermarkImage, currentScale]);
+
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         const node = e.target;
         let newX = node.x();
@@ -402,6 +425,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             scaleY: currentScale,
             rotation: actualRotation,
         });
+         setSelectedPosition("");
 
         if (isBatch) {
             onAllTransform({
@@ -567,6 +591,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     };
 
+
     // 按钮回调函数，设置水印位置
     const onTopLeft = () => updateWatermarkPosition(0, 0);
     const onTopMid = () => updateWatermarkPosition(0.5, 0);
@@ -577,6 +602,75 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const onBottomLeft = () => updateWatermarkPosition(0, 1);
     const onBottomMid = () => updateWatermarkPosition(0.5, 1);
     const onBottomRight = () => updateWatermarkPosition(1, 1);
+
+    // 统一应用当前位置的辅助函数
+    const applySelectedPosition = React.useCallback(
+        (value?: string) => {
+            const pos = value ?? selectedPosition;
+            switch (pos) {
+                case "top-left":
+                    onTopLeft();
+                    break;
+                case "top-mid":
+                    onTopMid();
+                    break;
+                case "top-right":
+                    onTopRight();
+                    break;
+                case "mid-left":
+                    onMidLeft();
+                    break;
+                case "center":
+                    onCenterMid();
+                    break;
+                case "mid-right":
+                    onMidRight();
+                    break;
+                case "bottom-left":
+                    onBottomLeft();
+                    break;
+                case "bottom-mid":
+                    onBottomMid();
+                    break;
+                case "bottom-right":
+                    onBottomRight();
+                    break;
+                default:
+                    break;
+            }
+        },
+        [
+            selectedPosition,
+            onTopLeft,
+            onTopMid,
+            onTopRight,
+            onMidLeft,
+            onCenterMid,
+            onMidRight,
+            onBottomLeft,
+            onBottomMid,
+            onBottomRight,
+        ]
+    );
+
+    // 背景或尺寸变化后，自动重放一次当前位置，确保切换背景后位置生效
+    useEffect(() => {
+        if (!selectedPosition) return;
+        if (!backgroundImage || !watermarkImage) return;
+        if (!backgroundImageSize?.width || !backgroundImageSize?.height) return;
+        applySelectedPosition();
+    }, [
+        backgroundImage,
+        watermarkImage,
+        backgroundImageSize?.width,
+        backgroundImageSize?.height,
+        backgroundScale,
+        currentScale,
+        watermarkSize?.width,
+        watermarkSize?.height,
+        selectedPosition,
+        applySelectedPosition,
+    ]);
 
     return (
         <div className="flex flex-1 flex-col space-y-4">
@@ -632,7 +726,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                             // 转换为预览尺寸
                                             return (
                                                 watermarkImage.naturalWidth *
-                                                finalScale
+                                                finalScale * backgroundScale
                                             );
                                         })()
                                     }
@@ -708,35 +802,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                 value={selectedPosition}
                                 onValueChange={(value) => {
                                     setSelectedPosition(value);
-                                    switch (value) {
-                                        case "top-left":
-                                            onTopLeft();
-                                            break;
-                                        case "top-mid":
-                                            onTopMid();
-                                            break;
-                                        case "top-right":
-                                            onTopRight();
-                                            break;
-                                        case "mid-left":
-                                            onMidLeft();
-                                            break;
-                                        case "center":
-                                            onCenterMid();
-                                            break;
-                                        case "mid-right":
-                                            onMidRight();
-                                            break;
-                                        case "bottom-left":
-                                            onBottomLeft();
-                                            break;
-                                        case "bottom-mid":
-                                            onBottomMid();
-                                            break;
-                                        case "bottom-right":
-                                            onBottomRight();
-                                            break;
-                                    }
+                                    applySelectedPosition(value);
                                 }}
                             >
                                 <SelectTrigger className="w-[90px] h-6 text-xs py-0 px-2">
@@ -778,7 +844,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                         </div>
                     </div>
                 </div>
-                {/* 颜色选择区域 */}
                 {/* 颜色选择区域 */}
                 {dominantColors.length > 0 && (
                     <div className="mt-4">
