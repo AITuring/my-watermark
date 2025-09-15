@@ -162,7 +162,7 @@ const Wenwu: React.FC = () => {
     const [selectedType, setSelectedType] = useState<string>("all");
     const [selectedCollection, setSelectedCollection] = useState<string>("all");
     const [selectedEra, setSelectedEra] = useState<string>("all");
-    const [viewMode, setViewMode] = useState<"grid" | "list" | "map">("grid");
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 12;
@@ -228,17 +228,31 @@ const Wenwu: React.FC = () => {
         return uniqueEras.sort();
     }, [artifacts]);
 
+    // 摘要统计
+    const totalArtifacts = filteredArtifacts.length;
+    const totalMuseums = collections.length;
+    const totalBatches = batches.length;
+
+    // 激活的筛选项（用于显示筛选chips）
+    const activeFilters = useMemo(() => {
+        const chips: Array<{ label: string; value: string }> = [];
+        if (searchTerm) chips.push({ label: "搜索", value: searchTerm });
+        if (selectedBatch !== "all") chips.push({ label: "批次", value: selectedBatch });
+        if (selectedType !== "all") chips.push({ label: "类别", value: selectedType });
+        if (selectedEra !== "all") chips.push({ label: "时代", value: selectedEra });
+        if (selectedCollection !== "all") chips.push({ label: "馆藏", value: selectedCollection });
+        return chips;
+    }, [searchTerm, selectedBatch, selectedType, selectedEra, selectedCollection]);
+
     // 高德地图初始化
     useEffect(() => {
-        if (viewMode === "map" && !mapInstance) {
-            // 添加延迟确保DOM完全渲染
-            const timer = setTimeout(() => {
-                loadAMapScript();
-            }, 100);
+        // 添加延迟确保DOM完全渲染
+        const timer = setTimeout(() => {
+            loadAMapScript();
+        }, 100);
 
-            return () => clearTimeout(timer);
-        }
-    }, [viewMode]);
+        return () => clearTimeout(timer);
+    }, []);
 
     // 加载高德地图脚本
     const loadAMapScript = () => {
@@ -255,8 +269,9 @@ const Wenwu: React.FC = () => {
         };
 
         const script = document.createElement("script");
+        // 同时加载 Geocoder 和 PlaceSearch 插件，确保可以进行 POI 检索
         script.src =
-            "https://webapi.amap.com/maps?v=1.4.15&key=7a9513e700e06c00890363af1bd2d926&plugin=AMap.Geocoder";
+            "https://webapi.amap.com/maps?v=1.4.15&key=7a9513e700e06c00890363af1bd2d926&plugin=AMap.Geocoder,AMap.PlaceSearch";
         script.async = true;
         script.onload = () => {
             initializeMap();
@@ -304,7 +319,68 @@ const Wenwu: React.FC = () => {
         }
     };
 
-    // 地理编码函数
+    // 将简称或模糊名称规范为更易命中的检索词
+    const normalizeMuseumQuery = (name: string) => {
+        let q = (name || "").trim();
+
+        // 常见别名规范
+        const aliases: Record<string, string> = {
+            故宫: "故宫博物院",
+            紫禁城: "故宫博物院",
+            国家博物馆: "中国国家博物馆",
+            中国国博: "中国国家博物馆",
+        };
+        if (aliases[q]) return aliases[q];
+
+        // 若不包含“博物”/“博物院”之类，补充“博物馆”
+        if (!q.includes("博物") && !q.includes("博物院")) {
+            q = `${q} 博物馆`;
+        }
+        return q;
+    };
+
+    // 使用 PlaceSearch 通过名称检索 POI
+    const placeSearchByName = async (
+        name: string
+    ): Promise<LocationCoordinate | null> => {
+        if (!window.AMap || !window.AMap.PlaceSearch) return null;
+
+        const query = normalizeMuseumQuery(name);
+
+        return new Promise((resolve) => {
+            const placeSearch = new window.AMap.PlaceSearch({
+                city: "全国",
+                pageSize: 1,
+                pageIndex: 1,
+                citylimit: false,
+                extensions: "base",
+            });
+
+            placeSearch.search(query, (status: string, result: any) => {
+                if (
+                    status === "complete" &&
+                    result?.poiList?.pois &&
+                    result.poiList.pois.length > 0
+                ) {
+                    const poi = result.poiList.pois[0];
+                    const loc = poi.location || (poi as any)._location;
+                    if (loc) {
+                        const coordinate: LocationCoordinate = {
+                            lng: loc.lng,
+                            lat: loc.lat,
+                            address: poi.name,
+                            artifacts: [],
+                        };
+                        resolve(coordinate);
+                        return;
+                    }
+                }
+                resolve(null);
+            });
+        });
+    };
+
+    // 地理编码函数（先 POI 检索，后回退 Geocoder）
     const geocodeLocation = async (
         address: string
     ): Promise<LocationCoordinate | null> => {
@@ -313,17 +389,30 @@ const Wenwu: React.FC = () => {
             return locationCache.get(address)!;
         }
 
+        // 1) 先用 POI 搜索获取更精确的博物馆坐标
+        const poiResult = await placeSearchByName(address);
+        if (poiResult) {
+            setLocationCache((prev) => {
+                const next = new Map(prev);
+                next.set(address, poiResult);
+                return next;
+            });
+            return poiResult;
+        }
+
+        // 2) 回退到 Geocoder
         return new Promise((resolve) => {
             if (!window.AMap) {
                 resolve(null);
                 return;
             }
-
             const geocoder = new window.AMap.Geocoder({
                 city: "全国",
             });
 
-            geocoder.getLocation(address, (status: string, result: any) => {
+            // 对地址做一次规范化后再编码，提升命中率
+            const query = normalizeMuseumQuery(address);
+            geocoder.getLocation(query, (status: string, result: any) => {
                 if (status === "complete" && result.geocodes.length > 0) {
                     const location = result.geocodes[0].location;
                     const coordinate: LocationCoordinate = {
@@ -333,10 +422,11 @@ const Wenwu: React.FC = () => {
                         artifacts: [],
                     };
 
-                    // 缓存结果
-                    setLocationCache(
-                        (prev) => new Map(prev.set(address, coordinate))
-                    );
+                    setLocationCache((prev) => {
+                        const next = new Map(prev);
+                        next.set(address, coordinate);
+                        return next;
+                    });
                     resolve(coordinate);
                 } else {
                     resolve(null);
@@ -444,10 +534,10 @@ const Wenwu: React.FC = () => {
 
     // 监听筛选变化，更新地图
     useEffect(() => {
-        if (viewMode === "map" && mapInstance) {
+        if (mapInstance) {
             updateMapMarkers();
         }
-    }, [filteredArtifacts, mapInstance, viewMode]);
+    }, [filteredArtifacts, mapInstance]);
 
     // 筛选逻辑
     useEffect(() => {
@@ -740,217 +830,20 @@ const Wenwu: React.FC = () => {
                         >
                             <List className="w-4 h-4" />
                         </Button>
-                        <Button
-                            variant={viewMode === "map" ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setViewMode("map")}
-                        >
-                            <MapIcon className="w-4 h-4" />
-                        </Button>
                     </div>
                 </div>
 
-                {/* 文物展示区域 */}
-                {viewMode === "map" ? (
-                    <div className="mb-8">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <MapIcon className="w-5 h-5" />
-                                    文物地图分布
-                                </CardTitle>
-                                <CardDescription>
-                                    点击地图标记查看该位置的文物详情
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {isLoadingMap ? (
-                                    <div className="h-96 flex items-center justify-center bg-slate-50 rounded-lg">
-                                        <div className="text-center">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                                            <p className="text-slate-600">
-                                                正在加载地图...
-                                            </p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div
-                                        ref={mapContainerRef}
-                                        className="h-96 w-full rounded-lg border"
-                                        style={{ minHeight: "400px" }}
-                                    />
-                                )}
-                                <div className="mt-4 text-sm text-slate-600">
-                                    <p>• 标记数字表示该位置的文物数量</p>
-                                    <p>• 点击标记可查看详细信息</p>
-                                    <p>• 地图会根据筛选条件实时更新</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                ) : viewMode === "grid" ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-                        {paginatedArtifacts.map((artifact) => (
-                            <Dialog key={artifact.id}>
-                                <DialogTrigger asChild>
-                                    <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105">
-                                        <CardHeader className="pb-3">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <Badge
-                                                    className={getBatchColor(
-                                                        artifact.batch
-                                                    )}
-                                                >
-                                                    {artifact.batch}
-                                                </Badge>
-                                                <Badge
-                                                    variant="secondary"
-                                                    className={getTypeColor(
-                                                        artifact.type
-                                                    )}
-                                                >
-                                                    {artifact.type}
-                                                </Badge>
-                                            </div>
-                                            <CardTitle className="text-lg leading-tight">
-                                                {artifact.name}
-                                            </CardTitle>
-                                            <CardDescription className="text-sm">
-                                               <Badge
-                                                    variant="outline"
-                                                    className={getEraColor(artifact.era)}
-                                                >
-                                                    {artifact.era}
-                                                </Badge>
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="space-y-2 text-sm text-slate-600">
-                                                <div className="flex items-center gap-1">
-                                                    <MapPin className="w-3 h-3" />
-                                                    <span className="truncate">
-                                                        {
-                                                            artifact.excavationLocation
-                                                        }
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <Landmark className="w-3 h-3" />
-                                                    <span className="truncate">
-                                                        {
-                                                            artifact.collectionLocation
-                                                        }
-                                                    </span>
-                                                </div>
-                                                <p className="text-xs text-slate-500 line-clamp-2">
-                                                    <MarkdownContent
-                                                        content={artifact.desc}
-                                                        className="text-xs [&>p]:mb-0 [&>p]:leading-tight"
-                                                    />
-                                                </p>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl max-h-[80vh]">
-                                    <DialogHeader>
-                                        <DialogTitle className="text-xl">
-                                            {artifact.name}
-                                        </DialogTitle>
-
-                                    </DialogHeader>
-                                    <ScrollArea className="max-h-96">
-                                        <div className="space-y-4">
-                                            <div className="flex flex-wrap gap-2">
-                                              <Badge
-                                                    variant="outline"
-                                                    className={getEraColor(artifact.era)}
-                                                >
-                                                    {artifact.era}
-                                                </Badge>
-
-                                                <Badge
-                                                    variant="secondary"
-                                                    className={getTypeColor(
-                                                        artifact.type
-                                                    )}
-                                                >
-                                                    {artifact.type}
-                                                </Badge>
-                                                <Badge
-                                                    className={getBatchColor(
-                                                        artifact.batch
-                                                    )}
-                                                >
-                                                    {artifact.batch}
-                                                </Badge>
-                                            </div>
-
-                                            <Separator />
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                                <div>
-                                                    <h4 className="font-semibold mb-1 flex items-center gap-1">
-                                                        <MapPin className="w-4 h-4" />
-                                                        出土地点
-                                                    </h4>
-                                                    <p className="text-slate-600">
-                                                        {
-                                                            artifact.excavationLocation
-                                                        }
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-semibold mb-1 flex items-center gap-1">
-                                                        <Calendar className="w-4 h-4" />
-                                                        出土时间
-                                                    </h4>
-                                                    <p className="text-slate-600">
-                                                        {
-                                                            artifact.excavationTime
-                                                        }
-                                                    </p>
-                                                </div>
-                                                <div className="md:col-span-2">
-                                                    <h4 className="font-semibold mb-1 flex items-center gap-1">
-                                                        <Landmark className="w-4 h-4" />
-                                                        馆藏地点
-                                                    </h4>
-                                                    <p className="text-slate-600">
-                                                        {
-                                                            artifact.collectionLocation
-                                                        }
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <Separator />
-
-                                            <div>
-                                                <h4 className="font-semibold mb-2">
-                                                    文物描述
-                                                </h4>
-                                                <MarkdownContent
-                                                    content={artifact.desc}
-                                                    className="text-slate-700"
-                                                />
-                                            </div>
-                                        </div>
-                                    </ScrollArea>
-                                </DialogContent>
-                            </Dialog>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="space-y-4 mb-8">
-                        {paginatedArtifacts.map((artifact) => (
-                            <Dialog key={artifact.id}>
-                                <DialogTrigger asChild>
-                                    <Card className="cursor-pointer hover:shadow-md transition-all duration-300">
-                                        <CardContent className="p-6">
-                                            <div className="flex flex-col md:flex-row gap-4">
-                                                <div className="flex-1">
-                                                    <div className="flex flex-wrap gap-2 mb-3">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-4">
+                    {/* 左侧：列表/网格 */}
+                    <div className="lg:col-span-3">
+                        {viewMode === "grid" ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+                                {paginatedArtifacts.map((artifact) => (
+                                    <Dialog key={artifact.id}>
+                                        <DialogTrigger asChild>
+                                            <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105">
+                                                <CardHeader className="pb-3">
+                                                    <div className="flex justify-between items-start mb-2">
                                                         <Badge
                                                             className={getBatchColor(
                                                                 artifact.batch
@@ -967,193 +860,393 @@ const Wenwu: React.FC = () => {
                                                             {artifact.type}
                                                         </Badge>
                                                     </div>
-                                                    <h3 className="text-xl font-semibold mb-2">
+                                                    <CardTitle className="text-lg leading-tight">
                                                         {artifact.name}
-                                                    </h3>
-                                                    <p className="text-slate-600 mb-3">
+                                                    </CardTitle>
+                                                    <CardDescription className="text-sm">
                                                         <Badge
-                                                    variant="outline"
-                                                    className={getEraColor(artifact.era)}
-                                                >
-                                                    {artifact.era}
-                                                </Badge>
-                                                    </p>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-600">
+                                                            variant="outline"
+                                                            className={getEraColor(
+                                                                artifact.era
+                                                            )}
+                                                        >
+                                                            {artifact.era}
+                                                        </Badge>
+                                                    </CardDescription>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="space-y-2 text-sm text-slate-600">
                                                         <div className="flex items-center gap-1">
-                                                            <MapPin className="w-4 h-4" />
-                                                            {
-                                                                artifact.excavationLocation
-                                                            }
+                                                            <MapPin className="w-3 h-3" />
+                                                            <span className="truncate">
+                                                                {
+                                                                    artifact.excavationLocation
+                                                                }
+                                                            </span>
                                                         </div>
                                                         <div className="flex items-center gap-1">
-                                                            <Landmark className="w-4 h-4" />
-                                                            {
-                                                                artifact.collectionLocation
-                                                            }
+                                                            <Landmark className="w-3 h-3" />
+                                                            <span className="truncate">
+                                                                {
+                                                                    artifact.collectionLocation
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 line-clamp-2">
+                                                            <MarkdownContent
+                                                                content={
+                                                                    artifact.desc
+                                                                }
+                                                                className="text-xs [&>p]:mb-0 [&>p]:leading-tight"
+                                                            />
+                                                        </p>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-2xl max-h-[80vh]">
+                                            <DialogHeader>
+                                                <DialogTitle className="text-xl">
+                                                    {artifact.name}
+                                                </DialogTitle>
+                                            </DialogHeader>
+                                            <ScrollArea className="max-h-96">
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={getEraColor(
+                                                                artifact.era
+                                                            )}
+                                                        >
+                                                            {artifact.era}
+                                                        </Badge>
+
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className={getTypeColor(
+                                                                artifact.type
+                                                            )}
+                                                        >
+                                                            {artifact.type}
+                                                        </Badge>
+                                                        <Badge
+                                                            className={getBatchColor(
+                                                                artifact.batch
+                                                            )}
+                                                        >
+                                                            {artifact.batch}
+                                                        </Badge>
+                                                    </div>
+
+                                                    <Separator />
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                                        <div>
+                                                            <h4 className="font-semibold mb-1 flex items-center gap-1">
+                                                                <MapPin className="w-4 h-4" />
+                                                                出土地点
+                                                            </h4>
+                                                            <p className="text-slate-600">
+                                                                {
+                                                                    artifact.excavationLocation
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-semibold mb-1 flex items-center gap-1">
+                                                                <Calendar className="w-4 h-4" />
+                                                                出土时间
+                                                            </h4>
+                                                            <p className="text-slate-600">
+                                                                {
+                                                                    artifact.excavationTime
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <h4 className="font-semibold mb-1 flex items-center gap-1">
+                                                                <Landmark className="w-4 h-4" />
+                                                                馆藏地点
+                                                            </h4>
+                                                            <p className="text-slate-600">
+                                                                {
+                                                                    artifact.collectionLocation
+                                                                }
+                                                            </p>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div className="md:w-1/3">
-                                                    <div className="text-sm text-slate-600 line-clamp-3">
+
+                                                    <Separator />
+
+                                                    <div>
+                                                        <h4 className="font-semibold mb-2">
+                                                            文物描述
+                                                        </h4>
                                                         <MarkdownContent
                                                             content={
                                                                 artifact.desc
                                                             }
-                                                            className="text-sm [&>p]:mb-0 [&>p]:leading-tight [&>h1]:text-sm [&>h2]:text-sm [&>h3]:text-sm"
+                                                            className="text-slate-700"
                                                         />
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl max-h-[80vh]">
-                                    <DialogHeader>
-                                        <DialogTitle className="text-xl">
-                                            {artifact.name}
-                                        </DialogTitle>
-                                        <DialogDescription className="text-base">
-                                            {artifact.era} · {artifact.type}
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <ScrollArea className="max-h-96">
-                                        <div className="space-y-4">
-                                            <div className="flex flex-wrap gap-2">
-                                                <Badge
-                                                    className={getBatchColor(
-                                                        artifact.batch
-                                                    )}
-                                                >
-                                                    {artifact.batch}
-                                                </Badge>
-                                                <Badge
-                                                    variant="secondary"
-                                                    className={getTypeColor(
-                                                        artifact.type
-                                                    )}
-                                                >
+                                            </ScrollArea>
+                                        </DialogContent>
+                                    </Dialog>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="space-y-4 mb-8">
+                                {paginatedArtifacts.map((artifact) => (
+                                    <Dialog key={artifact.id}>
+                                        <DialogTrigger asChild>
+                                            <Card className="cursor-pointer hover:shadow-md transition-all duration-300">
+                                                <CardContent className="p-6">
+                                                    <div className="flex flex-col md:flex-row gap-4">
+                                                        <div className="flex-1">
+                                                            <div className="flex flex-wrap gap-2 mb-3">
+                                                                <Badge
+                                                                    className={getBatchColor(
+                                                                        artifact.batch
+                                                                    )}
+                                                                >
+                                                                    {
+                                                                        artifact.batch
+                                                                    }
+                                                                </Badge>
+                                                                <Badge
+                                                                    variant="secondary"
+                                                                    className={getTypeColor(
+                                                                        artifact.type
+                                                                    )}
+                                                                >
+                                                                    {
+                                                                        artifact.type
+                                                                    }
+                                                                </Badge>
+                                                            </div>
+                                                            <h3 className="text-xl font-semibold mb-2">
+                                                                {artifact.name}
+                                                            </h3>
+                                                            <p className="text-slate-600 mb-3">
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className={getEraColor(
+                                                                        artifact.era
+                                                                    )}
+                                                                >
+                                                                    {
+                                                                        artifact.era
+                                                                    }
+                                                                </Badge>
+                                                            </p>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-600">
+                                                                <div className="flex items-center gap-1">
+                                                                    <MapPin className="w-4 h-4" />
+                                                                    {
+                                                                        artifact.excavationLocation
+                                                                    }
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <Landmark className="w-4 h-4" />
+                                                                    {
+                                                                        artifact.collectionLocation
+                                                                    }
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="md:w-1/3">
+                                                            <div className="text-sm text-slate-600 line-clamp-3">
+                                                                <MarkdownContent
+                                                                    content={
+                                                                        artifact.desc
+                                                                    }
+                                                                    className="text-sm [&>p]:mb-0 [&>p]:leading-tight [&>h1]:text-sm [&>h2]:text-sm [&>h3]:text-sm"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-2xl max-h-[80vh]">
+                                            <DialogHeader>
+                                                <DialogTitle className="text-xl">
+                                                    {artifact.name}
+                                                </DialogTitle>
+                                                <DialogDescription className="text-base">
+                                                    {artifact.era} ·{" "}
                                                     {artifact.type}
-                                                </Badge>
-                                            </div>
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <ScrollArea className="max-h-96">
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Badge
+                                                            className={getBatchColor(
+                                                                artifact.batch
+                                                            )}
+                                                        >
+                                                            {artifact.batch}
+                                                        </Badge>
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className={getTypeColor(
+                                                                artifact.type
+                                                            )}
+                                                        >
+                                                            {artifact.type}
+                                                        </Badge>
+                                                    </div>
 
-                                            <Separator />
+                                                    <Separator />
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                                <div>
-                                                    <h4 className="font-semibold mb-1 flex items-center gap-1">
-                                                        <MapPin className="w-4 h-4" />
-                                                        出土地点
-                                                    </h4>
-                                                    <p className="text-slate-600">
-                                                        {
-                                                            artifact.excavationLocation
-                                                        }
-                                                    </p>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                                        <div>
+                                                            <h4 className="font-semibold mb-1 flex items-center gap-1">
+                                                                <MapPin className="w-4 h-4" />
+                                                                出土地点
+                                                            </h4>
+                                                            <p className="text-slate-600">
+                                                                {
+                                                                    artifact.excavationLocation
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-semibold mb-1 flex items-center gap-1">
+                                                                <Calendar className="w-4 h-4" />
+                                                                出土时间
+                                                            </h4>
+                                                            <p className="text-slate-600">
+                                                                {
+                                                                    artifact.excavationTime
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <h4 className="font-semibold mb-1 flex items-center gap-1">
+                                                                <Landmark className="w-4 h-4" />
+                                                                馆藏地点
+                                                            </h4>
+                                                            <p className="text-slate-600">
+                                                                {
+                                                                    artifact.collectionLocation
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <Separator />
+
+                                                    <div>
+                                                        <h4 className="font-semibold mb-2">
+                                                            文物描述
+                                                        </h4>
+                                                        <MarkdownContent
+                                                            content={
+                                                                artifact.desc
+                                                            }
+                                                            className="text-slate-700"
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h4 className="font-semibold mb-1 flex items-center gap-1">
-                                                        <Calendar className="w-4 h-4" />
-                                                        出土时间
-                                                    </h4>
-                                                    <p className="text-slate-600">
-                                                        {
-                                                            artifact.excavationTime
-                                                        }
-                                                    </p>
-                                                </div>
-                                                <div className="md:col-span-2">
-                                                    <h4 className="font-semibold mb-1 flex items-center gap-1">
-                                                        <Landmark className="w-4 h-4" />
-                                                        馆藏地点
-                                                    </h4>
-                                                    <p className="text-slate-600">
-                                                        {
-                                                            artifact.collectionLocation
-                                                        }
-                                                    </p>
-                                                </div>
-                                            </div>
+                                            </ScrollArea>
+                                        </DialogContent>
+                                    </Dialog>
+                                ))}
+                            </div>
+                        )}
 
-                                            <Separator />
-
-                                            <div>
-                                                <h4 className="font-semibold mb-2">
-                                                    文物描述
-                                                </h4>
-                                                <MarkdownContent
-                                                    content={artifact.desc}
-                                                    className="text-slate-700"
-                                                />
-                                            </div>
-                                        </div>
-                                    </ScrollArea>
-                                </DialogContent>
-                            </Dialog>
-                        ))}
-                    </div>
-                )}
-
-                {/* 分页 - 地图视图下不显示分页 */}
-                {viewMode !== "map" && totalPages > 1 && (
-                    <div className="flex justify-center items-center gap-2 mt-8">
-                        <Button
-                            variant="outline"
-                            onClick={() =>
-                                setCurrentPage((prev) => Math.max(prev - 1, 1))
-                            }
-                            disabled={currentPage === 1}
-                        >
-                            上一页
-                        </Button>
-
-                        <div className="flex items-center gap-1">
-                            {Array.from(
-                                { length: Math.min(5, totalPages) },
-                                (_, i) => {
-                                    let pageNum;
-                                    if (totalPages <= 5) {
-                                        pageNum = i + 1;
-                                    } else if (currentPage <= 3) {
-                                        pageNum = i + 1;
-                                    } else if (currentPage >= totalPages - 2) {
-                                        pageNum = totalPages - 4 + i;
-                                    } else {
-                                        pageNum = currentPage - 2 + i;
+                        {/* 分页：只要有多页就显示 */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-center items-center gap-2 mt-6">
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        setCurrentPage((prev) =>
+                                            Math.max(prev - 1, 1)
+                                        )
                                     }
+                                    disabled={currentPage === 1}
+                                >
+                                    上一页
+                                </Button>
 
-                                    return (
-                                        <Button
-                                            key={pageNum}
-                                            variant={
-                                                currentPage === pageNum
-                                                    ? "default"
-                                                    : "outline"
+                                <div className="flex items-center gap-1">
+                                    {Array.from(
+                                        { length: Math.min(5, totalPages) },
+                                        (_, i) => {
+                                            let pageNum;
+                                            if (totalPages <= 5) {
+                                                pageNum = i + 1;
+                                            } else if (currentPage <= 3) {
+                                                pageNum = i + 1;
+                                            } else if (
+                                                currentPage >=
+                                                totalPages - 2
+                                            ) {
+                                                pageNum = totalPages - 4 + i;
+                                            } else {
+                                                pageNum = currentPage - 2 + i;
                                             }
-                                            size="sm"
-                                            onClick={() =>
-                                                setCurrentPage(pageNum)
-                                            }
-                                        >
-                                            {pageNum}
-                                        </Button>
-                                    );
-                                }
-                            )}
-                        </div>
 
-                        <Button
-                            variant="outline"
-                            onClick={() =>
-                                setCurrentPage((prev) =>
-                                    Math.min(prev + 1, totalPages)
-                                )
-                            }
-                            disabled={currentPage === totalPages}
-                        >
-                            下一页
-                        </Button>
+                                            return (
+                                                <Button
+                                                    key={pageNum}
+                                                    variant={
+                                                        currentPage === pageNum
+                                                            ? "default"
+                                                            : "outline"
+                                                    }
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        setCurrentPage(pageNum)
+                                                    }
+                                                >
+                                                    {pageNum}
+                                                </Button>
+                                            );
+                                        }
+                                    )}
+                                </div>
+
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        setCurrentPage((prev) =>
+                                            Math.min(prev + 1, totalPages)
+                                        )
+                                    }
+                                    disabled={currentPage === totalPages}
+                                >
+                                    下一页
+                                </Button>
+                            </div>
+                        )}
                     </div>
-                )}
+
+                    {/* 右侧：地图始终展示 */}
+                    <div className="lg:col-span-2">
+                        {isLoadingMap ? (
+                            <div className="h-96 flex items-center justify-center bg-slate-50 rounded-lg">
+                                <div className="text-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                                    <p className="text-slate-600">
+                                        正在加载地图...
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div
+                                ref={mapContainerRef}
+                                className="w-full h-[70vh] min-h-[420px] rounded-lg border"
+                            />
+                        )}
+                    </div>
+                </div>
+
 
                 {/* 统计信息 */}
                 <Card className="mt-8">
