@@ -38,7 +38,7 @@ import {
     MapPin,
     Calendar,
     Landmark,
-    Map as MapIcon,
+    X,
 } from "lucide-react";
 
 // 文物数据类型定义
@@ -228,21 +228,43 @@ const Wenwu: React.FC = () => {
         return uniqueEras.sort();
     }, [artifacts]);
 
-    // 摘要统计
-    const totalArtifacts = filteredArtifacts.length;
-    const totalMuseums = collections.length;
-    const totalBatches = batches.length;
+    // 摘要统计（当前筛选结果）
+    const filteredMuseumsCount = useMemo(() => {
+        const m = new Set<string>();
+        filteredArtifacts.forEach((a) => {
+            extractMuseumNames(a.collectionLocation).forEach((n) => m.add(n));
+        });
+        return m.size;
+    }, [filteredArtifacts]);
 
     // 激活的筛选项（用于显示筛选chips）
     const activeFilters = useMemo(() => {
         const chips: Array<{ label: string; value: string }> = [];
         if (searchTerm) chips.push({ label: "搜索", value: searchTerm });
-        if (selectedBatch !== "all") chips.push({ label: "批次", value: selectedBatch });
-        if (selectedType !== "all") chips.push({ label: "类别", value: selectedType });
-        if (selectedEra !== "all") chips.push({ label: "时代", value: selectedEra });
-        if (selectedCollection !== "all") chips.push({ label: "馆藏", value: selectedCollection });
+        if (selectedBatch !== "all")
+            chips.push({ label: "批次", value: selectedBatch });
+        if (selectedType !== "all")
+            chips.push({ label: "类别", value: selectedType });
+        if (selectedEra !== "all")
+            chips.push({ label: "时代", value: selectedEra });
+        if (selectedCollection !== "all")
+            chips.push({ label: "馆藏", value: selectedCollection });
         return chips;
-    }, [searchTerm, selectedBatch, selectedType, selectedEra, selectedCollection]);
+    }, [
+        searchTerm,
+        selectedBatch,
+        selectedType,
+        selectedEra,
+        selectedCollection,
+    ]);
+
+    const handleRemoveFilter = (label: string) => {
+        if (label === "搜索") setSearchTerm("");
+        if (label === "批次") setSelectedBatch("all");
+        if (label === "类别") setSelectedType("all");
+        if (label === "时代") setSelectedEra("all");
+        if (label === "馆藏") setSelectedCollection("all");
+    };
 
     // 高德地图初始化
     useEffect(() => {
@@ -286,12 +308,7 @@ const Wenwu: React.FC = () => {
 
     // 初始化地图
     const initializeMap = () => {
-        console.log("开始初始化地图...");
-        console.log("mapContainerRef.current:", mapContainerRef.current);
-        console.log("window.AMap:", window.AMap);
-
         if (!mapContainerRef.current) {
-            console.error("地图容器未找到，尝试重新初始化...");
             setTimeout(() => {
                 if (mapContainerRef.current && window.AMap && !mapInstance) {
                     initializeMap();
@@ -308,11 +325,9 @@ const Wenwu: React.FC = () => {
         try {
             const map = new window.AMap.Map(mapContainerRef.current, {
                 zoom: 5,
-                center: [116.397428, 39.90923], // 北京坐标
-                mapStyle: "amap://styles/normal",
+                center: [116.397428, 39.90923],
+                mapStyle: "amap://styles/whitesmoke", // 改为更清爽的底图风格
             });
-
-            console.log("地图初始化成功:", map);
             setMapInstance(map);
         } catch (error) {
             console.error("地图初始化失败:", error);
@@ -435,7 +450,6 @@ const Wenwu: React.FC = () => {
         });
     };
 
-    // 更新地图标记 - 显示所有博物馆地点
     // 更新地图标记 - 只显示当前筛选结果中的博物馆地点
     const updateMapMarkers = async () => {
         if (!mapInstance || !window.AMap) return;
@@ -446,23 +460,18 @@ const Wenwu: React.FC = () => {
         const markers: any[] = [];
         const coordinates: [number, number][] = [];
 
-        // 从筛选后的文物中提取博物馆列表
         const filteredMuseums = new Set<string>();
         filteredArtifacts.forEach((artifact) => {
             const museums = extractMuseumNames(artifact.collectionLocation);
             museums.forEach((museum) => filteredMuseums.add(museum));
         });
 
-        // 只遍历有筛选结果的博物馆地点
         for (const museum of Array.from(filteredMuseums)) {
-            // 获取该博物馆的筛选后文物
             const museumArtifacts = filteredArtifacts.filter((artifact) =>
                 artifact.collectionLocation.includes(museum)
             );
 
-            // 只有当该博物馆有筛选结果时才显示标记
             if (museumArtifacts.length > 0) {
-                // 获取该博物馆的所有文物（不考虑筛选，用于显示总数）
                 const allMuseumArtifacts = artifacts.filter((artifact) =>
                     artifact.collectionLocation.includes(museum)
                 );
@@ -472,47 +481,56 @@ const Wenwu: React.FC = () => {
                     coordinate.artifacts = museumArtifacts;
                     coordinates.push([coordinate.lng, coordinate.lat]);
 
-                    // 创建自定义标记
+                    // 升级后的自定义标记（渐变圆、外圈脉冲光晕）
                     const marker = new window.AMap.Marker({
                         position: [coordinate.lng, coordinate.lat],
                         content: `
-                        <div class="custom-marker">
+                          <div class="custom-marker">
+                            <span class="marker-pulse"></span>
                             <div class="marker-content">
-                                <span class="marker-count">${museumArtifacts.length}</span>
+                              <span class="marker-count">${museumArtifacts.length}</span>
                             </div>
-                        </div>
-                    `,
-                        offset: new window.AMap.Pixel(-15, -30),
+                          </div>
+                        `,
+                        offset: new window.AMap.Pixel(-18, -36),
                     });
 
-                    // 添加点击事件
                     marker.on("click", () => {
                         const infoWindow = new window.AMap.InfoWindow({
+                            isCustom: true, // 使用自定义外观
                             content: `
-                            <div class="info-window">
-                                <h4>${museum}</h4>
-                                <p>当前筛选结果: ${museumArtifacts.length}件</p>
-                                <p>馆藏总数: ${allMuseumArtifacts.length}件</p>
-                                <div class="artifact-list">
-                                    <strong>当前显示的文物:</strong>
-                                    ${museumArtifacts
-                                        .slice(0, 3)
-                                        .map(
-                                            (artifact) =>
-                                                `<div class="artifact-item">${artifact.name}</div>`
-                                        )
-                                        .join("")}
-                                    ${
-                                        museumArtifacts.length > 3
-                                            ? `<div class="more-items">还有${
-                                                  museumArtifacts.length - 3
-                                              }件...</div>`
-                                            : ""
-                                    }
+                              <div class="info-window">
+                                <div class="info-header">
+                                  <span class="info-icon">🏛️</span>
+                                  <h4 class="info-title">${museum}</h4>
                                 </div>
-                            </div>
-                        `,
-                            offset: new window.AMap.Pixel(0, -30),
+                                <div class="info-stats">
+                                  <span class="chip chip-primary">当前显示 ${
+                                      museumArtifacts.length
+                                  }</span>
+                                  <span class="chip">馆藏总数 ${
+                                      allMuseumArtifacts.length
+                                  }</span>
+                                </div>
+                                <div class="artifact-list">
+                                  ${museumArtifacts
+                                      .slice(0, 5)
+                                      .map(
+                                          (artifact) =>
+                                              `<div class="artifact-item">${artifact.name}</div>`
+                                      )
+                                      .join("")}
+                                  ${
+                                      museumArtifacts.length > 5
+                                          ? `<div class="more-items">还有 ${
+                                                museumArtifacts.length - 5
+                                            } 件...</div>`
+                                          : ""
+                                  }
+                                </div>
+                              </div>
+                            `,
+                            offset: new window.AMap.Pixel(0, -36),
                         });
                         infoWindow.open(mapInstance, marker.getPosition());
                     });
@@ -523,11 +541,9 @@ const Wenwu: React.FC = () => {
             }
         }
 
-        // 调整地图视野以适应所有标记
         if (coordinates.length > 0) {
             mapInstance.setFitView(markers);
         } else {
-            // 如果没有筛选结果，显示默认视图（中国地图）
             mapInstance.setZoomAndCenter(5, [116.397428, 39.90923]);
         }
     };
@@ -673,22 +689,28 @@ const Wenwu: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-stone-100 p-4 md:p-6">
             <div className="max-w-7xl mx-auto">
                 {/* 页面标题 */}
                 <div className="text-center mb-8">
-                    <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-4">
+                    <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-3 font-serif tracking-wide">
                         195件禁止出境文物
                     </h2>
+                    <p className="text-slate-500 font-serif">
+                        拾一分典雅，纳一分新意
+                    </p>
                 </div>
 
                 {/* 搜索和筛选区域 */}
-                <Card className="mb-6">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
+                <Card className="mb-6 border-slate-200/70 shadow-sm">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-slate-800">
                             <Filter className="w-5 h-5" />
                             搜索与筛选
                         </CardTitle>
+                        <CardDescription className="text-slate-500">
+                            支持名称、描述、年代、出土/馆藏地点关键字检索
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
@@ -702,12 +724,12 @@ const Wenwu: React.FC = () => {
                                     onChange={(e) =>
                                         setSearchTerm(e.target.value)
                                     }
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                                 />
                             </div>
 
                             {/* 筛选器 */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                                 <Select
                                     value={selectedBatch}
                                     onValueChange={setSelectedBatch}
@@ -798,6 +820,47 @@ const Wenwu: React.FC = () => {
                                     重置筛选
                                 </Button>
                             </div>
+
+                            {/* 激活筛选 chips */}
+                            {activeFilters.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                    <span className="text-sm text-slate-500">
+                                        已选：
+                                    </span>
+                                    {activeFilters.map((chip, idx) => (
+                                        <span
+                                            key={`${chip.label}-${chip.value}-${idx}`}
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm border border-slate-300 bg-white text-slate-700"
+                                        >
+                                            <span className="text-slate-500">
+                                                {chip.label}：
+                                            </span>
+                                            <span className="font-medium">
+                                                {chip.value}
+                                            </span>
+                                            <button
+                                                aria-label="移除筛选"
+                                                className="ml-1 text-slate-400 hover:text-slate-600"
+                                                onClick={() =>
+                                                    handleRemoveFilter(
+                                                        chip.label
+                                                    )
+                                                }
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={resetFilters}
+                                        className="text-slate-600"
+                                    >
+                                        清除全部
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -810,6 +873,12 @@ const Wenwu: React.FC = () => {
                             {filteredArtifacts.length}
                         </span>{" "}
                         件文物
+                        <span className="mx-2 text-slate-400">•</span>
+                        馆藏地{" "}
+                        <span className="font-semibold text-slate-800">
+                            {filteredMuseumsCount}
+                        </span>{" "}
+                        个
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
@@ -818,6 +887,7 @@ const Wenwu: React.FC = () => {
                             }
                             size="sm"
                             onClick={() => setViewMode("grid")}
+                            className="shadow-sm"
                         >
                             <Grid className="w-4 h-4" />
                         </Button>
@@ -827,6 +897,7 @@ const Wenwu: React.FC = () => {
                             }
                             size="sm"
                             onClick={() => setViewMode("list")}
+                            className="shadow-sm"
                         >
                             <List className="w-4 h-4" />
                         </Button>
@@ -841,7 +912,7 @@ const Wenwu: React.FC = () => {
                                 {paginatedArtifacts.map((artifact) => (
                                     <Dialog key={artifact.id}>
                                         <DialogTrigger asChild>
-                                            <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105">
+                                            <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-[1.015] border-slate-200/70">
                                                 <CardHeader className="pb-3">
                                                     <div className="flex justify-between items-start mb-2">
                                                         <Badge
@@ -906,7 +977,7 @@ const Wenwu: React.FC = () => {
                                         </DialogTrigger>
                                         <DialogContent className="max-w-2xl max-h-[80vh]">
                                             <DialogHeader>
-                                                <DialogTitle className="text-xl">
+                                                <DialogTitle className="text-xl font-serif">
                                                     {artifact.name}
                                                 </DialogTitle>
                                             </DialogHeader>
@@ -1001,7 +1072,7 @@ const Wenwu: React.FC = () => {
                                 {paginatedArtifacts.map((artifact) => (
                                     <Dialog key={artifact.id}>
                                         <DialogTrigger asChild>
-                                            <Card className="cursor-pointer hover:shadow-md transition-all duration-300">
+                                            <Card className="cursor-pointer hover:shadow-md transition-all duration-300 border-slate-200/70">
                                                 <CardContent className="p-6">
                                                     <div className="flex flex-col md:flex-row gap-4">
                                                         <div className="flex-1">
@@ -1026,7 +1097,7 @@ const Wenwu: React.FC = () => {
                                                                     }
                                                                 </Badge>
                                                             </div>
-                                                            <h3 className="text-xl font-semibold mb-2">
+                                                            <h3 className="text-xl font-semibold mb-2 font-serif">
                                                                 {artifact.name}
                                                             </h3>
                                                             <p className="text-slate-600 mb-3">
@@ -1072,7 +1143,7 @@ const Wenwu: React.FC = () => {
                                         </DialogTrigger>
                                         <DialogContent className="max-w-2xl max-h-[80vh]">
                                             <DialogHeader>
-                                                <DialogTitle className="text-xl">
+                                                <DialogTitle className="text-xl font-serif">
                                                     {artifact.name}
                                                 </DialogTitle>
                                                 <DialogDescription className="text-base">
@@ -1229,29 +1300,40 @@ const Wenwu: React.FC = () => {
 
                     {/* 右侧：地图始终展示 */}
                     <div className="lg:col-span-2">
-                        {isLoadingMap ? (
-                            <div className="h-96 flex items-center justify-center bg-slate-50 rounded-lg">
-                                <div className="text-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                                    <p className="text-slate-600">
-                                        正在加载地图...
-                                    </p>
-                                </div>
-                            </div>
-                        ) : (
-                            <div
-                                ref={mapContainerRef}
-                                className="w-full h-[70vh] min-h-[420px] rounded-lg border"
-                            />
-                        )}
+                        <Card className="sticky top-4 border-slate-200/70 shadow-sm">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-slate-800 font-serif">
+                                    博物馆分布
+                                </CardTitle>
+                                <CardDescription className="text-slate-500">
+                                    数字表示当前筛选结果中该馆的文物数
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {isLoadingMap ? (
+                                    <div className="h-[65vh] min-h-[420px] flex items-center justify-center bg-slate-50 rounded-lg">
+                                        <div className="text-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                                            <p className="text-slate-600">
+                                                正在加载地图...
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div
+                                        ref={mapContainerRef}
+                                        className="w-full h-[65vh] min-h-[420px] rounded-lg border"
+                                    />
+                                )}
+                            </CardContent>
+                        </Card>
                     </div>
                 </div>
 
-
-                {/* 统计信息 */}
-                <Card className="mt-8">
+                {/* 统计信息（总览） */}
+                <Card className="mt-8 border-slate-200/70 shadow-sm">
                     <CardHeader>
-                        <CardTitle>统计信息</CardTitle>
+                        <CardTitle className="font-serif">统计信息</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
@@ -1293,79 +1375,163 @@ const Wenwu: React.FC = () => {
             </div>
 
             {/* 地图标记样式 */}
-            <style>{`
+            <style>
+                {`
+        /* Marker 外观：渐变圆 + 脉冲光晕 + 微动效 */
         .custom-marker {
           position: relative;
+          width: 36px;
+          height: 36px;
         }
 
         .marker-content {
-          background: #1e40af;
+          position: relative;
+          z-index: 2;
+          background: linear-gradient(135deg, #2563eb, #14b8a6);
           border: 2px solid #ffffff;
           border-radius: 50%;
-          width: 30px;
-          height: 30px;
+          width: 36px;
+          height: 36px;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .marker-content:hover {
-          transform: scale(1.1);
-          background: #1d4ed8;
+          transform: translateY(-1px) scale(1.03);
+          box-shadow: 0 10px 24px rgba(20, 184, 166, 0.35);
         }
 
-        .marker-content.marker-empty {
-          background: #6b7280;
-          opacity: 0.7;
+        /* 外圈脉冲光晕 */
+        .marker-pulse {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          background: radial-gradient(rgba(37, 99, 235, 0.25), transparent 60%);
+          animation: marker-pulse 2s ease-out infinite;
+          z-index: 1;
         }
 
-        .marker-content.marker-empty:hover {
-          background: #4b5563;
+        @keyframes marker-pulse {
+          0% { transform: scale(1); opacity: 0.6; }
+          70% { transform: scale(1.6); opacity: 0; }
+          100% { transform: scale(1.6); opacity: 0; }
         }
 
         .marker-count {
-          color: white;
-          font-size: 12px;
-          font-weight: bold;
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.2px;
         }
 
+        /* 自定义 InfoWindow：玻璃拟态卡片 + 小箭头 */
         .info-window {
-          padding: 10px;
-          min-width: 200px;
+          position: relative;
+          min-width: 260px;
+          max-width: 320px;
+          background: rgba(255, 255, 255, 0.92);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(2, 6, 23, 0.06);
+          box-shadow: 0 10px 30px rgba(2, 6, 23, 0.15);
+          border-radius: 12px;
+          padding: 12px 14px;
+          color: #0f172a; /* slate-900 */
         }
 
-        .info-window h4 {
-          margin: 0 0 8px 0;
-          font-size: 14px;
-          font-weight: bold;
+        .info-window::after {
+          content: "";
+          position: absolute;
+          left: 50%;
+          bottom: -8px;
+          transform: translateX(-50%) rotate(45deg);
+          width: 14px;
+          height: 14px;
+          background: rgba(255, 255, 255, 0.92);
+          backdrop-filter: inherit;
+          border-right: 1px solid rgba(2, 6, 23, 0.06);
+          border-bottom: 1px solid rgba(2, 6, 23, 0.06);
+          box-shadow: 3px 3px 10px rgba(2, 6, 23, 0.12);
+        }
+
+        .info-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 6px;
+        }
+
+        .info-icon {
+          font-size: 16px;
+        }
+
+        .info-title {
+          margin: 0;
+          font-size: 15px;
+          font-weight: 700;
+          letter-spacing: 0.2px;
+        }
+
+        .info-stats {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+          margin: 6px 0 8px;
+        }
+
+        .chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          border-radius: 999px;
+          padding: 2px 8px;
+          font-size: 12px;
+          border: 1px solid rgba(2, 6, 23, 0.08);
+          background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,250,252,0.9));
+          color: #334155; /* slate-600 */
+        }
+
+        .chip-primary {
+          background: linear-gradient(180deg, rgba(219,234,254,0.95), rgba(191,219,254,0.95));
+          border-color: rgba(37, 99, 235, 0.25);
+          color: #1d4ed8; /* blue-700 */
+          font-weight: 600;
         }
 
         .artifact-list {
-          margin-top: 8px;
+          margin-top: 4px;
+          max-height: 150px;
+          overflow: auto;
+          padding-right: 2px;
         }
 
         .artifact-item {
-          padding: 2px 0;
-          font-size: 12px;
-          border-bottom: 1px solid #eee;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 0;
+          font-size: 13px;
+          border-bottom: 1px dashed rgba(2, 6, 23, 0.08);
+          color: #334155;
+        }
+
+        .artifact-item::before {
+          content: "•";
+          color: #64748b; /* slate-500 */
         }
 
         .more-items {
-          padding: 2px 0;
+          padding: 6px 0 2px;
           font-size: 12px;
-          color: #666;
+          color: #64748b;
           font-style: italic;
         }
-
-        .no-artifacts {
-          color: #666;
-          font-style: italic;
-          margin: 8px 0;
-        }
-      `}</style>
+                `}
+            </style>
         </div>
     );
 };
