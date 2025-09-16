@@ -174,28 +174,38 @@ const Wenwu: React.FC = () => {
     >(new Map());
     const [isLoadingMap, setIsLoadingMap] = useState(false);
     const mapContainerRef = useRef<HTMLDivElement>(null);
+    const clustererRef = useRef<any>(null); // 新增：聚类实例
+    const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
-    // 提取单个博物馆名称的函数
+    // 提取单个博物馆名称的函数（升级版：拆分/清洗/去括号/去冗余）
     const extractMuseumNames = (collectionLocation: string): string[] => {
         const museums = new Set<string>();
+        if (!collectionLocation) return [];
 
-        // 直接将collectionLocation作为博物馆名称添加到Set中
-        if (collectionLocation && collectionLocation.trim()) {
-            // TODO 这里可能有的严格
-            if (
-                collectionLocation ===
-                "原物为一对，一件藏于北京故宫博物院，另一件藏于河南博物院"
-            ) {
+        const raw = collectionLocation
+            .replace(/（[^）]*）/g, "") // 去中文括号内容
+            .replace(/\([^)]*\)/g, "") // 去英文括号内容
+            .replace(/各(馆|博物馆)?(收藏|收藏一半|分藏|各藏).*/g, "") // 去“各收藏…”后缀
+            .replace(/(等)?(单位|博物馆)?(共同)?(收藏|保管).*/g, ""); // 去“共同收藏…”后缀
+
+        const parts = raw
+            .split(/[、，,；;\/\|]|和|与|及/g) // 常见分隔符
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+        for (const p of parts) {
+            // 处理少数特殊描述
+            if (p === "原物为一对，一件藏于北京故宫博物院，另一件藏于河南博物院") {
                 museums.add("故宫博物院");
                 museums.add("河南博物院");
-            } else if (
-                collectionLocation === "上海博物馆、山西博物馆各收藏一半"
-            ) {
+                continue;
+            }
+            if (p === "上海博物馆、山西博物馆各收藏一半") {
                 museums.add("上海博物馆");
                 museums.add("山西博物馆");
-            } else {
-                museums.add(collectionLocation.trim());
+                continue;
             }
+            museums.add(p);
         }
 
         return Array.from(museums).sort();
@@ -293,7 +303,7 @@ const Wenwu: React.FC = () => {
         const script = document.createElement("script");
         // 同时加载 Geocoder 和 PlaceSearch 插件，确保可以进行 POI 检索
         script.src =
-            "https://webapi.amap.com/maps?v=1.4.15&key=7a9513e700e06c00890363af1bd2d926&plugin=AMap.Geocoder,AMap.PlaceSearch";
+            "https://webapi.amap.com/maps?v=1.4.15&key=7a9513e700e06c00890363af1bd2d926&plugin=AMap.Geocoder,AMap.PlaceSearch,AMap.MarkerClusterer";
         script.async = true;
         script.onload = () => {
             initializeMap();
@@ -328,7 +338,46 @@ const Wenwu: React.FC = () => {
                 center: [116.397428, 39.90923],
                 mapStyle: "amap://styles/whitesmoke", // 改为更清爽的底图风格
             });
+
+            // 地图完成初始化后，触发一次 resize 和首轮标记渲染，避免初始错位
+            const onMapComplete = () => {
+                map.resize();
+                setTimeout(() => {
+                    map.resize();
+                    updateMapMarkers();
+                }, 0);
+            };
+            map.on("complete", onMapComplete);
+
+            // 监听窗口尺寸变化
+            const onWinResize = () => {
+                map.resize();
+            };
+            window.addEventListener("resize", onWinResize);
+
+            // 监听容器尺寸变化
+            if ("ResizeObserver" in window && mapContainerRef.current) {
+                const ro = new ResizeObserver(() => {
+                    map.resize();
+                });
+                ro.observe(mapContainerRef.current);
+                resizeObserverRef.current = ro;
+            }
+
             setMapInstance(map);
+
+            // 组件卸载清理
+            const cleanup = () => {
+                window.removeEventListener("resize", onWinResize);
+                if (typeof (map as any).off === "function") {
+                    (map as any).off("complete", onMapComplete);
+                }
+                if (resizeObserverRef.current) {
+                    resizeObserverRef.current.disconnect();
+                    resizeObserverRef.current = null;
+                }
+            };
+            (map as any).__wm_cleanup__ = cleanup;
         } catch (error) {
             console.error("地图初始化失败:", error);
         }
@@ -338,20 +387,84 @@ const Wenwu: React.FC = () => {
     const normalizeMuseumQuery = (name: string) => {
         let q = (name || "").trim();
 
-        // 常见别名规范
         const aliases: Record<string, string> = {
             故宫: "故宫博物院",
             紫禁城: "故宫博物院",
+            国博: "中国国家博物馆",
             国家博物馆: "中国国家博物馆",
             中国国博: "中国国家博物馆",
+            上博: "上海博物馆",
+            上历博: "上海历史博物馆",
+            陕历博: "陕西历史博物馆",
+            山西博物馆: "山西博物院",
+            河南省博物馆: "河南博物院",
+            浙博: "浙江省博物馆",
+            天博: "天津博物馆",
         };
         if (aliases[q]) return aliases[q];
 
-        // 若不包含“博物”/“博物院”之类，补充“博物馆”
+        // 若不包含“博物”/“博物院”，补“博物馆”
         if (!q.includes("博物") && !q.includes("博物院")) {
             q = `${q} 博物馆`;
         }
         return q;
+    };
+
+    // 常见省份/直辖市/城市关键词（覆盖常见馆）
+    const COMMON_REGIONS = [
+        '北京','上海','天津','重庆',
+        '河南','郑州','山西','太原','陕西','西安','山东','济南','青岛',
+        '江苏','南京','苏州','无锡','浙江','杭州','宁波','绍兴','温州',
+        '广东','广州','深圳','佛山','东莞',
+        '湖北','武汉','湖南','长沙',
+        '四川','成都','江西','南昌','福建','福州','厦门',
+        '安徽','合肥','河北','石家庄','辽宁','沈阳','大连','吉林','长春','黑龙江','哈尔滨',
+        '云南','昆明','贵州','贵阳','甘肃','兰州','青海','西宁','宁夏','银川','新疆','乌鲁木齐',
+        '海南','海口','广西','南宁','内蒙古','呼和浩特','西藏','拉萨',
+        '香港','澳门','台湾'
+    ];
+
+    const deduceCityFromName = (name: string): string | null => {
+        const s = (name || '').trim();
+        for (const region of COMMON_REGIONS) {
+            if (s.includes(region)) return region;
+        }
+        return null;
+    };
+
+    const normalizeForCompare = (s: string) =>
+        (s || '').replace(/\\s+/g, '').replace(/博物院/g, '博物馆').toLowerCase();
+
+    const EXCLUDED_KEYWORDS = ['地铁', '站', '停车场', '酒店', '商场', '商店', '餐厅', '写字楼'];
+
+    const scorePoi = (poi: any, query: string, cityHint?: string) => {
+        const name = poi?.name || '';
+        const type = poi?.type || '';
+        const cityname = poi?.cityname || '';
+        const adname = poi?.adname || '';
+
+        // 负向过滤（明显不是馆）
+        for (const k of EXCLUDED_KEYWORDS) {
+            if (name.includes(k)) return -Infinity;
+        }
+
+        const qn = normalizeForCompare(query);
+        const pn = normalizeForCompare(name);
+
+        let score = 0;
+        if (pn === qn) score += 100;
+        else if (pn.includes(qn) || qn.includes(pn)) score += 60;
+
+        if (type.includes('博物馆') || type.includes('博物院')) score += 40;
+
+        if (cityHint && (cityname.includes(cityHint) || adname.includes(cityHint))) {
+            score += 25;
+        }
+
+        // 小加成：POI 的 name 中包含城市关键词
+        if (cityHint && name.includes(cityHint)) score += 10;
+
+        return score;
     };
 
     // 使用 PlaceSearch 通过名称检索 POI
@@ -361,29 +474,36 @@ const Wenwu: React.FC = () => {
         if (!window.AMap || !window.AMap.PlaceSearch) return null;
 
         const query = normalizeMuseumQuery(name);
+        const cityHint = deduceCityFromName(query) || deduceCityFromName(name) || null;
 
         return new Promise((resolve) => {
             const placeSearch = new window.AMap.PlaceSearch({
-                city: "全国",
-                pageSize: 1,
+                city: cityHint || "全国",
+                citylimit: !!cityHint,      // 有城市线索时收紧范围
+                pageSize: 5,               // 拿更多候选以便挑选最优
                 pageIndex: 1,
-                citylimit: false,
-                extensions: "base",
+                extensions: "all",
             });
 
             placeSearch.search(query, (status: string, result: any) => {
-                if (
-                    status === "complete" &&
-                    result?.poiList?.pois &&
-                    result.poiList.pois.length > 0
-                ) {
-                    const poi = result.poiList.pois[0];
-                    const loc = poi.location || (poi as any)._location;
+                const pois = result?.poiList?.pois || [];
+                if (status === "complete" && pois.length > 0) {
+                    // 按自定义打分选出最佳候选
+                    let best = null as any;
+                    let bestScore = -Infinity;
+                    for (const poi of pois) {
+                        const s = scorePoi(poi, query, cityHint || undefined);
+                        if (s > bestScore) {
+                            bestScore = s;
+                            best = poi;
+                        }
+                    }
+                    const loc = best?.location || (best as any)?._location;
                     if (loc) {
                         const coordinate: LocationCoordinate = {
                             lng: loc.lng,
                             lat: loc.lat,
-                            address: poi.name,
+                            address: best.name,
                             artifacts: [],
                         };
                         resolve(coordinate);
@@ -399,9 +519,13 @@ const Wenwu: React.FC = () => {
     const geocodeLocation = async (
         address: string
     ): Promise<LocationCoordinate | null> => {
-        // 检查缓存
-        if (locationCache.has(address)) {
-            return locationCache.get(address)!;
+        const cityHint = deduceCityFromName(address) || null;
+        const normalized = normalizeMuseumQuery(address);
+        const cacheKey = `${normalized}__${cityHint || "全国"}`;
+
+        // 检查缓存（加入城市维度，避免同名异地混淆）
+        if (locationCache.has(cacheKey)) {
+            return locationCache.get(cacheKey)!;
         }
 
         // 1) 先用 POI 搜索获取更精确的博物馆坐标
@@ -409,26 +533,24 @@ const Wenwu: React.FC = () => {
         if (poiResult) {
             setLocationCache((prev) => {
                 const next = new Map(prev);
-                next.set(address, poiResult);
+                next.set(cacheKey, poiResult);
                 return next;
             });
             return poiResult;
         }
 
-        // 2) 回退到 Geocoder
+        // 2) 回退到 Geocoder（带 cityHint 收敛范围）
         return new Promise((resolve) => {
             if (!window.AMap) {
                 resolve(null);
                 return;
             }
             const geocoder = new window.AMap.Geocoder({
-                city: "全国",
+                city: cityHint || "全国",
             });
 
-            // 对地址做一次规范化后再编码，提升命中率
-            const query = normalizeMuseumQuery(address);
-            geocoder.getLocation(query, (status: string, result: any) => {
-                if (status === "complete" && result.geocodes.length > 0) {
+            geocoder.getLocation(normalized, (status: string, result: any) => {
+                if (status === "complete" && result?.geocodes?.length > 0) {
                     const location = result.geocodes[0].location;
                     const coordinate: LocationCoordinate = {
                         lng: location.lng,
@@ -439,7 +561,7 @@ const Wenwu: React.FC = () => {
 
                     setLocationCache((prev) => {
                         const next = new Map(prev);
-                        next.set(address, coordinate);
+                        next.set(cacheKey, coordinate);
                         return next;
                     });
                     resolve(coordinate);
@@ -454,12 +576,10 @@ const Wenwu: React.FC = () => {
     const updateMapMarkers = async () => {
         if (!mapInstance || !window.AMap) return;
 
-        // 清除现有标记
-        mapInstance.clearMap();
-
         const markers: any[] = [];
         const coordinates: [number, number][] = [];
 
+        // 从筛选后的文物中提取博物馆列表
         const filteredMuseums = new Set<string>();
         filteredArtifacts.forEach((artifact) => {
             const museums = extractMuseumNames(artifact.collectionLocation);
@@ -481,23 +601,24 @@ const Wenwu: React.FC = () => {
                     coordinate.artifacts = museumArtifacts;
                     coordinates.push([coordinate.lng, coordinate.lat]);
 
-                    // 升级后的自定义标记（渐变圆、外圈脉冲光晕）
+                    // 单点标记：不显示数量，只显示一个优雅的圆点（保留脉冲可视效果）
                     const marker = new window.AMap.Marker({
                         position: [coordinate.lng, coordinate.lat],
+                        anchor: "center",
                         content: `
                           <div class="custom-marker">
                             <span class="marker-pulse"></span>
                             <div class="marker-content">
-                              <span class="marker-count">${museumArtifacts.length}</span>
+                              <!-- 不展示数量 -->
                             </div>
                           </div>
                         `,
-                        offset: new window.AMap.Pixel(-18, -36),
+                        offset: new window.AMap.Pixel(0, 0),
                     });
 
                     marker.on("click", () => {
                         const infoWindow = new window.AMap.InfoWindow({
-                            isCustom: true, // 使用自定义外观
+                            isCustom: true,
                             content: `
                               <div class="info-window">
                                 <div class="info-header">
@@ -505,44 +626,52 @@ const Wenwu: React.FC = () => {
                                   <h4 class="info-title">${museum}</h4>
                                 </div>
                                 <div class="info-stats">
-                                  <span class="chip chip-primary">当前显示 ${
-                                      museumArtifacts.length
-                                  }</span>
-                                  <span class="chip">馆藏总数 ${
-                                      allMuseumArtifacts.length
-                                  }</span>
+                                  <span class="chip chip-primary">当前显示 ${museumArtifacts.length}</span>
+                                  <span class="chip">馆藏总数 ${allMuseumArtifacts.length}</span>
                                 </div>
                                 <div class="artifact-list">
                                   ${museumArtifacts
                                       .slice(0, 5)
-                                      .map(
-                                          (artifact) =>
-                                              `<div class="artifact-item">${artifact.name}</div>`
-                                      )
+                                      .map((artifact) => `<div class="artifact-item">${artifact.name}</div>`)
                                       .join("")}
-                                  ${
-                                      museumArtifacts.length > 5
-                                          ? `<div class="more-items">还有 ${
-                                                museumArtifacts.length - 5
-                                            } 件...</div>`
-                                          : ""
-                                  }
+                                  ${museumArtifacts.length > 5 ? `<div class="more-items">还有 ${museumArtifacts.length - 5} 件...</div>` : ""}
                                 </div>
                               </div>
                             `,
-                            offset: new window.AMap.Pixel(0, -36),
+                            offset: new window.AMap.Pixel(0, -28),
                         });
                         infoWindow.open(mapInstance, marker.getPosition());
                     });
 
                     markers.push(marker);
-                    mapInstance.add(marker);
                 }
             }
         }
 
+        // 使用 MarkerClusterer 管理标记
+        if (!clustererRef.current) {
+            clustererRef.current = new window.AMap.MarkerClusterer(mapInstance, markers, {
+                gridSize: 80,
+                averageCenter: true,
+                // 自定义聚类气泡外观（显示聚类数量）
+                renderClusterMarker: (context: any) => {
+                    const count = context.count;
+                    const div = document.createElement("div");
+                    div.className = "cluster-marker";
+                    div.innerHTML = `<span class="cluster-count">${count}</span>`;
+                    context.marker.setOffset(new window.AMap.Pixel(-20, -20));
+                    context.marker.setContent(div);
+                },
+            });
+        } else {
+            // 更新聚类的标记集合
+            clustererRef.current.clearMarkers();
+            clustererRef.current.addMarkers(markers);
+        }
+
+        // 适配视野：有覆盖物则自动包裹全部（聚类存在时直接调用 setFitView 即可）
         if (coordinates.length > 0) {
-            mapInstance.setFitView(markers);
+            mapInstance.setFitView();
         } else {
             mapInstance.setZoomAndCenter(5, [116.397428, 39.90923]);
         }
@@ -554,6 +683,17 @@ const Wenwu: React.FC = () => {
             updateMapMarkers();
         }
     }, [filteredArtifacts, mapInstance]);
+
+    // 地图与窗口/容器尺寸的清理（卸载时触发）
+    useEffect(() => {
+        return () => {
+            if (mapInstance && (mapInstance as any).__wm_cleanup__) {
+                try {
+                    (mapInstance as any).__wm_cleanup__();
+                } catch {}
+            }
+        };
+    }, [mapInstance]);
 
     // 筛选逻辑
     useEffect(() => {
@@ -696,9 +836,7 @@ const Wenwu: React.FC = () => {
                     <h2 className="text-4xl md:text-5xl font-bold text-slate-800 mb-3 font-serif tracking-wide">
                         195件禁止出境文物
                     </h2>
-                    <p className="text-slate-500 font-serif">
-                        拾一分典雅，纳一分新意
-                    </p>
+
                 </div>
 
                 {/* 搜索和筛选区域 */}
@@ -1323,6 +1461,7 @@ const Wenwu: React.FC = () => {
                                     <div
                                         ref={mapContainerRef}
                                         className="w-full h-[65vh] min-h-[420px] rounded-lg border"
+                                        style={{ transform: "none" }}
                                     />
                                 )}
                             </CardContent>
@@ -1424,6 +1563,25 @@ const Wenwu: React.FC = () => {
 
         .marker-count {
           color: #ffffff;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.2px;
+        }
+
+        /* 聚类气泡：简洁圆片 + 数字 */
+        .cluster-marker {
+          width: 40px;
+          height: 40px;
+          border-radius: 9999px;
+          background: linear-gradient(135deg, rgba(37,99,235,0.95), rgba(20,184,166,0.95));
+          border: 2px solid #fff;
+          box-shadow: 0 8px 20px rgba(2, 6, 23, 0.18);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .cluster-count {
+          color: #fff;
           font-size: 13px;
           font-weight: 700;
           letter-spacing: 0.2px;
