@@ -177,6 +177,18 @@ const Wenwu: React.FC = () => {
     const clustererRef = useRef<any>(null); // 新增：聚类实例
     const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
+    // InfoWindow 实例与悬停关闭的延时器
+    const infoWindowRef = useRef<any | null>(null);
+    const hoverTimerRef = useRef<number | null>(null);
+
+    // 地图标注渲染批次ID，确保只有最新一次筛选结果会生效
+    const geocodeRunIdRef = useRef(0);
+
+    // 省份相关：当前省、是否已自动定位、省界多边形缓存
+    const [currentProvince, setCurrentProvince] = useState<string | null>(null);
+    const hasAutoLocatedRef = useRef(false);
+    const provincePolygonsRef = useRef<Record<string, any[]>>({});
+
     // 提取单个博物馆名称的函数（升级版：拆分/清洗/去括号/去冗余）
     const extractMuseumNames = (collectionLocation: string): string[] => {
         const museums = new Set<string>();
@@ -365,6 +377,95 @@ const Wenwu: React.FC = () => {
             }
 
             setMapInstance(map);
+
+            // 新增：构建省界并绑定 hover 高亮
+            const setupProvinceHover = (mapIns: any) => {
+                if (!window.AMap) return;
+                window.AMap.plugin("AMap.DistrictSearch", () => {
+                    const ds = new window.AMap.DistrictSearch({
+                        level: "country",
+                        subdistrict: 1,
+                        extensions: "all",
+                    });
+                    ds.search("中国", (status: string, result: any) => {
+                        if (status !== "complete") return;
+                        const provinces = result?.districtList?.[0]?.districtList || [];
+                        provinces.forEach((prov: any) => {
+                            const sub = new window.AMap.DistrictSearch({
+                                level: "province",
+                                extensions: "all",
+                            });
+                            sub.search(prov.adcode, (st: string, res: any) => {
+                                if (st !== "complete") return;
+                                const d = res?.districtList?.[0];
+                                const boundaries = d?.boundaries || [];
+                                const polygons: any[] = [];
+                                boundaries.forEach((path: any) => {
+                                    const poly = new window.AMap.Polygon({
+                                        path,
+                                        zIndex: 10,
+                                        strokeWeight: 1,
+                                        strokeColor: "#cbd5e1", // slate-300
+                                        fillOpacity: 0,
+                                        fillColor: "#bfdbfe", // hover 填充色
+                                        bubble: true,
+                                        cursor: "pointer",
+                                    });
+                                    poly.on("mouseover", () => poly.setOptions({ fillOpacity: 0.08, strokeColor: "#60a5fa" }));
+                                    poly.on("mouseout", () => poly.setOptions({ fillOpacity: 0, strokeColor: "#cbd5e1" }));
+                                    polygons.push(poly);
+                                });
+                                provincePolygonsRef.current[prov.adcode] = polygons;
+                                polygons.forEach((pg) => pg.setMap(mapIns));
+                            });
+                        });
+                    });
+                });
+            };
+
+            // 新增：自动定位到当前省，并过滤仅当前省数据 + 视野适配到省范围
+            const autoLocateAndFilterProvince = (mapIns: any) => {
+                if (!window.AMap || hasAutoLocatedRef.current) return;
+                window.AMap.plugin(["AMap.Geolocation", "AMap.Geocoder", "AMap.DistrictSearch"], () => {
+                    const geolocation = new window.AMap.Geolocation({
+                        enableHighAccuracy: true,
+                        timeout: 5000,
+                    });
+                    geolocation.getCurrentPosition((status: string, result: any) => {
+                        if (status !== "complete") return;
+                        const pos = result.position;
+                        const geocoder = new window.AMap.Geocoder({});
+                        geocoder.getAddress(pos, (s: string, res: any) => {
+                            if (s !== "complete") return;
+                            const addr = res?.regeocode?.addressComponent;
+                            const provinceName = addr?.province || addr?.city || addr?.district || "";
+                            if (!provinceName) return;
+
+                            hasAutoLocatedRef.current = true;
+                            setCurrentProvince(provinceName);
+
+                            const ds = new window.AMap.DistrictSearch({
+                                level: "province",
+                                extensions: "all",
+                            });
+                            ds.search(provinceName, (st2: string, res2: any) => {
+                                if (st2 !== "complete") return;
+                                const d2 = res2?.districtList?.[0];
+                                const boundaries = d2?.boundaries || [];
+                                if (boundaries.length) {
+                                    const tempPoly = new window.AMap.Polygon({ path: boundaries[0] });
+                                    mapIns.setFitView([tempPoly]);
+                                    tempPoly.setMap(null as any);
+                                }
+                            });
+                        });
+                    });
+                });
+            };
+
+            // 调用增强功能
+            setupProvinceHover(map);
+            autoLocateAndFilterProvince(map);
 
             // 组件卸载清理
             const cleanup = () => {
@@ -576,6 +677,11 @@ const Wenwu: React.FC = () => {
     const updateMapMarkers = async () => {
         if (!mapInstance || !window.AMap) return;
 
+        // 开始新一轮渲染：记录本轮批次，并关闭当前 InfoWindow
+        geocodeRunIdRef.current += 1;
+        const runId = geocodeRunIdRef.current;
+        try { infoWindowRef.current?.close(); } catch {}
+
         const markers: any[] = [];
         const coordinates: [number, number][] = [];
 
@@ -587,6 +693,9 @@ const Wenwu: React.FC = () => {
         });
 
         for (const museum of Array.from(filteredMuseums)) {
+            // 如果在耗时 geocode 期间来了新一轮筛选，停止旧轮渲染
+            if (runId !== geocodeRunIdRef.current) return;
+
             const museumArtifacts = filteredArtifacts.filter((artifact) =>
                 artifact.collectionLocation.includes(museum)
             );
@@ -597,63 +706,96 @@ const Wenwu: React.FC = () => {
                 );
 
                 const coordinate = await geocodeLocation(museum);
+                if (runId !== geocodeRunIdRef.current) return; // 再次校验批次有效性
                 if (coordinate) {
                     coordinate.artifacts = museumArtifacts;
                     coordinates.push([coordinate.lng, coordinate.lat]);
 
-                    // 单点标记：不显示数量，只显示一个优雅的圆点（保留脉冲可视效果）
                     const marker = new window.AMap.Marker({
                         position: [coordinate.lng, coordinate.lat],
                         anchor: "center",
                         content: `
-                          <div class="custom-marker">
-                            <span class="marker-pulse"></span>
-                            <div class="marker-content">
-                              <!-- 不展示数量 -->
-                            </div>
+                          <div class="museum-marker" title="${museum}">
+                            <svg class="museum-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" width="28" height="28" style="color:#2563eb;filter: drop-shadow(0 2px 6px rgba(37, 99, 235, 0.35));">
+                              <path d="M12 3 3 8v2h18V8L12 3zm-7 9h2v7H5v-7zm4 0h2v7H9v-7zm4 0h2v7h-2v-7zm4 0h2v7h-2v-7z"/>
+                            </svg>
                           </div>
                         `,
                         offset: new window.AMap.Pixel(0, 0),
                     });
 
-                    marker.on("click", () => {
-                        const infoWindow = new window.AMap.InfoWindow({
-                            isCustom: true,
-                            content: `
-                              <div class="info-window">
-                                <div class="info-header">
-                                  <span class="info-icon">🏛️</span>
-                                  <h4 class="info-title">${museum}</h4>
-                                </div>
-                                <div class="info-stats">
-                                  <span class="chip chip-primary">当前显示 ${museumArtifacts.length}</span>
-                                  <span class="chip">馆藏总数 ${allMuseumArtifacts.length}</span>
-                                </div>
-                                <div class="artifact-list">
-                                  ${museumArtifacts
-                                      .slice(0, 5)
-                                      .map((artifact) => `<div class="artifact-item">${artifact.name}</div>`)
-                                      .join("")}
-                                  ${museumArtifacts.length > 5 ? `<div class="more-items">还有 ${museumArtifacts.length - 5} 件...</div>` : ""}
-                                </div>
-                              </div>
-                            `,
-                            offset: new window.AMap.Pixel(0, -28),
+                    const scheduleClose = () => {
+                      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+                      hoverTimerRef.current = window.setTimeout(() => {
+                        try { infoWindowRef.current?.close(); } catch {}
+                      }, 120);
+                    };
+
+                    const openInfo = () => {
+                      if (hoverTimerRef.current) {
+                        clearTimeout(hoverTimerRef.current);
+                        hoverTimerRef.current = null;
+                      }
+                      const html = `
+                        <div class="info-window">
+                          <div class="info-header">
+                            <span class="info-icon">🏛️</span>
+                            <h4 class="info-title">${museum}</h4>
+                          </div>
+                          <div class="info-stats">
+                            <span class="chip chip-primary">当前显示 ${museumArtifacts.length}</span>
+                            <span class="chip">馆藏总数 ${allMuseumArtifacts.length}</span>
+                          </div>
+                          <div class="artifact-list">
+                            ${museumArtifacts
+                              .slice(0, 5)
+                              .map((artifact) => `<div class="artifact-item">${artifact.name}</div>`)
+                              .join("")}
+                            ${museumArtifacts.length > 5 ? `<div class="more-items">还有 ${museumArtifacts.length - 5} 件...</div>` : ""}
+                          </div>
+                        </div>
+                      `;
+                      if (!infoWindowRef.current) {
+                        infoWindowRef.current = new window.AMap.InfoWindow({
+                          isCustom: true,
+                          offset: new window.AMap.Pixel(0, -12),
                         });
-                        infoWindow.open(mapInstance, marker.getPosition());
-                    });
+                      }
+                      infoWindowRef.current.setContent(html);
+                      infoWindowRef.current.open(mapInstance, marker.getPosition());
+
+                      setTimeout(() => {
+                        const panel = document.querySelector(".info-window") as HTMLElement | null;
+                        if (panel) {
+                          panel.onmouseenter = () => {
+                            if (hoverTimerRef.current) {
+                              clearTimeout(hoverTimerRef.current);
+                              hoverTimerRef.current = null;
+                            }
+                          };
+                          panel.onmouseleave = () => {
+                            scheduleClose();
+                          };
+                        }
+                      }, 0);
+                    };
+
+                    marker.on("mouseover", openInfo);
+                    marker.on("mouseout", scheduleClose);
 
                     markers.push(marker);
                 }
             }
         }
 
-        // 使用 MarkerClusterer 管理标记
+        // 若期间已触发新一轮渲染，丢弃本轮结果
+        if (runId !== geocodeRunIdRef.current) return;
+
+        // 使用 MarkerClusterer 管理标记（严格覆盖为“当前筛选”的集合）
         if (!clustererRef.current) {
             clustererRef.current = new window.AMap.MarkerClusterer(mapInstance, markers, {
                 gridSize: 80,
                 averageCenter: true,
-                // 自定义聚类气泡外观（显示聚类数量）
                 renderClusterMarker: (context: any) => {
                     const count = context.count;
                     const div = document.createElement("div");
@@ -664,12 +806,10 @@ const Wenwu: React.FC = () => {
                 },
             });
         } else {
-            // 更新聚类的标记集合
             clustererRef.current.clearMarkers();
             clustererRef.current.addMarkers(markers);
         }
 
-        // 适配视野：有覆盖物则自动包裹全部（聚类存在时直接调用 setFitView 即可）
         if (coordinates.length > 0) {
             mapInstance.setFitView();
         } else {
@@ -684,6 +824,11 @@ const Wenwu: React.FC = () => {
         }
     }, [filteredArtifacts, mapInstance]);
 
+    // 筛选变化时，主动关闭 InfoWindow，避免残留与误导
+    useEffect(() => {
+        try { infoWindowRef.current?.close(); } catch {}
+    }, [filteredArtifacts]);
+
     // 地图与窗口/容器尺寸的清理（卸载时触发）
     useEffect(() => {
         return () => {
@@ -692,6 +837,8 @@ const Wenwu: React.FC = () => {
                     (mapInstance as any).__wm_cleanup__();
                 } catch {}
             }
+            try { infoWindowRef.current?.close(); } catch {}
+            infoWindowRef.current = null;
         };
     }, [mapInstance]);
 
@@ -740,6 +887,15 @@ const Wenwu: React.FC = () => {
             filtered = filtered.filter((item) => item.era === selectedEra);
         }
 
+        // 新增：仅显示当前省（若已自动定位）
+        if (currentProvince) {
+            filtered = filtered.filter(
+                (item) =>
+                    item.collectionLocation.includes(currentProvince) ||
+                    item.excavationLocation.includes(currentProvince)
+            );
+        }
+
         setFilteredArtifacts(filtered);
         setCurrentPage(1);
     }, [
@@ -749,6 +905,7 @@ const Wenwu: React.FC = () => {
         selectedCollection,
         artifacts,
         selectedEra,
+        currentProvince,
     ]);
 
     // 分页逻辑
