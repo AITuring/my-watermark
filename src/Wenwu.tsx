@@ -186,8 +186,63 @@ const Wenwu: React.FC = () => {
 
     // 省份相关：当前省、是否已自动定位、省界多边形缓存
     const [currentProvince, setCurrentProvince] = useState<string | null>(null);
+
+    // 是否在页面加载时自动定位到当前省并过滤/缩放（默认关闭以展示全国）
+    const AUTO_LOCATE_ON_LOAD = false;
+    // 是否启用省界悬停高亮（默认关闭以提升性能）
+    const ENABLE_PROVINCE_HOVER = false;
+
     const hasAutoLocatedRef = useRef(false);
     const provincePolygonsRef = useRef<Record<string, any[]>>({});
+
+    // 工具常量与函数：省份归属判断支持
+    const PROVINCE_MUSEUM_KEYWORDS: Record<string, string[]> = {
+      北京: ['故宫博物院', '中国国家博物馆', '首都博物馆', '中国国家图书馆'],
+      上海: ['上海博物馆', '上海市历史博物馆'],
+      天津: ['天津博物馆'],
+      重庆: ['重庆中国三峡博物馆', '重庆博物馆'],
+
+      河南: ['河南博物院', '二里头夏都博物馆', '郑州博物馆'],
+      湖北: ['湖北省博物馆'],
+      陕西: ['陕西历史博物馆', '秦始皇帝陵博物院', '西安博物院', '西安碑林博物馆'],
+      浙江: ['浙江省博物馆', '杭州市博物馆', '临安博物馆'],
+      江苏: ['南京博物院', '南京市博物馆', '苏州博物馆', '扬州博物馆'],
+      山东: ['山东博物馆', '淄博博物馆'],
+      湖南: ['湖南省博物馆', '岳麓书院'],
+      河北: ['河北博物院', '定州市博物馆'],
+      甘肃: ['甘肃省博物馆', '敦煌研究院'],
+      四川: ['成都金沙遗址博物馆', '广汉三星堆博物馆'],
+      辽宁: ['辽宁省博物馆'],
+      新疆: ['新疆维吾尔自治区博物馆'],
+      宁夏: ['宁夏文物考古研究所'],
+      青海: ['青海省文物考古研究所'],
+      山西: ['山西博物院', '山西古建筑博物馆', '北齐壁画博物馆'],
+      广东: ['西汉南越王博物馆'],
+      江西: ['江西省博物馆'],
+      安徽: ['安徽博物院', '安徽省文物考古研究所', '马鞍山市博物馆'],
+    };
+
+    const normalizeProvince = (name: string) => (name || '').replace(/(省|市|自治区|特别行政区)$/,'');
+
+    const belongsToProvince = (
+      item: { collectionLocation: string; excavationLocation: string },
+      provinceRaw: string
+    ) => {
+      if (!provinceRaw) return true;
+      const province = normalizeProvince(provinceRaw);
+      const candidates = [province, `${province}市`, `${province}省`];
+
+      const hitsText = (text?: string) => !!text && candidates.some((k) => text.includes(k));
+
+      // 1) collection/excavation 直接命中“北京/北京市/北京省”等
+      if (hitsText(item.collectionLocation) || hitsText(item.excavationLocation)) {
+        return true;
+      }
+
+      // 2) 命中该省常见藏馆关键字
+      const museums = PROVINCE_MUSEUM_KEYWORDS[province] || [];
+      return museums.some((m) => item.collectionLocation?.includes(m));
+    };
 
     // 提取单个博物馆名称的函数（升级版：拆分/清洗/去括号/去冗余）
     const extractMuseumNames = (collectionLocation: string): string[] => {
@@ -351,11 +406,27 @@ const Wenwu: React.FC = () => {
                 mapStyle: "amap://styles/whitesmoke", // 改为更清爽的底图风格
             });
 
-            // 地图完成初始化后，触发一次 resize 和首轮标记渲染，避免初始错位
+            // 兼容 v1.4/v2 的安全重绘
+            const safeResize = () => {
+                try {
+                    const anyMap = map as any;
+                    if (typeof anyMap.resize === "function") {
+                        anyMap.resize();
+                    } else {
+                        // v1.4 没有 resize，通过“无副作用”的方式触发一次重绘
+                        const c = map.getCenter();
+                        const z = map.getZoom();
+                        map.setZoom(z);
+                        map.setCenter(c);
+                    }
+                } catch {}
+            };
+
+            // 地图完成初始化后，触发一次重绘和首轮标记渲染
             const onMapComplete = () => {
-                map.resize();
+                safeResize();
                 setTimeout(() => {
-                    map.resize();
+                    safeResize();
                     updateMapMarkers();
                 }, 0);
             };
@@ -363,14 +434,14 @@ const Wenwu: React.FC = () => {
 
             // 监听窗口尺寸变化
             const onWinResize = () => {
-                map.resize();
+                safeResize();
             };
             window.addEventListener("resize", onWinResize);
 
             // 监听容器尺寸变化
             if ("ResizeObserver" in window && mapContainerRef.current) {
                 const ro = new ResizeObserver(() => {
-                    map.resize();
+                    safeResize();
                 });
                 ro.observe(mapContainerRef.current);
                 resizeObserverRef.current = ro;
@@ -463,9 +534,13 @@ const Wenwu: React.FC = () => {
                 });
             };
 
-            // 调用增强功能
-            setupProvinceHover(map);
-            autoLocateAndFilterProvince(map);
+            // 调用增强功能（受开关控制）
+            if (ENABLE_PROVINCE_HOVER) {
+                setupProvinceHover(map);
+            }
+            if (AUTO_LOCATE_ON_LOAD) {
+                autoLocateAndFilterProvince(map);
+            }
 
             // 组件卸载清理
             const cleanup = () => {
@@ -713,7 +788,7 @@ const Wenwu: React.FC = () => {
 
                     const marker = new window.AMap.Marker({
                         position: [coordinate.lng, coordinate.lat],
-                        anchor: "center",
+                        // anchor 对自定义 DOM content 一般不生效，使用 offset 做“底部居中”对齐
                         content: `
                           <div class="museum-marker" title="${museum}">
                             <svg class="museum-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" width="28" height="28" style="color:#2563eb;filter: drop-shadow(0 2px 6px rgba(37, 99, 235, 0.35));">
@@ -721,7 +796,11 @@ const Wenwu: React.FC = () => {
                             </svg>
                           </div>
                         `,
-                        offset: new window.AMap.Pixel(0, 0),
+                        offset: new window.AMap.Pixel(-14, -28), // 28x28 图标 => 底部居中对齐
+                        clickable: true,
+                        bubble: true,
+                        cursor: "pointer",
+                        zIndex: 120,
                     });
 
                     const scheduleClose = () => {
@@ -810,8 +889,26 @@ const Wenwu: React.FC = () => {
             clustererRef.current.addMarkers(markers);
         }
 
-        if (coordinates.length > 0) {
+        // 基于筛选结果的智能定位：
+        // - 1 个点：直接定位并放大
+        // - 多个点：先用 fitView 计算合适缩放，再将中心移动到所有点的几何中心
+        if (coordinates.length === 1) {
+            const [lng, lat] = coordinates[0];
+            mapInstance.setZoomAndCenter(14, [lng, lat]); // 14 级约为城区级别，可按需调整
+        } else if (coordinates.length > 1) {
+            // 让地图计算一个可见范围的合理缩放级别
             mapInstance.setFitView();
+            // 再将中心设置为所有点的几何中心（中间点）
+            const sum = coordinates.reduce(
+                (acc, [lng, lat]) => {
+                    acc[0] += lng;
+                    acc[1] += lat;
+                    return acc;
+                },
+                [0, 0] as [number, number]
+            );
+            const center: [number, number] = [sum[0] / coordinates.length, sum[1] / coordinates.length];
+            mapInstance.setCenter(center);
         } else {
             mapInstance.setZoomAndCenter(5, [116.397428, 39.90923]);
         }
@@ -887,13 +984,9 @@ const Wenwu: React.FC = () => {
             filtered = filtered.filter((item) => item.era === selectedEra);
         }
 
-        // 新增：仅显示当前省（若已自动定位）
+        // 仅显示当前省（若已自动定位）
         if (currentProvince) {
-            filtered = filtered.filter(
-                (item) =>
-                    item.collectionLocation.includes(currentProvince) ||
-                    item.excavationLocation.includes(currentProvince)
-            );
+            filtered = filtered.filter((item) => belongsToProvince(item, currentProvince));
         }
 
         setFilteredArtifacts(filtered);
@@ -1723,6 +1816,17 @@ const Wenwu: React.FC = () => {
           font-size: 13px;
           font-weight: 700;
           letter-spacing: 0.2px;
+        }
+
+        /* 建筑图标标记的容器，保证热点与视觉完全重叠 */
+        .museum-marker {
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: auto;
+          transform: translateZ(0); /* 减少高分屏亚像素漂移 */
         }
 
         /* 聚类气泡：简洁圆片 + 数字 */
