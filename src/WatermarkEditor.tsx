@@ -220,7 +220,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         window.addEventListener("resize", updateBackgroundWidth);
         const handleResize = () => {
             updateBackgroundWidth();
-            updateWatermarkSize(currentScale);
+            // updateWatermarkSize(currentScale);
         };
         window.addEventListener("resize", handleResize);
         handleResize();
@@ -231,7 +231,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     }, [currentScale]);
 
     // 更新水印尺寸
-    const updateWatermarkSize = (scale) => {
+     const updateWatermarkSize = (scale) => {
         if (watermarkImage && backgroundImage) {
             // 使用与 calculateWatermarkPosition 相同的逻辑
             const minDimension = Math.min(
@@ -265,6 +265,11 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     }, [backgroundImageFile]);
 
+    // 当缩放或图片变化时，刷新用于边界判断的尺寸
+    useEffect(() => {
+        updateWatermarkSize(currentScale);
+    }, [currentScale, watermarkImage, backgroundImage]);
+
     // 当背景图片加载完成时，更新背景图片的尺寸
     useEffect(() => {
         if (backgroundImage && backgroundImageStatus === "loaded") {
@@ -281,19 +286,19 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             setBackgroundImageSize({ width, height });
             setBackgroundScale(scale);
             updateGuideLines();
-            setCurrentScale(1); // 重置为1，因为我们现在使用标准化比例
+            // setCurrentScale(1); // 重置为1，因为我们现在使用标准化比例
 
             // 计算水印的标准化比例 - 基于原图较短边的10%
-            if (watermarkImage) {
-                const minDimension = Math.min(
-                    backgroundImage.naturalWidth,
-                    backgroundImage.naturalHeight
-                );
-                const standardWatermarkSize = minDimension * 0.1; // 水印大小为较短边的10%
-                const standardScale =
-                    standardWatermarkSize / watermarkImage.naturalWidth;
-                setWatermarkStandardScale(standardScale);
-            }
+            // if (watermarkImage) {
+            //     const minDimension = Math.min(
+            //         backgroundImage.naturalWidth,
+            //         backgroundImage.naturalHeight
+            //     );
+            //     const standardWatermarkSize = minDimension * 0.1; // 水印大小为较短边的10%
+            //     const standardScale =
+            //         standardWatermarkSize / watermarkImage.naturalWidth;
+            //     setWatermarkStandardScale(standardScale);
+            // }
 
             // 提取图片颜色
             const colors = extractDominantColors(backgroundImage, 5);
@@ -307,26 +312,26 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         watermarkImage,
     ]);
 
-    // 初始化水印尺寸
-    useEffect(() => {
-        if (watermarkImage && backgroundImage) {
-            // 计算标准化水印大小
-            const minDimension = Math.min(
-                backgroundImage.naturalWidth,
-                backgroundImage.naturalHeight
-            );
-            const standardWatermarkSize = minDimension * 0.1;
-            const standardScale =
-                standardWatermarkSize / watermarkImage.naturalWidth;
-            setWatermarkStandardScale(standardScale);
+     // 初始化水印尺寸 - 只在水印图片首次加载时设置
+    // useEffect(() => {
+    //     if (watermarkImage && backgroundImage && watermarkStandardScale === 0.1) {
+    //         // 只有当watermarkStandardScale还是初始值时才重新计算
+    //         const minDimension = Math.min(
+    //             backgroundImage.naturalWidth,
+    //             backgroundImage.naturalHeight
+    //         );
+    //         const standardWatermarkSize = minDimension * 0.1;
+    //         const standardScale =
+    //             standardWatermarkSize / watermarkImage.naturalWidth;
+    //         setWatermarkStandardScale(standardScale);
 
-            // 设置预览中的水印大小，移除backgroundScale
-            setWatermarkSize({
-                width: watermarkImage.naturalWidth * standardScale,
-                height: watermarkImage.naturalHeight * standardScale,
-            });
-        }
-    }, [watermarkImage, backgroundImage]); // 移除backgroundScale依赖
+    //         // 设置预览中的水印大小
+    //         setWatermarkSize({
+    //             width: watermarkImage.naturalWidth * standardScale,
+    //             height: watermarkImage.naturalHeight * standardScale,
+    //         });
+    //     }
+    // }, [watermarkImage, backgroundImage, watermarkStandardScale]);
 
     useEffect(() => {
         const stage = stageRef.current;
@@ -362,6 +367,29 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     };
 
+     useEffect(() => {
+        // 同步用于边界判断的水印尺寸（预览前的“原图尺寸”）
+        if (!backgroundImage || !watermarkImage) return;
+
+        // 与渲染时 fixedWidth 完全一致的计算逻辑：基于背景图较短边的 10%
+        const minDimension = Math.min(
+            backgroundImage.naturalWidth,
+            backgroundImage.naturalHeight
+        );
+        const standardWatermarkSize = minDimension * 0.1;
+        const standardScale =
+            standardWatermarkSize / watermarkImage.naturalWidth;
+
+        const finalScale = standardScale * currentScale;
+
+        // watermarkSize 存储的是未乘以 backgroundScale 的“原图尺寸”，
+        // 后续在边界判断里会乘以 backgroundScale 转为预览尺寸
+        setWatermarkSize({
+            width: watermarkImage.naturalWidth * finalScale,
+            height: watermarkImage.naturalHeight * finalScale,
+        });
+    }, [backgroundImage, watermarkImage, currentScale]);
+
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
         const node = e.target;
         let newX = node.x();
@@ -383,65 +411,46 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             : 0;
 
         // 检查是否超出背景的边界
-        if (newX < previewOffsetX) {
-            newX = previewOffsetX;
+        if (newX < previewOffsetX) newX = previewOffsetX;
+        if (newY < previewOffsetY) newY = previewOffsetY;
+        if (newX + previewWatermarkWidth > backgroundImageSize.width - previewOffsetX) {
+            newX = backgroundImageSize.width - previewWatermarkWidth - previewOffsetX;
         }
-        if (newY < previewOffsetY) {
-            newY = previewOffsetY;
-        }
-        if (
-            newX + previewWatermarkWidth >
-            backgroundImageSize.width - previewOffsetX
-        ) {
-            newX =
-                backgroundImageSize.width -
-                previewWatermarkWidth -
-                previewOffsetX;
-        }
-        if (
-            newY + previewWatermarkHeight >
-            backgroundImageSize.height - previewOffsetY
-        ) {
-            newY =
-                backgroundImageSize.height -
-                previewWatermarkHeight -
-                previewOffsetY;
+        if (newY + previewWatermarkHeight > backgroundImageSize.height - previewOffsetY) {
+            newY = backgroundImageSize.height - previewWatermarkHeight - previewOffsetY;
         }
 
         node.position({ x: newX, y: newY });
 
-        // 计算水印在原图上的实际位置和尺寸
+        // 位置用百分比表示
         const actualX = newX / backgroundImageSize.width;
         const actualY = newY / backgroundImageSize.height;
-        const actualScaleX = node.scaleX();
         const actualRotation = node.rotation();
 
-        setCurrentScale(actualScaleX);
-        updateWatermarkSize(actualScaleX);
-
+        // 不再从 node.scaleX() 读取缩放，缩放只由 currentScale 管理
         setPosition({
             x: actualX,
             y: actualY,
-            scaleX: actualScaleX,
-            scaleY: actualScaleX,
+            scaleX: currentScale,
+            scaleY: currentScale,
             rotation: actualRotation,
         });
+         setSelectedPosition("");
 
-        // 传递给onTransform回调
         if (isBatch) {
             onAllTransform({
                 x: actualX,
                 y: actualY,
-                scaleX: actualScaleX,
-                scaleY: actualScaleX,
+                scaleX: currentScale,
+                scaleY: currentScale,
                 rotation: actualRotation,
             });
         } else {
             onTransform({
                 x: actualX,
                 y: actualY,
-                scaleX: actualScaleX,
-                scaleY: actualScaleX,
+                scaleX: currentScale,
+                scaleY: currentScale,
                 rotation: actualRotation,
             });
         }
@@ -449,16 +458,34 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         node.getLayer().batchDraw();
     };
 
+
     const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
-        const node = e.target;
+        const node = e.target as Konva.Image;
         let newX = node.x();
         let newY = node.y();
 
-        // 将水印尺寸转换为预览尺寸进行边界检测
-        const previewWatermarkWidth = watermarkSize.width * backgroundScale;
-        const previewWatermarkHeight = watermarkSize.height * backgroundScale;
+        // 本次变换带来的临时缩放因子（保持等比，取 X 即可）
+        const scaleFactor = node.scaleX();
+        // 合并到全局缩放
+        const nextScale = currentScale * scaleFactor;
 
-        // 计算4像素偏移在预览中的对应值
+        // 立即把节点缩放还原成 1，避免与 fixedWidth 叠加产生“弹一下”
+        node.scaleX(1);
+        node.scaleY(1);
+
+        // 用 nextScale 计算预览尺寸做边界限制
+        const previewWatermarkWidth =
+            (watermarkImage ? watermarkImage.naturalWidth : 0) *
+            watermarkStandardScale *
+            nextScale *
+            backgroundScale;
+
+        const previewWatermarkHeight =
+            (watermarkImage ? watermarkImage.naturalHeight : 0) *
+            watermarkStandardScale *
+            nextScale *
+            backgroundScale;
+
         const pixelOffset = 4;
         const previewOffsetX = backgroundImage
             ? (pixelOffset / backgroundImage.naturalWidth) *
@@ -469,46 +496,32 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
               backgroundImageSize.height
             : 0;
 
-        // 检查是否超出背景的边界
-        if (newX < previewOffsetX) {
-            newX = previewOffsetX;
-        }
-        if (newY < previewOffsetY) {
-            newY = previewOffsetY;
-        }
-        if (
-            newX + previewWatermarkWidth >
-            backgroundImageSize.width - previewOffsetX
-        ) {
+        if (newX < previewOffsetX) newX = previewOffsetX;
+        if (newY < previewOffsetY) newY = previewOffsetY;
+        if (newX + previewWatermarkWidth > backgroundImageSize.width - previewOffsetX) {
             newX =
                 backgroundImageSize.width -
                 previewWatermarkWidth -
                 previewOffsetX;
         }
-        if (
-            newY + previewWatermarkHeight >
-            backgroundImageSize.height - previewOffsetY
-        ) {
+        if (newY + previewWatermarkHeight > backgroundImageSize.height - previewOffsetY) {
             newY =
                 backgroundImageSize.height -
                 previewWatermarkHeight -
                 previewOffsetY;
         }
 
-        // 计算水印在原图上的实际位置和尺寸
         const actualX = newX / backgroundImageSize.width;
         const actualY = newY / backgroundImageSize.height;
-        const actualScaleX = node.scaleX();
         const actualRotation = node.rotation();
 
-        setCurrentScale(actualScaleX);
-        updateWatermarkSize(actualScaleX);
+        setCurrentScale(nextScale);
 
         const newPosition = {
             x: actualX,
             y: actualY,
-            scaleX: actualScaleX,
-            scaleY: actualScaleX,
+            scaleX: nextScale,
+            scaleY: nextScale,
             rotation: actualRotation,
         };
 
@@ -521,7 +534,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     };
 
-    // 更新水印位置的辅助函数
     // 更新水印位置的辅助函数
     const updateWatermarkPosition = (percentX, percentY) => {
         // 计算水印图片中心的坐标（百分比）
@@ -589,6 +601,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     };
 
+
     // 按钮回调函数，设置水印位置
     const onTopLeft = () => updateWatermarkPosition(0, 0);
     const onTopMid = () => updateWatermarkPosition(0.5, 0);
@@ -599,6 +612,75 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const onBottomLeft = () => updateWatermarkPosition(0, 1);
     const onBottomMid = () => updateWatermarkPosition(0.5, 1);
     const onBottomRight = () => updateWatermarkPosition(1, 1);
+
+    // 统一应用当前位置的辅助函数
+    const applySelectedPosition = React.useCallback(
+        (value?: string) => {
+            const pos = value ?? selectedPosition;
+            switch (pos) {
+                case "top-left":
+                    onTopLeft();
+                    break;
+                case "top-mid":
+                    onTopMid();
+                    break;
+                case "top-right":
+                    onTopRight();
+                    break;
+                case "mid-left":
+                    onMidLeft();
+                    break;
+                case "center":
+                    onCenterMid();
+                    break;
+                case "mid-right":
+                    onMidRight();
+                    break;
+                case "bottom-left":
+                    onBottomLeft();
+                    break;
+                case "bottom-mid":
+                    onBottomMid();
+                    break;
+                case "bottom-right":
+                    onBottomRight();
+                    break;
+                default:
+                    break;
+            }
+        },
+        [
+            selectedPosition,
+            onTopLeft,
+            onTopMid,
+            onTopRight,
+            onMidLeft,
+            onCenterMid,
+            onMidRight,
+            onBottomLeft,
+            onBottomMid,
+            onBottomRight,
+        ]
+    );
+
+    // 背景或尺寸变化后，自动重放一次当前位置，确保切换背景后位置生效
+    useEffect(() => {
+        if (!selectedPosition) return;
+        if (!backgroundImage || !watermarkImage) return;
+        if (!backgroundImageSize?.width || !backgroundImageSize?.height) return;
+        applySelectedPosition();
+    }, [
+        backgroundImage,
+        watermarkImage,
+        backgroundImageSize?.width,
+        backgroundImageSize?.height,
+        backgroundScale,
+        currentScale,
+        watermarkSize?.width,
+        watermarkSize?.height,
+        selectedPosition,
+        applySelectedPosition,
+    ]);
 
     return (
         <div className="flex flex-1 flex-col space-y-4">
@@ -654,15 +736,15 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                             // 转换为预览尺寸
                                             return (
                                                 watermarkImage.naturalWidth *
-                                                finalScale *
-                                                backgroundScale
+                                                finalScale * backgroundScale
                                             );
                                         })()
                                     }
                                     x={position.x * backgroundImageSize.width}
                                     y={position.y * backgroundImageSize.height}
-                                    scaleX={position.scaleX}
-                                    scaleY={position.scaleY}
+                                    // 固定为 1，避免与 fixedWidth 叠加缩放
+                                    scaleX={1}
+                                    scaleY={1}
                                     draggable
                                     ref={watermarkRef}
                                     onClick={onWatermarkClick}
@@ -730,35 +812,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                 value={selectedPosition}
                                 onValueChange={(value) => {
                                     setSelectedPosition(value);
-                                    switch (value) {
-                                        case "top-left":
-                                            onTopLeft();
-                                            break;
-                                        case "top-mid":
-                                            onTopMid();
-                                            break;
-                                        case "top-right":
-                                            onTopRight();
-                                            break;
-                                        case "mid-left":
-                                            onMidLeft();
-                                            break;
-                                        case "center":
-                                            onCenterMid();
-                                            break;
-                                        case "mid-right":
-                                            onMidRight();
-                                            break;
-                                        case "bottom-left":
-                                            onBottomLeft();
-                                            break;
-                                        case "bottom-mid":
-                                            onBottomMid();
-                                            break;
-                                        case "bottom-right":
-                                            onBottomRight();
-                                            break;
-                                    }
+                                    applySelectedPosition(value);
                                 }}
                             >
                                 <SelectTrigger className="w-[90px] h-6 text-xs py-0 px-2">
@@ -800,7 +854,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                         </div>
                     </div>
                 </div>
-                {/* 颜色选择区域 */}
                 {/* 颜色选择区域 */}
                 {dominantColors.length > 0 && (
                     <div className="mt-4">
