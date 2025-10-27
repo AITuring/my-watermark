@@ -187,7 +187,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     }, [watermarkColor, watermarkUrl]);
 
-
     // 处理背景图片缩放滑动条变化的函数
     const handleBackgroundSliderChange = (e) => {
         const newScale = parseFloat(e.target.value);
@@ -234,12 +233,23 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 更新水印尺寸
      const updateWatermarkSize = (scale) => {
         if (watermarkImage && backgroundImage) {
-            const standardWatermarkWidth =
-                watermarkImage.naturalWidth * watermarkStandardScale;
-            const standardWatermarkHeight =
-                watermarkImage.naturalHeight * watermarkStandardScale;
-            const width = standardWatermarkWidth * scale;
-            const height = standardWatermarkHeight * scale;
+            // 使用与 calculateWatermarkPosition 相同的逻辑
+            const minDimension = Math.min(
+                backgroundImage.naturalWidth,
+                backgroundImage.naturalHeight
+            );
+            const standardWatermarkSize = minDimension * 0.1;
+            const standardScale =
+                standardWatermarkSize / watermarkImage.naturalWidth;
+
+            // 应用用户缩放比例
+            const finalScale = standardScale * scale;
+
+            const width =
+                watermarkImage.naturalWidth * finalScale * backgroundScale;
+            const height =
+                watermarkImage.naturalHeight * finalScale * backgroundScale;
+
             if (width > 0 && height > 0) {
                 setWatermarkSize({ width, height });
             }
