@@ -887,6 +887,7 @@ const Watermark: React.FC = () => {
                             </>
                         )}
                     </Button> */}
+
                     <ProgressButton
                         onClick={handleApplyWatermarkDebounced}
                         loading={loading}

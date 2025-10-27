@@ -18,6 +18,7 @@ import ImageStitching from "./ImageStitching";
 import RestaurantFinder from "./RestaurantFinder";
 import Wenwu from "./Wenwu";
 import "./App.css";
+import BatchImageCompressor from "./BatchImageCompressor";
 
 const menuItems = [
     {
@@ -26,6 +27,13 @@ const menuItems = [
         url: "/",
         component: <Watermark />,
         icon: "ri:image-ai-line",
+    },
+    {
+        label: "批量压缩",
+        id: "compress",
+        url: "/compress",
+        component: <BatchImageCompressor />,
+        icon: "material-symbols:compress",
     },
     {
         label: "大图拼接",

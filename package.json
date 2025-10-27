@@ -41,6 +41,7 @@
     "file-saver": "^2.0.5",
     "framer-motion": "^11.3.12",
     "html2canvas": "^1.4.1",
+    "jszip": "^3.10.1",
     "konva": "^9.2.3",
     "lucide-react": "^0.503.0",
     "p-limit": "^6.2.0",

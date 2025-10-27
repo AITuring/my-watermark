@@ -1,0 +1,164 @@
+.page {
+  padding: 16px;
+  box-sizing: border-box;
+}
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.search {
+  flex: 1;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #fff;
+}
+.select {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: #fff;
+}
+.modeToggle {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.summary {
+  color: #64748b;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 2px rgba(2,6,23,0.04);
+}
+.cardTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 6px 0 8px;
+}
+.badge {
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.listItem {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 2px rgba(2,6,23,0.04);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.itemLeft {
+  flex: 1;
+}
+.itemRight {
+  width: 40%;
+  color: #475569;
+  font-size: 13px;
+}
+
+.mapWrap {
+  margin-top: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.mapHeader {
+  padding: 10px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+.mapTitle {
+  font-weight: 600;
+  color: #1f2937;
+}
+.mapSub {
+  font-size: 12px;
+  color: #64748b;
+}
+
+panel {
+  display: block;
+}
+.panel {
+  margin-top: 8px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+.panelTitle {
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 6px;
+}
+.artItem {
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(2,6,23,0.08);
+}
+.artItem:last-child {
+  border-bottom: none;
+}
+.more {
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+.modalMask {
+  position: fixed;
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.modal {
+  width: 88%;
+  max-height: 70vh;
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  overflow: auto;
+}
+.modalTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.modalSectionTitle {
+  font-weight: 600;
+  margin: 8px 0 6px;
+}
+.markdown p { margin: 0 0 8px; line-height: 1.5; }
+.markdown h1, .markdown h2, .markdown h3 { margin: 8px 0; font-weight: 600; }

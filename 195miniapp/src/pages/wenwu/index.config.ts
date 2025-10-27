@@ -1,4 +1,3 @@
-
 export default definePageConfig({
   navigationBarTitleText: '中华文物宝库',
   backgroundTextStyle: 'light',
