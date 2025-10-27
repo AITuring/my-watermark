@@ -361,6 +361,7 @@ async function processBatchImages(
     watermarkImage: HTMLImageElement,
     watermarkBlur: boolean,
     quality: number,
+    watermarkOpacity: number = 1,
     batchSize = 5,
     globalConcurrency = 10,
     onProgress?: (progress: number) => void
@@ -382,6 +383,7 @@ async function processBatchImages(
                         img.position,
                         watermarkBlur,
                         quality,
+                        watermarkOpacity,
                         (progress) => {
                             // 单个图片的进度回调
                             const overallProgress =
@@ -472,46 +474,33 @@ function calculateWatermarkPosition(
     imageHeight,
     position
 ) {
-    // 添加参数验证
-    if (!position) {
-        console.error("Position parameter is undefined, using default values");
-        position = { x: 0.1, y: 0.1, scaleX: 1, scaleY: 1, rotation: 0 };
+    // 参数验证
+    if (!watermarkImage || !position) {
+        throw new Error("缺少必要的参数");
     }
-    // 计算基于图片较短边的标准化水印大小
-    const minDimension = Math.min(imageWidth, imageHeight);
-    const standardWatermarkSize = minDimension * 0.1; // 水印大小为较短边的10%
-    const standardScale = standardWatermarkSize / watermarkImage.width;
 
-    // 应用用户调整的缩放比例
-    const userScale = position.scaleX || position.scaleY || 1;
-    const finalScale = standardScale * userScale;
+    // 使用与预览一致的尺寸计算：标准10% * 用户缩放（position.scaleX）
+    const minDimension = Math.min(imageWidth, imageHeight);
+    const standardWatermarkSize = minDimension * 0.1;
+    const standardScale = standardWatermarkSize / watermarkImage.width;
+    const finalScale = standardScale * (position.scaleX || 1);
 
     const watermarkWidth = watermarkImage.width * finalScale;
     const watermarkHeight = watermarkImage.height * finalScale;
 
-    // 水印的左上角坐标 - 直接使用预览传入的百分比坐标
-    let watermarkX = position.x * imageWidth;
-    let watermarkY = position.y * imageHeight;
+    // 预览里存的是“左上角坐标按图片宽高的百分比”，这里直接还原为像素
+    const relX = Math.max(0, Math.min(1, position.x || 0.5));
+    const relY = Math.max(0, Math.min(1, position.y || 0.5));
+    let pxX = relX * imageWidth;
+    let pxY = relY * imageHeight;
 
-    // 边缘检测 - 确保水印不超出边界（保持4像素边距）
-    const pixelOffset = 4;
-
-    if (watermarkX < pixelOffset) {
-        watermarkX = pixelOffset;
-    }
-    if (watermarkX + watermarkWidth > imageWidth - pixelOffset) {
-        watermarkX = imageWidth - watermarkWidth - pixelOffset;
-    }
-    if (watermarkY < pixelOffset) {
-        watermarkY = pixelOffset;
-    }
-    if (watermarkY + watermarkHeight > imageHeight - pixelOffset) {
-        watermarkY = imageHeight - watermarkHeight - pixelOffset;
-    }
+    // 边界约束（与预览一致：不让超出）
+    pxX = Math.max(0, Math.min(imageWidth - watermarkWidth, pxX));
+    pxY = Math.max(0, Math.min(imageHeight - watermarkHeight, pxY));
 
     return {
-        x: watermarkX,
-        y: watermarkY,
+        x: pxX,
+        y: pxY,
         width: watermarkWidth,
         height: watermarkHeight,
     };
@@ -537,6 +526,7 @@ async function processImage(
     position,
     watermarkBlur: boolean,
     quality: number,
+    watermarkOpacity: number = 1,
     onProgress?: (progress: number) => void
 ): Promise<{ url: string; name: string }> {
     const memoryManager = MemoryManager.getInstance();
@@ -677,6 +667,25 @@ async function processImage(
                     ctx.globalCompositeOperation = "source-over";
                     ctx.save();
 
+                    // 设置水印透明度
+                    ctx.globalAlpha = watermarkOpacity;
+
+                    // 添加调试日志
+                    console.log('水印绘制参数:', {
+                        watermarkOpacity,
+                        watermarkX,
+                        watermarkY,
+                        watermarkWidth,
+                        watermarkHeight,
+                        imageWidth: canvas.width,
+                        imageHeight: canvas.height,
+                        position,
+                        watermarkImageSize: {
+                            width: watermarkImage.width,
+                            height: watermarkImage.height
+                        }
+                    });
+
                     // 将canvas的原点移动到水印的中心位置
                     ctx.translate(
                         watermarkX + watermarkWidth / 2,
@@ -694,6 +703,8 @@ async function processImage(
                         watermarkWidth,
                         watermarkHeight
                     );
+
+                    console.log('水印绘制完成');
 
                     ctx.restore();
 

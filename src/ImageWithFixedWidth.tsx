@@ -15,6 +15,7 @@ interface ImageWithFixedWidthProps {
     onTap?: () => void;
     onDragEnd?: (e: Konva.KonvaEventObject<DragEvent>) => void;
     onTransformEnd?: (e: Konva.KonvaEventObject<Event>) => void;
+    opacity?: number; // 新增透明度属性
 }
 
 const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
@@ -31,6 +32,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
             onTap,
             onDragEnd,
             onTransformEnd,
+            opacity = 1, // 默认不透明
             ...otherProps
         },
         ref
@@ -59,6 +61,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
                 onTap={onTap}
                 onDragEnd={onDragEnd}
                 onTransformEnd={onTransformEnd}
+                opacity={opacity} // 应用透明度
                 {...otherProps}
                 width={size.width}
                 height={size.height}

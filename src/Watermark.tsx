@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import {
     Tooltip,
     TooltipContent,
@@ -104,6 +105,8 @@ const Watermark: React.FC = () => {
     const [quality, setQuality] = useState<number>(1);
     // 水印背景模糊
     const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
+    // 水印透明度
+    const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.8);
 
     // 移动端菜单状态
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -172,8 +175,8 @@ const Watermark: React.FC = () => {
                 setWatermarkPositions(
                     uploadImages.map((img) => ({
                         id: img.id,
-                        x: 0,
-                        y: 0,
+                        x: 0.5,
+                        y: 0.5,
                         scaleX: 1,
                         scaleY: 1,
                         rotation: 0,
@@ -195,8 +198,8 @@ const Watermark: React.FC = () => {
                 // 为新上传的图片初始化水印位置
                 const newPositions = uploadImages.map((img) => ({
                     id: img.id,
-                    x: 0,
-                    y: 0,
+                    x: 0.5,
+                    y: 0.5,
                     scaleX: 1,
                     scaleY: 1,
                     rotation: 0,
@@ -267,7 +270,7 @@ const Watermark: React.FC = () => {
         );
     };
 
-    console.log("watermarkPosition", watermarkPositions);
+    // console.log("watermarkPosition", watermarkPositions);
 
     async function downloadImagesWithWatermarkBatch(
         imgPostionList,
@@ -284,15 +287,30 @@ const Watermark: React.FC = () => {
         progressRef.current = 0;
         setSmoothProgress(0);
 
+        // 添加调试信息
+        console.log("开始批量处理，参数：", {
+            watermarkOpacity,
+            watermarkBlur,
+            quality,
+            watermarkUrl,
+            imgPostionListLength: imgPostionList.length
+        });
+
         // 按照 batchSize 分批处理
         for (let i = 0; i < imgPostionList.length; i += batchSize) {
-            const batch = imgPostionList.slice(i, i + batchSize); // 当前批次的图片
+            const batch = imgPostionList.slice(i, i + batchSize);
 
             const tasks = batch.map((img, index) =>
                 limit(async () => {
                     console.log(
                         `开始处理图片 ${img.id}`,
-                        watermarkColorUrls[img.id]
+                        {
+                            watermarkColorUrl: watermarkColorUrls[img.id],
+                            position: img.position,
+                            watermarkOpacity,
+                            watermarkBlur,
+                            quality
+                        }
                     );
                     const { file, position } = img;
 
@@ -300,7 +318,14 @@ const Watermark: React.FC = () => {
                     const watermarkImg = new Image();
                     try {
                         await new Promise((resolve, reject) => {
-                            watermarkImg.onload = resolve;
+                            watermarkImg.onload = () => {
+                                console.log(`水印图像加载成功: ${img.id}`, {
+                                    width: watermarkImg.width,
+                                    height: watermarkImg.height,
+                                    src: watermarkImg.src
+                                });
+                                resolve(watermarkImg);
+                            };
                             watermarkImg.onerror = (e) => {
                                 console.error("水印图像加载失败:", e);
                                 reject(new Error("水印图像加载失败"));
@@ -312,16 +337,36 @@ const Watermark: React.FC = () => {
                         console.error(`图片 ${img.id} 的水印加载失败:`, error);
                         throw new Error(`图片 ${img.id} 的水印加载失败`);
                     }
+
                     // 开始处理图片时先更新一个中间进度状态
                     const startProgress =
                         ((i + index) / imgPostionList.length) * 100;
+
+                    console.log(`调用 processImage，参数：`, {
+                        fileName: file.name,
+                        position,
+                        watermarkBlur,
+                        quality,
+                        watermarkOpacity
+                    });
+
                     const { url, name } = await processImage(
                         file,
                         watermarkImg,
                         position,
                         watermarkBlur,
-                        quality
+                        quality,
+                        watermarkOpacity,
+                        (progress) => {
+                            // 单个图片的进度回调
+                            const overallProgress =
+                                ((i + index + progress / 100) / imgPostionList.length) * 100;
+                            console.log(`图片 ${img.id} 处理进度: ${progress}%`);
+                        }
                     );
+
+                    console.log(`图片 ${img.id} 处理完成`, { url: url.substring(0, 50) + '...', name });
+
                     const sliceName = name.split(".")[0];
                     downloadLink.href = url;
                     downloadLink.download = `${sliceName}-mark.jpeg`;
@@ -377,17 +422,25 @@ const Watermark: React.FC = () => {
                 // 如果找不到对应的 position，使用默认值
                 const defaultPosition = {
                     id: img.id,
-                    x: 0.1,
-                    y: 0.1,
+                    x: 0.5, // 改为居中
+                    y: 0.5, // 改为居中
                     scaleX: 1,
                     scaleY: 1,
                     rotation: 0,
                 };
 
+                const finalPosition = position || defaultPosition;
+
+                // 添加调试日志
+                console.log(`图片 ${img.id} 的位置参数:`, {
+                    found: !!position,
+                    position: finalPosition
+                });
+
                 return {
                     id: img.id,
                     file: img.file,
-                    position: position || defaultPosition,
+                    position: finalPosition,
                 };
             });
 
@@ -565,6 +618,7 @@ const Watermark: React.FC = () => {
                                 (img) => img.id === currentImg.id
                             )}
                             onAllTransform={handleAllWatermarkTransform}
+                            watermarkOpacity={watermarkOpacity} // 传递透明度
                             onPrevImage={() => {
                                 const currentIndex = images.findIndex(
                                     (img) => img.id === currentImg.id
@@ -804,6 +858,7 @@ const Watermark: React.FC = () => {
                             onColorChange={(color) =>
                                 handleWatermarkColorChange(currentImg.id, color)
                             }
+                            watermarkOpacity={watermarkOpacity} // 传递透明度
                         />
                     )}
                 </div>
@@ -866,27 +921,83 @@ const Watermark: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* <Button
-                        onClick={handleApplyWatermarkDebounced}
-                        size="lg"
-                        disabled={loading}
-                        className="bg-blue-500 hover:bg-blue-600 px-6 shadow-md transition-all duration-200 hover:translate-y-[-2px]"
-                    >
-                        {loading ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                处理中...
-                            </>
-                        ) : (
-                            <>
-                                <Icon
-                                    icon="mdi:image-filter-center-focus"
-                                    className="mr-2 h-5 w-5"
-                                />
-                                水印生成
-                            </>
-                        )}
-                    </Button> */}
+                    {/* 图片质量控制 */}
+                    <div className="mb-6">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center text-sm font-medium">
+                                图片质量
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Icon
+                                                icon="ic:outline-help"
+                                                className="w-4 h-4 ml-2 cursor-help text-gray-500"
+                                            />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <p>调整输出图片的质量，数值越高质量越好但文件越大</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                            <span className="text-sm text-gray-600">
+                                {Math.round(quality * 100)}%
+                            </span>
+                        </div>
+                        <div className="px-3">
+                            <Slider
+                                value={[quality]}
+                                onValueChange={(value) => setQuality(value[0])}
+                                max={1}
+                                min={0.1}
+                                step={0.1}
+                                className="w-full"
+                            />
+                            <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                <span>低质量 (10%)</span>
+                                <span>高质量 (100%)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 水印透明度控制 */}
+                    <div className="mb-6">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center text-sm font-medium">
+                                水印透明度
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Icon
+                                                icon="ic:outline-help"
+                                                className="w-4 h-4 ml-2 cursor-help text-gray-500"
+                                            />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <p>调整水印的透明度，数值越低越透明</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                            <span className="text-sm text-gray-600">
+                                {Math.round(watermarkOpacity * 100)}%
+                            </span>
+                        </div>
+                        <div className="px-3">
+                            <Slider
+                                value={[watermarkOpacity]}
+                                onValueChange={(value) => setWatermarkOpacity(value[0])}
+                                max={1}
+                                min={0.1}
+                                step={0.1}
+                                className="w-full"
+                            />
+                            <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                <span>透明 (10%)</span>
+                                <span>不透明 (100%)</span>
+                            </div>
+                        </div>
+                    </div>
 
                     <ProgressButton
                         onClick={handleApplyWatermarkDebounced}

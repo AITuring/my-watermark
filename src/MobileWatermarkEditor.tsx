@@ -99,6 +99,7 @@ interface MobileWatermarkEditorProps {
     totalImages?: number;
     onPrevImage?: () => void;
     onNextImage?: () => void;
+    watermarkOpacity?: number; // 新增透明度属性
 }
 
 const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
@@ -111,6 +112,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     totalImages = 0,
     onPrevImage,
     onNextImage,
+    watermarkOpacity = 1, // 默认不透明
 }) => {
     // 背景图片相关设置
     const [backgroundImageUrl, setBackgroundImageUrl] = useState("");
@@ -128,15 +130,20 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     // 水印相关设置
     const [watermarkImage] = useImage(watermarkUrl);
     const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 });
-    const [position, setPosition] = useState(
-        currentWatermarkPosition || {
-            x: 0,
-            y: 0,
+    const [position, setPosition] = useState<WatermarkPosition>(() => {
+        if (currentWatermarkPosition) {
+            return currentWatermarkPosition;
+        }
+        // 默认设置为中心位置而不是左上角
+        return {
+            id: "default",
+            x: 0.5,
+            y: 0.5,
             scaleX: 1,
             scaleY: 1,
             rotation: 0,
-        }
-    );
+        };
+    });
 
     // 是否显示辅助线
     const [showGuideLines, setShowGuideLines] = useState(true);
@@ -194,7 +201,12 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     // 统一应用当前位置的辅助函数（与桌面端一致的策略）
     const applySelectedPosition = React.useCallback(
-        (value?: string) => {
+        (value?: string, forceApply = false) => {
+            // 只有在强制应用或者没有外部位置时才应用
+            if (!forceApply && currentWatermarkPosition) {
+                return;
+            }
+
             const pos = value ?? selectedPosition;
             switch (pos) {
                 case "topLeft":
@@ -228,10 +240,12 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     break;
             }
         },
-        [selectedPosition]
+        [selectedPosition, currentWatermarkPosition]
     );
 
-    // 重放已选位置：当背景或尺寸相关依赖变化时，重新应用预设位置，避免跑偏
+    // 修复：移除可能导致冲突的 useEffect
+    // 注释掉原来的重放位置逻辑，避免冲突
+    /*
     useEffect(() => {
         if (!selectedPosition) return;
         applySelectedPosition(selectedPosition);
@@ -245,6 +259,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         currentScale,
         backgroundScale,
     ]);
+    */
 
     useEffect(() => {
         if (watermarkRef.current) {
@@ -345,9 +360,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             const height = windowHeight;
             setBackgroundImageSize({ width, height });
             updateGuideLines();
-        setCurrentScale(1);
+            setCurrentScale(1);
 
-        // 添加：计算水印标准化比例
+            // 添加：计算水印标准化比例
             if (watermarkImage) {
                 const minDimension = Math.min(
                     backgroundImage.naturalWidth,
@@ -491,10 +506,21 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         );
     }, [backgroundImageSize.width, backgroundImageSize.height]);
 
-    // 当位置变化时，通知父组件
+    // 修复：改进位置同步逻辑，避免冲突
     useEffect(() => {
         if (currentWatermarkPosition) {
             setPosition(currentWatermarkPosition);
+            // 同步更新 selectedPosition 以保持一致性
+            const pos = currentWatermarkPosition;
+            if (pos.x === 0 && pos.y === 0) setSelectedPosition("topLeft");
+            else if (pos.x === 0.5 && pos.y === 0) setSelectedPosition("topCenter");
+            else if (pos.x === 1 && pos.y === 0) setSelectedPosition("topRight");
+            else if (pos.x === 0 && pos.y === 0.5) setSelectedPosition("middleLeft");
+            else if (pos.x === 0.5 && pos.y === 0.5) setSelectedPosition("middleCenter");
+            else if (pos.x === 1 && pos.y === 0.5) setSelectedPosition("middleRight");
+            else if (pos.x === 0 && pos.y === 1) setSelectedPosition("bottomLeft");
+            else if (pos.x === 0.5 && pos.y === 1) setSelectedPosition("bottomCenter");
+            else if (pos.x === 1 && pos.y === 1) setSelectedPosition("bottomRight");
         }
     }, [currentWatermarkPosition]);
 
@@ -505,35 +531,44 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         }
     }, [backgroundImageFile]);
 
-    const updateWatermarkPosition = (percentX, percentY) => {
+    const updateWatermarkPosition = (percentX: number, percentY: number) => {
+        if (!backgroundImage || !watermarkImage) return;
+
         // 计算水印图片中心的坐标（百分比）
         const centerX = Math.max(0, Math.min(1, percentX));
         const centerY = Math.max(0, Math.min(1, percentY));
 
+        // 计算实际渲染的水印尺寸 - 与 ImageWithFixedWidth 保持一致
+        const minDimension = Math.min(
+            backgroundImage.naturalWidth,
+            backgroundImage.naturalHeight
+        );
+        const standardWatermarkSize = minDimension * 0.1;
+        const standardScale = standardWatermarkSize / watermarkImage.naturalWidth;
+        const finalScale = standardScale * currentScale;
+
+        // 计算实际渲染的水印宽度（与 ImageWithFixedWidth 中的 fixedWidth 一致）
+        const renderWidth = watermarkImage.naturalWidth * finalScale * backgroundScale;
+        const renderHeight = (watermarkImage.naturalHeight / watermarkImage.naturalWidth) * renderWidth;
+
         // 计算4像素偏移在预览中的对应值
         const pixelOffset = 4;
         const previewOffsetX = backgroundImage
-            ? (pixelOffset / backgroundImage.naturalWidth) *
-              backgroundImageSize.width
+            ? (pixelOffset / backgroundImage.naturalWidth) * backgroundImageSize.width
             : 0;
         const previewOffsetY = backgroundImage
-            ? (pixelOffset / backgroundImage.naturalHeight) *
-              backgroundImageSize.height
+            ? (pixelOffset / backgroundImage.naturalHeight) * backgroundImageSize.height
             : 0;
 
         // 计算水印图片左上角的坐标（百分比）
-        const leftTopX =
-            centerX - watermarkSize.width / 2 / backgroundImageSize.width;
-        const leftTopY =
-            centerY - watermarkSize.height / 2 / backgroundImageSize.height;
+        const leftTopX = centerX - renderWidth / 2 / backgroundImageSize.width;
+        const leftTopY = centerY - renderHeight / 2 / backgroundImageSize.height;
 
         // 调整坐标以确保水印不会超出背景图片的范围（添加4像素偏移）
         const adjustedLeftTopX = Math.max(
             previewOffsetX / backgroundImageSize.width,
             Math.min(
-                (backgroundImageSize.width -
-                    watermarkSize.width -
-                    previewOffsetX) /
+                (backgroundImageSize.width - renderWidth - previewOffsetX) /
                     backgroundImageSize.width,
                 leftTopX
             )
@@ -541,15 +576,13 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         const adjustedLeftTopY = Math.max(
             previewOffsetY / backgroundImageSize.height,
             Math.min(
-                (backgroundImageSize.height -
-                    watermarkSize.height -
-                    previewOffsetY) /
+                (backgroundImageSize.height - renderHeight - previewOffsetY) /
                     backgroundImageSize.height,
                 leftTopY
             )
         );
 
-        // 设置水印图片的新位置和缩放
+        // 设置水印图片的新位置
         const newPosition = {
             x: adjustedLeftTopX,
             y: adjustedLeftTopY,
@@ -569,52 +602,51 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     // 处理水印拖动结束事件
     const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
-        const node = e.target as Konva.Image;
+        const node = e.target;
         let newX = node.x();
         let newY = node.y();
 
-        // 将水印尺寸转换为预览尺寸（与桌面端一致）
-        const previewWatermarkWidth =
-            (watermarkImage ? watermarkImage.naturalWidth : 0) *
-            watermarkStandardScale *
-            currentScale *
-            backgroundScale;
+        if (!backgroundImage || !watermarkImage) return;
 
-        const previewWatermarkHeight =
-            (watermarkImage ? watermarkImage.naturalHeight : 0) *
-            watermarkStandardScale *
-            currentScale *
-            backgroundScale;
+        // 计算实际渲染的水印尺寸 - 与 ImageWithFixedWidth 保持一致
+        const minDimension = Math.min(
+            backgroundImage.naturalWidth,
+            backgroundImage.naturalHeight
+        );
+        const standardWatermarkSize = minDimension * 0.1;
+        const standardScale = standardWatermarkSize / watermarkImage.naturalWidth;
+        const finalScale = standardScale * currentScale;
+
+        // 计算实际渲染的水印宽度（与 ImageWithFixedWidth 中的 fixedWidth 一致）
+        const renderWidth = watermarkImage.naturalWidth * finalScale * backgroundScale;
+        const renderHeight = (watermarkImage.naturalHeight / watermarkImage.naturalWidth) * renderWidth;
 
         // 计算4像素偏移在预览中的对应值
         const pixelOffset = 4;
         const previewOffsetX = backgroundImage
-            ? (pixelOffset / backgroundImage.naturalWidth) *
-              backgroundImageSize.width
+            ? (pixelOffset / backgroundImage.naturalWidth) * backgroundImageSize.width
             : 0;
         const previewOffsetY = backgroundImage
-            ? (pixelOffset / backgroundImage.naturalHeight) *
-              backgroundImageSize.height
+            ? (pixelOffset / backgroundImage.naturalHeight) * backgroundImageSize.height
             : 0;
 
-        // 边界限制（添加4px 安全边距）
+        // 边界检测
         if (newX < previewOffsetX) newX = previewOffsetX;
         if (newY < previewOffsetY) newY = previewOffsetY;
-        if (newX + previewWatermarkWidth > backgroundImageSize.width - previewOffsetX) {
-            newX = backgroundImageSize.width - previewWatermarkWidth - previewOffsetX;
+        if (newX + renderWidth > backgroundImageSize.width - previewOffsetX) {
+            newX = backgroundImageSize.width - renderWidth - previewOffsetX;
         }
-        if (newY + previewWatermarkHeight > backgroundImageSize.height - previewOffsetY) {
-            newY = backgroundImageSize.height - previewWatermarkHeight - previewOffsetY;
+        if (newY + renderHeight > backgroundImageSize.height - previewOffsetY) {
+            newY = backgroundImageSize.height - renderHeight - previewOffsetY;
         }
 
         node.position({ x: newX, y: newY });
 
-        // 百分比位置与旋转
+        // 计算百分比位置
         const actualX = newX / backgroundImageSize.width;
         const actualY = newY / backgroundImageSize.height;
         const actualRotation = node.rotation();
 
-        // 注意：拖拽不修改缩放，保持 currentScale
         const newPosition = {
             x: actualX,
             y: actualY,
@@ -622,7 +654,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             scaleY: currentScale,
             rotation: actualRotation,
         };
+
         setPosition(newPosition);
+        setSelectedPosition("");
 
         if (isBatch) {
             onAllTransform(newPosition);
@@ -630,8 +664,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             onTransform(newPosition);
         }
 
-        node.getLayer().batchDraw();
-        setSelectedPosition("");
+        node.getLayer()?.batchDraw();
     };
 
     // 更新水印尺寸
@@ -845,10 +878,11 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         setShowGuideLines(!showGuideLines);
     };
 
-    // 处理位置选择变化
+    // 修复：处理位置选择变化
     const handlePositionChange = (value: string) => {
         setSelectedPosition(value);
-        applySelectedPosition(value);
+        // 强制应用新选择的位置
+        applySelectedPosition(value, true);
     };
 
     // 处理批量/单独模式切换
@@ -972,6 +1006,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 onTap={onWatermarkClick}
                                 onDragEnd={handleDragEnd}
                                 onTransformEnd={handleTransform}
+                                opacity={watermarkOpacity} // 应用透明度
                             />
                         )}
                         <Transformer
