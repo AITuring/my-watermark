@@ -56,11 +56,13 @@ const drawGuideLines = (layer, stageWidth, stageHeight) => {
     layer.batchDraw(); // 重新绘制图层以显示所有辅助线
 };
 
-interface Color {
+interface DominantColor {
+    color: string;
+    count: number;
     r: number;
     g: number;
     b: number;
-    hex: string;
+    brightness: number;
 }
 
 interface WatermarkEditorProps {
@@ -113,7 +115,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     // 水印相关设置
     // logo颜色状态
-    const [dominantColors, setDominantColors] = useState<Color[]>([]);
+    const [dominantColors, setDominantColors] = useState<DominantColor[]>([]);
     const [coloredWatermarkUrl, setColoredWatermarkUrl] =
         useState(watermarkUrl);
     const [isProcessingColor, setIsProcessingColor] = useState(false);

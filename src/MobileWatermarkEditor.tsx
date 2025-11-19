@@ -438,6 +438,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             // 如果没有现有位置，则设置初始位置
             if (!currentWatermarkPosition) {
                 setPosition({
+                    id: position.id,
                     x:
                         backgroundImageSize.width / 2 -
                         (watermarkImage.naturalWidth * scale) / 2,
@@ -584,6 +585,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
         // 设置水印图片的新位置
         const newPosition = {
+            id: position.id,
             x: adjustedLeftTopX,
             y: adjustedLeftTopY,
             scaleX: currentScale,
@@ -648,6 +650,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         const actualRotation = node.rotation();
 
         const newPosition = {
+            id: position.id,
             x: actualX,
             y: actualY,
             scaleX: currentScale,
@@ -741,22 +744,23 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
         setCurrentScale(nextScale);
 
-        const newPosition = {
-            x: actualX,
-            y: actualY,
-            scaleX: nextScale,
-            scaleY: nextScale,
-            rotation: actualRotation,
-        };
+    const newPosition = {
+        id: position.id,
+        x: actualX,
+        y: actualY,
+        scaleX: nextScale,
+        scaleY: nextScale,
+        rotation: actualRotation,
+    };
 
-        setPosition(newPosition);
+    setPosition(newPosition);
 
-        if (isBatch) {
-            onAllTransform(newPosition);
-        } else {
-            onTransform(newPosition);
-        }
-        setSelectedPosition("");
+    if (isBatch) {
+        onAllTransform(newPosition);
+    } else {
+        onTransform(newPosition);
+    }
+    setSelectedPosition("");
     };
 
     // 更新参考线的函数
@@ -848,6 +852,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         setCurrentScale(nextScale);
 
         const newPos = {
+            id: position.id,
             x: actualX,
             y: actualY,
             scaleX: nextScale,

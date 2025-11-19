@@ -538,20 +538,20 @@ async function processImage(
             reject(new Error("缺少必要的文件或水印图片"));
             return;
         }
-
-        if (file.size > 50 * 1024 * 1024) {
-            // 50MB限制
-            reject(
-                new Error(
-                    `文件大小超过限制（50MB），当前大小：${(
-                        file.size /
-                        1024 /
-                        1024
-                    ).toFixed(2)}MB`
-                )
-            );
-            return;
-        }
+        // 不限制大小
+        // if (file.size > 50 * 1024 * 1024) {
+        //     // 50MB限制
+        //     reject(
+        //         new Error(
+        //             `文件大小超过限制（50MB），当前大小：${(
+        //                 file.size /
+        //                 1024 /
+        //                 1024
+        //             ).toFixed(2)}MB`
+        //         )
+        //     );
+        //     return;
+        // }
 
         onProgress?.(10);
 
