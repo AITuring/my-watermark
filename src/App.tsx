@@ -19,6 +19,9 @@ import RestaurantFinder from "./RestaurantFinder";
 import Wenwu from "./Wenwu";
 import "./App.css";
 import BatchImageCompressor from "./BatchImageCompressor";
+import GooglePhoto from "./GooglePhoto";
+
+
 
 const menuItems = [
     {
@@ -34,6 +37,13 @@ const menuItems = [
         url: "/compress",
         component: <BatchImageCompressor />,
         icon: "material-symbols:compress",
+    },
+    {
+        label: "Google 相册",
+        id: "photo",
+        url: "/google-photo",
+        component: <GooglePhoto />,
+        icon: "logos:google-photos",
     },
     {
         label: "大图拼接",
@@ -267,6 +277,32 @@ const FloatingButtons = () => {
                     navigate("/news");
                 }}
                 tooltip={<div>新闻</div>}
+            />
+             <FloatButton
+                icon={
+                    <Icon
+                        icon="logos:google-photos"
+                        className=" w-5 h-5"
+                    />
+                }
+                type={location.pathname === "/google-photo" ? "primary": "default"}
+                onClick={() => {
+                    navigate("/google-photo");
+                }}
+                tooltip={<div>Google 相册</div>}
+            />
+            <FloatButton
+                icon={
+                    <Icon
+                        icon="material-symbols:compress"
+                        className=" w-5 h-5"
+                    />
+                }
+                type={location.pathname === "/compress" ? "primary": "default"}
+                onClick={() => {
+                    navigate("/compress");
+                }}
+                tooltip={<div>图片压缩</div>}
             />
         </FloatButton.Group>
     );

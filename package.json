@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:photos": "node scripts/generate-photos.js && vite",
     "build": "tsc && vite build",
+    "build:photos": "node scripts/generate-photos.js && tsc && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "build:miniapp": "cd miniapp && taro build --type weapp",
@@ -40,6 +42,8 @@
     "colorthief": "^2.4.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^11.3.12",
+    "fs-extra": "^11.3.2",
+    "google-photos-album-image-url-fetch": "^3.2.0",
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
     "konva": "^9.2.3",
