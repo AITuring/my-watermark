@@ -22,12 +22,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'yarn'
 
       - name: Install Dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Build (Includes Fetch Script)
-        run: npm run build:photos
+        run: yarn build:photos
         # 这里会自动执行 package.json 中的 prebuild (generate-photos.js)
 
       - name: Deploy to GitHub Pages
