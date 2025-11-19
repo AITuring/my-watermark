@@ -19,9 +19,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node
+        # 使用 Node 22 并用 Yarn 安装+构建
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.x'
           cache: 'yarn'
 
       - name: Install Dependencies
