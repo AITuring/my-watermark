@@ -9,6 +9,7 @@ import Watermark from "./Watermark";
 import CompTest from "./CompTest";
 import NewsApp from "./News";
 import ImageCollage from "./ImageCollage";
+import Landing from "./Landing";
 
 // import BorderWatermark from "./BorderWatermark";
 import Lottery from "./Lottery";
@@ -20,14 +21,22 @@ import Wenwu from "./Wenwu";
 import "./App.css";
 import BatchImageCompressor from "./BatchImageCompressor";
 import GooglePhoto from "./GooglePhoto";
+import ImageSplitter from "./ImageSplitter";
 
 
 
 const menuItems = [
     {
+        label: "应用库",
+        id: "landing",
+        url: "/",
+        component: <Landing />,
+        icon: "material-symbols:apps",
+    },
+    {
         label: "水印添加",
         id: "watermark",
-        url: "/",
+        url: "/watermark",
         component: <Watermark />,
         icon: "ri:image-ai-line",
     },
@@ -44,6 +53,13 @@ const menuItems = [
         url: "/google-photo",
         component: <GooglePhoto />,
         icon: "logos:google-photos",
+    },
+    {
+        label: "图片分割",
+        id: "split",
+        url: "/split",
+        component: <ImageSplitter />,
+        icon: "material-symbols:split-vertical",
     },
     {
         label: "大图拼接",
@@ -206,7 +222,7 @@ const FloatingButtons = () => {
     return (
         <FloatButton.Group
             trigger="click"
-            tooltip={<div>{location.pathname === "/" ? '水印添加' : '图片拼接'}</div>}
+            tooltip={<div>{location.pathname === "/" ? '应用库' : '导航'}</div>}
             icon={
                 <Icon
                     icon="material-symbols:navigation"
@@ -227,6 +243,19 @@ const FloatingButtons = () => {
                 }}
             />
             <FloatButton
+                tooltip={<div>应用库</div>}
+                icon={
+                    <Icon
+                        icon="material-symbols:apps"
+                        className=" w-4 h-4"
+                    />
+                }
+                type={location.pathname === "/" ? "primary": "default"}
+                onClick={() => {
+                    navigate("/");
+                }}
+            />
+            <FloatButton
                 tooltip={<div>水印添加</div>}
                 icon={
                     <Icon
@@ -234,9 +263,9 @@ const FloatingButtons = () => {
                         className=" w-4 h-4"
                     />
                 }
-                type={location.pathname === "/" ? "primary": "default"}
+                type={location.pathname === "/watermark" ? "primary": "default"}
                 onClick={() => {
-                    navigate("/");
+                    navigate("/watermark");
                 }}
             />
             <FloatButton
