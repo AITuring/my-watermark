@@ -1,0 +1,5 @@
+{
+  "cron": [
+    { "path": "/api/trigger-deploy", "schedule": "0 0 * * *" }
+  ]
+}
