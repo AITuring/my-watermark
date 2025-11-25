@@ -1,9 +1,14 @@
 import { useState, useRef, useMemo, useEffect } from "react";
-import { PhotoAlbum, RenderContainer } from "react-photo-album";
-import type { RenderPhotoProps } from "react-photo-album";
+import { Icon } from "@iconify/react";
+import { Image } from "antd";
+import {
+    PhotoAlbum,
+    RenderContainer,
+    Photo,
+    RenderPhotoProps,
+} from "react-photo-album";
 import photosData from "./photos.json";
 import "./puzzle.css";
-import ImagePreview from "./ImagePreview";
 
 interface AspectRatio {
     width: number;
@@ -34,10 +39,6 @@ const Puzzle = () => {
         null
     );
 
-    const [previewOpen, setPreviewOpen] = useState(false);
-    const [previewIndex, setPreviewIndex] = useState(0);
-    const imageUrls = useMemo(() => images.map((img) => img.src), [images]);
-
     // 添加一个状态来存储容器尺寸
     const [containerSize, setContainerSize] = useState<{
         width: number;
@@ -48,15 +49,30 @@ const Puzzle = () => {
         const { imageProps } = props;
         const { alt, style, ...restImageProps } = imageProps;
         return (
-            <img
+            <Image
                 alt={alt}
                 style={{
                     ...style,
                     width: "100%",
                     height: "auto",
-                    display: "block",
-                    boxSizing: "content-box",
+                    padding: 0,
+                    margin: 0,
                     borderRadius: radius || 0,
+                    // TODO 导出图片无法带这个阴影，想做后期还得研究
+                    // boxShadow:
+                    //     margin > 0
+                    //         ? "0px 3px 3px -2px rgb(0 0 0 / 20%), 0px 3px 4px 0px rgb(0 0 0 / 24%), 0px 1px 8px 0px rgb(0 0 0 / 22%)"
+                    //         : "none",
+                }}
+                preview={{
+                    maskClassName:
+                        "group-hover:opacity-100 opacity-0 transition-opacity duration-200",
+                    mask: (
+                        <div className="flex items-center justify-center">
+                            <Icon icon="ph:eye-bold" className="w-5 h-5 mr-2" />
+                            预览
+                        </div>
+                    ),
                 }}
                 {...restImageProps}
             />
@@ -89,19 +105,17 @@ const Puzzle = () => {
     // 使用 useMemo 优化渲染的图片列表
     const memoizedPhotoAlbum = useMemo(
         () => (
-            <PhotoAlbum
-                layout={layout}
-                photos={images}
-                padding={0}
-                spacing={margin}
-                targetRowHeight={220}
-                renderContainer={renderContainer}
-                renderPhoto={renderPhoto}
-                onClick={({ index }) => {
-                    setPreviewIndex(index);
-                    setPreviewOpen(true);
-                }}
-            />
+            <Image.PreviewGroup>
+                <PhotoAlbum
+                    layout={layout}
+                    photos={images}
+                    padding={0}
+                    spacing={margin}
+                    columns={inputColumns}
+                    renderContainer={renderContainer}
+                    renderPhoto={renderPhoto}
+                />
+            </Image.PreviewGroup>
         ),
         [
             layout,
@@ -184,12 +198,6 @@ const Puzzle = () => {
             {
                 <div className="album">
                     <div style={{ margin: 30 }}>{memoizedPhotoAlbum}</div>
-                    <ImagePreview
-                        images={imageUrls}
-                        currentIndex={previewIndex}
-                        open={previewOpen}
-                        onOpenChange={setPreviewOpen}
-                    />
                 </div>
             }
         </div>
