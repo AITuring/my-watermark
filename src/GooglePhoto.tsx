@@ -1,70 +1,204 @@
-import { useState, useEffect } from 'react';
-import photosData from './photos.json'; // 导入构建时生成的 JSON
-import { Modal, Button, Slider, Space,Image, Tooltip } from 'antd';
+import {
 
-import { ReloadOutlined, SwapOutlined } from '@ant-design/icons'
+    useState,
+    useRef,
+    useMemo,
+    useEffect,
+} from "react";
+import { Image } from "antd";
+import {
+    PhotoAlbum,
+    RenderContainer,
+    Photo,
+    RenderPhotoProps,
+} from "react-photo-album";
+import photosData from "./photos.json";
+import "./puzzle.css";
 
-// 定义类型
-interface Photo {
-  src: string;
-  width: number;
-  height: number;
-  srcSet?: { src: string; width: number; height: number }[];
+interface AspectRatio {
+    width: number;
+    height: number;
+    label: string;
 }
 
-function App() {
-  // 如果你是本地开发，可能 json 一开始是空的，这里做个简单处理
-  const photos: Photo[] = (photosData as Photo[]) || [];
+interface PhotoType {
+    src: string;
+    width: number;
+    height: number;
+    srcSet?: { src: string; width: number; height: number }[];
+}
 
-  return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
 
-      {photos.length > 0 ? (
-        <Image.PreviewGroup
-          preview={{
-            // 保留默认工具栏（放大、缩小、旋转、关闭）；这里加个遮罩文案“预览”
-          }}
-        >
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-              gap: 12,
-            }}
-          >
-            {photos.map((p, idx) => (
-              <Image
-                key={idx}
-                src={p.src}
-                alt={`photo-${idx}`}
-                style={{ width: '100%', height: 'auto', borderRadius: 4 }}
-                preview={{
-                  mask: (
-                    <div
-                      style={{
-                        color: '#fff',
-                        fontSize: 14,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '100%',
-                      }}
-                    >
-                      预览
-                    </div>
-                  ),
+
+
+const Puzzle = () => {
+    const galleryRef = useRef(null);
+    const [images, setImages] = useState<PhotoType[]>(
+        (photosData as PhotoType[]) || []
+    );
+
+    const [inputColumns, setInputColumns] = useState<number>(3);
+    const [margin, setMargin] = useState<number>(0);
+    const [radius, setRadius] = useState<number>(2);
+    const [layout, setLayout] = useState<"rows" | "masonry" | "columns">(
+        "rows"
+    );
+    const [selectedRatio, setSelectedRatio] = useState<AspectRatio | null>(
+        null
+    );
+
+    // 添加一个状态来存储容器尺寸
+    const [containerSize, setContainerSize] = useState<{
+        width: number;
+        height: number;
+    }>({ width: 0, height: 0 });
+
+
+
+
+    const renderPhoto = (props: RenderPhotoProps<PhotoType>) => {
+        const { imageProps } = props;
+        const { alt, style, ...restImageProps } = imageProps;
+        return (
+            <img
+                alt={alt}
+                style={{
+                    ...style,
+                    width: "100%",
+                    height: "auto",
+                    display: "block",
+                    boxSizing: "content-box",
                 }}
-              />
-            ))}
-          </div>
-        </Image.PreviewGroup>
-      ) : (
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          Loading photos... (Make sure to run build script)
-        </div>
-      )}
-    </div>
-  );
-}
+                {...restImageProps}
+            />
+        );
+    };
 
-export default App;
+    const renderContainer: RenderContainer = ({
+        containerProps,
+        children,
+        containerRef,
+    }) => (
+        <div ref={galleryRef} id="container">
+            <div
+                ref={containerRef}
+                {...containerProps}
+                id="gallery"
+                style={{
+                    ...containerProps.style,
+                    // margin: `-${margin}px`, // 抵消最外层的 padding
+                    padding: `${margin}px`,
+                    boxSizing: "border-box",
+                    // TODO 这里可以自定义背景颜色
+                }}
+            >
+                {children}
+            </div>
+        </div>
+    );
+
+    // 使用 useMemo 优化渲染的图片列表
+    const memoizedPhotoAlbum = useMemo(
+        () => (
+            <Image.PreviewGroup>
+                <PhotoAlbum
+                    layout={layout}
+                    photos={images}
+                    padding={0}
+                    spacing={margin}
+                    columns={inputColumns}
+                    renderContainer={renderContainer}
+                    renderPhoto={renderPhoto}
+                />
+            </Image.PreviewGroup>
+        ),
+        [
+            layout,
+            images,
+            margin,
+            inputColumns,
+            renderContainer,
+            renderPhoto,
+            radius,
+        ]
+    );
+
+    // 使用 ResizeObserver 监听容器尺寸变化
+    useEffect(() => {
+        const container = galleryRef.current;
+        if (!container) return;
+
+        const resizeObserver = new ResizeObserver((entries) => {
+            const { width, height } = entries[0].contentRect;
+            setContainerSize({ width, height });
+        });
+
+        resizeObserver.observe(container);
+        return () => resizeObserver.disconnect();
+    }, []);
+
+    // 根据容器尺寸和目标比例调整布局
+    useEffect(() => {
+        if (!selectedRatio?.width || !containerSize.width || !images.length)
+            return;
+
+        const currentRatio = containerSize.width / containerSize.height;
+        const targetRatio = selectedRatio.width / selectedRatio.height;
+        console.log(
+            "Layout adjustment - Current ratio:",
+            currentRatio,
+            "Target ratio:",
+            targetRatio
+        );
+
+        // 计算理想的列数
+        const calculateIdealColumns = () => {
+            // 根据图片数量和目标比例估算初始列数
+            const sqrtCount = Math.sqrt(images.length);
+
+            if (currentRatio > targetRatio) {
+                // 当前太宽，需要更多列使其变窄
+                return Math.min(Math.ceil(sqrtCount * 1.5), 10);
+            } else if (currentRatio < targetRatio) {
+                // 当前太高，需要更少列使其变宽
+                return Math.max(Math.ceil(sqrtCount * 0.7), 1);
+            }
+
+            return Math.ceil(sqrtCount);
+        };
+
+        const idealColumns = calculateIdealColumns();
+
+        // 直接设置新的列数，不再渐进式调整
+        if (idealColumns !== inputColumns) {
+            console.log(
+                "Adjusting columns from",
+                inputColumns,
+                "to",
+                idealColumns
+            );
+            setInputColumns(idealColumns);
+        }
+    }, [
+        containerSize.width,
+        containerSize.height,
+        selectedRatio?.width,
+        selectedRatio?.height,
+        images.length,
+        inputColumns,
+    ]);
+
+    return (
+        <div className="h-[calc(100vh-56px)]">
+            {
+                <div className="album">
+                    <div style={{ margin: 30 }}>
+                        {memoizedPhotoAlbum}
+                    </div>
+                </div>
+            }
+        </div>
+    );
+};
+
+export default Puzzle;
