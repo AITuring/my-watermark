@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { Image } from "antd";
+import { Image as AntdImage } from "antd";
 import {
     PhotoAlbum,
     RenderContainer,
@@ -29,9 +29,8 @@ const Puzzle = () => {
         (photosData as PhotoType[]) || []
     );
 
-    const [inputColumns, setInputColumns] = useState<number>(3);
     const [margin, setMargin] = useState<number>(0);
-    const [radius, setRadius] = useState<number>(2);
+    const [radius, setRadius] = useState<number>(4);
     const [layout, setLayout] = useState<"rows" | "masonry" | "columns">(
         "rows"
     );
@@ -49,7 +48,7 @@ const Puzzle = () => {
         const { imageProps } = props;
         const { alt, style, ...restImageProps } = imageProps;
         return (
-            <Image
+            <AntdImage
                 alt={alt}
                 style={{
                     ...style,
@@ -94,7 +93,6 @@ const Puzzle = () => {
                     // margin: `-${margin}px`, // 抵消最外层的 padding
                     padding: `${margin}px`,
                     boxSizing: "border-box",
-                    // TODO 这里可以自定义背景颜色
                 }}
             >
                 {children}
@@ -102,26 +100,45 @@ const Puzzle = () => {
         </div>
     );
 
+    const pickLocalDirectory = async () => {
+        if (!('showDirectoryPicker' in window)) return;
+        const dir = await (window as any).showDirectoryPicker();
+        const newImages: PhotoType[] = [];
+        for await (const [name, handle] of (dir as any).entries()) {
+            if (!/\.(jpe?g|png)$/i.test(name)) continue;
+            const file = await (handle as any).getFile();
+            const url = URL.createObjectURL(file);
+            await new Promise<void>((resolve) => {
+                const imgEl = new Image();
+                imgEl.onload = () => {
+                    newImages.push({ src: url, width: imgEl.width, height: imgEl.height });
+                    resolve();
+                };
+                imgEl.src = url;
+            });
+        }
+        setImages(newImages);
+    };
+
     // 使用 useMemo 优化渲染的图片列表
     const memoizedPhotoAlbum = useMemo(
         () => (
-            <Image.PreviewGroup>
+            <AntdImage.PreviewGroup>
                 <PhotoAlbum
                     layout={layout}
                     photos={images}
                     padding={0}
                     spacing={margin}
-                    columns={inputColumns}
+
                     renderContainer={renderContainer}
                     renderPhoto={renderPhoto}
                 />
-            </Image.PreviewGroup>
+            </AntdImage.PreviewGroup>
         ),
         [
             layout,
             images,
             margin,
-            inputColumns,
             renderContainer,
             renderPhoto,
             radius,
@@ -171,32 +188,23 @@ const Puzzle = () => {
 
             return Math.ceil(sqrtCount);
         };
-
-        const idealColumns = calculateIdealColumns();
-
-        // 直接设置新的列数，不再渐进式调整
-        if (idealColumns !== inputColumns) {
-            console.log(
-                "Adjusting columns from",
-                inputColumns,
-                "to",
-                idealColumns
-            );
-            setInputColumns(idealColumns);
-        }
     }, [
         containerSize.width,
         containerSize.height,
         selectedRatio?.width,
         selectedRatio?.height,
         images.length,
-        inputColumns,
     ]);
 
     return (
         <div className="h-[calc(100vh-56px)]">
             {
                 <div className="album">
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '8px 30px 0' }}>
+                        <button onClick={pickLocalDirectory} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>
+                            选择本地文件夹
+                        </button>
+                    </div>
                     <div style={{ margin: 30 }}>{memoizedPhotoAlbum}</div>
                 </div>
             }
