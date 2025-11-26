@@ -3,6 +3,10 @@
   "installCommand": null,
   "buildCommand": "yarn run build",
   "outputDirectory": "dist",
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
   "crons": [
     { "path": "/api/trigger-deploy", "schedule": "0 0 * * *" }
   ]
