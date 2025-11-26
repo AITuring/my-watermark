@@ -1,8 +1,8 @@
 {
-  "framework": null,
-  "installCommand": "",
-  "buildCommand": null,
-  "outputDirectory": ".",
+  "framework": "vite",
+  "installCommand": null,
+  "buildCommand": "yarn run build",
+  "outputDirectory": "dist",
   "crons": [
     { "path": "/api/trigger-deploy", "schedule": "0 0 * * *" }
   ]

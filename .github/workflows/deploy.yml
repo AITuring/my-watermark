@@ -32,6 +32,17 @@ jobs:
         run: yarn build:photos
         # 这里会自动执行 package.json 中的 prebuild (generate-photos.js)
 
+      - name: Write Vercel static config into dist
+        run: |
+          cat > dist/vercel.json <<'JSON'
+          {
+            "framework": null,
+            "installCommand": "",
+            "buildCommand": "",
+            "outputDirectory": "."
+          }
+          JSON
+
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
