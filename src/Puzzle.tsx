@@ -39,12 +39,8 @@ import {
 } from "@dnd-kit/sortable";
 import { useDebouncedCallback } from "use-debounce";
 import clsx from "clsx";
-import {
-    PhotoAlbum,
-    RenderContainer,
-    Photo,
-    RenderPhotoProps,
-} from "react-photo-album";
+import PhotoAlbum, { Photo } from "react-photo-album";
+import "react-photo-album/styles.css";
 import html2canvas from "html2canvas";
 import "./puzzle.css";
 
@@ -69,8 +65,10 @@ interface SortablePhoto extends Photo {
     id: UniqueIdentifier;
 }
 
-type SortablePhotoProps = RenderPhotoProps<SortablePhoto> & {
+type SortablePhotoProps = {
     photo: SortablePhoto;
+    imageProps: any;
+    wrapperStyle?: React.CSSProperties;
 };
 
 type PhotoFrameProps = SortablePhotoProps & {
@@ -96,8 +94,8 @@ const PhotoFrame = memo(
         ref
     ) {
         const {
-            layoutOptions,
             imageProps,
+            wrapperStyle,
             overlay,
             active,
             insertPosition,
@@ -114,9 +112,7 @@ const PhotoFrame = memo(
             <div
                 ref={ref}
                 style={{
-                    width: overlay
-                        ? `calc(100% - ${2 * layoutOptions.padding}px)`
-                        : style.width,
+                    width: overlay ? (wrapperStyle?.width ?? style.width) : style.width,
                     // padding: margin || 0,
                     boxSizing: "border-box",
                     position: "relative",
@@ -565,25 +561,19 @@ const Puzzle = () => {
         }
     };
 
-    const renderContainer: RenderContainer = ({
-        containerProps,
-        children,
-        containerRef,
-    }) => (
+    const renderContainer = (containerProps: any) => (
         <div ref={galleryRef} id="container">
             <div
-                ref={containerRef}
                 {...containerProps}
                 id="gallery"
                 style={{
-                    ...containerProps.style,
-                    // margin: `-${margin}px`, // 抵消最外层的 padding
+                    ...(containerProps?.style ?? {}),
                     padding: `${margin}px`,
                     boxSizing: 'border-box',
                     // TODO 这里可以自定义背景颜色
                 }}
             >
-                {children}
+                {containerProps?.children}
             </div>
         </div>
     );
@@ -652,8 +642,10 @@ const Puzzle = () => {
                     padding={0}
                     spacing={margin}
                     columns={inputColumns}
-                    renderContainer={renderContainer}
-                    renderPhoto={renderPhoto}
+                    render={{
+                        container: renderContainer,
+                        photo: renderPhoto,
+                    }}
                 />
             </Image.PreviewGroup>
         ),

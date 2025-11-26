@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=22 <24"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "vite",
@@ -58,7 +58,7 @@
     "react-dropzone": "^14.2.3",
     "react-konva": "^18.2.10",
     "react-markdown": "^10.1.0",
-    "react-photo-album": "^2.3.0",
+    "react-photo-album": "^3.2.1",
     "react-router-dom": "^6.21.1",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",

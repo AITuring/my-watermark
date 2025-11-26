@@ -22,7 +22,7 @@ async function generate() {
     const formattedPhotos = photos.map((photo) => {
       const ratio = photo.width / photo.height;
       return {
-        src: `${photo.url}=w1600`, // 大图用于灯箱或查看
+        src: `${photo.url}`, // 大图用于灯箱或查看
         width: photo.width,
         height: photo.height,
         // 生成响应式 srcSet，react-photo-album 会自动使用

@@ -5362,10 +5362,10 @@ react-markdown@^10.1.0:
     unist-util-visit "^5.0.0"
     vfile "^6.0.0"
 
-react-photo-album@^2.3.0:
-  version "2.4.1"
-  resolved "https://registry.yarnpkg.com/react-photo-album/-/react-photo-album-2.4.1.tgz#9754b22501a157c3c1774260bd3da8a38d88cf4b"
-  integrity sha512-dzqP5QbYAugA0uZTl3qsVldckzDXYDkDOvA8CpACl51hSEfhJmCfwhbnI4WBHnETQHv48nnNQ1jhrulst8njLA==
+react-photo-album@^3.2.1:
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/react-photo-album/-/react-photo-album-3.2.1.tgz#18b22c615902b0d9d3daa8543f901080157572ac"
+  integrity sha512-I4C4ZN/BXE2KEj3lHEhlHc1sAeetgOPLF2UaiJgPW1s5CKotg1l2p+ZOpL9hA868pUZ9BA5TTXXGmFiFG+jdIg==
 
 react-reconciler@~0.29.0:
   version "0.29.2"
