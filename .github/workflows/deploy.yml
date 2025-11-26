@@ -39,7 +39,10 @@ jobs:
             "framework": null,
             "installCommand": "",
             "buildCommand": "",
-            "outputDirectory": "."
+            "outputDirectory": ".",
+            "rewrites": [
+              { "source": "/(.*)", "destination": "/index.html" }
+            ]
           }
           JSON
 
