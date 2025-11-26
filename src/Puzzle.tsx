@@ -345,8 +345,11 @@ const Puzzle = () => {
         [images]
     ); // 添加 images 作为依赖
 
-    const renderPhoto = (props: SortablePhotoProps) => {
-        // capture rendered photos for future use in DragOverlay
+    const renderImage = (imageProps: any, ctx: any) => {
+        const props: SortablePhotoProps = {
+            photo: ctx?.photo,
+            imageProps,
+        };
         renderedPhotos.current[props.photo.id] = props;
         return (
             <SortablePhotoFrame
@@ -644,7 +647,7 @@ const Puzzle = () => {
                     columns={inputColumns}
                     render={{
                         container: renderContainer,
-                        photo: renderPhoto,
+                        image: renderImage,
                     }}
                 />
             </Image.PreviewGroup>
@@ -655,7 +658,7 @@ const Puzzle = () => {
             margin,
             inputColumns,
             renderContainer,
-            renderPhoto,
+            renderImage,
             radius,
         ]
     );
