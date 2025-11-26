@@ -1,4 +1,8 @@
 {
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": null,
+  "outputDirectory": ".",
   "crons": [
     { "path": "/api/trigger-deploy", "schedule": "0 0 * * *" }
   ]
