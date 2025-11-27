@@ -16,6 +16,28 @@ import {
     Split,
     Utensils,
 } from "lucide-react";
+import h001 from "@/assets/history/split_001.jpg";
+import h002 from "@/assets/history/split_002.jpg";
+import h003 from "@/assets/history/split_003.jpg";
+import h004 from "@/assets/history/split_004.jpg";
+import h005 from "@/assets/history/split_005.jpg";
+import h006 from "@/assets/history/split_006.jpg";
+import h007 from "@/assets/history/split_007.jpg";
+import h008 from "@/assets/history/split_008.jpg";
+import h009 from "@/assets/history/split_009.jpg";
+import h010 from "@/assets/history/split_010.jpg";
+import h011 from "@/assets/history/split_011.jpg";
+import h012 from "@/assets/history/split_012.jpg";
+import h013 from "@/assets/history/split_013.jpg";
+import h014 from "@/assets/history/split_014.jpg";
+import h015 from "@/assets/history/split_015.jpg";
+import h016 from "@/assets/history/split_016.jpg";
+import h017 from "@/assets/history/split_017.jpg";
+import h018 from "@/assets/history/split_018.jpg";
+
+const HISTORY_ICONS = [
+  h001,h002,h003,h004,h005,h006,h007,h008,h009,h010,h011,h012,h013,h014,h015,h016,h017,h018
+];
 
 interface ToolItem {
     id: string;
@@ -126,7 +148,7 @@ const ToolCard = ({
         <motion.div
             whileHover={{ y: -4, scale: 1.005 }}
             whileTap={{ scale: 0.98 }}
-            className={`group relative overflow-hidden rounded-lg border border-stone-200/60 bg-white/60 hover:bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${item.colorTheme.border} transition-all duration-300 cursor-pointer p-4 flex flex-row items-center justify-between gap-4 h-auto md:h-24`}
+            className={`group relative overflow-hidden rounded-lg border border-stone-200/60 bg-[#FDFBF7] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${item.colorTheme.border} transition-all duration-300 cursor-pointer p-4 flex flex-col items-start justify-between gap-3 h-40 md:h-48`}
             onClick={onClick}
         >
             {/* 背景装饰：微弱的色块 - 进一步减淡以突出水墨 */}
@@ -134,16 +156,13 @@ const ToolCard = ({
                 className={`absolute -right-4 -bottom-4 w-24 h-24 rounded-full ${item.colorTheme.bg} opacity-5 blur-2xl group-hover:opacity-20 transition-opacity duration-500`}
             />
 
-            {/* 背景装饰：水墨山水图案 - 放大并调整透明度 */}
-            <div className="absolute right-0 bottom-0 w-28 h-28 opacity-[0.06] group-hover:opacity-[0.12] transition-opacity duration-500 pointer-events-none text-stone-800 mix-blend-multiply">
-                <svg
-                    viewBox="0 0 64 64"
-                    preserveAspectRatio="none"
-                    className="w-full h-full"
-                >
-                    <path d={getDecorationPath(index)} fill="currentColor" />
-                </svg>
-                {/* <LandscapePainting /> */}
+            {/* 背景装饰：水墨山水图案 - 右下角轻微点缀 */}
+            <div className="absolute right-2 bottom-2 w-20 h-20 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity duration-500 pointer-events-none">
+                <img
+                    src={HISTORY_ICONS[index % HISTORY_ICONS.length]}
+                    alt=""
+                    className="w-full h-full object-contain object-right-bottom"
+                />
             </div>
 
             {/* 装饰性背景渐变 - Desktop hover 时显现 */}
@@ -402,9 +421,9 @@ export default function Landing() {
                         </span>
                     </div>
                 </div>
-                <div>
+                {/* <div>
                     <DarkToggle />
-                </div>
+                </div> */}
             </header>
 
             {/* Main Content */}

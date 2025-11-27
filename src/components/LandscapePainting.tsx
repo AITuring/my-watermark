@@ -19,6 +19,7 @@ interface Config {
   mist: { topYRatio: number; heightRatio: number; opacity: number; slices?: number };
   water: { enabled: boolean; color: string; shoalColor: string; opacity: number };
   lighting?: { leftBoost: number; rightShade: number };
+  sub: { lobeCount: [number, number]; overlap: number; azureOpacity: number };
 }
 const defaultConfig: Config = {
   layers: [
@@ -35,7 +36,8 @@ const defaultConfig: Config = {
   paper: { top: "#B8924A", bottom: "#E2CFA6", opacity: 0.38 },
   mist: { topYRatio: 0.16, heightRatio: 0.60, opacity: 0.32, slices: 6 },
   water: { enabled: true, color: "#78B6C4", shoalColor: "#9FD7C2", opacity: 0.35 },
-  lighting: { leftBoost: 0.10, rightShade: 0.12 }
+  lighting: { leftBoost: 0.10, rightShade: 0.12 },
+  sub: { lobeCount: [2, 4], overlap: 0.18, azureOpacity: 0.32 }
 };
 
 function makeRng(seed: string) {
@@ -173,13 +175,14 @@ const LandscapePainting: React.FC<Props> = ({ width = 800, height = 600, seed = 
     foreground: { density: 0.25, types: ["pine"] },
     paper: { top: "#B8924A", bottom: "#E2CFA6", opacity: 0.35 },
     mist: { topYRatio: 0.18, heightRatio: 0.55, opacity: 0.35 },
-    water: { enabled: true, color: "#78B6C4", shoalColor: "#9FD7C2", opacity: 0.35 }
+    water: { enabled: true, color: "#78B6C4", shoalColor: "#9FD7C2", opacity: 0.35 },
+    sub: { lobeCount: [2, 4], overlap: 0.18, azureOpacity: 0.32 }
   };
   const cfg: Config = defaultConfig;
 
   function genRanges(baseY: number, spec: LayerSpec) {
     const groups = Math.max(2, Math.floor(spec.count / 3));
-    const arr: { path: string; boundary: string; ridges: string[]; ribs: string[]; shade: string; light: string; cap: string; cun: string[]; platform: { x: number; y: number }; grad: { x: number; yTop: number; yBase: number } }[] = [];
+    const arr: { path: string; boundary: string; ridges: string[]; ribs: string[]; shade: string; light: string; cap: string; cun: string[]; platform: { x: number; y: number }; grad: { x: number; yTop: number; yBase: number }; lobes: { path: string; opacity: number }[]; contours: string[] }[] = [];
     let cur = W * 0.06, tot = W * 0.88, gw = tot / groups;
     for (let g = 0; g < groups; g++) {
       const w = gw * (0.9 + rnd() * 0.2) * spec.scale;
@@ -231,7 +234,28 @@ const LandscapePainting: React.FC<Props> = ({ width = 800, height = 600, seed = 
         cun.push(`M ${x} ${y} L ${x + dx} ${y + dy}`);
       }
       const platform = { x: cx - w * 0.08, y: y0 - h * 0.28 };
-      arr.push({ path, boundary, ridges, ribs, shade, light, cap, cun, platform, grad: { x: cx, yTop: y0 - h, yBase: y0 } });
+      const lobeCount = Math.max(cfg.sub.lobeCount[0], Math.floor(cfg.sub.lobeCount[0] + rnd() * (cfg.sub.lobeCount[1] - cfg.sub.lobeCount[0])));
+      const lobes: { path: string; opacity: number }[] = [];
+      const contours: string[] = [];
+      for (let m = 0; m < lobeCount; m++) {
+        const t = 0.22 + m / lobeCount * 0.6 + (rnd() - 0.5) * 0.08;
+        const lx = xL + w * t;
+        const ly = y0 - h * (0.58 + (rnd() - 0.5) * 0.12);
+        const lw = w * (0.18 + rnd() * 0.12);
+        const lh = h * (0.24 + rnd() * 0.12);
+        const lp1 = `${lx - lw * 0.50} ${ly + lh * 0.10}`;
+        const lc1 = `${lx - lw * 0.20} ${ly - lh * 0.20}`;
+        const lc2 = `${lx + lw * 0.20} ${ly - lh * 0.35}`;
+        const lp2 = `${lx + lw * 0.50} ${ly}`;
+        const lc3 = `${lx + lw * 0.36} ${ly + lh * 0.22}`;
+        const lc4 = `${lx - lw * 0.28} ${ly + lh * 0.30}`;
+        const lp3 = `${lx - lw * 0.50} ${ly + lh * 0.10}`;
+        lobes.push({ path: `M ${lp1} C ${lc1}, ${lc2}, ${lp2} C ${lc3}, ${lc4}, ${lp3} Z`, opacity: cfg.sub.azureOpacity });
+        const cx1 = lx - lw * 0.30, cy1 = ly + lh * 0.05;
+        const cx2 = lx + lw * 0.30, cy2 = ly - lh * 0.18;
+        contours.push(`M ${cx1} ${cy1} L ${cx2} ${cy2}`);
+      }
+      arr.push({ path, boundary, ridges, ribs, shade, light, cap, cun, platform, grad: { x: cx, yTop: y0 - h, yBase: y0 }, lobes, contours });
     }
     return arr;
   }
@@ -289,9 +313,9 @@ const LandscapePainting: React.FC<Props> = ({ width = 800, height = 600, seed = 
     const slices = cfg.mist.slices || 5;
     const elements = [] as JSX.Element[];
     for (let i = 0; i < slices; i++) {
-      const w = W * (0.25 + Math.random() * 0.25);
-      const x = W * (Math.random() * 0.7);
-      const y = H * (cfg.mist.topYRatio + Math.random() * (cfg.mist.heightRatio * 0.8));
+      const w = W * (0.25 + rnd() * 0.25);
+      const x = W * (rnd() * 0.7);
+      const y = H * (cfg.mist.topYRatio + rnd() * (cfg.mist.heightRatio * 0.8));
       elements.push(
         <g key={i} opacity={cfg.mist.opacity * (0.9 - i * 0.08)} filter={`url(#${specs[Math.min(2, 1 + i % specs.length)].id})`}>
           <rect x={x} y={y} width={w} height={H * 0.12} fill="url(#mistGrad)" />
@@ -352,6 +376,12 @@ const LandscapePainting: React.FC<Props> = ({ width = 800, height = 600, seed = 
                 <path d={b.boundary} fill="none" stroke={cfg.inkStroke} strokeWidth={1.0 * sx} filter="url(#ink)" />
                 {b.ridges.map((rd, ri) => (
                   <path key={ri} d={rd} fill="none" stroke="#1a4f45" strokeWidth={0.8 * sx} />
+                ))}
+                {b.lobes.map((lo, lj) => (
+                  <path key={`lo-${lj}`} d={lo.path} fill="url(#azureTop)" opacity={lo.opacity} />
+                ))}
+                {b.contours.map((ct, cj) => (
+                  <path key={`ct-${cj}`} d={ct} fill="none" stroke="#29433c" strokeWidth={0.7 * sx} opacity={0.5} />
                 ))}
                 <path d={b.cap} fill="url(#azureTop)" opacity={0.25} />
                 <path d={b.light} fill="#ffffff" opacity={cfg.lighting?.leftBoost || 0.08} />
