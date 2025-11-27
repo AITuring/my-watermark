@@ -1,0 +1,1 @@
+{"name":"MyTools - 轻量工具集","short_name":"MyTools","description":"一站式图片处理工具集，支持离线使用","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#020617","lang":"en","scope":"/","icons":[{"src":"/dragon1.png","sizes":"192x192","type":"image/png"},{"src":"/dragon1.png","sizes":"512x512","type":"image/png"}]}
