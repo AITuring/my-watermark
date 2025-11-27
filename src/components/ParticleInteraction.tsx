@@ -215,8 +215,9 @@ class ParticleSystem {
         // 颜色：
         // 如果是 Active 状态，背景粒子稍微变暗 (0.5)，突出 Icon
         // 如果是 Idle 状态，背景粒子正常亮度 (1.0)
-        const dimFactor = this.state === 'active' ? 0.5 : 1;
-        this.ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha * 0.8 * dimFactor})`;
+        const dimFactor = this.state === 'active' ? 0.4 : 0.8;
+        // 使用更优雅的冷白/淡蓝灰色，而非纯白
+        this.ctx.fillStyle = `rgba(200, 210, 230, ${p.alpha * 0.8 * dimFactor})`;
       }
 
       this.ctx.beginPath();
@@ -263,6 +264,13 @@ const ParticleInteraction: React.FC<ParticleInteractionProps> = ({ items, classN
     gsap.to(e.currentTarget.querySelector('.text-content'), { scale: 1, opacity: 0.7, duration: 0.3, ease: "power2.out" });
   };
 
+  // 辅助函数：调整 SVG 尺寸以适应容器
+  const getResponsiveSvg = (svgString: string) => {
+    return svgString
+        .replace(/width="\d+"/, 'width="100%"')
+        .replace(/height="\d+"/, 'height="100%"');
+  };
+
   return (
     <div className={`relative w-full h-full ${className}`}>
       {/* 粒子画布：固定背景 */}
@@ -272,28 +280,36 @@ const ParticleInteraction: React.FC<ParticleInteractionProps> = ({ items, classN
       />
 
       {/* Grid 布局容器 */}
-      <div className="relative z-10 w-full h-full min-h-screen grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-y-8 gap-x-4 p-4 md:p-10 content-center justify-items-center">
+      <div className="relative z-10 w-full h-full min-h-[80vh] grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-10 md:gap-y-8 p-6 md:p-10 content-start md:content-center justify-items-center">
         {items.map((item) => (
           <div
             key={item.id}
-            className="group relative w-full max-w-[200px] aspect-square flex flex-col items-center justify-center cursor-pointer select-none"
+            className="group relative w-full max-w-[140px] md:max-w-[200px] aspect-[4/5] md:aspect-square flex flex-col items-center justify-start md:justify-center cursor-pointer select-none transition-transform active:scale-95"
             onMouseEnter={(e) => handleMouseEnter(e, item.iconPath)}
             onMouseLeave={handleMouseLeave}
             onClick={() => onItemClick?.(item)}
           >
-            {/* 透明触摸区，扩大一点以便更容易触发 */}
-            <div className="absolute -inset-8 z-0 bg-transparent" />
+            {/* 透明触摸区 */}
+            <div className="absolute -inset-4 z-0 bg-transparent md:hidden" />
+
+            {/* 移动端显示的静态图标 - 极简圆圈容器 */}
+            <div className="mb-4 flex items-center justify-center w-14 h-14 rounded-full bg-white/5 backdrop-blur-sm border border-white/5 md:hidden shadow-lg">
+                <div
+                    className="w-6 h-6 text-indigo-300 opacity-90"
+                    dangerouslySetInnerHTML={{ __html: getResponsiveSvg(item.iconPath) }}
+                />
+            </div>
 
             {/* 内容区域 */}
-            <div className="text-content flex flex-col items-center gap-3 transition-all duration-300 opacity-70 will-change-transform">
+            <div className="text-content flex flex-col items-center gap-2 md:gap-4 transition-all duration-500 opacity-100 md:opacity-70 will-change-transform">
 
                 {/* 标题 */}
-                <h3 className="text-3xl md:text-4xl font-bold text-white leading-none whitespace-pre-line text-center drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+                <h3 className="text-sm md:text-2xl lg:text-3xl font-medium md:font-bold text-slate-200 leading-tight whitespace-pre-line text-center tracking-widest uppercase md:normal-case">
                     {item.title.replace(' ', '\n')}
                 </h3>
 
-                {/* 描述 */}
-                <p className="text-xs text-gray-400 text-center max-w-[120px] leading-tight">
+                {/* 描述 - 仅桌面端显示，更精致的字体 */}
+                <p className="text-[10px] md:text-xs text-slate-500 text-center max-w-[100px] md:max-w-[120px] leading-relaxed hidden md:block tracking-wide font-light">
                     {item.description}
                 </p>
             </div>

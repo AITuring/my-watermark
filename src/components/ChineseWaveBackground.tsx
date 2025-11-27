@@ -121,6 +121,7 @@ interface ChineseWaveBackgroundProps {
     containerClassName?: string;
     animate?: boolean;
     waveCount?: number;
+    contentClassName?: string;
 }
 
 function ChineseWaveBackground({
@@ -129,6 +130,7 @@ function ChineseWaveBackground({
     containerClassName,
     animate = true,
     waveCount = 6, // 减少波浪数量，避免过于复杂
+    contentClassName,
 }: ChineseWaveBackgroundProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationRef = useRef<number>();
@@ -349,7 +351,7 @@ function ChineseWaveBackground({
             />
 
             {/* 内容层 */}
-            <div className="relative z-10 w-full h-full flex items-center justify-center">
+            <div className={cn("relative z-10 w-full h-full flex items-center justify-center", contentClassName)}>
                 {children}
             </div>
 

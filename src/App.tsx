@@ -1,12 +1,19 @@
 import NavTabs from "./components/animata/container/nav-tabs";
 import { useContext } from "react";
-import { BrowserRouter, Routes, Route, useNavigate, useLocation } from "react-router-dom";
-import { ThemeProvider,ThemeContext } from "./context";
+import {
+    BrowserRouter,
+    Routes,
+    Route,
+    useNavigate,
+    useLocation,
+} from "react-router-dom";
+import { ThemeProvider, ThemeContext } from "./context";
 import { FloatButton } from "antd";
 import { Icon } from "@iconify/react";
 import Puzzle from "./Puzzle";
 import Watermark from "./Watermark";
 import CompTest from "./CompTest";
+import LandscapePainting from "./components/LandscapePainting";
 import NewsApp from "./News";
 import ImageCollage from "./ImageCollage";
 import Landing from "./Landing";
@@ -22,8 +29,6 @@ import "./App.css";
 import BatchImageCompressor from "./BatchImageCompressor";
 import GooglePhoto from "./GooglePhoto";
 import ImageSplitter from "./ImageSplitter";
-
-
 
 const menuItems = [
     {
@@ -110,6 +115,19 @@ const menuItems = [
         component: <ImageCollage />,
         icon: "material-symbols:photo-library-outline",
     },
+    {
+        label: "测试",
+        id: "test",
+        url: "/test",
+        component: (
+            <LandscapePainting
+                width={1400}
+                height={900}
+                seed="qing-a2"
+            />
+        ),
+        icon: "material-symbols:test-tube",
+    },
 ];
 
 // 中国风导航栏组件
@@ -118,7 +136,9 @@ const ChineseStyleNavbar = () => {
     const location = useLocation();
     const { isDark, toggleTheme } = useContext(ThemeContext);
 
-    const currentItem = menuItems.find(item => item.url === location.pathname) || menuItems[0];
+    const currentItem =
+        menuItems.find((item) => item.url === location.pathname) ||
+        menuItems[0];
 
     return (
         <div className="relative">
@@ -131,9 +151,14 @@ const ChineseStyleNavbar = () => {
                     {/* Logo区域 */}
                     <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-gradient-to-br from-slate-400 to-slate-600 rounded-lg flex items-center justify-center shadow-lg">
-                            <Icon icon="material-symbols:image" className="w-5 h-5 text-white" />
+                            <Icon
+                                icon="material-symbols:image"
+                                className="w-5 h-5 text-white"
+                            />
                         </div>
-                        <span className="text-lg font-light text-slate-700 tracking-wide">图像工坊</span>
+                        <span className="text-lg font-light text-slate-700 tracking-wide">
+                            图像工坊
+                        </span>
                     </div>
 
                     {/* 导航菜单 */}
@@ -146,18 +171,22 @@ const ChineseStyleNavbar = () => {
                                     onClick={() => navigate(item.url)}
                                     className={`group relative px-4 py-2 rounded-xl transition-all duration-300 ${
                                         isActive
-                                            ? 'bg-white/40 text-slate-800 shadow-lg'
-                                            : 'text-slate-600 hover:bg-white/20 hover:text-slate-800'
+                                            ? "bg-white/40 text-slate-800 shadow-lg"
+                                            : "text-slate-600 hover:bg-white/20 hover:text-slate-800"
                                     }`}
                                 >
                                     <div className="flex items-center space-x-2">
                                         <Icon
                                             icon={item.icon}
                                             className={`w-4 h-4 transition-transform duration-300 ${
-                                                isActive ? 'scale-110' : 'group-hover:scale-105'
+                                                isActive
+                                                    ? "scale-110"
+                                                    : "group-hover:scale-105"
                                             }`}
                                         />
-                                        <span className="text-sm font-light tracking-wide">{item.label}</span>
+                                        <span className="text-sm font-light tracking-wide">
+                                            {item.label}
+                                        </span>
                                     </div>
 
                                     {/* 活跃状态指示器 */}
@@ -177,14 +206,21 @@ const ChineseStyleNavbar = () => {
                             className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-300 text-slate-600 hover:text-slate-800"
                         >
                             <Icon
-                                icon={isDark ? "line-md:moon-rising-alt-loop" : "line-md:sun-rising-loop"}
+                                icon={
+                                    isDark
+                                        ? "line-md:moon-rising-alt-loop"
+                                        : "line-md:sun-rising-loop"
+                                }
                                 className="w-5 h-5"
                             />
                         </button>
 
                         {/* 移动端菜单按钮 */}
                         <button className="md:hidden p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-300 text-slate-600 hover:text-slate-800">
-                            <Icon icon="material-symbols:menu" className="w-5 h-5" />
+                            <Icon
+                                icon="material-symbols:menu"
+                                className="w-5 h-5"
+                            />
                         </button>
                     </div>
                 </div>
@@ -199,12 +235,14 @@ const ChineseStyleNavbar = () => {
                                 onClick={() => navigate(item.url)}
                                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                                     isActive
-                                        ? 'bg-white/40 text-slate-800 shadow-lg'
-                                        : 'text-slate-600 hover:bg-white/20 hover:text-slate-800'
+                                        ? "bg-white/40 text-slate-800 shadow-lg"
+                                        : "text-slate-600 hover:bg-white/20 hover:text-slate-800"
                                 }`}
                             >
                                 <Icon icon={item.icon} className="w-5 h-5" />
-                                <span className="text-sm font-light tracking-wide">{item.label}</span>
+                                <span className="text-sm font-light tracking-wide">
+                                    {item.label}
+                                </span>
                             </button>
                         );
                     })}
@@ -222,19 +260,20 @@ const FloatingButtons = () => {
     return (
         <FloatButton.Group
             trigger="click"
-            tooltip={<div>{location.pathname === "/" ? '应用库' : '导航'}</div>}
+            tooltip={<div>{location.pathname === "/" ? "应用库" : "导航"}</div>}
             icon={
-                <Icon
-                    icon="material-symbols:navigation"
-                    className=" w-5 h-5"
-                />
+                <Icon icon="material-symbols:navigation" className=" w-5 h-5" />
             }
         >
             <FloatButton
-                tooltip={<div>{isDark ? '夜间' : '白天'}</div>}
+                tooltip={<div>{isDark ? "夜间" : "白天"}</div>}
                 icon={
                     <Icon
-                        icon={isDark ? "line-md:moon-rising-alt-loop" : "line-md:moon-alt-to-sunny-outline-loop-transition"}
+                        icon={
+                            isDark
+                                ? "line-md:moon-rising-alt-loop"
+                                : "line-md:moon-alt-to-sunny-outline-loop-transition"
+                        }
                         className=" w-4 h-4"
                     />
                 }
@@ -245,25 +284,19 @@ const FloatingButtons = () => {
             <FloatButton
                 tooltip={<div>应用库</div>}
                 icon={
-                    <Icon
-                        icon="material-symbols:apps"
-                        className=" w-4 h-4"
-                    />
+                    <Icon icon="material-symbols:apps" className=" w-4 h-4" />
                 }
-                type={location.pathname === "/" ? "primary": "default"}
+                type={location.pathname === "/" ? "primary" : "default"}
                 onClick={() => {
                     navigate("/");
                 }}
             />
             <FloatButton
                 tooltip={<div>水印添加</div>}
-                icon={
-                    <Icon
-                        icon="ri:image-ai-line"
-                        className=" w-4 h-4"
-                    />
+                icon={<Icon icon="ri:image-ai-line" className=" w-4 h-4" />}
+                type={
+                    location.pathname === "/watermark" ? "primary" : "default"
                 }
-                type={location.pathname === "/watermark" ? "primary": "default"}
                 onClick={() => {
                     navigate("/watermark");
                 }}
@@ -275,46 +308,37 @@ const FloatingButtons = () => {
                         className=" w-5 h-5"
                     />
                 }
-                type={location.pathname === "/puzzle" ? "primary": "default"}
+                type={location.pathname === "/puzzle" ? "primary" : "default"}
                 onClick={() => {
                     navigate("/puzzle");
                 }}
                 tooltip={<div>图片拼接</div>}
             />
             <FloatButton
-                icon={
-                    <Icon
-                        icon="ri:restaurant-2-line"
-                        className=" w-5 h-5"
-                    />
+                icon={<Icon icon="ri:restaurant-2-line" className=" w-5 h-5" />}
+                type={
+                    location.pathname === "/restaurant" ? "primary" : "default"
                 }
-                type={location.pathname === "/restaurant" ? "primary": "default"}
                 onClick={() => {
                     navigate("/restaurant");
                 }}
                 tooltip={<div>美食推荐</div>}
             />
-             <FloatButton
-                icon={
-                    <Icon
-                        icon="ri:news-line"
-                        className=" w-5 h-5"
-                    />
-                }
-                type={location.pathname === "/news" ? "primary": "default"}
+            <FloatButton
+                icon={<Icon icon="ri:news-line" className=" w-5 h-5" />}
+                type={location.pathname === "/news" ? "primary" : "default"}
                 onClick={() => {
                     navigate("/news");
                 }}
                 tooltip={<div>新闻</div>}
             />
-             <FloatButton
-                icon={
-                    <Icon
-                        icon="logos:google-photos"
-                        className=" w-5 h-5"
-                    />
+            <FloatButton
+                icon={<Icon icon="logos:google-photos" className=" w-5 h-5" />}
+                type={
+                    location.pathname === "/google-photo"
+                        ? "primary"
+                        : "default"
                 }
-                type={location.pathname === "/google-photo" ? "primary": "default"}
                 onClick={() => {
                     navigate("/google-photo");
                 }}
@@ -327,7 +351,7 @@ const FloatingButtons = () => {
                         className=" w-5 h-5"
                     />
                 }
-                type={location.pathname === "/compress" ? "primary": "default"}
+                type={location.pathname === "/compress" ? "primary" : "default"}
                 onClick={() => {
                     navigate("/compress");
                 }}
@@ -338,13 +362,15 @@ const FloatingButtons = () => {
 };
 
 const App = () => {
-
     return (
         <ThemeProvider>
             <div className="w-screen min-h-screen text-gray-800 bg-gradient-to-br from-slate-50 via-stone-100 to-neutral-200 dark:bg-gray-900 dark:text-white">
                 <BrowserRouter>
                     {/* <ChineseStyleNavbar /> */}
-                    <div className="flex flex-col w-screen" style={{ height: 'calc(100vh - 80px)' }}>
+                    <div
+                        className="flex flex-col w-screen"
+                        style={{ height: "calc(100vh - 80px)" }}
+                    >
                         <Routes>
                             {menuItems.map((item) => (
                                 <Route
