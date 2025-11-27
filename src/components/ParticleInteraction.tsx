@@ -89,7 +89,7 @@ class ParticleSystem {
     // 1. 强制注入白色样式和加粗描边
     // 我们移除原有的 class 依赖，强制 stroke 为白色，并加粗 stroke-width 以便采样
     let processedSvg = svgString
-        .replace(/<svg/, '<svg style="stroke: white; fill: none; stroke-width: 4px;"') // 强制注入样式
+        .replace(/<svg/, '<svg style="fill: white; stroke: white; stroke-width: 2px; stroke-linejoin: round; stroke-linecap: round;"')
         .replace(/currentColor/g, 'white') // 替换 currentColor
         .replace(/stroke-width=".*?"/g, '') // 移除原有的宽度定义，使用上面的 style 覆盖
         .replace(/class=".*?"/g, ''); // 移除 class 防止样式干扰
@@ -115,14 +115,16 @@ class ParticleSystem {
       // 采样
       const imageData = tCtx.getImageData(0, 0, w, h).data;
       const points: { x: number; y: number }[] = [];
-      const gap = 5; // 采样间隔
+      const gap = 4; // 采样间隔
 
       for (let y = 0; y < h; y += gap) {
         for (let x = 0; x < w; x += gap) {
           const index = (y * w + x) * 4;
           // 只要 alpha > 50 就认为是有效点
           if (imageData[index + 3] > 50) {
-            points.push({ x: centerX + (x - w / 2), y: centerY + (y - h / 2) });
+            const jx = (Math.random() - 0.5) * gap * 0.6;
+            const jy = (Math.random() - 0.5) * gap * 0.6;
+            points.push({ x: centerX + (x - w / 2) + jx, y: centerY + (y - h / 2) + jy });
           }
         }
       }
@@ -266,7 +268,7 @@ const ParticleInteraction: React.FC<ParticleInteractionProps> = ({ items, classN
       {/* 粒子画布：固定背景 */}
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 z-0 pointer-events-none bg-black"
+        className="fixed inset-0 z-[5] pointer-events-none bg-transparent"
       />
 
       {/* Grid 布局容器 */}
