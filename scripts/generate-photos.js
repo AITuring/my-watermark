@@ -27,8 +27,8 @@ async function generate() {
         height: photo.height,
         // 生成响应式 srcSet，react-photo-album 会自动使用
         srcSet: [
-            { src: `${photo.url}=w500`, width: 500, height: Math.round(500 / ratio) },
-            { src: `${photo.url}=w800`, width: 800, height: Math.round(800 / ratio) },
+            // { src: `${photo.url}=w500`, width: 500, height: Math.round(500 / ratio) },
+            // { src: `${photo.url}=w800`, width: 800, height: Math.round(800 / ratio) },
             { src: `${photo.url}=w1600`, width: 1600, height: Math.round(1600 / ratio) },
         ]
       };

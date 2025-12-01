@@ -15,6 +15,7 @@ import {
     LayoutGrid,
     Split,
     Utensils,
+    Calendar,
 } from "lucide-react";
 import h001 from "@/assets/history/split_001.jpg";
 import h002 from "@/assets/history/split_002.jpg";
@@ -36,7 +37,24 @@ import h017 from "@/assets/history/split_017.jpg";
 import h018 from "@/assets/history/split_018.jpg";
 
 const HISTORY_ICONS = [
-  h001,h002,h003,h004,h005,h006,h007,h008,h009,h010,h011,h012,h013,h014,h015,h016,h017,h018
+    h001,
+    h002,
+    h003,
+    h004,
+    h005,
+    h006,
+    h007,
+    h008,
+    h009,
+    h010,
+    h011,
+    h012,
+    h013,
+    h014,
+    h015,
+    h016,
+    h017,
+    h018,
 ];
 
 interface ToolItem {
@@ -148,7 +166,7 @@ const ToolCard = ({
         <motion.div
             whileHover={{ y: -4, scale: 1.005 }}
             whileTap={{ scale: 0.98 }}
-            className={`group relative overflow-hidden rounded-lg border border-stone-200/60 bg-[#FDFBF7] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${item.colorTheme.border} transition-all duration-300 cursor-pointer p-4 flex flex-col items-start justify-between gap-3 h-40 md:h-48`}
+            className={`group relative overflow-hidden rounded-lg border border-stone-200/60 bg-[#eff0f0] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${item.colorTheme.border} transition-all duration-300 cursor-pointer p-4 flex flex-col items-start justify-between gap-3 h-64 md:h-72`}
             onClick={onClick}
         >
             {/* 背景装饰：微弱的色块 - 进一步减淡以突出水墨 */}
@@ -157,7 +175,7 @@ const ToolCard = ({
             />
 
             {/* 背景装饰：水墨山水图案 - 右下角轻微点缀 */}
-            <div className="absolute right-2 bottom-2 w-20 h-20 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity duration-500 pointer-events-none">
+            <div className="absolute right-0 bottom-0 w-32 h-32 opacity-[0.55] group-hover:opacity-[0.95] transition-opacity duration-500 pointer-events-none">
                 <img
                     src={HISTORY_ICONS[index % HISTORY_ICONS.length]}
                     alt=""
@@ -183,7 +201,7 @@ const ToolCard = ({
                     <h3 className="text-sm md:text-base font-bold text-stone-700 group-hover:text-black tracking-tight font-mono">
                         {item.title.replace("\n", "")}
                     </h3>
-                    <p className="text-xs text-stone-500 group-hover:text-stone-600 leading-relaxed line-clamp-1 mt-0.5 font-mono opacity-80">
+                    <p className="text-xs text-stone-500 group-hover:text-stone-600 leading-relaxed line-clamp-2 mt-0.5 font-mono opacity-80">
                         {item.description}
                     </p>
                 </div>
@@ -232,16 +250,16 @@ export default function Landing() {
 
     const items: ToolItem[] = [
         {
-            id: "google-photo",
-            title: "Google 相册",
-            description: "笑谈间气吐霓虹的相册",
-            icon: Image,
-            href: "/google-photo",
+            id: "watermark",
+            title: "水印添加",
+            description: "批量添加文字或图片水印，保护版权",
+            icon: Stamp,
+            href: "/watermark",
             colorTheme: {
-                bg: "bg-indigo-50",
-                text: "text-indigo-700",
-                border: "hover:border-indigo-200",
-                hoverGradient: "from-indigo-100 to-transparent",
+                bg: "bg-cyan-50",
+                text: "text-cyan-700",
+                border: "hover:border-cyan-200",
+                hoverGradient: "from-cyan-100 to-transparent",
             },
         },
         {
@@ -257,6 +275,20 @@ export default function Landing() {
                 hoverGradient: "from-violet-100 to-transparent",
             },
         },
+        {
+            id: "google-photo",
+            title: "Google 相册",
+            description: "笑谈间气吐霓虹的相册",
+            icon: Image,
+            href: "/google-photo",
+            colorTheme: {
+                bg: "bg-indigo-50",
+                text: "text-indigo-700",
+                border: "hover:border-indigo-200",
+                hoverGradient: "from-indigo-100 to-transparent",
+            },
+        },
+
         {
             id: "stitch",
             title: "图片拼接",
@@ -296,19 +328,7 @@ export default function Landing() {
                 hoverGradient: "from-rose-100 to-transparent",
             },
         },
-        {
-            id: "watermark",
-            title: "水印添加",
-            description: "批量添加文字或图片水印，保护版权",
-            icon: Stamp,
-            href: "/watermark",
-            colorTheme: {
-                bg: "bg-cyan-50",
-                text: "text-cyan-700",
-                border: "hover:border-cyan-200",
-                hoverGradient: "from-cyan-100 to-transparent",
-            },
-        },
+
         {
             id: "compress",
             title: "批量压缩",
@@ -374,6 +394,19 @@ export default function Landing() {
                 hoverGradient: "from-lime-100 to-transparent",
             },
         },
+        {
+            id: "calendar",
+            title: "日历",
+            description: "方便的日期管理工具",
+            icon: Calendar,
+            href: "/calendar",
+            colorTheme: {
+                bg: "bg-yellow-50",
+                text: "text-yellow-700",
+                border: "hover:border-yellow-200",
+                hoverGradient: "from-yellow-100 to-transparent",
+            },
+        },
     ];
 
     return (
@@ -409,15 +442,15 @@ export default function Landing() {
             {/* 顶部 Header */}
             <header className="fixed top-0 left-0 w-full px-6 py-4 z-50 flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-sm border-b border-stone-200/50">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-stone-800 flex items-center justify-center text-[#FDFBF7] font-bold text-lg shadow-sm">
-                        <span className="font-mono">M</span>
+                    <div className="w-10 h-10 rounded bg-stone-800 flex items-center justify-center text-[#FDFBF7] font-bold text-lg shadow-sm">
+                        <span className="font-mono text-3xl">☺</span>
                     </div>
                     <div className="flex flex-col">
                         <span className="font-bold text-stone-800 leading-tight font-mono tracking-wide">
-                            MyTools
+                            笑谈间气吐霓虹
                         </span>
                         <span className="text-[10px] text-stone-500 font-medium uppercase tracking-widest opacity-80 font-mono">
-                            Productivity Suite
+                            工具合集
                         </span>
                     </div>
                 </div>
@@ -469,7 +502,7 @@ export default function Landing() {
                 </div>
 
                 {/* Tools Grid - Adjusted for more compact layout */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                     {items.map((item, index) => (
                         <motion.div
                             key={item.id}

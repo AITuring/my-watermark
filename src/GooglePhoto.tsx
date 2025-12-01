@@ -24,7 +24,21 @@ const GooglePhoto = () => {
 
     const renderImage = (props: any, ctx: any) => {
         const { alt = "", style, ...restImageProps } = props;
-        const fullSrc = ctx?.photo?.src ?? restImageProps.src;
+
+        // Fix: Select the highest resolution image for preview
+        // The default ctx.photo.src might be a resized version.
+        // We iterate through srcSet to find the largest width.
+        let fullSrc = ctx?.photo?.src ?? restImageProps.src;
+
+        if (ctx?.photo?.srcSet && Array.isArray(ctx.photo.srcSet) && ctx.photo.srcSet.length > 0) {
+            const largest = ctx.photo.srcSet.reduce((prev: any, current: any) => {
+                return (prev.width > current.width) ? prev : current;
+            });
+            if (largest && largest.src) {
+                fullSrc = largest.src;
+            }
+        }
+
         return (
             <AntdImage
                 alt={alt}
@@ -38,6 +52,8 @@ const GooglePhoto = () => {
                 }}
                 preview={{
                     src: fullSrc,
+                    minScale: 0.5,
+                    maxScale: 5,
                     maskClassName:
                         "group-hover:opacity-100 opacity-0 transition-opacity duration-200",
                     mask: (
