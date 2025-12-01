@@ -6,8 +6,6 @@ import LandscapePainting from "./components/LandscapePainting";
 import {
     Image,
     Layers,
-    Scissors,
-    Palette,
     Stamp,
     Shrink,
     Map,
@@ -15,7 +13,7 @@ import {
     LayoutGrid,
     Split,
     Utensils,
-    Calendar,
+    Clock,
 } from "lucide-react";
 import h001 from "@/assets/history/split_001.jpg";
 import h002 from "@/assets/history/split_002.jpg";
@@ -288,20 +286,20 @@ export default function Landing() {
                 hoverGradient: "from-indigo-100 to-transparent",
             },
         },
-
-        {
-            id: "stitch",
-            title: "图片拼接",
-            description: "自由拼接多张图片，无缝合成",
-            icon: Scissors,
-            href: "/stitch",
-            colorTheme: {
-                bg: "bg-emerald-50",
-                text: "text-emerald-700",
-                border: "hover:border-emerald-200",
-                hoverGradient: "from-emerald-100 to-transparent",
-            },
-        },
+        // 还不成熟
+        // {
+        //     id: "stitch",
+        //     title: "图片拼接",
+        //     description: "自由拼接多张图片，无缝合成",
+        //     icon: Scissors,
+        //     href: "/stitch",
+        //     colorTheme: {
+        //         bg: "bg-emerald-50",
+        //         text: "text-emerald-700",
+        //         border: "hover:border-emerald-200",
+        //         hoverGradient: "from-emerald-100 to-transparent",
+        //     },
+        // },
         {
             id: "restaurant",
             title: "餐厅搜索",
@@ -315,19 +313,19 @@ export default function Landing() {
                 hoverGradient: "from-orange-100 to-transparent",
             },
         },
-        {
-            id: "change",
-            title: "颜色调整",
-            description: "专业的色彩与滤镜微调工具",
-            icon: Palette,
-            href: "/change",
-            colorTheme: {
-                bg: "bg-rose-50",
-                text: "text-rose-700",
-                border: "hover:border-rose-200",
-                hoverGradient: "from-rose-100 to-transparent",
-            },
-        },
+        // {
+        //     id: "change",
+        //     title: "颜色调整",
+        //     description: "专业的色彩与滤镜微调工具",
+        //     icon: Palette,
+        //     href: "/change",
+        //     colorTheme: {
+        //         bg: "bg-rose-50",
+        //         text: "text-rose-700",
+        //         border: "hover:border-rose-200",
+        //         hoverGradient: "from-rose-100 to-transparent",
+        //     },
+        // },
 
         {
             id: "compress",
@@ -396,9 +394,9 @@ export default function Landing() {
         },
         {
             id: "calendar",
-            title: "日历",
-            description: "方便的日期管理工具",
-            icon: Calendar,
+            title: "屏幕时钟",
+            description: "好玩有趣的屏幕时钟",
+            icon: Clock,
             href: "/calendar",
             colorTheme: {
                 bg: "bg-yellow-50",
@@ -425,7 +423,7 @@ export default function Landing() {
                     ></path>
                 </svg>
             </div>
-            <div className="fixed bottom-0 left-0 w-full h-[45vh] z-0 pointer-events-none opacity-[0.02] text-stone-800 translate-x-[10%]">
+            <div className="fixed bottom-0 left-0 w-full h-[45vh] z-0 pointer-events-none opacity-[0.02] text-stone-800">
                 <svg
                     className="w-full h-full"
                     viewBox="0 0 1440 320"
@@ -443,7 +441,7 @@ export default function Landing() {
             <header className="fixed top-0 left-0 w-full px-6 py-4 z-50 flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-sm border-b border-stone-200/50">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded bg-stone-800 flex items-center justify-center text-[#FDFBF7] font-bold text-lg shadow-sm">
-                        <span className="font-mono text-3xl">☺</span>
+                        <span className="font-mono text-4xl">☺</span>
                     </div>
                     <div className="flex flex-col">
                         <span className="font-bold text-stone-800 leading-tight font-mono tracking-wide">
@@ -460,7 +458,7 @@ export default function Landing() {
             </header>
 
             {/* Main Content */}
-            <main className="container mx-auto px-4 pt-32 pb-24 max-w-6xl relative z-10">
+            <main className="container mx-auto px-4 pt-32 pb-24 max-w-[1600px] relative z-10">
                 {/* Hero Section */}
                 <div className="mb-16 text-center max-w-2xl mx-auto">
                     <motion.h1
@@ -487,7 +485,7 @@ export default function Landing() {
                         </span>
                     </motion.h1>
 
-                    <motion.p
+                    {/* <motion.p
                         initial={{ opacity: 0, y: 15 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.2 }}
@@ -498,11 +496,11 @@ export default function Landing() {
                         <span className="opacity-80 mt-2 block">
                             简化工作流程，让创作回归纯粹与愉悦
                         </span>
-                    </motion.p>
+                    </motion.p> */}
                 </div>
 
                 {/* Tools Grid - Adjusted for more compact layout */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6 xl:gap-8">
                     {items.map((item, index) => (
                         <motion.div
                             key={item.id}

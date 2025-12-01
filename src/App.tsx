@@ -33,7 +33,7 @@ import Calendar from "./Calendar";
 
 
 
-const menuItems = [
+const routeItems = [
     {
         label: "应用库",
         id: "landing",
@@ -140,127 +140,6 @@ const menuItems = [
     },
 ];
 
-// 中国风导航栏组件
-const ChineseStyleNavbar = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { isDark, toggleTheme } = useContext(ThemeContext);
-
-    const currentItem =
-        menuItems.find((item) => item.url === location.pathname) ||
-        menuItems[0];
-
-    return (
-        <div className="relative">
-            {/* 导航栏背景 */}
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-50/80 via-stone-100/80 to-neutral-200/80 backdrop-blur-xl border-b border-white/30"></div>
-
-            {/* 导航栏内容 */}
-            <nav className="relative z-10 px-6 py-4">
-                <div className="flex items-center justify-between">
-                    {/* Logo区域 */}
-                    <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-slate-400 to-slate-600 rounded-lg flex items-center justify-center shadow-lg">
-                            <Icon
-                                icon="material-symbols:image"
-                                className="w-5 h-5 text-white"
-                            />
-                        </div>
-                        <span className="text-lg font-light text-slate-700 tracking-wide">
-                            图像工坊
-                        </span>
-                    </div>
-
-                    {/* 导航菜单 */}
-                    <div className="hidden md:flex items-center space-x-1">
-                        {menuItems.map((item) => {
-                            const isActive = location.pathname === item.url;
-                            return (
-                                <button
-                                    key={item.id}
-                                    onClick={() => navigate(item.url)}
-                                    className={`group relative px-4 py-2 rounded-xl transition-all duration-300 ${
-                                        isActive
-                                            ? "bg-white/40 text-slate-800 shadow-lg"
-                                            : "text-slate-600 hover:bg-white/20 hover:text-slate-800"
-                                    }`}
-                                >
-                                    <div className="flex items-center space-x-2">
-                                        <Icon
-                                            icon={item.icon}
-                                            className={`w-4 h-4 transition-transform duration-300 ${
-                                                isActive
-                                                    ? "scale-110"
-                                                    : "group-hover:scale-105"
-                                            }`}
-                                        />
-                                        <span className="text-sm font-light tracking-wide">
-                                            {item.label}
-                                        </span>
-                                    </div>
-
-                                    {/* 活跃状态指示器 */}
-                                    {isActive && (
-                                        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-6 h-0.5 bg-gradient-to-r from-slate-400 to-slate-600 rounded-full"></div>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* 右侧控制区 */}
-                    <div className="flex items-center space-x-3">
-                        {/* 主题切换 */}
-                        <button
-                            onClick={toggleTheme}
-                            className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-300 text-slate-600 hover:text-slate-800"
-                        >
-                            <Icon
-                                icon={
-                                    isDark
-                                        ? "line-md:moon-rising-alt-loop"
-                                        : "line-md:sun-rising-loop"
-                                }
-                                className="w-5 h-5"
-                            />
-                        </button>
-
-                        {/* 移动端菜单按钮 */}
-                        <button className="md:hidden p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-300 text-slate-600 hover:text-slate-800">
-                            <Icon
-                                icon="material-symbols:menu"
-                                className="w-5 h-5"
-                            />
-                        </button>
-                    </div>
-                </div>
-
-                {/* 移动端下拉菜单 */}
-                <div className="md:hidden mt-4 space-y-2">
-                    {menuItems.map((item) => {
-                        const isActive = location.pathname === item.url;
-                        return (
-                            <button
-                                key={item.id}
-                                onClick={() => navigate(item.url)}
-                                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-                                    isActive
-                                        ? "bg-white/40 text-slate-800 shadow-lg"
-                                        : "text-slate-600 hover:bg-white/20 hover:text-slate-800"
-                                }`}
-                            >
-                                <Icon icon={item.icon} className="w-5 h-5" />
-                                <span className="text-sm font-light tracking-wide">
-                                    {item.label}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </nav>
-        </div>
-    );
-};
 
 const FloatingButtons = () => {
     const navigate = useNavigate();
@@ -382,7 +261,7 @@ const App = () => {
                         style={{ height: "calc(100vh - 80px)" }}
                     >
                         <Routes>
-                            {menuItems.map((item) => (
+                            {routeItems.map((item) => (
                                 <Route
                                     key={item.id}
                                     path={item.url}
