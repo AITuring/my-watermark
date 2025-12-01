@@ -29,6 +29,9 @@ import "./App.css";
 import BatchImageCompressor from "./BatchImageCompressor";
 import GooglePhoto from "./GooglePhoto";
 import ImageSplitter from "./ImageSplitter";
+import Calendar from "./Calendar";
+
+
 
 const menuItems = [
     {
@@ -127,6 +130,13 @@ const menuItems = [
             />
         ),
         icon: "material-symbols:test-tube",
+    },
+    {
+        label: "日历",
+        id: "calendar",
+        url: "/calendar",
+        component: <Calendar />,
+        icon: "material-symbols:calendar-month-outline",
     },
 ];
 
