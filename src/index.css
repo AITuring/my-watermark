@@ -110,7 +110,12 @@ body {
   * {
     @apply border-border;
     }
+  html,
   body {
-    @apply bg-background text-foreground;
+    background: #f5f5f4;
+    background-image: none;
+  }
+  body {
+    @apply text-foreground;
     }
 }

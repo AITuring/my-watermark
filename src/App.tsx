@@ -221,7 +221,7 @@ const FloatingButtons = () => {
 const App = () => {
     return (
         <ThemeProvider>
-            <div className="w-screen min-h-screen text-gray-800 bg-gradient-to-br from-slate-50 via-stone-100 to-neutral-200 dark:bg-gray-900 dark:text-white">
+            <div className="w-screen min-h-screen text-gray-800 bg-transparent dark:text-white">
                 <BrowserRouter>
                     {/* <ChineseStyleNavbar /> */}
                     <div
