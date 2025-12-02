@@ -30,6 +30,7 @@ import {
     Calendar,
     Landmark,
     X,
+    FileText,
 } from "lucide-react";
 
 // 文物数据类型定义
@@ -250,6 +251,9 @@ const Wenwu: React.FC = () => {
     const [selectedEra, setSelectedEra] = useState<string>("all");
     const viewMode = "grid";
 
+    // 统一样式：玻璃卡片与标题
+    const glassCard = "rounded-2xl bg-white/12 backdrop-blur-md border border-white/20 shadow-sm";
+    const sectionHeading = "text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2";
 
     // 地图相关状态
     const [mapInstance, setMapInstance] = useState<any>(null);
@@ -1859,8 +1863,8 @@ const Wenwu: React.FC = () => {
                                             </div>
                                         </div>
                                     </DialogTrigger>
-                                    <DialogContent className="max-w-2xl max-h-[85vh] rounded-3xl border-none shadow-2xl">
-                                        <DialogHeader className="px-2">
+                                    <DialogContent className="max-w-2xl max-h-[85vh] rounded-3xl bg-gradient-to-b from-white/20 to-white/10 backdrop-blur-2xl border border-white/30 ring-1 ring-white/20 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.4)] overflow-hidden">
+                                        <DialogHeader className="px-2 pb-2 border-b border-white/10">
                                             <DialogTitle className="text-2xl font-serif text-slate-800">
                                                 {artifact.name}
                                             </DialogTitle>
@@ -1887,7 +1891,7 @@ const Wenwu: React.FC = () => {
                                         <ScrollArea className="max-h-[70vh] px-2 md:px-0">
                                             <div className="space-y-6 py-4">
                                                 {artifact.image && artifactImages[artifact.image.split("/").pop() || ""] && (
-                                                    <div className="rounded-2xl border border-slate-100 bg-white p-3">
+                                                    <div className={`${glassCard} p-3`}>
                                                         <div className="w-full h-[280px] md:h-[380px] overflow-hidden rounded-xl bg-slate-50">
                                                             <img
                                                                 src={artifactImages[artifact.image.split("/").pop() || ""]}
@@ -1897,55 +1901,48 @@ const Wenwu: React.FC = () => {
                                                         </div>
                                                     </div>
                                                 )}
-                                                <div className="bg-slate-50 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className={`${glassCard} p-5 grid grid-cols-1 md:grid-cols-2 gap-6`}>
                                                     <div className="space-y-1">
-                                                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                                                            <MapPin className="w-3 h-3" />{" "}
-                                                            出土
+                                                        <span className={sectionHeading}>
+                                                            <MapPin className="w-4 h-4 md:w-5 md:h-5 text-rose-500" /> 出土地点
                                                         </span>
-                                                        <p className="font-medium text-slate-700">
-                                                            {
-                                                                artifact.excavationLocation
-                                                            }
+                                                        <p className="text-sm md:text-base font-medium text-slate-800">
+                                                            {artifact.excavationLocation}
                                                         </p>
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                                                            <Calendar className="w-3 h-3" />{" "}
-                                                            时间
+                                                        <span className={sectionHeading}>
+                                                            <Calendar className="w-4 h-4 md:w-5 md:h-5 text-violet-500" /> 出土时间
                                                         </span>
-                                                        <p className="font-medium text-slate-700">
-                                                            {
-                                                                artifact.excavationTime
-                                                            }
+                                                        <p className="text-sm md:text-base font-medium text-slate-800">
+                                                            {artifact.excavationTime}
                                                         </p>
                                                     </div>
                                                     <div className="md:col-span-2 space-y-1">
-                                                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                                                            <Landmark className="w-3 h-3" />{" "}
-                                                            馆藏
+                                                        <span className={sectionHeading}>
+                                                            <Landmark className="w-4 h-4 md:w-5 md:h-5 text-blue-500" /> 馆藏地点
                                                         </span>
-                                                        <p className="font-medium text-slate-700">
-                                                            {
-                                                                artifact.collectionLocation
-                                                            }
+                                                        <p className="text-sm md:text-base font-medium text-slate-800">
+                                                            {artifact.collectionLocation}
                                                         </p>
                                                     </div>
                                                 </div>
 
                                                 <div>
-                                                    <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                                        <span className="w-1 h-4 bg-violet-500 rounded-full"></span>
+                                                    <h4 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
+                                                        <FileText className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />
                                                         文物描述
                                                     </h4>
-                                                    <div className="prose prose-sm prose-slate max-w-none bg-white p-1">
-                                                        <MarkdownContent
-                                                            content={
-                                                                artifact.detail && artifact.detail.trim()
-                                                                    ? artifact.detail
-                                                                    : artifact.desc
-                                                            }
-                                                        />
+                                                    <div className={`${glassCard} p-4`}>
+                                                        <div className="prose prose-sm prose-slate max-w-none">
+                                                            <MarkdownContent
+                                                                content={
+                                                                    artifact.detail && artifact.detail.trim()
+                                                                        ? artifact.detail
+                                                                        : artifact.desc
+                                                                }
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
