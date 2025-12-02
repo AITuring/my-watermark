@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Input, Button, message } from "antd";
+import { Button } from "@/components/ui/button";
 
 function changeImageColor(ctx, canvas, colorOrGradient) {
   // 如果是渐变色，设置 fillStyle 并填充矩形
@@ -130,13 +130,13 @@ function ChangeColor() {
       if (colorOrGradient) {
         changeImageColor(ctx, canvas, colorOrGradient);
       } else {
-        message.error("颜色格式无效");
+        alert("颜色格式无效");
       }
     };
 
     image.onerror = (e) => {
       console.error("图像加载失败", e);
-      message.error("水印图片加载失败，请检查图片路径是否正确");
+      alert("水印图片加载失败，请检查图片路径是否正确");
     };
 
     // 尝试使用绝对路径加载图片
@@ -171,11 +171,12 @@ function ChangeColor() {
     <div>
       <div>
         <p>请输入单色：</p>
-        <Input
+        <input
           value={currentColor}
           type="color"
           onChange={(e) => setCurrentColor(e.target.value)}
           placeholder="请输入色值，如#ff0000"
+          className="w-24 h-8 border rounded"
         />
         <span
           style={{
@@ -189,11 +190,12 @@ function ChangeColor() {
         />
         <h2>渐变色</h2>
         <p>请输入渐变的第一色：</p>
-        <Input
+        <input
           type="color"
           value={color1}
           onChange={(e) => setColor1(e.target.value)}
           placeholder="请输入色值，如#ff0000"
+          className="w-24 h-8 border rounded"
         />
         <span
           style={{
@@ -206,11 +208,12 @@ function ChangeColor() {
           }}
         />
         <p>请输入渐变的第二色：</p>
-        <Input
+        <input
           type="color"
           value={color2}
           onChange={(e) => setColor2(e.target.value)}
           placeholder="请输入色值，如#0000ff"
+          className="w-24 h-8 border rounded"
         />
         <span
           style={{
@@ -232,7 +235,7 @@ function ChangeColor() {
             应用渐变
           </label>
         </p>
-        <Button type="primary" onClick={handleApplyColor}>
+        <Button onClick={handleApplyColor}>
           应用颜色
         </Button>
       </div>

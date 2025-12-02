@@ -1,10 +1,10 @@
 import { useState, useRef, useMemo, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { Image as AntdImage } from "antd";
 import { RowsPhotoAlbum } from "react-photo-album";
 import "react-photo-album/rows.css";
 import photosData from "./photos.json";
 import "./puzzle.css";
+import ImagePreview from "./ImagePreview";
 
 
 interface PhotoType {
@@ -19,52 +19,53 @@ const GooglePhoto = () => {
         (photosData as PhotoType[]) || []
     );
 
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewIndex, setPreviewIndex] = useState(0);
+
     const margin = 8;
     const radius = 4;
 
-    const renderImage = (props: any, ctx: any) => {
-        const { alt = "", style, ...restImageProps } = props;
-
-        // Fix: Select the highest resolution image for preview
-        // The default ctx.photo.src might be a resized version.
-        // We iterate through srcSet to find the largest width.
-        let fullSrc = ctx?.photo?.src ?? restImageProps.src;
-
-        if (ctx?.photo?.srcSet && Array.isArray(ctx.photo.srcSet) && ctx.photo.srcSet.length > 0) {
-            const largest = ctx.photo.srcSet.reduce((prev: any, current: any) => {
-                return (prev.width > current.width) ? prev : current;
+    const getLargestSrc = (photo: PhotoType) => {
+        let fullSrc = photo?.src;
+        if (photo?.srcSet && Array.isArray(photo.srcSet) && photo.srcSet.length > 0) {
+            const largest = photo.srcSet.reduce((prev: any, current: any) => {
+                return prev.width > current.width ? prev : current;
             });
             if (largest && largest.src) {
                 fullSrc = largest.src;
             }
         }
+        return fullSrc;
+    };
 
+    const renderImage = (props: any, ctx: any) => {
+        const { alt = "", style, ...restImageProps } = props;
         return (
-            <AntdImage
-                alt={alt}
-                style={{
-                    ...style,
-                    width: "100%",
-                    height: "auto",
-                    padding: 0,
-                    margin: 0,
-                    borderRadius: radius || 0,
-                }}
-                preview={{
-                    src: fullSrc,
-                    minScale: 0.5,
-                    maxScale: 5,
-                    maskClassName:
-                        "group-hover:opacity-100 opacity-0 transition-opacity duration-200",
-                    mask: (
-                        <div className="flex items-center justify-center">
-                            <Icon icon="ph:eye-bold" className="w-5 h-5 mr-2" />
-                            预览
-                        </div>
-                    ),
-                }}
-                {...restImageProps}
-            />
+            <div className="relative group">
+                <img
+                    alt={alt}
+                    style={{
+                        ...style,
+                        width: "100%",
+                        height: "auto",
+                        padding: 0,
+                        margin: 0,
+                        borderRadius: radius || 0,
+                        cursor: "zoom-in",
+                    }}
+                    {...restImageProps}
+                    onClick={() => {
+                        setPreviewIndex(ctx?.index ?? 0);
+                        setPreviewOpen(true);
+                    }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                    <div className="flex items-center text-white">
+                        <Icon icon="ph:eye-bold" className="w-5 h-5 mr-2" />
+                        预览
+                    </div>
+                </div>
+            </div>
         );
     };
 
@@ -107,7 +108,7 @@ const GooglePhoto = () => {
     // 使用 useMemo 优化渲染的图片列表
     const memoizedPhotoAlbum = useMemo(
         () => (
-            <AntdImage.PreviewGroup>
+            <>
                 <RowsPhotoAlbum
                     photos={images}
                     padding={0}
@@ -117,9 +118,15 @@ const GooglePhoto = () => {
                         image: renderImage,
                     }}
                 />
-            </AntdImage.PreviewGroup>
+                <ImagePreview
+                    images={images.map((p) => getLargestSrc(p))}
+                    currentIndex={previewIndex}
+                    open={previewOpen}
+                    onOpenChange={setPreviewOpen}
+                />
+            </>
         ),
-        [images]
+        [images, margin, previewIndex, previewOpen]
     );
 
 

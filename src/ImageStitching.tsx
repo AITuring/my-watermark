@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
-import { Progress } from "antd";
+import { Progress } from "@/components/ui/progress";
 
 const ImageStitching: React.FC = () => {
     const [stitchedImage, setStitchedImage] = useState<string | null>(null);
@@ -129,7 +129,7 @@ const ImageStitching: React.FC = () => {
                             {progressDetail}
                         </p>
                     )}
-                    <Progress percent={progressPercent} status="active" />
+                    <Progress value={progressPercent} className="w-full" />
                     <button
                         onClick={handleCancel}
                         className="mt-2 px-4 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"

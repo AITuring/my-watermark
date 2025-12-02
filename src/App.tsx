@@ -1,5 +1,5 @@
 import NavTabs from "./components/animata/container/nav-tabs";
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import {
     BrowserRouter,
     Routes,
@@ -8,7 +8,8 @@ import {
     useLocation,
 } from "react-router-dom";
 import { ThemeProvider, ThemeContext } from "./context";
-import { FloatButton } from "antd";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Icon } from "@iconify/react";
 import Puzzle from "./Puzzle";
 import Watermark from "./Watermark";
@@ -145,108 +146,75 @@ const FloatingButtons = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { isDark, toggleTheme } = useContext(ThemeContext);
+    const [open, setOpen] = useState(false);
+
+    const isActive = (path: string) => location.pathname === path;
 
     return (
-        <FloatButton.Group
-            trigger="click"
-            tooltip={<div>{location.pathname === "/" ? "应用库" : "导航"}</div>}
-            icon={
-                <Icon icon="material-symbols:navigation" className=" w-5 h-5" />
-            }
-        >
-            <FloatButton
-                tooltip={<div>{isDark ? "夜间" : "白天"}</div>}
-                icon={
-                    <Icon
-                        icon={
-                            isDark
-                                ? "line-md:moon-rising-alt-loop"
-                                : "line-md:moon-alt-to-sunny-outline-loop-transition"
-                        }
-                        className=" w-4 h-4"
-                    />
-                }
-                onClick={() => {
-                    toggleTheme();
-                }}
-            />
-            <FloatButton
-                tooltip={<div>应用库</div>}
-                icon={
-                    <Icon icon="material-symbols:apps" className=" w-4 h-4" />
-                }
-                type={location.pathname === "/" ? "primary" : "default"}
-                onClick={() => {
-                    navigate("/");
-                }}
-            />
-            <FloatButton
-                tooltip={<div>水印添加</div>}
-                icon={<Icon icon="ri:image-ai-line" className=" w-4 h-4" />}
-                type={
-                    location.pathname === "/watermark" ? "primary" : "default"
-                }
-                onClick={() => {
-                    navigate("/watermark");
-                }}
-            />
-            <FloatButton
-                icon={
-                    <Icon
-                        icon="tabler:layout-board-split"
-                        className=" w-5 h-5"
-                    />
-                }
-                type={location.pathname === "/puzzle" ? "primary" : "default"}
-                onClick={() => {
-                    navigate("/puzzle");
-                }}
-                tooltip={<div>图片拼接</div>}
-            />
-            <FloatButton
-                icon={<Icon icon="ri:restaurant-2-line" className=" w-5 h-5" />}
-                type={
-                    location.pathname === "/restaurant" ? "primary" : "default"
-                }
-                onClick={() => {
-                    navigate("/restaurant");
-                }}
-                tooltip={<div>美食推荐</div>}
-            />
-            <FloatButton
-                icon={<Icon icon="ri:news-line" className=" w-5 h-5" />}
-                type={location.pathname === "/news" ? "primary" : "default"}
-                onClick={() => {
-                    navigate("/news");
-                }}
-                tooltip={<div>新闻</div>}
-            />
-            <FloatButton
-                icon={<Icon icon="logos:google-photos" className=" w-5 h-5" />}
-                type={
-                    location.pathname === "/google-photo"
-                        ? "primary"
-                        : "default"
-                }
-                onClick={() => {
-                    navigate("/google-photo");
-                }}
-                tooltip={<div>Google 相册</div>}
-            />
-            <FloatButton
-                icon={
-                    <Icon
-                        icon="material-symbols:compress"
-                        className=" w-5 h-5"
-                    />
-                }
-                type={location.pathname === "/compress" ? "primary" : "default"}
-                onClick={() => {
-                    navigate("/compress");
-                }}
-                tooltip={<div>图片压缩</div>}
-            />
-        </FloatButton.Group>
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+            <TooltipProvider>
+                {open && (
+                    <div className="flex flex-col items-end gap-2">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="secondary"
+                                    size="icon"
+                                    className="rounded-full"
+                                    onClick={toggleTheme}
+                                >
+                                    <Icon
+                                        icon={
+                                            isDark
+                                                ? "line-md:moon-rising-alt-loop"
+                                                : "line-md:moon-alt-to-sunny-outline-loop-transition"
+                                        }
+                                        className=" w-4 h-4"
+                                    />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{isDark ? "夜间" : "白天"}</TooltipContent>
+                        </Tooltip>
+                        {[
+                            { path: "/", icon: "material-symbols:apps", label: "应用库" },
+                            { path: "/watermark", icon: "ri:image-ai-line", label: "水印添加" },
+                            { path: "/puzzle", icon: "tabler:layout-board-split", label: "图片拼接" },
+                            { path: "/restaurant", icon: "ri:restaurant-2-line", label: "美食推荐" },
+                            { path: "/news", icon: "ri:news-line", label: "新闻" },
+                            { path: "/google-photo", icon: "logos:google-photos", label: "Google 相册" },
+                            { path: "/compress", icon: "material-symbols:compress", label: "图片压缩" },
+                        ].map((item) => (
+                            <Tooltip key={item.path}>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant={isActive(item.path) ? "default" : "secondary"}
+                                        size="icon"
+                                        className={`rounded-full ${isActive(item.path) ? "bg-blue-600 text-white" : ""}`}
+                                        onClick={() => navigate(item.path)}
+                                    >
+                                        <Icon icon={item.icon} className=" w-5 h-5" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>{item.label}</TooltipContent>
+                            </Tooltip>
+                        ))}
+                    </div>
+                )}
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className="rounded-full"
+                            onClick={() => setOpen((v) => !v)}
+                        >
+                            <Icon icon="material-symbols:navigation" className=" w-5 h-5" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{location.pathname === "/" ? "应用库" : "导航"}</TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        </div>
     );
 };
 

@@ -16,6 +16,8 @@ import {
     RotateCcw,
     Maximize,
     Minimize,
+    FlipHorizontal,
+    FlipVertical,
 } from "lucide-react";
 
 interface ImagePreviewProps {
@@ -34,6 +36,8 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
     const [index, setIndex] = useState(currentIndex);
     const [scale, setScale] = useState(1);
     const [rotation, setRotation] = useState(0);
+    const [flipX, setFlipX] = useState(false);
+    const [flipY, setFlipY] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -44,6 +48,8 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
             setIndex(currentIndex);
             setScale(1);
             setRotation(0);
+            setFlipX(false);
+            setFlipY(false);
             setPosition({ x: 0, y: 0 });
         }
     }, [open, currentIndex]);
@@ -90,9 +96,23 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
         resetView();
     }, [images.length]);
 
+    useEffect(() => {
+        if (!open || images.length === 0) return;
+        const preload = (src: string) => {
+            const img = new Image();
+            img.src = src;
+        };
+        const next = images[(index + 1) % images.length];
+        const prev = images[(index - 1 + images.length) % images.length];
+        next && preload(next);
+        prev && preload(prev);
+    }, [open, index, images]);
+
     const resetView = () => {
         setScale(1);
         setRotation(0);
+        setFlipX(false);
+        setFlipY(false);
         setPosition({ x: 0, y: 0 });
     };
 
@@ -197,6 +217,24 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 text-white hover:bg-white/20"
+                                onClick={() => setFlipX((v) => !v)}
+                                title="水平翻转"
+                            >
+                                <FlipHorizontal className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-white hover:bg-white/20"
+                                onClick={() => setFlipY((v) => !v)}
+                                title="垂直翻转"
+                            >
+                                <FlipVertical className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-white hover:bg-white/20"
                                 onClick={resetView}
                             >
                                 {scale > 1 ? (
@@ -225,12 +263,13 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                         onMouseUp={handleMouseUp}
                         onMouseLeave={handleMouseUp}
                         onWheel={handleWheel}
+                        onDoubleClick={() => setScale((prev) => (prev > 1 ? 1 : Math.min(prev + 1, 5)))}
                         style={{ cursor: isDragging ? "grabbing" : scale > 1 ? "grab" : "default" }}
                     >
                         {images.length > 0 && (
                             <div
                                 style={{
-                                    transform: `translate(${position.x}px, ${position.y}px) scale(${scale}) rotate(${rotation}deg)`,
+                                    transform: `translate(${position.x}px, ${position.y}px) scale(${flipX ? -scale : scale}, ${flipY ? -scale : scale}) rotate(${rotation}deg)`,
                                     transition: isDragging ? "none" : "transform 0.2s ease",
                                 }}
                                 className="origin-center"
