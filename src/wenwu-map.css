@@ -1,0 +1,212 @@
+/* Marker 外观：渐变圆 + 脉冲光晕 + 微动效 */
+.custom-marker {
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+
+.marker-content {
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.35);
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+
+.marker-content:hover {
+  transform: translateY(-4px) scale(1.1);
+  box-shadow: 0 12px 28px rgba(139, 92, 246, 0.45);
+}
+
+/* 外圈脉冲光晕 */
+.marker-pulse {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.3), transparent 70%);
+  animation: marker-pulse 2s ease-out infinite;
+  z-index: 1;
+}
+
+@keyframes marker-pulse {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.marker-count {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+/* 建筑图标标记的容器 */
+.museum-marker {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  transform: translateZ(0);
+  filter: drop-shadow(0 4px 8px rgba(139, 92, 246, 0.3));
+  transition: transform 0.2s ease;
+}
+.museum-marker:hover {
+  transform: scale(1.1) translateY(-2px);
+}
+
+/* 聚类气泡 */
+.cluster-marker {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgba(139,92,246,0.9), rgba(59,130,246,0.9));
+  border: 3px solid #fff;
+  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+.cluster-marker:hover {
+  transform: scale(1.05);
+}
+.cluster-count {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* 自定义 InfoWindow：玻璃拟态卡片 + 小箭头 */
+.info-window {
+  position: relative;
+  min-width: 280px;
+  max-width: 340px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 1);
+  box-shadow: 0 20px 40px -10px rgba(2, 6, 23, 0.1), 0 0 0 1px rgba(2,6,23,0.05);
+  border-radius: 20px;
+  padding: 16px;
+  color: #334155;
+}
+
+.info-window::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  transform: translateX(-50%) rotate(45deg);
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-right: 1px solid rgba(2, 6, 23, 0.05);
+  border-bottom: 1px solid rgba(2, 6, 23, 0.05);
+}
+
+.info-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.info-icon {
+  font-size: 18px;
+  background: #f3f4f6;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+.info-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.3px;
+}
+
+.info-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0 12px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.chip-primary {
+  background: #eff6ff;
+  border-color: #dbeafe;
+  color: #3b82f6;
+}
+
+.artifact-list {
+  margin-top: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.artifact-list::-webkit-scrollbar { width: 4px; }
+.artifact-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.artifact-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 8px;
+  color: #475569;
+  transition: background 0.2s;
+}
+.artifact-item:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.artifact-item::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+.artifact-item:hover::before { background: #8b5cf6; }
+
+.more-items {
+  padding: 8px 8px 2px;
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+  text-align: center;
+}

@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github.css";
+import "./wenwu-map.css";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +43,8 @@ interface Artifact {
     excavationTime: string;
     collectionLocation: string;
     desc: string;
+    image?: string;
+    detail?: string;
 }
 
 // 位置坐标接口
@@ -75,6 +78,15 @@ const wenwuTypeIcons = Object.fromEntries(
         import.meta.glob("@/assets/wenwu-type/*.jpg", { eager: true, as: "url" })
     ).map(([p, url]) => [
         (p.split("/").pop() || "").replace(".jpg", ""),
+        url as string,
+    ])
+) as Record<string, string>;
+
+const artifactImages = Object.fromEntries(
+    Object.entries(
+        import.meta.glob("@/assets/195/*", { eager: true, as: "url" })
+    ).map(([p, url]) => [
+        (p.split("/").pop() || ""),
         url as string,
     ])
 ) as Record<string, string>;
@@ -238,8 +250,6 @@ const Wenwu: React.FC = () => {
     const [selectedEra, setSelectedEra] = useState<string>("all");
     const viewMode = "grid";
 
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 12;
 
     // 地图相关状态
     const [mapInstance, setMapInstance] = useState<any>(null);
@@ -1309,7 +1319,6 @@ const Wenwu: React.FC = () => {
         });
 
         setFilteredArtifacts(filtered);
-        setCurrentPage(1);
     }, [
         searchTerm,
         selectedBatch,
@@ -1320,15 +1329,6 @@ const Wenwu: React.FC = () => {
         currentProvince,
     ]);
 
-
-
-    // 分页逻辑
-    const paginatedArtifacts = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        return filteredArtifacts.slice(startIndex, startIndex + itemsPerPage);
-    }, [filteredArtifacts, currentPage]);
-
-    const totalPages = Math.ceil(filteredArtifacts.length / itemsPerPage);
 
     // 重置筛选
     const resetFilters = () => {
@@ -1407,7 +1407,7 @@ const Wenwu: React.FC = () => {
             <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/70 border-b border-slate-200/50 supports-[backdrop-filter]:bg-white/60">
                 <div className="max-w-[1800px] mx-auto px-4 h-auto lg:h-20 py-3 lg:py-0 flex flex-col lg:flex-row items-center justify-between gap-4">
                     <div className="flex items-center justify-between w-full lg:w-auto">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                             <div className="w-8 h-8 overflow-hidden shadow-lg shadow-blue-500/20">
                                 <img
                                     src={historyIcon}
@@ -1415,7 +1415,7 @@ const Wenwu: React.FC = () => {
                                     className="w-full h-full object-cover"
                                 />
                             </div>
-                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 font-serif tracking-tight">
+                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 font-serif tracking-tight whitespace-nowrap">
                                 禁止出境展览文物
                             </h1>
                         </div>
@@ -1487,7 +1487,7 @@ const Wenwu: React.FC = () => {
                                             <SelectItem key={t} value={t}>
                                                 <div className="flex items-center gap-2">
                                                     {wenwuTypeIcons[t] && (
-                                                        <img src={wenwuTypeIcons[t]} alt={t} className="w-4 h-4 rounded-sm" />
+                                                        <img src={wenwuTypeIcons[t]} alt={t} className="w-5 h-5 rounded-sm" />
                                                     )}
                                                     <span>{t}</span>
                                                 </div>
@@ -1654,7 +1654,7 @@ const Wenwu: React.FC = () => {
                                                     >
                                                         <div className="flex items-center gap-2">
                                                             {wenwuTypeIcons[t] && (
-                                                                <img src={wenwuTypeIcons[t]} alt={t} className="w-4 h-4 rounded-sm" />
+                                                                <img src={wenwuTypeIcons[t]} alt={t} className="w-5 h-5 rounded-sm" />
                                                             )}
                                                             <span>{t}</span>
                                                         </div>
@@ -1750,7 +1750,7 @@ const Wenwu: React.FC = () => {
                                 : "space-y-4"
                         }
                     >
-                        {paginatedArtifacts.length === 0 ? (
+                        {filteredArtifacts.length === 0 ? (
                             <div className="col-span-full flex flex-col items-center justify-center py-20 text-center space-y-4">
                                 <div className="w-32 h-32 rounded-full bg-slate-100 overflow-hidden shadow-inner">
                                     <img
@@ -1783,7 +1783,7 @@ const Wenwu: React.FC = () => {
                                 </Button>
                             </div>
                         ) : (
-                            paginatedArtifacts.map((artifact) => (
+                            filteredArtifacts.map((artifact) => (
                                 <Dialog key={artifact.id}>
                                     <DialogTrigger asChild>
                                         <div
@@ -1798,30 +1798,18 @@ const Wenwu: React.FC = () => {
                                         `}
                                         >
                                             <div
-                                                className={`p-5 ${
-                                                    viewMode === "list"
-                                                        ? "flex-1"
-                                                        : ""
-                                                }`}
+                                                className="p-5"
                                             >
                                                 <div className="flex justify-between items-start mb-3">
                                                     <div className="flex gap-2">
                                                         <span
-                                                            className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                                                                artifact.batch ===
-                                                                "第一批"
-                                                                    ? "bg-red-50 text-red-600"
-                                                                    : artifact.batch ===
-                                                                      "第二批"
-                                                                    ? "bg-blue-50 text-blue-600"
-                                                                    : "bg-green-50 text-green-600"
-                                                            }`}
+                                                            className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-white text-slate-700 border border-slate-200"
                                                         >
                                                             {artifact.batch}
                                                         </span>
-                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium flex items-center gap-1">
+                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-700 font-medium flex items-center gap-1">
                                                             {wenwuTypeIcons[artifact.type] && (
-                                                                <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-3.5 h-3.5 rounded-sm" />
+                                                                <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-5 h-5 rounded-sm" />
                                                             )}
                                                             {artifact.type}
                                                         </span>
@@ -1879,25 +1867,36 @@ const Wenwu: React.FC = () => {
                                             <div className="flex gap-2 mt-2">
                                                 <Badge
                                                     variant="outline"
-                                                    className="rounded-full px-3 font-normal"
+                                                    className="rounded-full px-3 font-normal bg-white border border-slate-200 text-slate-700"
                                                 >
                                                     {artifact.era}
                                                 </Badge>
                                                 <Badge
                                                     variant="secondary"
-                                                    className="rounded-full px-3 bg-slate-100 text-slate-600 font-normal hover:bg-slate-200"
+                                                    className="rounded-full px-3 bg-white border border-slate-200 text-slate-700 font-normal"
                                                 >
                                                     <span className="flex items-center gap-2">
                                                         {wenwuTypeIcons[artifact.type] && (
-                                                            <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-4 h-4 rounded-sm" />
+                                                            <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-5 h-5 rounded-sm" />
                                                         )}
                                                         <span>{artifact.type}</span>
                                                     </span>
                                                 </Badge>
                                             </div>
                                         </DialogHeader>
-                                        <ScrollArea className="max-h-[60vh] px-2">
+                                        <ScrollArea className="max-h-[70vh] px-2 md:px-0">
                                             <div className="space-y-6 py-4">
+                                                {artifact.image && artifactImages[artifact.image.split("/").pop() || ""] && (
+                                                    <div className="rounded-2xl border border-slate-100 bg-white p-3">
+                                                        <div className="w-full h-[280px] md:h-[380px] overflow-hidden rounded-xl bg-slate-50">
+                                                            <img
+                                                                src={artifactImages[artifact.image.split("/").pop() || ""]}
+                                                                alt={artifact.name}
+                                                                className="w-full h-full object-contain"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <div className="bg-slate-50 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
                                                     <div className="space-y-1">
                                                         <span className="text-xs text-slate-400 flex items-center gap-1">
@@ -1942,7 +1941,9 @@ const Wenwu: React.FC = () => {
                                                     <div className="prose prose-sm prose-slate max-w-none bg-white p-1">
                                                         <MarkdownContent
                                                             content={
-                                                                artifact.desc
+                                                                artifact.detail && artifact.detail.trim()
+                                                                    ? artifact.detail
+                                                                    : artifact.desc
                                                             }
                                                         />
                                                     </div>
@@ -1955,38 +1956,6 @@ const Wenwu: React.FC = () => {
                         )}
                     </div>
 
-                    {/* 分页 (Minimal) */}
-                    {totalPages > 1 && (
-                        <div className="flex justify-center items-center gap-2 pt-6 pb-8">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                    setCurrentPage((p) => Math.max(1, p - 1))
-                                }
-                                disabled={currentPage === 1}
-                                className="rounded-full border-slate-200 px-4 hover:bg-white hover:text-violet-600"
-                            >
-                                上一页
-                            </Button>
-                            <span className="text-sm font-medium text-slate-500 font-mono px-2">
-                                {currentPage} / {totalPages}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                    setCurrentPage((p) =>
-                                        Math.min(totalPages, p + 1)
-                                    )
-                                }
-                                disabled={currentPage === totalPages}
-                                className="rounded-full border-slate-200 px-4 hover:bg-white hover:text-violet-600"
-                            >
-                                下一页
-                            </Button>
-                        </div>
-                    )}
                 </div>
 
                 {/* 右侧栏：地图 (5 Columns) */}
@@ -2021,227 +1990,8 @@ const Wenwu: React.FC = () => {
                 </div>
             </main>
 
-            {/* 地图标记样式 */}
-            <style>
-                {`
-        /* Marker 外观：渐变圆 + 脉冲光晕 + 微动效 */
-        .custom-marker {
-          position: relative;
-          width: 36px;
-          height: 36px;
-        }
 
-        .marker-content {
-          position: relative;
-          z-index: 2;
-          background: linear-gradient(135deg, #8b5cf6, #3b82f6); /* Violet to Blue */
-          border: 3px solid #ffffff;
-          border-radius: 50%;
-          width: 36px;
-          height: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 8px 20px rgba(139, 92, 246, 0.35);
-          cursor: pointer;
-          transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
-        }
 
-        .marker-content:hover {
-          transform: translateY(-4px) scale(1.1);
-          box-shadow: 0 12px 28px rgba(139, 92, 246, 0.45);
-        }
-
-        /* 外圈脉冲光晕 */
-        .marker-pulse {
-          content: "";
-          position: absolute;
-          inset: -4px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(139, 92, 246, 0.3), transparent 70%);
-          animation: marker-pulse 2s ease-out infinite;
-          z-index: 1;
-        }
-
-        @keyframes marker-pulse {
-          0% { transform: scale(0.8); opacity: 0.8; }
-          100% { transform: scale(2); opacity: 0; }
-        }
-
-        .marker-count {
-          color: #ffffff;
-          font-size: 13px;
-          font-weight: 800;
-          letter-spacing: -0.5px;
-        }
-
-        /* 建筑图标标记的容器 */
-        .museum-marker {
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          pointer-events: auto;
-          transform: translateZ(0);
-          filter: drop-shadow(0 4px 8px rgba(139, 92, 246, 0.3));
-          transition: transform 0.2s ease;
-        }
-        .museum-marker:hover {
-            transform: scale(1.1) translateY(-2px);
-        }
-
-        /* 聚类气泡 */
-        .cluster-marker {
-          width: 44px;
-          height: 44px;
-          border-radius: 9999px;
-          background: linear-gradient(135deg, rgba(139,92,246,0.9), rgba(59,130,246,0.9));
-          border: 3px solid #fff;
-          box-shadow: 0 10px 25px rgba(139, 92, 246, 0.25);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: transform 0.2s;
-        }
-        .cluster-marker:hover {
-            transform: scale(1.05);
-        }
-        .cluster-count {
-          color: #fff;
-          font-size: 14px;
-          font-weight: 700;
-        }
-
-        /* 自定义 InfoWindow：玻璃拟态卡片 + 小箭头 */
-        .info-window {
-          position: relative;
-          min-width: 280px;
-          max-width: 340px;
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 1);
-          box-shadow: 0 20px 40px -10px rgba(2, 6, 23, 0.1), 0 0 0 1px rgba(2,6,23,0.05);
-          border-radius: 20px;
-          padding: 16px;
-          color: #334155;
-        }
-
-        .info-window::after {
-          content: "";
-          position: absolute;
-          left: 50%;
-          bottom: -8px;
-          transform: translateX(-50%) rotate(45deg);
-          width: 16px;
-          height: 16px;
-          background: #fff;
-          border-right: 1px solid rgba(2, 6, 23, 0.05);
-          border-bottom: 1px solid rgba(2, 6, 23, 0.05);
-        }
-
-        .info-header {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-bottom: 10px;
-        }
-
-        .info-icon {
-          font-size: 18px;
-          background: #f3f4f6;
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 10px;
-        }
-
-        .info-title {
-          margin: 0;
-          font-size: 16px;
-          font-weight: 700;
-          color: #1e293b;
-          letter-spacing: -0.3px;
-        }
-
-        .info-stats {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          margin: 10px 0 12px;
-        }
-
-        .chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          border-radius: 8px;
-          padding: 4px 10px;
-          font-size: 11px;
-          font-weight: 600;
-          border: 1px solid #e2e8f0;
-          background: #f8fafc;
-          color: #64748b;
-        }
-
-        .chip-primary {
-          background: #eff6ff;
-          border-color: #dbeafe;
-          color: #3b82f6;
-        }
-
-        .artifact-list {
-          margin-top: 8px;
-          max-height: 300px;
-          overflow-y: auto;
-          padding-right: 4px;
-        }
-
-        .artifact-list::-webkit-scrollbar {
-            width: 4px;
-        }
-        .artifact-list::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
-
-        .artifact-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 6px 8px;
-          font-size: 13px;
-          border-radius: 8px;
-          color: #475569;
-          transition: background 0.2s;
-        }
-        .artifact-item:hover {
-            background: #f1f5f9;
-            color: #334155;
-        }
-
-        .artifact-item::before {
-          content: "";
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #cbd5e1;
-        }
-        .artifact-item:hover::before {
-            background: #8b5cf6;
-        }
-
-        .more-items {
-          padding: 8px 8px 2px;
-          font-size: 12px;
-          color: #94a3b8;
-          font-style: italic;
-          text-align: center;
-        }
-                `}
-            </style>
         </div>
     );
 };
