@@ -3,13 +3,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github.css";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,12 +22,9 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
     Search,
     Filter,
-    Grid,
-    List,
     MapPin,
     Calendar,
     Landmark,
@@ -74,6 +64,90 @@ declare global {
 import artifactsData from "./195.json";
 
 // 在文件末尾添加 Markdown 样式组件
+// 导入图片资源
+import historyIcon from "@/assets/history/split_002.jpg";
+const historyImages = Object.values(
+    import.meta.glob("@/assets/history/split_*.jpg", { eager: true, as: "url" })
+);
+
+const wenwuTypeIcons = Object.fromEntries(
+    Object.entries(
+        import.meta.glob("@/assets/wenwu-type/*.jpg", { eager: true, as: "url" })
+    ).map(([p, url]) => [
+        (p.split("/").pop() || "").replace(".jpg", ""),
+        url as string,
+    ])
+) as Record<string, string>;
+
+// Helper component for highlighting text safely
+const HighlightText: React.FC<{
+    text: string;
+    highlight: string;
+    contextLength?: number;
+}> = ({ text, highlight, contextLength }) => {
+    if (!text) return null;
+    if (!highlight || !highlight.trim()) {
+        // If contextLength is set but no highlight, just truncate start if needed (or full text if contextLength not set)
+        // For standard behavior without highlight, we might just return the full text and let CSS truncate
+        if (contextLength && text.length > contextLength * 2) {
+            return <span>{text.slice(0, contextLength * 2)}...</span>;
+        }
+        return <>{text}</>;
+    }
+    try {
+        const escapedHighlight = highlight.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+        );
+        const regex = new RegExp(`(${escapedHighlight})`, "gi");
+        let displayText = text;
+        let matchIndex = -1;
+
+        if (contextLength) {
+            // Find first match
+            const match = regex.exec(text);
+            if (match) {
+                matchIndex = match.index;
+                const start = Math.max(0, matchIndex - contextLength);
+                const end = Math.min(
+                    text.length,
+                    matchIndex + match[0].length + contextLength
+                );
+                displayText =
+                    (start > 0 ? "..." : "") +
+                    text.slice(start, end) +
+                    (end < text.length ? "..." : "");
+            } else {
+                // No match found (weird if filtered), fallback to start
+                if (text.length > contextLength * 2) {
+                    displayText = text.slice(0, contextLength * 2) + "...";
+                }
+            }
+        }
+
+        const parts = displayText.split(regex);
+        return (
+            <span>
+                {parts.map((part, i) =>
+                    regex.test(part) ? (
+                        <span
+                            key={i}
+                            className="bg-yellow-200 text-slate-900 rounded-[2px] px-0.5 box-decoration-clone"
+                        >
+                            {part}
+                        </span>
+                    ) : (
+                        <span key={i}>{part}</span>
+                    )
+                )}
+            </span>
+        );
+    } catch (error) {
+        console.error("Highlighting error:", error);
+        return <>{text}</>;
+    }
+};
+
 const MarkdownContent: React.FC<{ content: string; className?: string }> = ({
     content,
     className = "",
@@ -162,7 +236,7 @@ const Wenwu: React.FC = () => {
     const [selectedType, setSelectedType] = useState<string>("all");
     const [selectedCollection, setSelectedCollection] = useState<string>("all");
     const [selectedEra, setSelectedEra] = useState<string>("all");
-    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+    const viewMode = "grid";
 
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 12;
@@ -197,51 +271,61 @@ const Wenwu: React.FC = () => {
 
     // 工具常量与函数：省份归属判断支持
     const PROVINCE_MUSEUM_KEYWORDS: Record<string, string[]> = {
-      北京: ['故宫博物院', '中国国家博物馆', '首都博物馆', '中国国家图书馆'],
-      上海: ['上海博物馆', '上海市历史博物馆'],
-      天津: ['天津博物馆'],
-      重庆: ['重庆中国三峡博物馆', '重庆博物馆'],
+        北京: ["故宫博物院", "中国国家博物馆", "首都博物馆", "中国国家图书馆"],
+        上海: ["上海博物馆", "上海市历史博物馆"],
+        天津: ["天津博物馆"],
+        重庆: ["重庆中国三峡博物馆", "重庆博物馆"],
 
-      河南: ['河南博物院', '二里头夏都博物馆', '郑州博物馆'],
-      湖北: ['湖北省博物馆'],
-      陕西: ['陕西历史博物馆', '秦始皇帝陵博物院', '西安博物院', '西安碑林博物馆'],
-      浙江: ['浙江省博物馆', '杭州市博物馆', '临安博物馆'],
-      江苏: ['南京博物院', '南京市博物馆', '苏州博物馆', '扬州博物馆'],
-      山东: ['山东博物馆', '淄博博物馆'],
-      湖南: ['湖南省博物馆', '岳麓书院'],
-      河北: ['河北博物院', '定州市博物馆'],
-      甘肃: ['甘肃省博物馆', '敦煌研究院'],
-      四川: ['成都金沙遗址博物馆', '广汉三星堆博物馆'],
-      辽宁: ['辽宁省博物馆'],
-      新疆: ['新疆维吾尔自治区博物馆'],
-      宁夏: ['宁夏文物考古研究所'],
-      青海: ['青海省文物考古研究所'],
-      山西: ['山西博物院', '山西古建筑博物馆', '北齐壁画博物馆'],
-      广东: ['西汉南越王博物馆'],
-      江西: ['江西省博物馆'],
-      安徽: ['安徽博物院', '安徽省文物考古研究所', '马鞍山市博物馆'],
+        河南: ["河南博物院", "二里头夏都博物馆", "郑州博物馆"],
+        湖北: ["湖北省博物馆"],
+        陕西: [
+            "陕西历史博物馆",
+            "秦始皇帝陵博物院",
+            "西安博物院",
+            "西安碑林博物馆",
+        ],
+        浙江: ["浙江省博物馆", "杭州市博物馆", "临安博物馆"],
+        江苏: ["南京博物院", "南京市博物馆", "苏州博物馆", "扬州博物馆"],
+        山东: ["山东博物馆", "淄博博物馆"],
+        湖南: ["湖南省博物馆", "岳麓书院"],
+        河北: ["河北博物院", "定州市博物馆"],
+        甘肃: ["甘肃省博物馆", "敦煌研究院"],
+        四川: ["成都金沙遗址博物馆", "广汉三星堆博物馆"],
+        辽宁: ["辽宁省博物馆"],
+        新疆: ["新疆维吾尔自治区博物馆"],
+        宁夏: ["宁夏文物考古研究所"],
+        青海: ["青海省文物考古研究所"],
+        山西: ["山西博物院", "山西古建筑博物馆", "北齐壁画博物馆"],
+        广东: ["西汉南越王博物馆"],
+        江西: ["江西省博物馆"],
+        安徽: ["安徽博物院", "安徽省文物考古研究所", "马鞍山市博物馆"],
     };
 
-    const normalizeProvince = (name: string) => (name || '').replace(/(省|市|自治区|特别行政区)$/,'');
+    const normalizeProvince = (name: string) =>
+        (name || "").replace(/(省|市|自治区|特别行政区)$/, "");
 
     const belongsToProvince = (
-      item: { collectionLocation: string; excavationLocation: string },
-      provinceRaw: string
+        item: { collectionLocation: string; excavationLocation: string },
+        provinceRaw: string
     ) => {
-      if (!provinceRaw) return true;
-      const province = normalizeProvince(provinceRaw);
-      const candidates = [province, `${province}市`, `${province}省`];
+        if (!provinceRaw) return true;
+        const province = normalizeProvince(provinceRaw);
+        const candidates = [province, `${province}市`, `${province}省`];
 
-      const hitsText = (text?: string) => !!text && candidates.some((k) => text.includes(k));
+        const hitsText = (text?: string) =>
+            !!text && candidates.some((k) => text.includes(k));
 
-      // 1) collection/excavation 直接命中“北京/北京市/北京省”等
-      if (hitsText(item.collectionLocation) || hitsText(item.excavationLocation)) {
-        return true;
-      }
+        // 1) collection/excavation 直接命中“北京/北京市/北京省”等
+        if (
+            hitsText(item.collectionLocation) ||
+            hitsText(item.excavationLocation)
+        ) {
+            return true;
+        }
 
-      // 2) 命中该省常见藏馆关键字
-      const museums = PROVINCE_MUSEUM_KEYWORDS[province] || [];
-      return museums.some((m) => item.collectionLocation?.includes(m));
+        // 2) 命中该省常见藏馆关键字
+        const museums = PROVINCE_MUSEUM_KEYWORDS[province] || [];
+        return museums.some((m) => item.collectionLocation?.includes(m));
     };
 
     // 提取单个博物馆名称的函数（升级版：拆分/清洗/去括号/去冗余）
@@ -262,7 +346,9 @@ const Wenwu: React.FC = () => {
 
         for (const p of parts) {
             // 处理少数特殊描述
-            if (p === "原物为一对，一件藏于北京故宫博物院，另一件藏于河南博物院") {
+            if (
+                p === "原物为一对，一件藏于北京故宫博物院，另一件藏于河南博物院"
+            ) {
                 museums.add("故宫博物院");
                 museums.add("河南博物院");
                 continue;
@@ -460,7 +546,8 @@ const Wenwu: React.FC = () => {
                     });
                     ds.search("中国", (status: string, result: any) => {
                         if (status !== "complete") return;
-                        const provinces = result?.districtList?.[0]?.districtList || [];
+                        const provinces =
+                            result?.districtList?.[0]?.districtList || [];
                         provinces.forEach((prov: any) => {
                             const sub = new window.AMap.DistrictSearch({
                                 level: "province",
@@ -482,11 +569,22 @@ const Wenwu: React.FC = () => {
                                         bubble: true,
                                         cursor: "pointer",
                                     });
-                                    poly.on("mouseover", () => poly.setOptions({ fillOpacity: 0.08, strokeColor: "#60a5fa" }));
-                                    poly.on("mouseout", () => poly.setOptions({ fillOpacity: 0, strokeColor: "#cbd5e1" }));
+                                    poly.on("mouseover", () =>
+                                        poly.setOptions({
+                                            fillOpacity: 0.08,
+                                            strokeColor: "#60a5fa",
+                                        })
+                                    );
+                                    poly.on("mouseout", () =>
+                                        poly.setOptions({
+                                            fillOpacity: 0,
+                                            strokeColor: "#cbd5e1",
+                                        })
+                                    );
                                     polygons.push(poly);
                                 });
-                                provincePolygonsRef.current[prov.adcode] = polygons;
+                                provincePolygonsRef.current[prov.adcode] =
+                                    polygons;
                                 polygons.forEach((pg) => pg.setMap(mapIns));
                             });
                         });
@@ -497,41 +595,73 @@ const Wenwu: React.FC = () => {
             // 新增：自动定位到当前省，并过滤仅当前省数据 + 视野适配到省范围
             const autoLocateAndFilterProvince = (mapIns: any) => {
                 if (!window.AMap || hasAutoLocatedRef.current) return;
-                window.AMap.plugin(["AMap.Geolocation", "AMap.Geocoder", "AMap.DistrictSearch"], () => {
-                    const geolocation = new window.AMap.Geolocation({
-                        enableHighAccuracy: true,
-                        timeout: 5000,
-                    });
-                    geolocation.getCurrentPosition((status: string, result: any) => {
-                        if (status !== "complete") return;
-                        const pos = result.position;
-                        const geocoder = new window.AMap.Geocoder({});
-                        geocoder.getAddress(pos, (s: string, res: any) => {
-                            if (s !== "complete") return;
-                            const addr = res?.regeocode?.addressComponent;
-                            const provinceName = addr?.province || addr?.city || addr?.district || "";
-                            if (!provinceName) return;
-
-                            hasAutoLocatedRef.current = true;
-                            setCurrentProvince(provinceName);
-
-                            const ds = new window.AMap.DistrictSearch({
-                                level: "province",
-                                extensions: "all",
-                            });
-                            ds.search(provinceName, (st2: string, res2: any) => {
-                                if (st2 !== "complete") return;
-                                const d2 = res2?.districtList?.[0];
-                                const boundaries = d2?.boundaries || [];
-                                if (boundaries.length) {
-                                    const tempPoly = new window.AMap.Polygon({ path: boundaries[0] });
-                                    mapIns.setFitView([tempPoly]);
-                                    tempPoly.setMap(null as any);
-                                }
-                            });
+                window.AMap.plugin(
+                    [
+                        "AMap.Geolocation",
+                        "AMap.Geocoder",
+                        "AMap.DistrictSearch",
+                    ],
+                    () => {
+                        const geolocation = new window.AMap.Geolocation({
+                            enableHighAccuracy: true,
+                            timeout: 5000,
                         });
-                    });
-                });
+                        geolocation.getCurrentPosition(
+                            (status: string, result: any) => {
+                                if (status !== "complete") return;
+                                const pos = result.position;
+                                const geocoder = new window.AMap.Geocoder({});
+                                geocoder.getAddress(
+                                    pos,
+                                    (s: string, res: any) => {
+                                        if (s !== "complete") return;
+                                        const addr =
+                                            res?.regeocode?.addressComponent;
+                                        const provinceName =
+                                            addr?.province ||
+                                            addr?.city ||
+                                            addr?.district ||
+                                            "";
+                                        if (!provinceName) return;
+
+                                        hasAutoLocatedRef.current = true;
+                                        setCurrentProvince(provinceName);
+
+                                        const ds =
+                                            new window.AMap.DistrictSearch({
+                                                level: "province",
+                                                extensions: "all",
+                                            });
+                                        ds.search(
+                                            provinceName,
+                                            (st2: string, res2: any) => {
+                                                if (st2 !== "complete") return;
+                                                const d2 =
+                                                    res2?.districtList?.[0];
+                                                const boundaries =
+                                                    d2?.boundaries || [];
+                                                if (boundaries.length) {
+                                                    const tempPoly =
+                                                        new window.AMap.Polygon(
+                                                            {
+                                                                path: boundaries[0],
+                                                            }
+                                                        );
+                                                    mapIns.setFitView([
+                                                        tempPoly,
+                                                    ]);
+                                                    tempPoly.setMap(
+                                                        null as any
+                                                    );
+                                                }
+                                            }
+                                        );
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
             };
 
             // 调用增强功能（受开关控制）
@@ -588,20 +718,82 @@ const Wenwu: React.FC = () => {
 
     // 常见省份/直辖市/城市关键词（覆盖常见馆）
     const COMMON_REGIONS = [
-        '北京','上海','天津','重庆',
-        '河南','郑州','山西','太原','陕西','西安','山东','济南','青岛',
-        '江苏','南京','苏州','无锡','浙江','杭州','宁波','绍兴','温州',
-        '广东','广州','深圳','佛山','东莞',
-        '湖北','武汉','湖南','长沙',
-        '四川','成都','江西','南昌','福建','福州','厦门',
-        '安徽','合肥','河北','石家庄','辽宁','沈阳','大连','吉林','长春','黑龙江','哈尔滨',
-        '云南','昆明','贵州','贵阳','甘肃','兰州','青海','西宁','宁夏','银川','新疆','乌鲁木齐',
-        '海南','海口','广西','南宁','内蒙古','呼和浩特','西藏','拉萨',
-        '香港','澳门','台湾'
+        "北京",
+        "上海",
+        "天津",
+        "重庆",
+        "河南",
+        "郑州",
+        "山西",
+        "太原",
+        "陕西",
+        "西安",
+        "山东",
+        "济南",
+        "青岛",
+        "江苏",
+        "南京",
+        "苏州",
+        "无锡",
+        "浙江",
+        "杭州",
+        "宁波",
+        "绍兴",
+        "温州",
+        "广东",
+        "广州",
+        "深圳",
+        "佛山",
+        "东莞",
+        "湖北",
+        "武汉",
+        "湖南",
+        "长沙",
+        "四川",
+        "成都",
+        "江西",
+        "南昌",
+        "福建",
+        "福州",
+        "厦门",
+        "安徽",
+        "合肥",
+        "河北",
+        "石家庄",
+        "辽宁",
+        "沈阳",
+        "大连",
+        "吉林",
+        "长春",
+        "黑龙江",
+        "哈尔滨",
+        "云南",
+        "昆明",
+        "贵州",
+        "贵阳",
+        "甘肃",
+        "兰州",
+        "青海",
+        "西宁",
+        "宁夏",
+        "银川",
+        "新疆",
+        "乌鲁木齐",
+        "海南",
+        "海口",
+        "广西",
+        "南宁",
+        "内蒙古",
+        "呼和浩特",
+        "西藏",
+        "拉萨",
+        "香港",
+        "澳门",
+        "台湾",
     ];
 
     const deduceCityFromName = (name: string): string | null => {
-        const s = (name || '').trim();
+        const s = (name || "").trim();
         for (const region of COMMON_REGIONS) {
             if (s.includes(region)) return region;
         }
@@ -609,55 +801,67 @@ const Wenwu: React.FC = () => {
     };
 
     const normalizeForCompare = (s: string) =>
-        (s || '').replace(/\\s+/g, '').replace(/博物院/g, '博物馆').toLowerCase();
+        (s || "")
+            .replace(/\\s+/g, "")
+            .replace(/博物院/g, "博物馆")
+            .toLowerCase();
 
-    const EXCLUDED_KEYWORDS = ['地铁', '站', '停车场', '酒店', '商场', '商店', '餐厅', '写字楼'];
+    const EXCLUDED_KEYWORDS = [
+        "地铁",
+        "站",
+        "停车场",
+        "酒店",
+        "商场",
+        "商店",
+        "餐厅",
+        "写字楼",
+    ];
 
     // 预置常见博物馆坐标，减少 API 调用，大幅提升加载性能
     const PRESET_LOCATIONS: Record<string, [number, number]> = {
-        "故宫博物院": [116.397026, 39.918058],
-        "中国国家博物馆": [116.403406, 39.905075],
-        "上海博物馆": [121.474699, 31.228778],
-        "南京博物院": [118.821526, 32.042354],
-        "陕西历史博物馆": [108.959727, 34.222281],
-        "河南博物院": [113.663221, 34.784457],
-        "浙江省博物馆": [120.146502, 30.254199], // 孤山馆区
-        "湖北省博物馆": [114.362402, 30.563198],
-        "湖南省博物馆": [112.991463, 28.215475],
-        "天津博物馆": [117.214397, 39.082675],
-        "首都博物馆": [116.339958, 39.906774],
-        "山西博物院": [112.531931, 37.869944],
-        "四川博物院": [104.030938, 30.659864],
-        "重庆中国三峡博物馆": [106.551875, 29.564386],
-        "安徽博物院": [117.232649, 31.815952],
-        "甘肃省博物馆": [103.768076, 36.068656],
-        "辽宁省博物馆": [123.461219, 41.693729],
-        "秦始皇帝陵博物院": [109.278551, 34.384759],
-        "三星堆博物馆": [104.207856, 30.993968],
-        "金沙遗址博物馆": [104.011848, 30.682394],
-        "广东省博物馆": [113.325455, 23.118278],
-        "江西省博物馆": [115.883312, 28.679387],
-        "云南省博物馆": [102.718338, 24.946835],
-        "福建博物院": [119.282125, 26.092699],
-        "贵州省博物馆": [106.645835, 26.647133],
-        "海南省博物馆": [110.368224, 20.019504],
-        "内蒙古博物院": [111.718608, 40.843268],
-        "广西民族博物馆": [108.390754, 22.779707],
-        "西藏博物馆": [91.106262, 29.652897],
-        "宁夏博物馆": [106.235461, 38.494632],
-        "新疆维吾尔自治区博物馆": [87.587737, 43.807708],
-        "青海省博物馆": [101.765253, 36.632229],
-        "黑龙江省博物馆": [126.642556, 45.756956],
-        "吉林省博物院": [125.406878, 43.794565],
-        "苏州博物馆": [120.625196, 31.323743],
-        "扬州博物馆": [119.396884, 32.393614],
+        故宫博物院: [116.397026, 39.918058],
+        中国国家博物馆: [116.403406, 39.905075],
+        上海博物馆: [121.474699, 31.228778],
+        南京博物院: [118.821526, 32.042354],
+        陕西历史博物馆: [108.959727, 34.222281],
+        河南博物院: [113.663221, 34.784457],
+        浙江省博物馆: [120.146502, 30.254199], // 孤山馆区
+        湖北省博物馆: [114.362402, 30.563198],
+        湖南省博物馆: [112.991463, 28.215475],
+        天津博物馆: [117.214397, 39.082675],
+        首都博物馆: [116.339958, 39.906774],
+        山西博物院: [112.531931, 37.869944],
+        四川博物院: [104.030938, 30.659864],
+        重庆中国三峡博物馆: [106.551875, 29.564386],
+        安徽博物院: [117.232649, 31.815952],
+        甘肃省博物馆: [103.768076, 36.068656],
+        辽宁省博物馆: [123.461219, 41.693729],
+        秦始皇帝陵博物院: [109.278551, 34.384759],
+        三星堆博物馆: [104.207856, 30.993968],
+        金沙遗址博物馆: [104.011848, 30.682394],
+        广东省博物馆: [113.325455, 23.118278],
+        江西省博物馆: [115.883312, 28.679387],
+        云南省博物馆: [102.718338, 24.946835],
+        福建博物院: [119.282125, 26.092699],
+        贵州省博物馆: [106.645835, 26.647133],
+        海南省博物馆: [110.368224, 20.019504],
+        内蒙古博物院: [111.718608, 40.843268],
+        广西民族博物馆: [108.390754, 22.779707],
+        西藏博物馆: [91.106262, 29.652897],
+        宁夏博物馆: [106.235461, 38.494632],
+        新疆维吾尔自治区博物馆: [87.587737, 43.807708],
+        青海省博物馆: [101.765253, 36.632229],
+        黑龙江省博物馆: [126.642556, 45.756956],
+        吉林省博物院: [125.406878, 43.794565],
+        苏州博物馆: [120.625196, 31.323743],
+        扬州博物馆: [119.396884, 32.393614],
     };
 
     const scorePoi = (poi: any, query: string, cityHint?: string) => {
-        const name = poi?.name || '';
-        const type = poi?.type || '';
-        const cityname = poi?.cityname || '';
-        const adname = poi?.adname || '';
+        const name = poi?.name || "";
+        const type = poi?.type || "";
+        const cityname = poi?.cityname || "";
+        const adname = poi?.adname || "";
 
         // 负向过滤（明显不是馆）
         for (const k of EXCLUDED_KEYWORDS) {
@@ -671,9 +875,12 @@ const Wenwu: React.FC = () => {
         if (pn === qn) score += 100;
         else if (pn.includes(qn) || qn.includes(pn)) score += 60;
 
-        if (type.includes('博物馆') || type.includes('博物院')) score += 40;
+        if (type.includes("博物馆") || type.includes("博物院")) score += 40;
 
-        if (cityHint && (cityname.includes(cityHint) || adname.includes(cityHint))) {
+        if (
+            cityHint &&
+            (cityname.includes(cityHint) || adname.includes(cityHint))
+        ) {
             score += 25;
         }
 
@@ -690,13 +897,14 @@ const Wenwu: React.FC = () => {
         if (!window.AMap || !window.AMap.PlaceSearch) return null;
 
         const query = normalizeMuseumQuery(name);
-        const cityHint = deduceCityFromName(query) || deduceCityFromName(name) || null;
+        const cityHint =
+            deduceCityFromName(query) || deduceCityFromName(name) || null;
 
         return new Promise((resolve) => {
             const placeSearch = new window.AMap.PlaceSearch({
                 city: cityHint || "全国",
-                citylimit: !!cityHint,      // 有城市线索时收紧范围
-                pageSize: 5,               // 拿更多候选以便挑选最优
+                citylimit: !!cityHint, // 有城市线索时收紧范围
+                pageSize: 5, // 拿更多候选以便挑选最优
                 pageIndex: 1,
                 extensions: "all",
             });
@@ -750,7 +958,7 @@ const Wenwu: React.FC = () => {
             };
             // 同时也写入缓存，保持逻辑一致
             if (!locationCache.has(cacheKey)) {
-                 setLocationCache((prev) => {
+                setLocationCache((prev) => {
                     const next = new Map(prev);
                     next.set(cacheKey, coordinate);
                     return next;
@@ -815,7 +1023,9 @@ const Wenwu: React.FC = () => {
         // 开始新一轮渲染：记录本轮批次，并关闭当前 InfoWindow
         geocodeRunIdRef.current += 1;
         const runId = geocodeRunIdRef.current;
-        try { infoWindowRef.current?.close(); } catch {}
+        try {
+            infoWindowRef.current?.close();
+        } catch {}
 
         const markers: any[] = [];
         const coordinates: [number, number][] = [];
@@ -864,66 +1074,81 @@ const Wenwu: React.FC = () => {
                     });
 
                     const scheduleClose = () => {
-                      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-                      hoverTimerRef.current = window.setTimeout(() => {
-                        try { infoWindowRef.current?.close(); } catch {}
-                      }, 120);
+                        if (hoverTimerRef.current)
+                            clearTimeout(hoverTimerRef.current);
+                        hoverTimerRef.current = window.setTimeout(() => {
+                            try {
+                                infoWindowRef.current?.close();
+                            } catch {}
+                        }, 120);
                     };
 
                     const openInfo = () => {
-                      if (hoverTimerRef.current) {
-                        clearTimeout(hoverTimerRef.current);
-                        hoverTimerRef.current = null;
-                      }
-                      const html = `
+                        if (hoverTimerRef.current) {
+                            clearTimeout(hoverTimerRef.current);
+                            hoverTimerRef.current = null;
+                        }
+                        const html = `
                         <div class="info-window">
                           <div class="info-header">
                             <span class="info-icon">🏛️</span>
                             <h4 class="info-title">${museum}</h4>
                           </div>
                           <div class="info-stats">
-                            <span class="chip chip-primary">当前显示 ${museumArtifacts.length}</span>
-                            <span class="chip">馆藏总数 ${allMuseumArtifacts.length}</span>
+                            <span class="chip chip-primary">当前显示 ${
+                                museumArtifacts.length
+                            }</span>
+                            <span class="chip">馆藏总数 ${
+                                allMuseumArtifacts.length
+                            }</span>
                           </div>
                           <div class="artifact-list">
                             ${museumArtifacts
-                              .map((artifact) => `<div class="artifact-item">${artifact.name}</div>`)
-                              .join("")}
+                                .map(
+                                    (artifact) =>
+                                        `<div class="artifact-item">${artifact.name}</div>`
+                                )
+                                .join("")}
                           </div>
                         </div>
                       `;
-                      if (!infoWindowRef.current) {
-                        infoWindowRef.current = new window.AMap.InfoWindow({
-                          isCustom: true,
-                          offset: new window.AMap.Pixel(0, -12),
-                          autoMove: true, // 自动调整地图视野以显示 InfoWindow
-                          closeWhenClickMap: true, // 点击地图关闭
-                        });
-                      }
-                      infoWindowRef.current.setContent(html);
-                      infoWindowRef.current.open(mapInstance, marker.getPosition());
-
-                      // 重新绑定 Hover 保持逻辑（针对 InfoWindow 自身）
-                      setTimeout(() => {
-                        const panel = document.querySelector(".info-window") as HTMLElement | null;
-                        if (panel) {
-                          panel.onmouseenter = () => {
-                            if (hoverTimerRef.current) {
-                              clearTimeout(hoverTimerRef.current);
-                              hoverTimerRef.current = null;
-                            }
-                          };
-                          panel.onmouseleave = () => {
-                             // 只有在非点击锁定模式下才自动关闭（此处简化处理：桌面端 Hover 离开仍关闭，但允许点击锁定）
-                             // 为了更好的体验，我们统一策略：
-                             // 1. Hover Marker -> 打开
-                             // 2. Hover InfoWindow -> 保持
-                             // 3. MouseOut both -> 延时关闭
-                             // 4. Click Marker -> 打开并清除延时（“锁定”效果需配合状态，这里简单处理为重新打开）
-                             scheduleClose();
-                          };
+                        if (!infoWindowRef.current) {
+                            infoWindowRef.current = new window.AMap.InfoWindow({
+                                isCustom: true,
+                                offset: new window.AMap.Pixel(0, -12),
+                                autoMove: true, // 自动调整地图视野以显示 InfoWindow
+                                closeWhenClickMap: true, // 点击地图关闭
+                            });
                         }
-                      }, 0);
+                        infoWindowRef.current.setContent(html);
+                        infoWindowRef.current.open(
+                            mapInstance,
+                            marker.getPosition()
+                        );
+
+                        // 重新绑定 Hover 保持逻辑（针对 InfoWindow 自身）
+                        setTimeout(() => {
+                            const panel = document.querySelector(
+                                ".info-window"
+                            ) as HTMLElement | null;
+                            if (panel) {
+                                panel.onmouseenter = () => {
+                                    if (hoverTimerRef.current) {
+                                        clearTimeout(hoverTimerRef.current);
+                                        hoverTimerRef.current = null;
+                                    }
+                                };
+                                panel.onmouseleave = () => {
+                                    // 只有在非点击锁定模式下才自动关闭（此处简化处理：桌面端 Hover 离开仍关闭，但允许点击锁定）
+                                    // 为了更好的体验，我们统一策略：
+                                    // 1. Hover Marker -> 打开
+                                    // 2. Hover InfoWindow -> 保持
+                                    // 3. MouseOut both -> 延时关闭
+                                    // 4. Click Marker -> 打开并清除延时（“锁定”效果需配合状态，这里简单处理为重新打开）
+                                    scheduleClose();
+                                };
+                            }
+                        }, 0);
                     };
 
                     // 桌面端 Hover 交互
@@ -950,19 +1175,25 @@ const Wenwu: React.FC = () => {
 
         // 使用 MarkerClusterer 管理标记（严格覆盖为“当前筛选”的集合）
         if (!clustererRef.current) {
-            clustererRef.current = new window.AMap.MarkerClusterer(mapInstance, markers, {
-                gridSize: 80,
-                maxZoom: 15, // 放大到 15 级以上时不聚合
-                averageCenter: true,
-                renderClusterMarker: (context: any) => {
-                    const count = context.count;
-                    const div = document.createElement("div");
-                    div.className = "cluster-marker";
-                    div.innerHTML = `<span class="cluster-count">${count}</span>`;
-                    context.marker.setOffset(new window.AMap.Pixel(-20, -20));
-                    context.marker.setContent(div);
-                },
-            });
+            clustererRef.current = new window.AMap.MarkerClusterer(
+                mapInstance,
+                markers,
+                {
+                    gridSize: 80,
+                    maxZoom: 15, // 放大到 15 级以上时不聚合
+                    averageCenter: true,
+                    renderClusterMarker: (context: any) => {
+                        const count = context.count;
+                        const div = document.createElement("div");
+                        div.className = "cluster-marker";
+                        div.innerHTML = `<span class="cluster-count">${count}</span>`;
+                        context.marker.setOffset(
+                            new window.AMap.Pixel(-20, -20)
+                        );
+                        context.marker.setContent(div);
+                    },
+                }
+            );
         } else {
             clustererRef.current.clearMarkers();
             clustererRef.current.addMarkers(markers);
@@ -991,7 +1222,9 @@ const Wenwu: React.FC = () => {
 
     // 筛选变化时，主动关闭 InfoWindow，避免残留与误导
     useEffect(() => {
-        try { infoWindowRef.current?.close(); } catch {}
+        try {
+            infoWindowRef.current?.close();
+        } catch {}
     }, [filteredArtifacts]);
 
     // 地图与窗口/容器尺寸的清理（卸载时触发）
@@ -1002,7 +1235,9 @@ const Wenwu: React.FC = () => {
                     (mapInstance as any).__wm_cleanup__();
                 } catch {}
             }
-            try { infoWindowRef.current?.close(); } catch {}
+            try {
+                infoWindowRef.current?.close();
+            } catch {}
             infoWindowRef.current = null;
         };
     }, [mapInstance]);
@@ -1054,8 +1289,24 @@ const Wenwu: React.FC = () => {
 
         // 仅显示当前省（若已自动定位）
         if (currentProvince) {
-            filtered = filtered.filter((item) => belongsToProvince(item, currentProvince));
+            filtered = filtered.filter((item) =>
+                belongsToProvince(item, currentProvince)
+            );
         }
+
+        // 排序：批次顺序（第一批 -> 第二批 -> 第三批） -> ID
+        const batchOrder: Record<string, number> = {
+            第一批: 1,
+            第二批: 2,
+            第三批: 3,
+        };
+
+        filtered.sort((a, b) => {
+            const orderA = batchOrder[a.batch] || 99;
+            const orderB = batchOrder[b.batch] || 99;
+            if (orderA !== orderB) return orderA - orderB;
+            return a.id - b.id;
+        });
 
         setFilteredArtifacts(filtered);
         setCurrentPage(1);
@@ -1068,6 +1319,8 @@ const Wenwu: React.FC = () => {
         selectedEra,
         currentProvince,
     ]);
+
+
 
     // 分页逻辑
     const paginatedArtifacts = useMemo(() => {
@@ -1146,6 +1399,8 @@ const Wenwu: React.FC = () => {
         );
     };
 
+    console.log(types,eras);
+
     return (
         <div className="min-h-screen bg-[#f8fafc] text-slate-600 font-sans selection:bg-violet-200 selection:text-violet-900">
             {/* 顶部导航栏 */}
@@ -1153,21 +1408,18 @@ const Wenwu: React.FC = () => {
                 <div className="max-w-[1800px] mx-auto px-4 h-auto lg:h-20 py-3 lg:py-0 flex flex-col lg:flex-row items-center justify-between gap-4">
                     <div className="flex items-center justify-between w-full lg:w-auto">
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/20">
-                                195
+                            <div className="w-8 h-8 overflow-hidden shadow-lg shadow-blue-500/20">
+                                <img
+                                    src={historyIcon}
+                                    alt="Icon"
+                                    className="w-full h-full object-cover"
+                                />
                             </div>
                             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 font-serif tracking-tight">
-                                禁止出境文物
+                                禁止出境展览文物
                             </h1>
                         </div>
-                         <Button
-                            variant="ghost"
-                            size="icon"
-                            className="lg:hidden rounded-full hover:bg-slate-100 text-slate-500"
-                            onClick={() => window.open('https://github.com/leizhenpeng/my-watermark', '_blank')}
-                        >
-                            <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-                        </Button>
+
                     </div>
 
                     {/* 居中搜索框 + 筛选 (Desktop: Row, Mobile: Search only) */}
@@ -1187,48 +1439,149 @@ const Wenwu: React.FC = () => {
 
                         {/* Desktop Filters */}
                         <div className="hidden lg:flex items-center gap-2">
-                             <Select value={selectedBatch} onValueChange={setSelectedBatch}>
-                                <SelectTrigger className="w-[110px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs">
-                                    <SelectValue placeholder="批次" />
-                                </SelectTrigger>
-                                <SelectContent><SelectItem value="all">全部批次</SelectItem>{batches.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                            </Select>
-                             <Select value={selectedType} onValueChange={setSelectedType}>
-                                <SelectTrigger className="w-[110px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs">
-                                    <SelectValue placeholder="类别" />
-                                </SelectTrigger>
-                                <SelectContent><SelectItem value="all">全部类别</SelectItem>{types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                            </Select>
-                             <Select value={selectedEra} onValueChange={setSelectedEra}>
-                                <SelectTrigger className="w-[110px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs">
-                                    <SelectValue placeholder="时代" />
-                                </SelectTrigger>
-                                <SelectContent><SelectItem value="all">全部时代</SelectItem>{eras.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
-                            </Select>
-                             <Select value={selectedCollection} onValueChange={setSelectedCollection}>
-                                <SelectTrigger className="w-[110px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs">
-                                    <SelectValue placeholder="馆藏" />
-                                </SelectTrigger>
-                                <SelectContent><SelectItem value="all">全部馆藏</SelectItem>{collections.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-                            </Select>
-                             <Button variant="ghost" size="icon" onClick={resetFilters} className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100" title="重置">
+                            <div className="relative">
+                                <Select
+                                    value={selectedBatch}
+                                    onValueChange={setSelectedBatch}
+                                >
+                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs pr-16">
+                                        <SelectValue placeholder="批次" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            全部批次
+                                        </SelectItem>
+                                        {batches.map((b) => (
+                                            <SelectItem key={b} value={b}>
+                                                {b}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {selectedBatch !== "all" && (
+                                    <div
+                                        className="absolute right-10 top-1/2 -translate-y-1/2 cursor-pointer p-1 hover:bg-slate-200 rounded-full z-10"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedBatch("all");
+                                        }}
+                                    >
+                                        <X className="w-3 h-3 text-slate-400" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="relative">
+                                <Select
+                                    value={selectedType}
+                                    onValueChange={setSelectedType}
+                                >
+                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs pr-16">
+                                        <SelectValue placeholder="类别" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            全部类别
+                                        </SelectItem>
+                                        {types.map((t) => (
+                                            <SelectItem key={t} value={t}>
+                                                <div className="flex items-center gap-2">
+                                                    {wenwuTypeIcons[t] && (
+                                                        <img src={wenwuTypeIcons[t]} alt={t} className="w-4 h-4 rounded-sm" />
+                                                    )}
+                                                    <span>{t}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {selectedType !== "all" && (
+                                    <div
+                                        className="absolute right-10 top-1/2 -translate-y-1/2 cursor-pointer p-1 hover:bg-slate-200 rounded-full z-10"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedType("all");
+                                        }}
+                                    >
+                                        <X className="w-3 h-3 text-slate-400" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="relative">
+                                <Select
+                                    value={selectedEra}
+                                    onValueChange={setSelectedEra}
+                                >
+                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs pr-16">
+                                        <SelectValue placeholder="时代" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            全部时代
+                                        </SelectItem>
+                                        {eras.map((e) => (
+                                            <SelectItem key={e} value={e}>
+                                                {e}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {selectedEra !== "all" && (
+                                    <div
+                                        className="absolute right-10 top-1/2 -translate-y-1/2 cursor-pointer p-1 hover:bg-slate-200 rounded-full z-10"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedEra("all");
+                                        }}
+                                    >
+                                        <X className="w-3 h-3 text-slate-400" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="relative">
+                                <Select
+                                    value={selectedCollection}
+                                    onValueChange={setSelectedCollection}
+                                >
+                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs pr-16">
+                                        <SelectValue placeholder="馆藏" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            全部馆藏
+                                        </SelectItem>
+                                        {collections.map((c) => (
+                                            <SelectItem key={c} value={c}>
+                                                {c}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {selectedCollection !== "all" && (
+                                    <div
+                                        className="absolute right-10 top-1/2 -translate-y-1/2 cursor-pointer p-1 hover:bg-slate-200 rounded-full z-10"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedCollection("all");
+                                        }}
+                                    >
+                                        <X className="w-3 h-3 text-slate-400" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={resetFilters}
+                                className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                                title="重置"
+                            >
                                 <X className="w-3.5 h-3.5" />
                             </Button>
                         </div>
-                    </div>
-
-                    <div className="hidden lg:flex items-center gap-3">
-                         <div className="flex items-center text-xs font-medium text-slate-500 bg-slate-100/50 px-3 py-1.5 rounded-full border border-slate-200/50">
-                            <span className="text-violet-600 font-bold mr-1">{filteredArtifacts.length}</span> 件
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-full hover:bg-slate-100 text-slate-500"
-                            onClick={() => window.open('https://github.com/leizhenpeng/my-watermark', '_blank')}
-                        >
-                            <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-                        </Button>
                     </div>
                 </div>
             </header>
@@ -1238,9 +1591,12 @@ const Wenwu: React.FC = () => {
                 <div className="lg:col-span-7 space-y-4">
                     {/* 移动端筛选折叠器 (Visible on mobile only) */}
                     <div className="lg:hidden mb-4">
-                         <Dialog>
+                        <Dialog>
                             <DialogTrigger asChild>
-                                <Button variant="outline" className="w-full rounded-xl border-slate-200 shadow-sm">
+                                <Button
+                                    variant="outline"
+                                    className="w-full rounded-xl border-slate-200 shadow-sm"
+                                >
                                     <Filter className="w-4 h-4 mr-2" /> 筛选条件
                                 </Button>
                             </DialogTrigger>
@@ -1249,59 +1605,122 @@ const Wenwu: React.FC = () => {
                                     <DialogTitle>筛选文物</DialogTitle>
                                 </DialogHeader>
                                 <div className="space-y-4 py-4">
-                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 ml-1">批次</label>
-                                        <Select value={selectedBatch} onValueChange={setSelectedBatch}>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-medium text-slate-500 ml-1">
+                                            批次
+                                        </label>
+                                        <Select
+                                            value={selectedBatch}
+                                            onValueChange={setSelectedBatch}
+                                        >
                                             <SelectTrigger className="w-full rounded-xl border-slate-200 shadow-sm">
                                                 <SelectValue placeholder="全部批次" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">全部批次</SelectItem>
-                                                {batches.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                                                <SelectItem value="all">
+                                                    全部批次
+                                                </SelectItem>
+                                                {batches.map((b) => (
+                                                    <SelectItem
+                                                        key={b}
+                                                        value={b}
+                                                    >
+                                                        {b}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
-                                     </div>
+                                    </div>
 
-                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 ml-1">类别</label>
-                                        <Select value={selectedType} onValueChange={setSelectedType}>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-medium text-slate-500 ml-1">
+                                            类别
+                                        </label>
+                                        <Select
+                                            value={selectedType}
+                                            onValueChange={setSelectedType}
+                                        >
                                             <SelectTrigger className="w-full rounded-xl border-slate-200 shadow-sm">
                                                 <SelectValue placeholder="全部类别" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">全部类别</SelectItem>
-                                                {types.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                                <SelectItem value="all">
+                                                    全部类别
+                                                </SelectItem>
+                                                {types.map((t) => (
+                                                    <SelectItem
+                                                        key={t}
+                                                        value={t}
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            {wenwuTypeIcons[t] && (
+                                                                <img src={wenwuTypeIcons[t]} alt={t} className="w-4 h-4 rounded-sm" />
+                                                            )}
+                                                            <span>{t}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
-                                     </div>
+                                    </div>
 
-                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 ml-1">时代</label>
-                                        <Select value={selectedEra} onValueChange={setSelectedEra}>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-medium text-slate-500 ml-1">
+                                            时代
+                                        </label>
+                                        <Select
+                                            value={selectedEra}
+                                            onValueChange={setSelectedEra}
+                                        >
                                             <SelectTrigger className="w-full rounded-xl border-slate-200 shadow-sm">
                                                 <SelectValue placeholder="全部时代" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">全部时代</SelectItem>
-                                                {eras.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                                                <SelectItem value="all">
+                                                    全部时代
+                                                </SelectItem>
+                                                {eras.map((e) => (
+                                                    <SelectItem
+                                                        key={e}
+                                                        value={e}
+                                                    >
+                                                        {e}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
-                                     </div>
+                                    </div>
 
-                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 ml-1">馆藏</label>
-                                        <Select value={selectedCollection} onValueChange={setSelectedCollection}>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-medium text-slate-500 ml-1">
+                                            馆藏
+                                        </label>
+                                        <Select
+                                            value={selectedCollection}
+                                            onValueChange={
+                                                setSelectedCollection
+                                            }
+                                        >
                                             <SelectTrigger className="w-full rounded-xl border-slate-200 shadow-sm">
                                                 <SelectValue placeholder="全部馆藏" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">全部馆藏</SelectItem>
-                                                {collections.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                                <SelectItem value="all">
+                                                    全部馆藏
+                                                </SelectItem>
+                                                {collections.map((c) => (
+                                                    <SelectItem
+                                                        key={c}
+                                                        value={c}
+                                                    >
+                                                        {c}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
-                                     </div>
+                                    </div>
 
-                                     <Button
+                                    <Button
                                         variant="outline"
                                         onClick={() => {
                                             resetFilters();
@@ -1313,119 +1732,227 @@ const Wenwu: React.FC = () => {
                                     </Button>
                                 </div>
                             </DialogContent>
-                         </Dialog>
+                        </Dialog>
                     </div>
 
                     {/* 视图切换与状态 */}
-                    <div className="flex justify-between items-center px-1">
+                    <div className="flex items-center px-1">
                         <div className="text-sm text-slate-500">
                             共 {filteredArtifacts.length} 个结果
-                        </div>
-                        <div className="bg-slate-100 p-1 rounded-lg flex gap-1">
-                            <button
-                                onClick={() => setViewMode("grid")}
-                                className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                                <Grid className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={() => setViewMode("list")}
-                                className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                                <List className="w-4 h-4" />
-                            </button>
                         </div>
                     </div>
 
                     {/* 文物列表 */}
-                    <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" : "space-y-4"}>
-                        {paginatedArtifacts.map((artifact) => (
-                            <Dialog key={artifact.id}>
-                                <DialogTrigger asChild>
-                                    <div
-                                        className={`
+                    <div
+                        className={
+                            viewMode === "grid"
+                                ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+                                : "space-y-4"
+                        }
+                    >
+                        {paginatedArtifacts.length === 0 ? (
+                            <div className="col-span-full flex flex-col items-center justify-center py-20 text-center space-y-4">
+                                <div className="w-32 h-32 rounded-full bg-slate-100 overflow-hidden shadow-inner">
+                                    <img
+                                        src={
+                                            historyImages[
+                                                Math.floor(
+                                                    Math.random() *
+                                                        historyImages.length
+                                                )
+                                            ]
+                                        }
+                                        alt="No results"
+                                        className="w-full h-full object-cover opacity-60 grayscale hover:grayscale-0 transition-all duration-500"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-medium text-slate-900">
+                                        暂无相关文物
+                                    </h3>
+                                    <p className="text-sm text-slate-500">
+                                        换个搜索词试试看吧
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    onClick={resetFilters}
+                                    className="mt-4"
+                                >
+                                    重置筛选
+                                </Button>
+                            </div>
+                        ) : (
+                            paginatedArtifacts.map((artifact) => (
+                                <Dialog key={artifact.id}>
+                                    <DialogTrigger asChild>
+                                        <div
+                                            className={`
                                             group cursor-pointer bg-white rounded-2xl transition-all duration-300
                                             border border-slate-100 hover:border-violet-100
-                                            ${viewMode === 'grid'
-                                                ? 'hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]'
-                                                : 'flex gap-4 p-4 hover:bg-slate-50 shadow-sm hover:shadow-md'
+                                            ${
+                                                viewMode === "grid"
+                                                    ? "hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]"
+                                                    : "flex gap-4 p-4 hover:bg-slate-50 shadow-sm hover:shadow-md"
                                             }
                                         `}
-                                    >
-                                        <div className={`p-5 ${viewMode === 'list' ? 'flex-1' : ''}`}>
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div className="flex gap-2">
-                                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${artifact.batch === '第一批' ? 'bg-red-50 text-red-600' : artifact.batch === '第二批' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
-                                                        {artifact.batch}
-                                                     </span>
-                                                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
-                                                        {artifact.type}
-                                                     </span>
+                                        >
+                                            <div
+                                                className={`p-5 ${
+                                                    viewMode === "list"
+                                                        ? "flex-1"
+                                                        : ""
+                                                }`}
+                                            >
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div className="flex gap-2">
+                                                        <span
+                                                            className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                                                artifact.batch ===
+                                                                "第一批"
+                                                                    ? "bg-red-50 text-red-600"
+                                                                    : artifact.batch ===
+                                                                      "第二批"
+                                                                    ? "bg-blue-50 text-blue-600"
+                                                                    : "bg-green-50 text-green-600"
+                                                            }`}
+                                                        >
+                                                            {artifact.batch}
+                                                        </span>
+                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium flex items-center gap-1">
+                                                            {wenwuTypeIcons[artifact.type] && (
+                                                                <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-3.5 h-3.5 rounded-sm" />
+                                                            )}
+                                                            {artifact.type}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <h3 className="text-lg font-bold text-slate-800 mb-2 font-serif group-hover:text-violet-700 transition-colors line-clamp-1">
+                                                    <HighlightText
+                                                        text={artifact.name}
+                                                        highlight={searchTerm}
+                                                    />
+                                                </h3>
+
+                                                <div className="text-xs text-slate-500 mb-4 line-clamp-2 leading-relaxed">
+                                                    {searchTerm ? (
+                                                        <HighlightText
+                                                            text={artifact.desc}
+                                                            highlight={
+                                                                searchTerm
+                                                            }
+                                                            contextLength={40}
+                                                        />
+                                                    ) : (
+                                                        <MarkdownContent
+                                                            content={
+                                                                artifact.desc
+                                                            }
+                                                            className="[&>p]:mb-0 text-slate-500"
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-50">
+                                                    <div className="flex items-center gap-1">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {artifact.era}
+                                                    </div>
+                                                    <div className="flex items-center gap-1 max-w-[50%]">
+                                                        <Landmark className="w-3 h-3 shrink-0" />
+                                                        <span className="truncate">
+                                                            {
+                                                                artifact.collectionLocation
+                                                            }
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
-
-                                            <h3 className="text-lg font-bold text-slate-800 mb-2 font-serif group-hover:text-violet-700 transition-colors line-clamp-1">
+                                        </div>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-2xl max-h-[85vh] rounded-3xl border-none shadow-2xl">
+                                        <DialogHeader className="px-2">
+                                            <DialogTitle className="text-2xl font-serif text-slate-800">
                                                 {artifact.name}
-                                            </h3>
-
-                                            <div className="text-xs text-slate-500 mb-4 line-clamp-2 leading-relaxed">
-                                                <MarkdownContent content={artifact.desc} className="[&>p]:mb-0 text-slate-500" />
-                                            </div>
-
-                                            <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-50">
-                                                <div className="flex items-center gap-1">
-                                                    <Calendar className="w-3 h-3" />
+                                            </DialogTitle>
+                                            <div className="flex gap-2 mt-2">
+                                                <Badge
+                                                    variant="outline"
+                                                    className="rounded-full px-3 font-normal"
+                                                >
                                                     {artifact.era}
-                                                </div>
-                                                <div className="flex items-center gap-1 max-w-[50%]">
-                                                    <Landmark className="w-3 h-3 shrink-0" />
-                                                    <span className="truncate">{artifact.collectionLocation}</span>
-                                                </div>
+                                                </Badge>
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="rounded-full px-3 bg-slate-100 text-slate-600 font-normal hover:bg-slate-200"
+                                                >
+                                                    <span className="flex items-center gap-2">
+                                                        {wenwuTypeIcons[artifact.type] && (
+                                                            <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-4 h-4 rounded-sm" />
+                                                        )}
+                                                        <span>{artifact.type}</span>
+                                                    </span>
+                                                </Badge>
                                             </div>
-                                        </div>
-                                    </div>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl max-h-[85vh] rounded-3xl border-none shadow-2xl">
-                                    <DialogHeader className="px-2">
-                                        <DialogTitle className="text-2xl font-serif text-slate-800">
-                                            {artifact.name}
-                                        </DialogTitle>
-                                        <div className="flex gap-2 mt-2">
-                                            <Badge variant="outline" className="rounded-full px-3 font-normal">{artifact.era}</Badge>
-                                            <Badge variant="secondary" className="rounded-full px-3 bg-slate-100 text-slate-600 font-normal hover:bg-slate-200">{artifact.type}</Badge>
-                                        </div>
-                                    </DialogHeader>
-                                    <ScrollArea className="max-h-[60vh] px-2">
-                                        <div className="space-y-6 py-4">
-                                            <div className="bg-slate-50 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-1">
-                                                    <span className="text-xs text-slate-400 flex items-center gap-1"><MapPin className="w-3 h-3"/> 出土</span>
-                                                    <p className="font-medium text-slate-700">{artifact.excavationLocation}</p>
+                                        </DialogHeader>
+                                        <ScrollArea className="max-h-[60vh] px-2">
+                                            <div className="space-y-6 py-4">
+                                                <div className="bg-slate-50 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="space-y-1">
+                                                        <span className="text-xs text-slate-400 flex items-center gap-1">
+                                                            <MapPin className="w-3 h-3" />{" "}
+                                                            出土
+                                                        </span>
+                                                        <p className="font-medium text-slate-700">
+                                                            {
+                                                                artifact.excavationLocation
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <span className="text-xs text-slate-400 flex items-center gap-1">
+                                                            <Calendar className="w-3 h-3" />{" "}
+                                                            时间
+                                                        </span>
+                                                        <p className="font-medium text-slate-700">
+                                                            {
+                                                                artifact.excavationTime
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                    <div className="md:col-span-2 space-y-1">
+                                                        <span className="text-xs text-slate-400 flex items-center gap-1">
+                                                            <Landmark className="w-3 h-3" />{" "}
+                                                            馆藏
+                                                        </span>
+                                                        <p className="font-medium text-slate-700">
+                                                            {
+                                                                artifact.collectionLocation
+                                                            }
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-1">
-                                                    <span className="text-xs text-slate-400 flex items-center gap-1"><Calendar className="w-3 h-3"/> 时间</span>
-                                                    <p className="font-medium text-slate-700">{artifact.excavationTime}</p>
-                                                </div>
-                                                <div className="md:col-span-2 space-y-1">
-                                                    <span className="text-xs text-slate-400 flex items-center gap-1"><Landmark className="w-3 h-3"/> 馆藏</span>
-                                                    <p className="font-medium text-slate-700">{artifact.collectionLocation}</p>
-                                                </div>
-                                            </div>
 
-                                            <div>
-                                                <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                                    <span className="w-1 h-4 bg-violet-500 rounded-full"></span>
-                                                    文物描述
-                                                </h4>
-                                                <div className="prose prose-sm prose-slate max-w-none bg-white p-1">
-                                                    <MarkdownContent content={artifact.desc} />
+                                                <div>
+                                                    <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                                        <span className="w-1 h-4 bg-violet-500 rounded-full"></span>
+                                                        文物描述
+                                                    </h4>
+                                                    <div className="prose prose-sm prose-slate max-w-none bg-white p-1">
+                                                        <MarkdownContent
+                                                            content={
+                                                                artifact.desc
+                                                            }
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </ScrollArea>
-                                </DialogContent>
-                            </Dialog>
-                        ))}
+                                        </ScrollArea>
+                                    </DialogContent>
+                                </Dialog>
+                            ))
+                        )}
                     </div>
 
                     {/* 分页 (Minimal) */}
@@ -1434,7 +1961,9 @@ const Wenwu: React.FC = () => {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                onClick={() =>
+                                    setCurrentPage((p) => Math.max(1, p - 1))
+                                }
                                 disabled={currentPage === 1}
                                 className="rounded-full border-slate-200 px-4 hover:bg-white hover:text-violet-600"
                             >
@@ -1446,7 +1975,11 @@ const Wenwu: React.FC = () => {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                onClick={() =>
+                                    setCurrentPage((p) =>
+                                        Math.min(totalPages, p + 1)
+                                    )
+                                }
                                 disabled={currentPage === totalPages}
                                 className="rounded-full border-slate-200 px-4 hover:bg-white hover:text-violet-600"
                             >
@@ -1459,20 +1992,22 @@ const Wenwu: React.FC = () => {
                 {/* 右侧栏：地图 (5 Columns) */}
                 <div className="lg:col-span-5 mt-6 lg:mt-0">
                     <div className="lg:sticky lg:top-24">
-                         <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden h-[500px] lg:h-[calc(100vh-8rem)] lg:min-h-[500px] relative group">
-                             {/* 地图标题浮层 */}
-                             <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50">
-                                 <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                     <MapPin className="w-4 h-4 text-violet-500" />
-                                     博物馆分布
-                                 </h3>
-                             </div>
+                        <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden h-[500px] lg:h-[calc(100vh-8rem)] lg:min-h-[500px] relative group">
+                            {/* 地图标题浮层 */}
+                            <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50">
+                                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <MapPin className="w-4 h-4 text-violet-500" />
+                                    博物馆分布
+                                </h3>
+                            </div>
 
                             {isLoadingMap ? (
                                 <div className="w-full h-full flex items-center justify-center bg-slate-50">
                                     <div className="flex flex-col items-center gap-3">
                                         <div className="w-8 h-8 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
-                                        <span className="text-xs text-slate-400">加载地图资源...</span>
+                                        <span className="text-xs text-slate-400">
+                                            加载地图资源...
+                                        </span>
                                     </div>
                                 </div>
                             ) : (
@@ -1481,7 +2016,7 @@ const Wenwu: React.FC = () => {
                                     className="w-full h-full bg-slate-50 transition-opacity duration-500"
                                 />
                             )}
-                         </div>
+                        </div>
                     </div>
                 </div>
             </main>
