@@ -31,7 +31,7 @@ import BatchImageCompressor from "./BatchImageCompressor";
 import GooglePhoto from "./GooglePhoto";
 import ImageSplitter from "./ImageSplitter";
 import Calendar from "./Calendar";
-
+import { Toaster } from "sonner";
 
 
 const routeItems = [
@@ -239,6 +239,7 @@ const App = () => {
                         </Routes>
                     </div>
                     <FloatingButtons />
+                    <Toaster position="top-center" richColors />
                 </BrowserRouter>
             </div>
         </ThemeProvider>

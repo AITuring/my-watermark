@@ -9,15 +9,14 @@ import {
 } from "react";
 import { useDropzone } from "react-dropzone";
 import imageCompression from "browser-image-compression";
-import {
-    message,
-    Button,
-    Tooltip,
-    Select,
-    Spin,
-    InputNumber,
-    Image,
-} from "antd";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { toast } from "sonner";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Icon } from "@iconify/react";
 import {
     closestCenter,
@@ -43,6 +42,8 @@ import PhotoAlbum, { Photo } from "react-photo-album";
 import "react-photo-album/styles.css";
 import html2canvas from "html2canvas";
 import "./puzzle.css";
+import ImagePreview from "./ImagePreview";
+
 
 interface AspectRatio {
     width: number;
@@ -68,6 +69,8 @@ interface SortablePhoto extends Photo {
 type SortablePhotoProps = {
     photo: SortablePhoto;
     imageProps: any;
+    index?: number;
+    onPreview?: (index: number) => void;
     wrapperStyle?: React.CSSProperties;
 };
 
@@ -80,6 +83,8 @@ type PhotoFrameProps = SortablePhotoProps & {
     onDelete?: (id: UniqueIdentifier) => void;
     margin?: number;
     radius?: number;
+    onPreview?: (index: number) => void;
+    index?: number;
 };
 interface ImgProp {
     id: string;
@@ -105,6 +110,8 @@ const PhotoFrame = memo(
             onDelete,
             margin,
             radius,
+            onPreview,
+            index,
         } = props;
         const { alt, style, ...restImageProps } = imageProps;
 
@@ -133,7 +140,7 @@ const PhotoFrame = memo(
                 {...listeners}
             >
                 <div className="relative w-full h-full">
-                    <Image
+                    <img
                         alt={alt}
                         style={{
                             ...style,
@@ -142,48 +149,47 @@ const PhotoFrame = memo(
                             padding: 0,
                             margin: 0,
                             borderRadius: radius || 0,
-                            // TODO 导出图片无法带这个阴影，想做后期还得研究
-                            // boxShadow:
-                            //     margin > 0
-                            //         ? "0px 3px 3px -2px rgb(0 0 0 / 20%), 0px 3px 4px 0px rgb(0 0 0 / 24%), 0px 1px 8px 0px rgb(0 0 0 / 22%)"
-                            //         : "none",
-                        }}
-                        preview={{
-                            maskClassName:
-                                "group-hover:opacity-100 opacity-0 transition-opacity duration-200",
-                            mask: (
-                                <div className="flex items-center justify-center">
-                                    <Icon
-                                        icon="ph:eye-bold"
-                                        className="w-5 h-5 mr-2"
-                                    />
-                                    预览
-                                </div>
-                            ),
+                            cursor: "zoom-in",
                         }}
                         {...restImageProps}
+                        onClick={() => {
+                            if (!overlay && onPreview) onPreview(index ?? 0)
+                        }}
                     />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                        <div className="flex items-center text-white">
+                            <Icon
+                                icon="ph:eye-bold"
+                                className="w-5 h-5 mr-2"
+                            />
+                            预览
+                        </div>
+                    </div>
                 </div>
 
-                {!overlay && ( // 拖拽时不显示删除按钮
+                {!overlay && (
                     <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                        <Tooltip title="删除">
-                            <Button
-                                shape="circle"
-                                size="small"
-                                className="absolute top-1 right-1"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDelete?.(photo.id);
-                                }}
-                                icon={
-                                    <Icon
-                                        icon="material-symbols:delete-outline-sharp"
-                                        className="w-3 h-3"
-                                    />
-                                }
-                            />
-                        </Tooltip>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="absolute top-1 right-1 w-6 h-6 p-0 rounded-full"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onDelete?.(photo.id);
+                                        }}
+                                    >
+                                        <Icon
+                                            icon="material-symbols:delete-outline-sharp"
+                                            className="w-3 h-3"
+                                        />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>删除</TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                 )}
             </div>
@@ -243,6 +249,7 @@ const Puzzle = () => {
     const [files, setFiles] = useState([]);
     const [images, setImages] = useState<ImgProp[]>([]);
     const [spinning, setSpinning] = useState<boolean>(false);
+
     const [isUpload, setIsUpload] = useState<boolean>(false);
     const [inputColumns, setInputColumns] = useState<number>(3);
     const [inputScale, setInputScale] = useState<number>(6);
@@ -261,6 +268,8 @@ const Puzzle = () => {
         height: number;
     }>({ width: 0, height: 0 });
     const renderedPhotos = useRef<{ [key: string]: SortablePhotoProps }>({});
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewIndex, setPreviewIndex] = useState(0);
     const [activeId, setActiveId] = useState<UniqueIdentifier>();
     // const [currentImageIndex, setCurrentImageIndex] = useState<number>();
     const activeIndex = activeId
@@ -349,6 +358,11 @@ const Puzzle = () => {
         const props: SortablePhotoProps = {
             photo: ctx?.photo,
             imageProps,
+            index: ctx?.index,
+            onPreview: (i: number) => {
+                setPreviewIndex(i ?? 0);
+                setPreviewOpen(true);
+            },
         };
         renderedPhotos.current[props.photo.id] = props;
         return (
@@ -365,10 +379,15 @@ const Puzzle = () => {
     const onDrop = useCallback(
         async (acceptedFiles) => {
             const oversizedFiles = acceptedFiles.filter(
-                (file) => file.size > 100 * 1024 * 1024
+                (file) => file.size > 200 * 1024 * 1024
             );
             if (oversizedFiles.length > 0) {
-                message.error("图片大小不能超过100MB");
+                toast.error(
+                    `以下图片大小超过 200MB，已被过滤: ${oversizedFiles
+                        .map((file) => file.name)
+                        .join(", ")}`,
+                    { position: "top-center" }
+                );
                 return;
             }
             setSpinning(true);
@@ -413,7 +432,7 @@ const Puzzle = () => {
                     setIsUpload(true);
                 }
             } catch (error) {
-                message.error(`图片处理失败: ${error.message}`);
+                toast.error(`图片处理失败: ${error.message}`, { position: "top-center" });
             } finally {
                 setSpinning(false);
             }
@@ -428,13 +447,13 @@ const Puzzle = () => {
         },
         maxSize: 100 * 1024 * 1024, // 100MB
         onDropRejected: () => {
-            message.error("图片大小不能超过100MB");
+            toast.error("图片大小不能超过200MB", { position: "top-center" });
         },
     });
 
     const downloadImage = async () => {
         if (files.length === 0) {
-            message.error("请选择图片");
+            toast.error("请选择图片", { position: "top-center" });
             return;
         }
         setSpinning(true);
@@ -551,7 +570,7 @@ const Puzzle = () => {
                         link.click();
                         URL.revokeObjectURL(url);
                         setSpinning(false);
-                        message.success("大图合成成功！");
+                        toast.success("大图合成成功！");
                     }
                 },
                 "image/jpeg",
@@ -560,7 +579,7 @@ const Puzzle = () => {
         } catch (error) {
             console.error("Export error:", error);
             setSpinning(false);
-            message.error("导出失败，请重试");
+            toast.error("导出失败，请重试", { position: "top-center" });
         }
     };
 
@@ -591,54 +610,7 @@ const Puzzle = () => {
     // 使用 useMemo 优化渲染的图片列表
     const memoizedPhotoAlbum = useMemo(
         () => (
-            <Image.PreviewGroup
-            // TODO 期待新增一个删除按钮，但还需要梳理一下
-            // preview={{
-            //     onChange: (current) => {
-
-            //     },
-            //     toolbarRender: (
-            //         _,
-            //         {
-            //             actions: {
-            //                 onFlipY,
-            //                 onFlipX,
-            //                 onRotateLeft,
-            //                 onRotateRight,
-            //                 onZoomOut,
-            //                 onZoomIn,
-            //             },
-            //         }
-            //     ) => (
-            //         <div className="flex items-center gpa-4 text-xl">
-            //             <Icon icon="ant-design:rotate-left-outlined" className="w-5 h-5 cursor-pointer" onClick={onRotateLeft} />
-            //             <Icon icon="ant-design:rotate-right-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onRotateRight} />
-            //             <Icon icon="ant-design:swap-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onFlipY} style={{ transform: 'rotate(90deg)'}} />
-            //             <Icon icon="ant-design:swap-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onFlipX} />
-            //             <Icon icon="ant-design:zoom-out-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onZoomOut} />
-            //             <Icon icon="ant-design:zoom-in-outlined" className="w-5 h-5 mx-2 cursor-pointer" onClick={onZoomIn} />
-            //             <Icon icon="ant-design:delete-outlined" className="w-5 h-5 cursor-pointer" onClick={() => {
-            //                 console.log(currentImageIndex);
-            //                 if (currentImageIndex !== undefined) {
-            //                     const newImages = [...images];
-            //                     newImages.splice(currentImageIndex, 1);
-            //                     setImages(newImages);
-            //                     setFiles(prev => {
-            //                         const newFiles = [...prev];
-            //                         newFiles.splice(currentImageIndex, 1);
-            //                         return newFiles;
-            //                     });
-            //                     // 如果删除的是最后一张图片，显示前一张
-            //                     if (currentImageIndex >= newImages.length) {
-            //                         setCurrentImageIndex(Math.max(newImages.length - 1, 0));
-            //                     }
-            //                 }
-            //             }} />
-
-            //         </div>
-            //     ),
-            // }}
-            >
+            <>
                 <PhotoAlbum
                     layout={layout}
                     photos={images}
@@ -650,7 +622,13 @@ const Puzzle = () => {
                         image: renderImage,
                     }}
                 />
-            </Image.PreviewGroup>
+                <ImagePreview
+                    images={images.map((img) => img.src)}
+                    currentIndex={previewIndex}
+                    open={previewOpen}
+                    onOpenChange={setPreviewOpen}
+                />
+            </>
         ),
         [
             layout,
@@ -660,6 +638,8 @@ const Puzzle = () => {
             renderContainer,
             renderImage,
             radius,
+            previewIndex,
+            previewOpen,
         ]
     );
 
@@ -819,98 +799,130 @@ const Puzzle = () => {
 
     return (
         <div className="h-[calc(100vh-56px)]">
+
             {spinning ? (
-                <Spin
-                    size="large"
-                    fullscreen
-                    indicator={
-                        <Icon
-                            icon="line-md:speedometer-loop"
-                            className=" text-white"
-                        />
-                    }
-                />
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="flex flex-col items-center">
+                        {/* <div className="w-10 h-10 border-4 border-t-white border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div> */}
+                        <Icon icon="line-md:speedometer-loop" className=" text-white mt-2" />
+                        <p className="mt-2 text-white">正在处理...</p>
+                    </div>
+                </div>
             ) : isUpload ? (
                 <div className="album">
-                    <div className="w-full">
-                        <div className="flex flex-wrap gap-4 justify-center">
-                            <div className="flex items-center gpa-4">
-                                <div>布局方式:</div>
-                                <Select
-                                    value={layout}
-                                    className="w-24 ml-4"
-                                    onChange={(value) =>
-                                        setLayout(
-                                            value as
-                                                | "rows"
-                                                | "masonry"
-                                                | "columns"
-                                        )
-                                    }
-                                    options={[
-                                        { value: "rows", label: "行" },
-                                        {
-                                            value: "columns",
-                                            label: "列",
-                                        },
-                                        {
-                                            value: "masonry",
-                                            label: "masonry",
-                                        },
-                                    ]}
-                                />
+                    <Card className="mx-auto max-w-5xl sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border rounded-lg">
+                        <CardHeader className="py-1 px-2 sm:py-2 sm:px-3">
+                            <CardTitle className="flex items-center gap-1 text-xs sm:text-sm">
+                                <Icon icon="tabler:settings" className="w-3 h-3 sm:w-4 sm:h-4" />
+                                拼图设置
+                                <Badge variant="outline" className="ml-auto text-[10px] sm:text-xs">{images.length} 张</Badge>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="py-1 px-2 sm:py-2 sm:px-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 sm:gap-2">
+                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
+                                <div className="text-xs sm:text-sm">布局方式:</div>
+                                <Select value={layout} onValueChange={(value) => setLayout(value as "rows" | "columns" | "masonry")}>
+                                    <SelectTrigger className="w-16 sm:w-20 ml-2 h-7 sm:h-8">
+                                        <SelectValue placeholder="布局方式" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="rows">行</SelectItem>
+                                        <SelectItem value="columns">列</SelectItem>
+                                        <SelectItem value="masonry">masonry</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                             {layout !== "rows" && (
-                                <div className="flex items-center gpa-4 my-4">
-                                    <div>图片列数:</div>
-                                    <InputNumber
-                                        className="w-16 ml-4"
+                                <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
+                                    <div className="text-xs sm:text-sm">图片列数:</div>
+                                    <Slider
+                                        className="w-24 sm:w-28 ml-2"
+                                        value={[typeof inputColumns === "number" ? inputColumns : 0]}
                                         min={0}
                                         max={15}
-                                        onChange={(value) =>
-                                            setInputColumns(value)
-                                        }
-                                        value={Number(inputColumns)}
+                                        step={1}
+                                        onValueChange={(value) => setInputColumns(value[0])}
+                                    />
+                                    <input
+                                        type="number"
+                                        className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
+                                        min={0}
+                                        max={15}
+                                        value={typeof inputColumns === "number" ? inputColumns : 0}
+                                        onChange={(e) => setInputColumns(Number(e.target.value))}
                                     />
                                 </div>
                             )}
-                            <div className="flex items-center gpa-4 my-4">
-                                <div>图片间距:</div>
-                                <InputNumber
-                                    className="w-16 ml-4"
+                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
+                                <div className="text-xs sm:text-sm">图片间距:</div>
+                                <Slider
+                                    className="w-24 sm:w-28 ml-2"
+                                    value={[margin]}
                                     min={0}
                                     max={50}
-                                    onChange={debouncedSetMargin}
-                                    value={Number(margin)}
+                                    step={1}
+                                    onValueChange={(value) => {
+                                        setMargin(value[0]);
+                                        debouncedSetMargin(value[0]);
+                                    }}
+                                />
+                                <input
+                                    type="number"
+                                    className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
+                                    min={0}
+                                    max={50}
+                                    value={margin}
+                                    onChange={(e) => {
+                                        const v = Number(e.target.value);
+                                        setMargin(v);
+                                        debouncedSetMargin(v);
+                                    }}
                                 />
                             </div>
                             {margin > 0 && (
-                                <div className="flex items-center gpa-4 my-4">
-                                    <div>图片圆角:</div>
-                                    <InputNumber
-                                        className="w-16 ml-4"
+                                <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
+                                    <div className="text-xs sm:text-sm">图片圆角:</div>
+                                    <Slider
+                                        className="w-24 sm:w-28 ml-2"
+                                        value={[radius]}
                                         min={0}
                                         max={50}
-                                        onChange={(value) => setRadius(value)}
-                                        value={Number(radius)}
+                                        step={1}
+                                        onValueChange={(value) => setRadius(value[0])}
+                                    />
+                                    <input
+                                        type="number"
+                                        className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
+                                        min={0}
+                                        max={50}
+                                        value={radius}
+                                        onChange={(e) => setRadius(Number(e.target.value))}
                                     />
                                 </div>
                             )}
-                            <div className="flex items-center gpa-4 my-4">
-                                <div>生成图片长宽比:</div>
-                                <Select
-                                    value={selectedRatio?.label}
-                                    className="w-24 ml-4"
-                                    onChange={handleRatioChange}
-                                    allowClear
-                                    placeholder="自适应"
-                                    options={aspectRatioOptions.map(
-                                        (ratio) => ({
-                                            value: ratio.label,
-                                            label: ratio.label,
-                                        })
-                                    )}
-                                />
+                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
+                                <div className="text-xs sm:text-sm">生成图片长宽比:</div>
+                                <Select value={selectedRatio?.label} onValueChange={(value) => {
+                                    if (!value || value === "自适应") {
+                                        setSelectedRatio(null);
+                                        setInputColumns(null);
+                                    } else {
+                                        const ratio = aspectRatioOptions.find((r) => r.label === value);
+                                        setSelectedRatio(ratio || null);
+                                        setInputColumns(null);
+                                    }
+                                }}>
+                                    <SelectTrigger className="w-20 ml-2 h-7 sm:h-8">
+                                        <SelectValue placeholder="自适应" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="自适应">自适应</SelectItem>
+                                        {aspectRatioOptions.map((ratio) => (
+                                            <SelectItem key={ratio.label} value={ratio.label}>{ratio.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             {/* <div className="flex items-center gpa-4 my-4">
                                         <div>画框宽度:</div>
@@ -924,26 +936,40 @@ const Puzzle = () => {
                                             value={Number(padding)}
                                         />
                                     </div> */}
-                            <div className="flex items-center gpa-4 my-4">
-                                <Tooltip title="规模越大，导出图片尺寸越大，导出更加耗时">
-                                    <div>导出图片规模:</div>
-                                </Tooltip>
+                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="cursor-help text-xs sm:text-sm">导出图片规模:</div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>规模越大，导出图片尺寸越大，导出更加耗时</TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
 
-                                <InputNumber
-                                    className="w-16 ml-4"
+                                <Slider
+                                    className="w-24 sm:w-28 ml-2"
+                                    value={[inputScale]}
                                     min={1}
                                     max={10}
-                                    onChange={(value) => setInputScale(value)}
-                                    value={Number(inputScale)}
+                                    step={1}
+                                    onValueChange={(value) => setInputScale(value[0])}
+                                />
+                                <input
+                                    type="number"
+                                    className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
+                                    min={1}
+                                    max={10}
+                                    value={inputScale}
+                                    onChange={(e) => setInputScale(Number(e.target.value))}
                                 />
                             </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-4 justify-center mt-2">
-                            <Button type="primary" onClick={downloadImage}>
-                                下载大图
-                            </Button>
+                        <Separator className="my-2" />
+                        <div className="flex flex-wrap items-center gap-8 justify-center">
+                            <Button size="sm" onClick={downloadImage}>下载大图</Button>
                             <Button
-                                type="default"
+                                size="sm"
+                                variant="secondary"
                                 onClick={() =>
                                     (
                                         document.querySelector(
@@ -955,6 +981,8 @@ const Puzzle = () => {
                                 继续添加
                             </Button>
                             <Button
+                                size="sm"
+                                variant="secondary"
                                 onClick={() => {
                                     setImages([]);
                                     setFiles([]);
@@ -964,7 +992,8 @@ const Puzzle = () => {
                                 清空
                             </Button>
                         </div>
-                    </div>
+                        </CardContent>
+                    </Card>
                     <div style={{ display: "none" }}>
                         <input {...getInputProps()} />
                     </div>
