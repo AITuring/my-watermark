@@ -244,7 +244,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-black/90 border-none">
+            <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-transparent border-none">
                 <div className="relative w-full h-full flex flex-col">
                     {/* 图片容器 */}
                     <div
@@ -312,13 +312,13 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                             </Button>
                         </>
                     )}
-                    <div className="w-full bg-black/50 pb-[env(safe-area-inset-bottom)]">
+                    <div className="max-w-full mx-auto backdrop-blur-2xl pb-[env(safe-area-inset-bottom)] mt-2 rounded-md">
                         <div className="text-white text-xs sm:text-sm text-center py-1">
                             {images.length > 0 &&
                                 `${index + 1} / ${images.length}`}
                         </div>
-                        <div className="flex flex-wrap items-center justify-between gap-3 p-2">
-                            <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-2">
+                            <div className="flex items-center gap-1">
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -327,7 +327,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                                 >
                                     <ZoomOut className="h-4 w-4" />
                                 </Button>
-                                <div className="flex items-center w-24 sm:w-48 md:w-64 flex-none">
+                                <div className="flex items-center w-36 flex-none">
                                     <Slider
                                         value={[scale]}
                                         min={0.25}
