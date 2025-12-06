@@ -87,17 +87,19 @@
   font-weight: 700;
 }
 
-/* 自定义 InfoWindow：玻璃拟态卡片 + 小箭头 */
+/* 自定义 InfoWindow：更强玻璃拟态与更舒适的内边距 */
 .info-window {
   position: relative;
-  min-width: 280px;
-  max-width: 340px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 1);
-  box-shadow: 0 20px 40px -10px rgba(2, 6, 23, 0.1), 0 0 0 1px rgba(2,6,23,0.05);
+  min-width: 320px;
+  max-width: 420px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.70), rgba(255,255,255,0.55));
+  backdrop-filter: blur(22px) saturate(140%);
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow: 0 30px 70px -25px rgba(2, 6, 23, 0.35), 0 0 0 1px rgba(2,6,23,0.06);
   border-radius: 20px;
-  padding: 16px;
+  padding: 12px ; /* 加大内边距，避免文字贴边 */
+  display: grid;      /* 用 gap 统一分隔内容块 */
+  row-gap: 12px;
   color: #334155;
 }
 
@@ -109,16 +111,21 @@
   transform: translateX(-50%) rotate(45deg);
   width: 16px;
   height: 16px;
-  background: #fff;
-  border-right: 1px solid rgba(2, 6, 23, 0.05);
-  border-bottom: 1px solid rgba(2, 6, 23, 0.05);
+  background: rgba(255,255,255,0.70);
+  border-right: 1px solid rgba(255,255,255,0.45);
+  border-bottom: 1px solid rgba(255,255,255,0.45);
 }
+
+/* 其它元素保留原样，可微调更柔和的配色 */
+.chip { border: 1px solid #e2e8f0; background: #f8fafc; color: #64748b; }
+.chip-primary { background: #eff6ff; border-color: #dbeafe; color: #3b82f6; }
 
 .info-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 12px;       /* 放大标题与图标间距 */
+  padding: 2px 0;  /* 顶部轻微留白 */
+  margin-bottom: 0;
 }
 
 .info-icon {
@@ -144,7 +151,7 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin: 10px 0 12px;
+  margin: 0;       /* 用容器的 row-gap 控制垂直间距 */
 }
 
 .chip {
@@ -167,10 +174,10 @@
 }
 
 .artifact-list {
-  margin-top: 8px;
+  margin-top: 0;
   max-height: 300px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 4px 2px 6px 2px; /* 给列表区也加少量内边距 */
 }
 
 .artifact-list::-webkit-scrollbar { width: 4px; }
@@ -182,10 +189,10 @@
 .artifact-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 10px;
+  padding: 10px 12px;   /* 放大列表项的四周留白 */
   font-size: 13px;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #475569;
   transition: background 0.2s;
 }
