@@ -1921,15 +1921,11 @@ const Wenwu: React.FC = () => {
                                 <Dialog key={artifact.id}>
                                     <DialogTrigger asChild>
                                         <div
-                                            className={`
+                                            className="
                                             group cursor-pointer bg-white rounded-2xl transition-all duration-300
                                             border border-slate-100 hover:border-violet-100
-                                            ${
-                                                viewMode === "grid"
-                                                    ? "hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]"
-                                                    : "flex gap-4 p-4 hover:bg-slate-50 shadow-sm hover:shadow-md"
-                                            }
-                                        `}
+                                            hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]
+                                        "
                                         >
                                             <div
                                                 className="p-5"
@@ -1947,6 +1943,17 @@ const Wenwu: React.FC = () => {
                                                             )}
                                                             {artifact.type}
                                                         </span>
+                                                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-700 font-medium flex items-center gap-1">
+                                                            {getEraIcon(artifact.era) && (
+                                                                <img
+                                                                    src={getEraIcon(artifact.era) as string}
+                                                                    alt={artifact.era}
+                                                                    className="w-4 h-4 object-contain"
+                                                                />
+                                                            )}
+                                                            {artifact.era}
+                                                        </span>
+
                                                     </div>
                                                 </div>
 
@@ -1957,21 +1964,9 @@ const Wenwu: React.FC = () => {
                                                     />
                                                 </h3>
 
-
-                                                    <div className="flex items-center gap-1 text-[10px]  text-slate-700 font-medium">
-                                                        {/* <Calendar className="w-3 h-3" /> */}
-                                                        {getEraIcon(artifact.era) && (
-                                                            <img
-                                                                src={getEraIcon(artifact.era) as string}
-                                                                alt={artifact.era}
-                                                                className="w-5 h-5 rounded-sm"
-                                                            />
-                                                        )}
-                                                        <span>{artifact.era}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 text-[10px]  text-slate-700 font-medium mb-2">
-                                                        <Landmark className="w-3 h-3" />
-                                                        <span className="truncate">{artifact.collectionLocation}</span>
+                                                    <div className="flex items-center gap-2 text-[10px] text-slate-700 font-medium mb-2">
+                                                        <Landmark className="w-3 h-3 shrink-0" />
+                                                        <span className="truncate leading-[16px]">{artifact.collectionLocation}</span>
                                                     </div>
 
 
