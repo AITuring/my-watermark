@@ -274,7 +274,7 @@ async function preprocessImage(file: File): Promise<PreprocessedImage> {
                 } catch (error) {
                     reject(error);
                 } finally {
-                    memoryManager.releaseCanvas(canvas);
+                    MemoryManager.getInstance().releaseCanvas(canvas);
                 }
             };
             image.onerror = reject;
@@ -283,6 +283,163 @@ async function preprocessImage(file: File): Promise<PreprocessedImage> {
         reader.onerror = reject;
         reader.readAsDataURL(file);
     });
+}
+
+// 基于归一化互相关（NCC）的暗水印检测
+async function detectDarkWatermark(
+    imageInput: File | string,
+    watermarkInput: string | HTMLImageElement,
+    options: Partial<DarkWatermarkOptions> = {}
+): Promise<{ present: boolean; score: number }> {
+    const memoryManager = MemoryManager.getInstance();
+
+    // 加载图片
+    const loadImage = (src: string | File): Promise<HTMLImageElement> =>
+        new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            if (typeof src === "string") {
+                img.src = src;
+            } else {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    img.src = e.target?.result as string;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(src);
+            }
+        });
+
+    const loadWatermarkImage = async (
+        wm: string | HTMLImageElement
+    ): Promise<HTMLImageElement> => {
+        if (typeof wm !== "string") return wm;
+        return loadImage(wm);
+    };
+
+    const [image, watermarkImg] = await Promise.all([
+        loadImage(imageInput),
+        loadWatermarkImage(watermarkInput),
+    ]);
+
+    // 构造与嵌入一致的平铺参数
+    const angle = options.angle ?? -30;
+    const tileScale = options.scale ?? 0.06;
+    const gapRatio = options.gap ?? 0.5;
+    const tileOpacity = Math.max(0.01, Math.min(0.5, options.opacity ?? 0.08));
+
+    const w = image.width;
+    const h = image.height;
+
+    // 瓦片尺寸与间隔
+    const minDim = Math.min(w, h);
+    const tileSize = Math.max(32, Math.floor(minDim * tileScale));
+    const gap = Math.floor(tileSize * gapRatio);
+    const patternSize = tileSize + gap;
+
+    // 构造单个瓦片
+    const patternTile = memoryManager.getCanvas();
+    const pctx = patternTile.getContext("2d")!;
+    patternTile.width = patternSize;
+    patternTile.height = patternSize;
+    pctx.clearRect(0, 0, patternSize, patternSize);
+
+    const wmAspect = watermarkImg.width / watermarkImg.height;
+    let drawW = tileSize;
+    let drawH = tileSize;
+    if (wmAspect > 1) {
+        drawH = Math.floor(tileSize / wmAspect);
+    } else {
+        drawW = Math.floor(tileSize * wmAspect);
+    }
+    const dx = Math.floor((patternSize - drawW) / 2);
+    const dy = Math.floor((patternSize - drawH) / 2);
+    pctx.drawImage(watermarkImg, dx, dy, drawW, drawH);
+
+    // 平铺到整图并旋转
+    const patternFull = memoryManager.getCanvas();
+    const pfctx = patternFull.getContext("2d")!;
+    patternFull.width = w;
+    patternFull.height = h;
+    pfctx.save();
+    const pattern = pfctx.createPattern(patternTile, "repeat")!;
+    pfctx.translate(w / 2, h / 2);
+    pfctx.rotate((angle * Math.PI) / 180);
+    pfctx.translate(-w / 2, -h / 2);
+    pfctx.fillStyle = pattern;
+    pfctx.fillRect(0, 0, w, h);
+    pfctx.restore();
+
+    // 转为灰度
+    const toGray = (canvas: HTMLCanvasElement, srcImg: HTMLImageElement) => {
+        const ctx = canvas.getContext("2d")!;
+        canvas.width = srcImg.width;
+        canvas.height = srcImg.height;
+        ctx.drawImage(srcImg, 0, 0);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const out = new Float32Array(canvas.width * canvas.height);
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            out[j] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
+        return out;
+    };
+
+    const imgCanvas = memoryManager.getCanvas();
+    const imgGray = toGray(imgCanvas, image);
+
+    const patGray = (() => {
+        const data = pfctx.getImageData(0, 0, w, h).data;
+        const out = new Float32Array(w * h);
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            out[j] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
+        return out;
+    })();
+
+    // 归一化互相关（NCC）
+    const ncc = (a: Float32Array, b: Float32Array): number => {
+        const n = a.length;
+        let meanA = 0,
+            meanB = 0;
+        for (let i = 0; i < n; i++) {
+            meanA += a[i];
+            meanB += b[i];
+        }
+        meanA /= n;
+        meanB /= n;
+
+        let num = 0,
+            denA = 0,
+            denB = 0;
+        for (let i = 0; i < n; i++) {
+            const da = a[i] - meanA;
+            const db = b[i] - meanB;
+            num += da * db;
+            denA += da * da;
+            denB += db * db;
+        }
+        const denom = Math.sqrt(denA * denB) || 1;
+        return num / denom;
+    };
+
+    // 模式灰度乘以透明度权重，近似 multiply+alpha 的影响
+    for (let i = 0; i < patGray.length; i++) {
+        patGray[i] *= tileOpacity;
+    }
+
+    const score = ncc(imgGray, patGray);
+
+    // 简单阈值：透明度越低阈值越低
+    const threshold = Math.max(0.01, 0.5 * tileOpacity);
+    const present = score >= threshold;
+
+    // 释放资源
+    memoryManager.releaseCanvas(patternTile);
+    memoryManager.releaseCanvas(patternFull);
+    memoryManager.releaseCanvas(imgCanvas);
+
+    return { present, score };
 }
 
 // ===== 性能优化：批处理优化 =====
@@ -519,6 +676,16 @@ function debounce(func, wait) {
     };
 }
 
+// 在 processImage 前，添加可选参数类型（暗水印配置）
+interface DarkWatermarkOptions {
+    enabled?: boolean;
+    opacity?: number; // 0..1
+    scale?: number; // 瓦片尺寸相对图片短边的比例，默认 0.06
+    gap?: number; // 瓦片间隔比例（相对瓦片尺寸），默认 0.5
+    angle?: number; // 填充角度（度），默认 -30
+    blendMode?: GlobalCompositeOperation; // 例如 'multiply' | 'soft-light'
+}
+
 // 图片处理
 async function processImage(
     file: File,
@@ -527,7 +694,8 @@ async function processImage(
     watermarkBlur: boolean,
     quality: number,
     watermarkOpacity: number = 1,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    darkOptions?: DarkWatermarkOptions // 新增可选参数
 ): Promise<{ url: string; name: string }> {
     const memoryManager = MemoryManager.getInstance();
     const startTime = performance.now();
@@ -563,6 +731,7 @@ async function processImage(
             image.onload = async () => {
                 let canvas: HTMLCanvasElement | null = null;
                 let tempCanvas: HTMLCanvasElement | null = null;
+                let patternCanvas: HTMLCanvasElement | null = null; // 暗水印用到的临时画布
 
                 try {
                     onProgress?.(50);
@@ -708,6 +877,69 @@ async function processImage(
 
                     ctx.restore();
 
+                    // 在导出前绘制“暗水印”平铺（可选）
+                    if (darkOptions?.enabled) {
+                        try {
+                            const blendMode = darkOptions.blendMode ?? "multiply";
+                            const tileScale = darkOptions.scale ?? 0.06;
+                            const tileOpacity = Math.max(0.02, Math.min(0.25, darkOptions.opacity ?? 0.08));
+                            const gapRatio = darkOptions.gap ?? 0.5;
+                            const angleRad = ((darkOptions.angle ?? -30) * Math.PI) / 180;
+
+                            // 计算瓦片尺寸与间隔
+                            const minDim = Math.min(canvas.width, canvas.height);
+                            const tileSize = Math.max(32, Math.floor(minDim * tileScale));
+                            const gap = Math.floor(tileSize * gapRatio);
+                            const patternSize = tileSize + gap;
+
+                            // 制作瓦片图案
+                            patternCanvas = memoryManager.getCanvas();
+                            const pctx = patternCanvas.getContext("2d")!;
+                            patternCanvas.width = patternSize;
+                            patternCanvas.height = patternSize;
+                            pctx.clearRect(0, 0, patternSize, patternSize);
+
+                            // 保持水印图案的宽高比
+                            const wmAspect = watermarkImage.width / watermarkImage.height;
+                            let drawW = tileSize;
+                            let drawH = tileSize;
+                            if (wmAspect > 1) {
+                                drawH = Math.floor(tileSize / wmAspect);
+                            } else {
+                                drawW = Math.floor(tileSize * wmAspect);
+                            }
+                            const dx = Math.floor((patternSize - drawW) / 2);
+                            const dy = Math.floor((patternSize - drawH) / 2);
+
+                            // 将水印图案绘制到瓦片中
+                            pctx.save();
+                            pctx.globalAlpha = 1; // 在主画布控制总体透明度
+                            pctx.drawImage(watermarkImage, dx, dy, drawW, drawH);
+                            pctx.restore();
+
+                            const pattern = ctx.createPattern(patternCanvas, "repeat");
+                            if (pattern) {
+                                ctx.save();
+                                // 选择混合模式与透明度
+                                ctx.globalCompositeOperation = blendMode as GlobalCompositeOperation;
+                                ctx.globalAlpha = tileOpacity;
+
+                                // 旋转填充，减少直线平铺的可见性
+                                ctx.translate(canvas.width / 2, canvas.height / 2);
+                                ctx.rotate(angleRad);
+                                ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+                                ctx.fillStyle = pattern;
+                                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                ctx.restore();
+                            }
+
+                            onProgress?.(95);
+                        } catch (e) {
+                            console.warn("暗水印绘制失败，已跳过：", e);
+                        }
+                    }
+
                     onProgress?.(90);
 
                     // 导出最终的图片
@@ -738,6 +970,7 @@ async function processImage(
                     // 清理资源
                     if (canvas) memoryManager.releaseCanvas(canvas);
                     if (tempCanvas) memoryManager.releaseCanvas(tempCanvas);
+                    if (patternCanvas) memoryManager.releaseCanvas(patternCanvas); // 释放暗水印临时画布
                 }
             };
 
@@ -1027,4 +1260,5 @@ export {
     adjustBatchSizeAndConcurrency,
     extractDominantColors,
     applyColorToWatermark,
+    detectDarkWatermark,
 };

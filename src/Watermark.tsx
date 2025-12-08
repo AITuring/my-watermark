@@ -17,6 +17,7 @@ import {
     debounce,
     processImage,
     adjustBatchSizeAndConcurrency,
+    detectDarkWatermark,
 } from "./utils";
 import { useDeviceDetect } from "@/hooks";
 import { ImageType, WatermarkPosition, ImgWithPosition } from "./types";
@@ -107,6 +108,9 @@ const Watermark: React.FC = () => {
     const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
     // 水印透明度
     const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.8);
+    // 新增：暗水印开关与强度
+    const [darkWatermarkEnabled, setDarkWatermarkEnabled] = useState<boolean>(false);
+    const [darkWatermarkStrength, setDarkWatermarkStrength] = useState<number>(0.08);
 
     // 移动端菜单状态
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -362,6 +366,14 @@ const Watermark: React.FC = () => {
                             const overallProgress =
                                 ((i + index + progress / 100) / imgPostionList.length) * 100;
                             console.log(`图片 ${img.id} 处理进度: ${progress}%`);
+                        },
+                        {
+                            enabled: darkWatermarkEnabled,
+                            opacity: darkWatermarkStrength, // 0.02 ~ 0.25 推荐区间
+                            scale: 0.06,                    // 瓦片尺寸占短边 6%
+                            gap: 0.5,                       // 每个瓦片之间留 50% 间隙
+                            angle: -30,                     // 斜向平铺
+                            blendMode: "multiply",          // 乘法混合，低调但有效
                         }
                     );
 
@@ -459,6 +471,77 @@ const Watermark: React.FC = () => {
 
     // 使用 debounce 包裹你的事件处理函数
     const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
+
+    // 暗水印检测（增强可视化预览）
+    const visualizeDarkWatermark = async (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            const objUrl = URL.createObjectURL(file);
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement("canvas");
+                    const ctx = canvas.getContext("2d");
+                    if (!ctx) throw new Error("Canvas not supported");
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    const factor = 1.6;
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = 255 - data[i];
+                        const g = 255 - data[i + 1];
+                        const b = 255 - data[i + 2];
+                        let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                        gray = Math.max(0, Math.min(255, (gray - 128) * factor + 128));
+                        data[i] = gray;
+                        data[i + 1] = gray;
+                        data[i + 2] = gray;
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+                    const resultUrl = canvas.toDataURL("image/png");
+                    URL.revokeObjectURL(objUrl);
+                    resolve(resultUrl);
+                } catch (err) {
+                    URL.revokeObjectURL(objUrl);
+                    reject(err);
+                }
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(objUrl);
+                reject(new Error("图片加载失败"));
+            };
+            img.src = objUrl;
+        });
+    };
+
+    const handleDetectDarkWatermark = async () => {
+        if (!currentImg) {
+            alert("请先选择图片进行检测。");
+            return;
+        }
+        try {
+            const previewUrl = await visualizeDarkWatermark(currentImg.file);
+            const w = window.open();
+            if (w) {
+                w.document.title = "暗水印检测预览";
+                const imgEl = w.document.createElement("img");
+                imgEl.src = previewUrl;
+                imgEl.style.maxWidth = "100%";
+                imgEl.style.height = "auto";
+                w.document.body.style.margin = "0";
+                w.document.body.appendChild(imgEl);
+            } else {
+                const link = document.createElement("a");
+                link.href = previewUrl;
+                link.download = "dark-watermark-detect.png";
+                link.click();
+            }
+        } catch (e) {
+            console.error("检测失败:", e);
+            alert("检测失败，请重试或更换图片。");
+        }
+    };
 
     // 渲染移动端界面
     const renderMobileUI = () => {
@@ -995,6 +1078,74 @@ const Watermark: React.FC = () => {
                             <div className="flex justify-between text-xs text-gray-500 mt-1">
                                 <span>透明 (10%)</span>
                                 <span>不透明 (100%)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mb-6">
+                        {/* 暗水印控制 */}
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center text-sm font-medium">
+                                暗水印
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Icon
+                                                icon="ic:outline-help"
+                                                className="w-4 h-4 ml-2 cursor-help text-gray-500"
+                                            />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <p>在整张图片平铺低透明度的水印，防止裁剪/涂抹盗图</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                            <span className="text-sm text-gray-600">
+                                {Math.round(darkWatermarkStrength * 100)}%
+                            </span>
+                            <Switch
+                                checked={darkWatermarkEnabled}
+                                onCheckedChange={setDarkWatermarkEnabled}
+                                className="data-[state=checked]:bg-blue-500"
+                            />
+                        </div>
+                        <div className={`px-3 ${darkWatermarkEnabled ? "" : "opacity-50 pointer-events-none"}`}>
+                            <Slider
+                                value={[darkWatermarkStrength]}
+                                onValueChange={(value) => setDarkWatermarkStrength(value[0])}
+                                max={0.25}
+                                min={0.02}
+                                step={0.01}
+                                className="w-full"
+                            />
+                            <div className="flex justify之间 text-xs text-gray-500 mt-1">
+                                <span>较弱 (2%)</span>
+                                <span>较强 (25%)</span>
+                            </div>
+                            <div className="flex items-center gap-3 px-1 mt-3">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                        if (!currentImg) return;
+                                        const wmSrc = watermarkColorUrls[currentImg.id] || watermarkUrl;
+                                        const { present, score } = await detectDarkWatermark(
+                                            currentImg.file,
+                                            wmSrc,
+                                            { opacity: darkWatermarkStrength, scale: 0.06, gap: 0.5, angle: -30 }
+                                        );
+                                        alert(`暗水印检测：${present ? "检测到" : "未检测到"}，score=${score.toFixed(3)}`);
+                                    }}
+                                    disabled={!currentImg}
+                                    className="ml-3"
+                                >
+                                    <Icon icon="mdi:shield-search" className="mr-2 h-4 w-4" />
+                                    检测暗水印
+                                </Button>
+                                {!currentImg && (
+                                    <span className="text-xs text-gray-400">请选择图片后再检测</span>
+                                )}
                             </div>
                         </div>
                     </div>
