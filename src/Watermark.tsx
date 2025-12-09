@@ -945,223 +945,237 @@ const Watermark: React.FC = () => {
                         />
                     )}
                 </div>
-                <div className="flex items-baseline backdrop-blur-lg shadow-inner p-4 border-t border-gray-200 dark:border-gray-800 gap-10">
-                    <div className="flex items-center gap-4">
-                        <div className="relative group">
-                            <ImageUploader
-                                onUpload={handleWatermarkUpload}
-                                fileType="水印"
-                                className="w-16 h-16 rounded-md cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors duration-200"
-                            >
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <div className="w-full h-full flex items-center justify-center">
-                                                <img
-                                                    src={watermarkUrl}
-                                                    alt="watermark"
-                                                    className="max-w-full max-h-full object-contain group-hover:opacity-80 transition-opacity"
-                                                />
-                                            </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>点击上传水印图片</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </ImageUploader>
-                            <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-xs px-1 rounded-sm">
-                                水印
+                <div className="bg-white/90 backdrop-blur-md border-t border-slate-200 shadow-lg px-6 py-4">
+                    <div className="flex items-center justify-between max-w-[1920px] mx-auto gap-8">
+                        {/* 左侧：水印上传与基础设置 */}
+                        <div className="flex items-center gap-6 shrink-0">
+                            <div className="relative group">
+                                <ImageUploader
+                                    onUpload={handleWatermarkUpload}
+                                    fileType="水印"
+                                    className="w-14 h-14 rounded-lg cursor-pointer overflow-hidden border border-slate-200 hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md bg-slate-50"
+                                >
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div className="w-full h-full flex items-center justify-center p-1">
+                                                    <img
+                                                        src={watermarkUrl}
+                                                        alt="watermark"
+                                                        className="max-w-full max-h-full object-contain group-hover:opacity-80 transition-opacity"
+                                                    />
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>点击更换水印图片</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </ImageUploader>
+                                <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full shadow-sm">
+                                    水印
+                                </div>
+                            </div>
+
+                            <div className="h-10 w-[1px] bg-slate-200"></div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                    基础设置
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-slate-700">
+                                        背景模糊
+                                    </span>
+                                    <Switch
+                                        checked={watermarkBlur}
+                                        onCheckedChange={setWatermarkBlur}
+                                        className="scale-90 data-[state=checked]:bg-blue-600"
+                                    />
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="flex items-center gap-8">
-                        <div className="flex items-center gap-3 px-4 py-2">
-                            <div className="flex items-center">
-                                <Switch
-                                    checked={watermarkBlur}
-                                    onCheckedChange={setWatermarkBlur}
-                                    className="data-[state=checked]:bg-blue-500"
+                        {/* 中间：滑动控制条 */}
+                        <div className="flex items-center gap-8 flex-1 justify-center max-w-5xl">
+                            {/* 图片质量 */}
+                            <div className="flex-1 min-w-[180px] max-w-[240px] flex flex-col gap-2 group">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                        <Icon
+                                            icon="mdi:quality-high"
+                                            className="text-slate-400 group-hover:text-blue-500 transition-colors"
+                                        />
+                                        图片质量
+                                    </div>
+                                    <span className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                        {Math.round(quality * 100)}%
+                                    </span>
+                                </div>
+                                <Slider
+                                    value={[quality]}
+                                    onValueChange={(value) =>
+                                        setQuality(value[0])
+                                    }
+                                    max={1}
+                                    min={0.1}
+                                    step={0.1}
+                                    className="w-full py-1"
                                 />
                             </div>
-                            <div className="flex items-center text-sm font-medium">
-                                水印背景模糊
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Icon
-                                                icon="ic:outline-help"
-                                                className="w-4 h-4 ml-2 cursor-help text-gray-500"
-                                            />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>开启后水印周围有一层高斯模糊</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* 图片质量控制 */}
-                    <div className="mb-6">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center text-sm font-medium">
-                                图片质量
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Icon
-                                                icon="ic:outline-help"
-                                                className="w-4 h-4 ml-2 cursor-help text-gray-500"
-                                            />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>调整输出图片的质量，数值越高质量越好但文件越大</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                            {/* 水印透明度 */}
+                            <div className="flex-1 min-w-[180px] max-w-[240px] flex flex-col gap-2 group">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                        <Icon
+                                            icon="mdi:opacity"
+                                            className="text-slate-400 group-hover:text-blue-500 transition-colors"
+                                        />
+                                        水印透明度
+                                    </div>
+                                    <span className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                        {Math.round(watermarkOpacity * 100)}%
+                                    </span>
+                                </div>
+                                <Slider
+                                    value={[watermarkOpacity]}
+                                    onValueChange={(value) =>
+                                        setWatermarkOpacity(value[0])
+                                    }
+                                    max={1}
+                                    min={0.1}
+                                    step={0.1}
+                                    className="w-full py-1"
+                                />
                             </div>
-                            <span className="text-sm text-gray-600">
-                                {Math.round(quality * 100)}%
-                            </span>
-                        </div>
-                        <div className="px-3">
-                            <Slider
-                                value={[quality]}
-                                onValueChange={(value) => setQuality(value[0])}
-                                max={1}
-                                min={0.1}
-                                step={0.1}
-                                className="w-full"
-                            />
-                            <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                <span>低质量 (10%)</span>
-                                <span>高质量 (100%)</span>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* 水印透明度控制 */}
-                    <div className="mb-6">
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center text-sm font-medium">
-                                水印透明度
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
+                            {/* 暗水印 */}
+                            <div className="flex-1 min-w-[220px] max-w-[300px] flex flex-col gap-2 p-2 rounded-lg border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-all">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
                                             <Icon
-                                                icon="ic:outline-help"
-                                                className="w-4 h-4 ml-2 cursor-help text-gray-500"
+                                                icon="mdi:shield-check-outline"
+                                                className={`transition-colors ${
+                                                    darkWatermarkEnabled
+                                                        ? "text-blue-500"
+                                                        : "text-slate-400"
+                                                }`}
                                             />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>调整水印的透明度，数值越低越透明</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
-                            <span className="text-sm text-gray-600">
-                                {Math.round(watermarkOpacity * 100)}%
-                            </span>
-                        </div>
-                        <div className="px-3">
-                            <Slider
-                                value={[watermarkOpacity]}
-                                onValueChange={(value) => setWatermarkOpacity(value[0])}
-                                max={1}
-                                min={0.1}
-                                step={0.1}
-                                className="w-full"
-                            />
-                            <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                <span>透明 (10%)</span>
-                                <span>不透明 (100%)</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="mb-6">
-                        {/* 暗水印控制 */}
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center text-sm font-medium">
-                                暗水印
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Icon
-                                                icon="ic:outline-help"
-                                                className="w-4 h-4 ml-2 cursor-help text-gray-500"
-                                            />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>在整张图片平铺低透明度的水印，防止裁剪/涂抹盗图</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
-                            <span className="text-sm text-gray-600">
-                                {Math.round(darkWatermarkStrength * 100)}%
-                            </span>
-                            <Switch
-                                checked={darkWatermarkEnabled}
-                                onCheckedChange={setDarkWatermarkEnabled}
-                                className="data-[state=checked]:bg-blue-500"
-                            />
-                        </div>
-                        <div className={`px-3 ${darkWatermarkEnabled ? "" : "opacity-50 pointer-events-none"}`}>
-                            <Slider
-                                value={[darkWatermarkStrength]}
-                                onValueChange={(value) => setDarkWatermarkStrength(value[0])}
-                                max={0.25}
-                                min={0.02}
-                                step={0.01}
-                                className="w-full"
-                            />
-                            <div className="flex justify之间 text-xs text-gray-500 mt-1">
-                                <span>较弱 (2%)</span>
-                                <span>较强 (25%)</span>
-                            </div>
-                            <div className="flex items-center gap-3 px-1 mt-3">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={async () => {
-                                        if (!currentImg) return;
-                                        const wmSrc = watermarkColorUrls[currentImg.id] || watermarkUrl;
-                                        const { present, score } = await detectDarkWatermark(
-                                            currentImg.file,
-                                            wmSrc,
-                                            { opacity: darkWatermarkStrength, scale: 0.06, gap: 0.5, angle: -30 }
-                                        );
-                                        alert(`暗水印检测：${present ? "检测到" : "未检测到"}，score=${score.toFixed(3)}`);
-                                    }}
-                                    disabled={!currentImg}
-                                    className="ml-3"
+                                            暗水印
+                                        </div>
+                                        <Switch
+                                            checked={darkWatermarkEnabled}
+                                            onCheckedChange={
+                                                setDarkWatermarkEnabled
+                                            }
+                                            className="scale-75 data-[state=checked]:bg-blue-600"
+                                        />
+                                    </div>
+                                    <span
+                                        className={`text-xs font-mono px-1.5 py-0.5 rounded transition-colors ${
+                                            darkWatermarkEnabled
+                                                ? "text-slate-600 bg-white shadow-sm"
+                                                : "text-slate-300 bg-transparent"
+                                        }`}
+                                    >
+                                        {Math.round(
+                                            darkWatermarkStrength * 100
+                                        )}
+                                        %
+                                    </span>
+                                </div>
+                                <div
+                                    className={`transition-opacity duration-200 ${
+                                        darkWatermarkEnabled
+                                            ? "opacity-100"
+                                            : "opacity-40 pointer-events-none"
+                                    }`}
                                 >
-                                    <Icon icon="mdi:shield-search" className="mr-2 h-4 w-4" />
-                                    检测暗水印
-                                </Button>
-                                {!currentImg && (
-                                    <span className="text-xs text-gray-400">请选择图片后再检测</span>
-                                )}
+                                    <Slider
+                                        value={[darkWatermarkStrength]}
+                                        onValueChange={(value) =>
+                                            setDarkWatermarkStrength(value[0])
+                                        }
+                                        max={0.25}
+                                        min={0.02}
+                                        step={0.01}
+                                        className="w-full py-1"
+                                    />
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <ProgressButton
-                        onClick={handleApplyWatermarkDebounced}
-                        loading={loading}
-                        progress={smoothProgress}
-                        className="bg-blue-500 hover:bg-blue-600 shadow-md transition-all duration-200"
-                    >
-                        <Icon
-                            icon="mdi:image-filter-center-focus"
-                            className="mr-2 h-5 w-5"
-                        />
-                        水印生成
-                    </ProgressButton>
+                        {/* 右侧：操作按钮 */}
+                        <div className="flex items-center gap-4 shrink-0">
+                            {/* 检测暗水印按钮 - 只有开启且有图时显示 */}
+                            {darkWatermarkEnabled && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={async () => {
+                                                    if (!currentImg) return;
+                                                    const wmSrc =
+                                                        watermarkColorUrls[
+                                                            currentImg.id
+                                                        ] || watermarkUrl;
+                                                    const { present, score } =
+                                                        await detectDarkWatermark(
+                                                            currentImg.file,
+                                                            wmSrc,
+                                                            {
+                                                                opacity: darkWatermarkStrength,
+                                                                scale: 0.06,
+                                                                gap: 0.5,
+                                                                angle: -30,
+                                                            }
+                                                        );
+                                                    alert(
+                                                        `暗水印检测：${
+                                                            present
+                                                                ? "检测到"
+                                                                : "未检测到"
+                                                        }，score=${score.toFixed(
+                                                            3
+                                                        )}`
+                                                    );
+                                                }}
+                                                disabled={!currentImg}
+                                                className="text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                                            >
+                                                <Icon
+                                                    icon="mdi:shield-search"
+                                                    className="h-5 w-5"
+                                                />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>检测当前图片的暗水印</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
+
+                            <ProgressButton
+                                onClick={handleApplyWatermarkDebounced}
+                                loading={loading}
+                                progress={smoothProgress}
+                                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 text-white font-medium px-8 py-6 h-12 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Icon
+                                        icon="mdi:magic-staff"
+                                        className="h-5 w-5"
+                                    />
+                                    <span>一键生成</span>
+                                </div>
+                            </ProgressButton>
+                        </div>
+                    </div>
                 </div>
             </div>
         );

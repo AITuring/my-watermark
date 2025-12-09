@@ -9,6 +9,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Icon } from "@iconify/react";
 
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
@@ -139,6 +147,30 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     const [customColor, setCustomColor] = useState(""); // 自定义颜色状态
 
+    // 预览缩放状态
+    const [previewScale, setPreviewScale] = useState(1);
+    const [previewPos, setPreviewPos] = useState({ x: 0, y: 0 });
+
+    const handleZoomIn = () => {
+        setPreviewScale((prev) => Math.min(prev * 1.2, 5));
+    };
+
+    const handleZoomOut = () => {
+        setPreviewScale((prev) => {
+            const newScale = Math.max(prev / 1.2, 1);
+            if (newScale <= 1.05) {
+                setPreviewPos({ x: 0, y: 0 });
+                return 1;
+            }
+            return newScale;
+        });
+    };
+
+    const handleResetZoom = () => {
+        setPreviewScale(1);
+        setPreviewPos({ x: 0, y: 0 });
+    };
+
     // 应用水印颜色的函数
     const applyWatermarkColor = async (color: string) => {
         if (!color || isProcessingColor) return;
@@ -153,7 +185,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             setColoredWatermarkUrl(newWatermarkUrl as string);
             onColorChange?.(newWatermarkUrl as string);
         } catch (error) {
-            console.error("应用颜色到水印失败:", error);
+            console.error("应用水印颜色到水印失败:", error);
         } finally {
             // 延迟重置处理状态，避免快速连续点击
             requestAnimationFrame(() => {
@@ -169,7 +201,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         setColoredWatermarkUrl(watermarkUrl);
     }, [watermarkUrl]);
 
-    // 当传入的水印颜色改变时，应用颜色
+    // 当传入的水印颜色改变时，应用水印颜色
     useEffect(() => {
         if (watermarkColor && watermarkUrl) {
             applyWatermarkColor(watermarkColor);
@@ -222,7 +254,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     }, [currentScale]);
 
     // 更新水印尺寸
-     const updateWatermarkSize = (scale) => {
+    const updateWatermarkSize = (scale) => {
         if (watermarkImage && backgroundImage) {
             // 使用与 calculateWatermarkPosition 相同的逻辑
             const minDimension = Math.min(
@@ -266,7 +298,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         if (backgroundImage && backgroundImageStatus === "loaded") {
             const scaleWidth =
                 backgroundFixWidthVW / backgroundImage.naturalWidth;
-            const windowHeight = window.innerHeight * 0.74;
+            const windowHeight = window.innerHeight * 0.82;
             const scaleHeight = windowHeight / backgroundImage.naturalHeight;
             const scale = Math.min(scaleWidth, scaleHeight);
 
@@ -303,7 +335,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         watermarkImage,
     ]);
 
-     // 初始化水印尺寸 - 只在水印图片首次加载时设置
+    // 初始化水印尺寸 - 只在水印图片首次加载时设置
     // useEffect(() => {
     //     if (watermarkImage && backgroundImage && watermarkStandardScale === 0.1) {
     //         // 只有当watermarkStandardScale还是初始值时才重新计算
@@ -358,7 +390,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     };
 
-     useEffect(() => {
+    useEffect(() => {
         // 同步用于边界判断的水印尺寸（预览前的“原图尺寸”）
         if (!backgroundImage || !watermarkImage) return;
 
@@ -394,20 +426,26 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             backgroundImage.naturalHeight
         );
         const standardWatermarkSize = minDimension * 0.1;
-        const standardScale = standardWatermarkSize / watermarkImage.naturalWidth;
+        const standardScale =
+            standardWatermarkSize / watermarkImage.naturalWidth;
         const finalScale = standardScale * currentScale;
 
         // 与 ImageWithFixedWidth 渲染一致的预览宽高
-        const renderWidth = watermarkImage.naturalWidth * finalScale * backgroundScale;
-        const renderHeight = (watermarkImage.naturalHeight / watermarkImage.naturalWidth) * renderWidth;
+        const renderWidth =
+            watermarkImage.naturalWidth * finalScale * backgroundScale;
+        const renderHeight =
+            (watermarkImage.naturalHeight / watermarkImage.naturalWidth) *
+            renderWidth;
 
         // 4 像素偏移的预览值（不参与生成，仅用于保持操作体验）
         const pixelOffset = 4;
         const previewOffsetX = backgroundImage
-            ? (pixelOffset / backgroundImage.naturalWidth) * backgroundImageSize.width
+            ? (pixelOffset / backgroundImage.naturalWidth) *
+              backgroundImageSize.width
             : 0;
         const previewOffsetY = backgroundImage
-            ? (pixelOffset / backgroundImage.naturalHeight) * backgroundImageSize.height
+            ? (pixelOffset / backgroundImage.naturalHeight) *
+              backgroundImageSize.height
             : 0;
 
         // 边界检查（舞台像素坐标）
@@ -446,7 +484,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
         node.getLayer().batchDraw();
     };
-
 
     const handleTransform = (e: Konva.KonvaEventObject<Event>) => {
         const node = e.target as Konva.Image;
@@ -487,13 +524,19 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
         if (newX < previewOffsetX) newX = previewOffsetX;
         if (newY < previewOffsetY) newY = previewOffsetY;
-        if (newX + previewWatermarkWidth > backgroundImageSize.width - previewOffsetX) {
+        if (
+            newX + previewWatermarkWidth >
+            backgroundImageSize.width - previewOffsetX
+        ) {
             newX =
                 backgroundImageSize.width -
                 previewWatermarkWidth -
                 previewOffsetX;
         }
-        if (newY + previewWatermarkHeight > backgroundImageSize.height - previewOffsetY) {
+        if (
+            newY + previewWatermarkHeight >
+            backgroundImageSize.height - previewOffsetY
+        ) {
             newY =
                 backgroundImageSize.height -
                 previewWatermarkHeight -
@@ -537,18 +580,24 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             backgroundImage.naturalHeight
         );
         const standardWatermarkSize = minDimension * 0.1;
-        const standardScale = standardWatermarkSize / watermarkImage.naturalWidth;
+        const standardScale =
+            standardWatermarkSize / watermarkImage.naturalWidth;
         const finalScale = standardScale * currentScale;
 
-        const renderWidth = watermarkImage.naturalWidth * finalScale * backgroundScale;
-        const renderHeight = (watermarkImage.naturalHeight / watermarkImage.naturalWidth) * renderWidth;
+        const renderWidth =
+            watermarkImage.naturalWidth * finalScale * backgroundScale;
+        const renderHeight =
+            (watermarkImage.naturalHeight / watermarkImage.naturalWidth) *
+            renderWidth;
 
         const pixelOffset = 4;
         const previewOffsetX = backgroundImage
-            ? (pixelOffset / backgroundImage.naturalWidth) * backgroundImageSize.width
+            ? (pixelOffset / backgroundImage.naturalWidth) *
+              backgroundImageSize.width
             : 0;
         const previewOffsetY = backgroundImage
-            ? (pixelOffset / backgroundImage.naturalHeight) * backgroundImageSize.height
+            ? (pixelOffset / backgroundImage.naturalHeight) *
+              backgroundImageSize.height
             : 0;
 
         // 将中心点转换为左上角坐标
@@ -677,19 +726,32 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     ]);
 
     return (
-        <div className="flex flex-1 flex-col space-y-4">
-            <div className="relative bg-muted rounded-lg overflow-hidden">
+        <div className="flex flex-1 flex-col h-full relative group">
+            <div className="relative flex-1 rounded-2xl overflow-hidden bg-slate-100/50 flex items-center justify-center border border-slate-200/50 shadow-inner">
                 <Stage
                     width={backgroundImageSize.width}
                     height={backgroundImageSize.height}
+                    scale={{ x: previewScale, y: previewScale }}
+                    x={previewPos.x}
+                    y={previewPos.y}
+                    draggable={previewScale > 1}
+                    onDragEnd={(e) => {
+                        if (e.target === e.target.getStage()) {
+                            setPreviewPos(e.target.position());
+                        }
+                    }}
                     ref={stageRef}
-                    className="flex items-center justify-center"
+                    className={`flex items-center justify-center shadow-2xl ${
+                        previewScale > 1
+                            ? "cursor-grab active:cursor-grabbing"
+                            : ""
+                    }`}
                 >
                     <Layer>
                         {backgroundImage && (
                             <KonvaImage
                                 image={backgroundImage}
-                                width={backgroundImageSize.width}   // 统一，不使用 backgroundSliderValue
+                                width={backgroundImageSize.width} // 统一，不使用 backgroundSliderValue
                                 height={backgroundImageSize.height} // 统一，不使用 backgroundSliderValue
                             />
                         )}
@@ -697,22 +759,28 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                             <>
                                 <ImageWithFixedWidth
                                     src={coloredWatermarkUrl}
-                                    fixedWidth={
-                                        (() => {
-                                            if (!backgroundImage || !watermarkImage) return 0;
-                                            const minDimension = Math.min(
-                                                backgroundImage.naturalWidth,
-                                                backgroundImage.naturalHeight
-                                            );
-                                            const standardWatermarkSize = minDimension * 0.1;
-                                            const standardScale =
-                                                standardWatermarkSize / watermarkImage.naturalWidth;
-                                            const finalScale = standardScale * currentScale;
+                                    fixedWidth={(() => {
+                                        if (!backgroundImage || !watermarkImage)
+                                            return 0;
+                                        const minDimension = Math.min(
+                                            backgroundImage.naturalWidth,
+                                            backgroundImage.naturalHeight
+                                        );
+                                        const standardWatermarkSize =
+                                            minDimension * 0.1;
+                                        const standardScale =
+                                            standardWatermarkSize /
+                                            watermarkImage.naturalWidth;
+                                        const finalScale =
+                                            standardScale * currentScale;
 
-                                            // 预览尺寸：原图→舞台的 backgroundScale，不再使用 backgroundSliderValue
-                                            return watermarkImage.naturalWidth * finalScale * backgroundScale;
-                                        })()
-                                    }
+                                        // 预览尺寸：原图→舞台的 backgroundScale，不再使用 backgroundSliderValue
+                                        return (
+                                            watermarkImage.naturalWidth *
+                                            finalScale *
+                                            backgroundScale
+                                        );
+                                    })()}
                                     x={position.x * backgroundImageSize.width}
                                     y={position.y * backgroundImageSize.height}
                                     scaleX={1}
@@ -749,161 +817,340 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                         )}
                     </Layer>
                 </Stage>
-            </div>
 
-            <div className="space-y-2">
-                <div className="flex flex-col space-y-2">
-                    <div className="flex items-center gap-4">
-                        <div className="text-xs font-medium">位置调整</div>
-                        <div className="flex items-center space-x-2">
-                            <span className="text-xs text-muted-foreground">
-                                单独调整
-                            </span>
-                            <button
-                                type="button"
-                                title="切换批量模式"
-                                onClick={() => setIsBatch(!isBatch)}
-                                className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                    isBatch ? "bg-primary" : "bg-gray-200"
-                                }`}
-                            >
-                                <span
-                                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                        isBatch
-                                            ? "translate-x-4"
-                                            : "translate-x-0"
-                                    }`}
+                {/* Floating Toolbar - Compact & Elegant */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 transition-all duration-500 transform translate-y-0 opacity-100">
+                    <div className="bg-white/80 backdrop-blur-xl shadow-2xl shadow-black/10 border border-white/60 rounded-full px-5 py-2.5 flex items-center gap-5 transition-all hover:bg-white hover:scale-[1.01] hover:shadow-black/15">
+                        {/* Position Group */}
+                        <div className="flex items-center gap-3">
+                            {/* <div className="p-1.5 bg-slate-100 text-slate-500 rounded-full">
+                                <Icon
+                                    icon="mdi:move-resize"
+                                    className="w-3.5 h-3.5"
                                 />
-                            </button>
-                            <span className="text-xs text-muted-foreground">
-                                批量模式
-                            </span>
+                            </div> */}
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <Select
+                                            value={selectedPosition}
+                                            onValueChange={handlePositionChange}
+                                        >
+                                            <SelectTrigger className="w-[80px] h-8 text-xs bg-transparent border-0 focus:ring-0 px-2 hover:bg-slate-50/50 rounded-md transition-colors font-medium text-slate-600 justify-between [&>span]:flex [&>span]:items-center">
+                                                <SelectValue placeholder="选择位置" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectGroup>
+                                                    <SelectLabel className="text-xs text-slate-500 font-normal px-2 py-1.5">
+                                                        快速定位
+                                                    </SelectLabel>
+                                                    <div className="grid grid-cols-3 gap-1 p-1">
+                                                        {[
+                                                            {
+                                                                v: "top-left",
+                                                                i: "mdi:arrow-top-left",
+                                                                t: "左上",
+                                                            },
+                                                            {
+                                                                v: "top-mid",
+                                                                i: "mdi:arrow-up",
+                                                                t: "上",
+                                                            },
+                                                            {
+                                                                v: "top-right",
+                                                                i: "mdi:arrow-top-right",
+                                                                t: "右上",
+                                                            },
+                                                            {
+                                                                v: "mid-left",
+                                                                i: "mdi:arrow-left",
+                                                                t: "左",
+                                                            },
+                                                            {
+                                                                v: "center",
+                                                                i: "mdi:bullseye",
+                                                                t: "居中",
+                                                            },
+                                                            {
+                                                                v: "mid-right",
+                                                                i: "mdi:arrow-right",
+                                                                t: "右",
+                                                            },
+                                                            {
+                                                                v: "bottom-left",
+                                                                i: "mdi:arrow-bottom-left",
+                                                                t: "左下",
+                                                            },
+                                                            {
+                                                                v: "bottom-mid",
+                                                                i: "mdi:arrow-down",
+                                                                t: "下",
+                                                            },
+                                                            {
+                                                                v: "bottom-right",
+                                                                i: "mdi:arrow-bottom-right",
+                                                                t: "右下",
+                                                            },
+                                                        ].map((item) => (
+                                                            <SelectItem
+                                                                key={item.v}
+                                                                value={item.v}
+                                                                className="justify-center text-center text-xs py-1.5 cursor-pointer focus:bg-blue-50 focus:text-blue-600 rounded-sm pr-2 [&>span.absolute]:hidden data-[state=checked]:bg-blue-100 data-[state=checked]:text-blue-600"
+                                                                title={item.t}
+                                                            >
+                                                                <Icon
+                                                                    icon={
+                                                                        item.i
+                                                                    }
+                                                                    className="w-4 h-4"
+                                                                />
+                                                            </SelectItem>
+                                                        ))}
+                                                    </div>
+                                                </SelectGroup>
+                                            </SelectContent>
+                                        </Select>
+                                    </TooltipTrigger>
+                                    <TooltipContent>快速定位</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            <div className="h-4 w-px bg-slate-200"></div>
+
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <div
+                                            className="flex items-center gap-2 cursor-pointer group/batch select-none"
+                                            onClick={() => setIsBatch(!isBatch)}
+                                        >
+                                            <Switch
+                                                checked={isBatch}
+                                                onCheckedChange={setIsBatch}
+                                                className="scale-75 data-[state=checked]:bg-blue-600"
+                                            />
+                                            <span
+                                                className={`text-xs font-medium transition-colors ${
+                                                    isBatch
+                                                        ? "text-blue-600"
+                                                        : "text-slate-400 group-hover/batch:text-slate-600"
+                                                } w-[24px]`}
+                                            >
+                                                {isBatch ? "批量" : "单独"}
+                                            </span>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        {isBatch ? "批量操作" : "操作本图"}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
-                        {/* 使用下拉选择器替代九宫格按钮 */}
-                        <div className="flex flex-wrap gap-2">
-                            <Select
-                                value={selectedPosition}
-                                onValueChange={(value) => {
-                                    setSelectedPosition(value);
-                                    applySelectedPosition(value);
-                                }}
-                            >
-                                <SelectTrigger className="w-[90px] h-6 text-xs py-0 px-2">
-                                    <SelectValue placeholder="选择位置" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>位置选择</SelectLabel>
-                                        <SelectItem value="top-left">
-                                            左上角
-                                        </SelectItem>
-                                        <SelectItem value="top-mid">
-                                            上
-                                        </SelectItem>
-                                        <SelectItem value="top-right">
-                                            右上角
-                                        </SelectItem>
-                                        <SelectItem value="mid-left">
-                                            左
-                                        </SelectItem>
-                                        <SelectItem value="center">
-                                            中心
-                                        </SelectItem>
-                                        <SelectItem value="mid-right">
-                                            右
-                                        </SelectItem>
-                                        <SelectItem value="bottom-left">
-                                            左下角
-                                        </SelectItem>
-                                        <SelectItem value="bottom-mid">
-                                            下
-                                        </SelectItem>
-                                        <SelectItem value="bottom-right">
-                                            右下角
-                                        </SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+
+                        {/* Divider */}
+                        {dominantColors.length > 0 && (
+                            <div className="w-px h-6 bg-slate-200"></div>
+                        )}
+
+                        {/* Color Group */}
+                        {dominantColors.length > 0 && (
+                            <div className="flex items-center gap-2">
+                                {/* <div className="p-1.5 bg-slate-100 text-slate-500 rounded-full mr-1">
+                                    <Icon
+                                        icon="mdi:palette-swatch-outline"
+                                        className="w-3.5 h-3.5"
+                                    />
+                                </div> */}
+                                <div className="flex items-center gap-2">
+                                    {/* Original */}
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    title="清除颜色"
+                                                    className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
+                                                        !customColor &&
+                                                        coloredWatermarkUrl ===
+                                                            watermarkUrl
+                                                            ? "border-blue-500 bg-blue-50 shadow-sm"
+                                                            : "border-slate-200 bg-transparent hover:bg-slate-50"
+                                                    }`}
+                                                    onClick={() =>
+                                                        !isProcessingColor &&
+                                                        applyWatermarkColor(
+                                                            "transparent"
+                                                        )
+                                                    }
+                                                >
+                                                    <Icon
+                                                        icon="mdi:image-off-outline"
+                                                        className={`w-3.5 h-3.5 ${
+                                                            !customColor &&
+                                                            coloredWatermarkUrl ===
+                                                                watermarkUrl
+                                                                ? "text-blue-500"
+                                                                : "text-slate-400"
+                                                        }`}
+                                                    />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>原色</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+
+                                    {/* Extracted Colors */}
+                                    {dominantColors.map((color, index) => (
+                                        <TooltipProvider key={index}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <button
+                                                        title="应用水印颜色"
+                                                        className="w-6 h-6 rounded-full border border-slate-100 shadow-sm hover:scale-110 active:scale-95 transition-all"
+                                                        style={{
+                                                            backgroundColor:
+                                                                color.color,
+                                                        }}
+                                                        onClick={() =>
+                                                            applyWatermarkColor(
+                                                                color.color
+                                                            )
+                                                        }
+                                                    />
+                                                </TooltipTrigger>
+                                                <TooltipContent side="top">
+                                                    <p>{color.color}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    ))}
+
+                                    {/* Custom */}
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div
+                                                    className={`relative w-6 h-6 rounded-full border transition-all hover:scale-110 active:scale-95 flex items-center justify-center overflow-hidden ${
+                                                        customColor
+                                                            ? "border-blue-500 shadow-sm"
+                                                            : "border-slate-200 bg-white hover:bg-slate-50"
+                                                    }`}
+                                                >
+                                                    <div
+                                                        className="absolute inset-0"
+                                                        style={{
+                                                            backgroundColor:
+                                                                customColor ||
+                                                                "transparent",
+                                                        }}
+                                                    ></div>
+                                                    {!customColor && (
+                                                        <Icon
+                                                            icon="mdi:plus"
+                                                            className="w-4 h-4 text-slate-300"
+                                                        />
+                                                    )}
+                                                    <input
+                                                        title="自定义颜色"
+                                                        type="color"
+                                                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                                                        onChange={(e) => {
+                                                            setCustomColor(
+                                                                e.target.value
+                                                            );
+                                                            !isProcessingColor &&
+                                                                applyWatermarkColor(
+                                                                    e.target
+                                                                        .value
+                                                                );
+                                                        }}
+                                                    />
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                <p>自定义</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Divider */}
+                        <div className="w-px h-6 bg-slate-200"></div>
+
+                        {/* Zoom Controls */}
+                        <div className="flex items-center gap-2">
+                            {/* <div className="p-1.5 bg-slate-100 text-slate-500 rounded-full mr-1">
+                                <Icon
+                                    icon="mdi:magnify"
+                                    className="w-3.5 h-3.5"
+                                />
+                            </div> */}
+
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                                            <button
+                                                title="缩小"
+                                                className="p-1 hover:bg-white rounded-md text-slate-500 hover:text-blue-600 transition-all disabled:opacity-50"
+                                                onClick={handleZoomOut}
+                                                disabled={previewScale <= 1}
+                                            >
+                                                <Icon
+                                                    icon="mdi:minus"
+                                                    className="w-3.5 h-3.5"
+                                                />
+                                            </button>
+                                            <span className="text-[10px] font-medium text-slate-500 w-9 text-center select-none tabular-nums">
+                                                {Math.round(previewScale * 100)}
+                                                %
+                                            </span>
+                                            <button
+                                                title="放大"
+                                                className="p-1 hover:bg-white rounded-md text-slate-500 hover:text-blue-600 transition-all disabled:opacity-50"
+                                                onClick={handleZoomIn}
+                                                disabled={previewScale >= 5}
+                                            >
+                                                <Icon
+                                                    icon="mdi:plus"
+                                                    className="w-3.5 h-3.5"
+                                                />
+                                            </button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        <p>缩放图片</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+
+                            {previewScale > 1 && (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                title="重置缩放"
+                                                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                                onClick={handleResetZoom}
+                                            >
+                                                <Icon
+                                                    icon="mdi:refresh"
+                                                    className="w-4 h-4"
+                                                />
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            <p>重置缩放</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            )}
                         </div>
                     </div>
                 </div>
-                {/* 颜色选择区域 */}
-                {dominantColors.length > 0 && (
-                    <div className="mt-4">
-                        <h3 className="text-sm font-medium mb-2">背景主色调</h3>
-                        <div className="flex gap-2">
-                            {dominantColors.map((color, index) => (
-                                <button
-                                    title="点击应用此颜色"
-                                    key={index}
-                                    className={`w-8 h-8 rounded-full transition-opacity duration-200 ${
-                                        isProcessingColor
-                                            ? "opacity-50 cursor-not-allowed"
-                                            : ""
-                                    }`}
-                                    style={{ backgroundColor: color.color }}
-                                    onClick={() =>
-                                        !isProcessingColor &&
-                                        applyWatermarkColor(color.color)
-                                    }
-                                    disabled={isProcessingColor}
-                                />
-                            ))}
-                            <button
-                                className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center transition-opacity duration-200 ${
-                                    isProcessingColor
-                                        ? "opacity-50 cursor-not-allowed"
-                                        : ""
-                                }`}
-                                onClick={() =>
-                                    !isProcessingColor &&
-                                    applyWatermarkColor("transparent")
-                                }
-                                disabled={isProcessingColor}
-                            >
-                                <span className="text-xs">原色</span>
-                            </button>
-                            <div className="relative">
-                                <button
-                                    title="选择自定义颜色"
-                                    className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center overflow-hidden transition-opacity duration-200 ${
-                                        isProcessingColor
-                                            ? "opacity-50 cursor-not-allowed"
-                                            : ""
-                                    }`}
-                                    disabled={isProcessingColor}
-                                >
-                                    <div
-                                        className="w-8 h-8 rounded-full absolute inset-0 flex items-center justify-center transition-colors duration-200"
-                                        style={{
-                                            backgroundColor:
-                                                customColor || "#ffffff",
-                                        }}
-                                    >
-                                        {!customColor && (
-                                            <span className="text-xs">
-                                                自选
-                                            </span>
-                                        )}
-                                    </div>
-                                    <input
-                                        type="color"
-                                        value={customColor || "#ffffff"}
-                                        onChange={(e) => {
-                                            setCustomColor(e.target.value);
-                                            !isProcessingColor &&
-                                                applyWatermarkColor(
-                                                    e.target.value
-                                                );
-                                        }}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        disabled={isProcessingColor}
-                                    />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );
