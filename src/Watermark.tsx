@@ -1166,12 +1166,12 @@ const Watermark: React.FC = () => {
                                 progress={smoothProgress}
                                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 text-white font-medium px-8 py-6 h-12 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
                             >
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-3">
                                     <Icon
-                                        icon="mdi:magic-staff"
+                                        icon="ri:magic-line"
                                         className="h-5 w-5"
                                     />
-                                    <span>一键生成</span>
+                                    <span>水印生成</span>
                                 </div>
                             </ProgressButton>
                         </div>

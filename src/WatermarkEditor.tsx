@@ -151,6 +151,190 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const [previewScale, setPreviewScale] = useState(1);
     const [previewPos, setPreviewPos] = useState({ x: 0, y: 0 });
 
+    // Toolbar state
+    const [isToolbarExpanded, setIsToolbarExpanded] = useState(true);
+    const [toolbarPos, setToolbarPos] = useState<{
+        x: number;
+        y: number;
+    } | null>(null);
+    const [toolbarOrientation, setToolbarOrientation] = useState<
+        "horizontal" | "vertical"
+    >("horizontal");
+    const toolbarRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const isDraggingRef = useRef(false);
+
+    const isVerticalLayout = toolbarOrientation === "vertical";
+
+    // 当操作栏展开状态变化时，检查并修正位置确保在容器内
+    useEffect(() => {
+        if (
+            isToolbarExpanded &&
+            toolbarRef.current &&
+            containerRef.current &&
+            toolbarPos
+        ) {
+            const toolbarEl = toolbarRef.current;
+            const containerEl = containerRef.current;
+            const toolbarRect = toolbarEl.getBoundingClientRect();
+            const containerWidth = containerEl.clientWidth;
+            const containerHeight = containerEl.clientHeight;
+            const padding = 16;
+
+            let newX = toolbarPos.x;
+            let newY = toolbarPos.y;
+            let needsUpdate = false;
+
+            const minX = padding;
+            const maxX = containerWidth - toolbarRect.width - padding;
+            const minY = padding;
+            const maxY = containerHeight - toolbarRect.height - padding;
+
+            if (newX < minX) {
+                newX = minX;
+                needsUpdate = true;
+            } else if (newX > maxX) {
+                newX = maxX;
+                needsUpdate = true;
+            }
+
+            if (newY < minY) {
+                newY = minY;
+                needsUpdate = true;
+            } else if (newY > maxY) {
+                newY = maxY;
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+                setToolbarPos({ x: newX, y: newY });
+            }
+        }
+    }, [isToolbarExpanded]);
+
+    const handleToolbarMouseDown = (e: React.MouseEvent) => {
+        if (
+            (e.target as HTMLElement).closest(
+                'button, input, [role="combobox"], .no-drag'
+            )
+        ) {
+            return;
+        }
+
+        e.preventDefault();
+
+        const toolbarEl = toolbarRef.current;
+        const containerEl = containerRef.current;
+        if (!toolbarEl || !containerEl) return;
+
+        const containerRect = containerEl.getBoundingClientRect();
+        const toolbarRect = toolbarEl.getBoundingClientRect();
+
+        // Calculate start position relative to container
+        const startLeft =
+            toolbarRect.left - containerRect.left - (containerEl.clientLeft || 0);
+        const startTop =
+            toolbarRect.top - containerRect.top - (containerEl.clientTop || 0);
+
+        const initialMouseX = e.clientX;
+        const initialMouseY = e.clientY;
+        isDraggingRef.current = false;
+
+        // Temporarily disable transition for smooth dragging
+        toolbarEl.style.transition = "none";
+
+        // Switch to absolute positioning with calculated coordinates
+        toolbarEl.style.left = `${startLeft}px`;
+        toolbarEl.style.top = `${startTop}px`;
+        toolbarEl.style.bottom = "auto";
+        toolbarEl.style.right = "auto";
+        toolbarEl.style.transform = "none";
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            const dx = moveEvent.clientX - initialMouseX;
+            const dy = moveEvent.clientY - initialMouseY;
+
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+                isDraggingRef.current = true;
+            }
+
+            let newLeft = startLeft + dx;
+            let newTop = startTop + dy;
+
+            // Constrain within container
+            const padding = 16;
+            const containerWidth = containerEl.clientWidth;
+            const containerHeight = containerEl.clientHeight;
+            const maxLeft = containerWidth - toolbarRect.width - padding;
+            const maxTop = containerHeight - toolbarRect.height - padding;
+
+            newLeft = Math.max(padding, Math.min(newLeft, maxLeft));
+            newTop = Math.max(padding, Math.min(newTop, maxTop));
+
+            toolbarEl.style.left = `${newLeft}px`;
+            toolbarEl.style.top = `${newTop}px`;
+        };
+
+        const handleMouseUp = (upEvent: MouseEvent) => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+
+            const dx = upEvent.clientX - initialMouseX;
+            const dy = upEvent.clientY - initialMouseY;
+
+            // Clear manual transition override
+            toolbarEl.style.transition = "";
+
+            let finalX = startLeft + dx;
+            let finalY = startTop + dy;
+
+            // Constrain within container
+            const padding = 16;
+            const containerWidth = containerEl.clientWidth;
+            const containerHeight = containerEl.clientHeight;
+            const maxLeft = containerWidth - toolbarRect.width - padding;
+            const maxTop = containerHeight - toolbarRect.height - padding;
+
+            finalX = Math.max(padding, Math.min(finalX, maxLeft));
+            finalY = Math.max(padding, Math.min(finalY, maxTop));
+
+            setToolbarPos({
+                x: finalX,
+                y: finalY,
+            });
+
+            // Calculate new orientation based on position relative to container edges
+            if (isDraggingRef.current) {
+                // Use the center of the toolbar for distance calculation
+                const centerX = finalX + toolbarRect.width / 2;
+                const centerY = finalY + toolbarRect.height / 2;
+
+                const distToLeft = centerX;
+                const distToRight = containerWidth - centerX;
+                const distToTop = centerY;
+                const distToBottom = containerHeight - centerY;
+
+                const minSideDist = Math.min(distToLeft, distToRight);
+                const minVerticalDist = Math.min(distToTop, distToBottom);
+
+                // If closer to sides than to top/bottom, switch to vertical
+                if (minSideDist < minVerticalDist) {
+                    setToolbarOrientation("vertical");
+                } else {
+                    setToolbarOrientation("horizontal");
+                }
+            }
+
+            // If not dragging, treat as click
+            if (!isDraggingRef.current && !isToolbarExpanded) {
+                setIsToolbarExpanded(true);
+            }
+        };
+
+        window.addEventListener("mousemove", handleMouseMove);
+        window.addEventListener("mouseup", handleMouseUp);
+    };
+
     const handleZoomIn = () => {
         setPreviewScale((prev) => Math.min(prev * 1.2, 5));
     };
@@ -727,7 +911,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     return (
         <div className="flex flex-1 flex-col h-full relative group">
-            <div className="relative flex-1 rounded-2xl overflow-hidden bg-slate-100/50 flex items-center justify-center border border-slate-200/50 shadow-inner">
+            <div
+                ref={containerRef}
+                className="relative flex-1 rounded-2xl overflow-hidden bg-slate-100/50 flex items-center justify-center border border-slate-200/50 shadow-inner"
+            >
                 <Stage
                     width={backgroundImageSize.width}
                     height={backgroundImageSize.height}
@@ -818,11 +1005,59 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                     </Layer>
                 </Stage>
 
-                {/* Floating Toolbar - Compact & Elegant */}
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 transition-all duration-500 transform translate-y-0 opacity-100">
-                    <div className="bg-white/80 backdrop-blur-xl shadow-2xl shadow-black/10 border border-white/60 rounded-full px-5 py-2.5 flex items-center gap-5 transition-all hover:bg-white hover:scale-[1.01] hover:shadow-black/15">
-                        {/* Position Group */}
-                        <div className="flex items-center gap-3">
+                {/* Floating Toolbar */}
+                <div
+                    ref={toolbarRef}
+                    className={`absolute z-20 transition-all duration-300 ${
+                        !toolbarPos
+                            ? "bottom-6 left-1/2 -translate-x-1/2"
+                            : ""
+                    }`}
+                    style={
+                        toolbarPos
+                            ? {
+                                  left: toolbarPos.x,
+                                  top: toolbarPos.y,
+                                  transform: "none",
+                              }
+                            : {}
+                    }
+                    onMouseDown={handleToolbarMouseDown}
+                >
+                    {isToolbarExpanded ? (
+                        <div className="relative group">
+                            <div
+                                className={`bg-white/80 backdrop-blur-xl shadow-2xl shadow-black/10 border border-white/60 rounded-[2rem] p-3 flex ${
+                                    isVerticalLayout ? "flex-col" : "flex-row"
+                                } items-center gap-4 transition-all hover:bg-white hover:shadow-black/15 cursor-move select-none`}
+                            >
+                                {/* Collapse Button */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsToolbarExpanded(false);
+                                    }}
+                                    className="w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center text-slate-400 hover:text-slate-600 border border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity no-drag"
+                                    title="收起"
+                                >
+                                    <Icon
+                                        icon={
+                                            isVerticalLayout
+                                                ? "mdi:chevron-up"
+                                                : "mdi:chevron-left"
+                                        }
+                                        className="w-4 h-4"
+                                    />
+                                </button>
+
+                                {/* Position Group */}
+                                <div
+                                    className={`flex ${
+                                        isVerticalLayout
+                                            ? "flex-col"
+                                            : "flex-row"
+                                    } items-center gap-3`}
+                                >
                             {/* <div className="p-1.5 bg-slate-100 text-slate-500 rounded-full">
                                 <Icon
                                     icon="mdi:move-resize"
@@ -836,8 +1071,27 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                             value={selectedPosition}
                                             onValueChange={handlePositionChange}
                                         >
-                                            <SelectTrigger className="w-[80px] h-8 text-xs bg-transparent border-0 focus:ring-0 px-2 hover:bg-slate-50/50 rounded-md transition-colors font-medium text-slate-600 justify-between [&>span]:flex [&>span]:items-center">
-                                                <SelectValue placeholder="选择位置" />
+                                            <SelectTrigger
+                                                className={`h-8 text-xs bg-transparent border-0 focus:ring-0 hover:bg-slate-50/50 rounded-md transition-colors font-medium text-slate-600 [&>span]:flex [&>span]:items-center no-drag ${
+                                                    isVerticalLayout
+                                                        ? "w-8 justify-center px-0 [&>svg]:hidden"
+                                                        : "w-[80px] px-2 justify-between"
+                                                }`}
+                                            >
+                                                <SelectValue
+                                                    placeholder={
+                                                        isVerticalLayout
+                                                            ? ""
+                                                            : "选择位置"
+                                                    }
+                                                />
+                                                {isVerticalLayout &&
+                                                    !selectedPosition && (
+                                                        <Icon
+                                                            icon="mdi:move-resize"
+                                                            className="w-4 h-4 text-slate-500"
+                                                        />
+                                                    )}
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectGroup>
@@ -915,13 +1169,23 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                 </Tooltip>
                             </TooltipProvider>
 
-                            <div className="h-4 w-px bg-slate-200"></div>
+                            <div
+                                className={
+                                    isVerticalLayout
+                                        ? "w-full h-px bg-slate-200"
+                                        : "h-4 w-px bg-slate-200"
+                                }
+                            ></div>
 
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger>
                                         <div
-                                            className="flex items-center gap-2 cursor-pointer group/batch select-none"
+                                            className={`flex ${
+                                                isVerticalLayout
+                                                    ? "flex-col gap-1"
+                                                    : "flex-row gap-2"
+                                            } items-center cursor-pointer group/batch select-none no-drag`}
                                             onClick={() => setIsBatch(!isBatch)}
                                         >
                                             <Switch
@@ -949,19 +1213,31 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
                         {/* Divider */}
                         {dominantColors.length > 0 && (
-                            <div className="w-px h-6 bg-slate-200"></div>
+                            <div
+                                className={
+                                    isVerticalLayout
+                                        ? "w-full h-px bg-slate-200"
+                                        : "w-px h-6 bg-slate-200"
+                                }
+                            ></div>
                         )}
 
                         {/* Color Group */}
                         {dominantColors.length > 0 && (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 no-drag">
                                 {/* <div className="p-1.5 bg-slate-100 text-slate-500 rounded-full mr-1">
                                     <Icon
                                         icon="mdi:palette-swatch-outline"
                                         className="w-3.5 h-3.5"
                                     />
                                 </div> */}
-                                <div className="flex items-center gap-2">
+                                <div
+                                    className={`flex ${
+                                        isVerticalLayout
+                                            ? "flex-col"
+                                            : "flex-row"
+                                    } items-center gap-2`}
+                                >
                                     {/* Original */}
                                     <TooltipProvider>
                                         <Tooltip>
@@ -1078,10 +1354,20 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                         )}
 
                         {/* Divider */}
-                        <div className="w-px h-6 bg-slate-200"></div>
+                        <div
+                            className={
+                                isVerticalLayout
+                                    ? "w-full h-px bg-slate-200"
+                                    : "w-px h-6 bg-slate-200"
+                            }
+                        ></div>
 
                         {/* Zoom Controls */}
-                        <div className="flex items-center gap-2">
+                        <div
+                            className={`flex ${
+                                isVerticalLayout ? "flex-col" : "flex-row"
+                            } items-center gap-2 no-drag`}
+                        >
                             {/* <div className="p-1.5 bg-slate-100 text-slate-500 rounded-full mr-1">
                                 <Icon
                                     icon="mdi:magnify"
@@ -1092,7 +1378,13 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                                        <div
+                                            className={`flex ${
+                                                isVerticalLayout
+                                                    ? "flex-col"
+                                                    : "flex-row"
+                                            } items-center bg-slate-100 rounded-lg p-0.5`}
+                                        >
                                             <button
                                                 title="缩小"
                                                 className="p-1 hover:bg-white rounded-md text-slate-500 hover:text-blue-600 transition-all disabled:opacity-50"
@@ -1149,7 +1441,15 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                 </TooltipProvider>
                             )}
                         </div>
+
+
                     </div>
+                        </div>
+                    ) : (
+                        <div className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-xl shadow-xl border border-white/60 flex items-center justify-center text-slate-600 hover:scale-110 hover:text-blue-600 transition-all cursor-pointer">
+                            <Icon icon="ri:lightbulb-flash-line" className="w-5 h-5" />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
