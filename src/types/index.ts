@@ -21,4 +21,13 @@ interface ImgWithPosition {
     position: WatermarkPosition;
 }
 
-export type { ImageType,WatermarkPosition, ImgWithPosition }
+interface TextWatermarkConfig {
+    enabled: boolean;
+    content: string;
+    color: string;
+    fontSize: number;
+    fontFamily: string;
+    isVertical: boolean;
+}
+
+export type { ImageType, WatermarkPosition, ImgWithPosition, TextWatermarkConfig };

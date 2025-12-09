@@ -1,4 +1,4 @@
-import { ImageType } from "@/types";
+import { ImageType, TextWatermarkConfig } from "@/types";
 import * as StackBlur from "stackblur-canvas";
 
 // ===== 性能优化：内存管理 =====
@@ -695,7 +695,8 @@ async function processImage(
     quality: number,
     watermarkOpacity: number = 1,
     onProgress?: (progress: number) => void,
-    darkOptions?: DarkWatermarkOptions // 新增可选参数
+    darkOptions?: DarkWatermarkOptions,
+    textOptions?: TextWatermarkConfig
 ): Promise<{ url: string; name: string }> {
     const memoryManager = MemoryManager.getInstance();
     const startTime = performance.now();
@@ -768,6 +769,38 @@ async function processImage(
                     const watermarkY = watermarkPosition.y;
                     const watermarkWidth = watermarkPosition.width;
                     const watermarkHeight = watermarkPosition.height;
+
+                    // 绘制文字水印
+                    if (textOptions?.enabled && textOptions?.content) {
+                        const fontSize = textOptions.fontSize || 50;
+                        const minDim = Math.min(image.width, image.height);
+                        // 假设 50 代表短边的 5%
+                        const finalFontSize = (fontSize / 500) * minDim;
+
+                        ctx.font = `bold ${finalFontSize}px ${textOptions.fontFamily || "SimSun, Songti SC, serif"}`;
+                        ctx.fillStyle = textOptions.color || "#000000";
+                        ctx.textBaseline = "middle";
+
+                        const text = textOptions.content;
+                        const gap = finalFontSize * 0.5;
+
+                        if (textOptions.isVertical) {
+                            // 竖排文字
+                            let tx = watermarkX + watermarkWidth + gap;
+                            let ty = watermarkY;
+
+                            for (let i = 0; i < text.length; i++) {
+                                const char = text[i];
+                                const charHeight = finalFontSize;
+                                ctx.fillText(char, tx, ty + i * charHeight + charHeight / 2);
+                            }
+                        } else {
+                            // 横排文字
+                             const tx = watermarkX + watermarkWidth + gap;
+                             const ty = watermarkY + watermarkHeight / 2;
+                             ctx.fillText(text, tx, ty);
+                        }
+                    }
 
                     onProgress?.(70);
 

@@ -20,7 +20,8 @@ import {
     detectDarkWatermark,
 } from "./utils";
 import { useDeviceDetect } from "@/hooks";
-import { ImageType, WatermarkPosition, ImgWithPosition } from "./types";
+import { ImageType, WatermarkPosition, ImgWithPosition, TextWatermarkConfig } from "./types";
+import { TextWatermarkControl } from "./components/TextWatermarkControl";
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
 import MobileWatermarkEditor from "./MobileWatermarkEditor";
@@ -111,6 +112,16 @@ const Watermark: React.FC = () => {
     // 新增：暗水印开关与强度
     const [darkWatermarkEnabled, setDarkWatermarkEnabled] = useState<boolean>(false);
     const [darkWatermarkStrength, setDarkWatermarkStrength] = useState<number>(0.08);
+
+    // 新增：文字水印配置
+    const [textWatermarkConfig, setTextWatermarkConfig] = useState<TextWatermarkConfig>({
+        enabled: false,
+        content: "我的水印",
+        color: "#000000",
+        fontSize: 50,
+        fontFamily: "SimSun, Songti SC, serif",
+        isVertical: false
+    });
 
     // 移动端菜单状态
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -279,7 +290,8 @@ const Watermark: React.FC = () => {
     async function downloadImagesWithWatermarkBatch(
         imgPostionList,
         batchSize = 5,
-        globalConcurrency = 10
+        globalConcurrency = 10,
+        textConfig?: TextWatermarkConfig
     ) {
         const limit = pLimit(globalConcurrency);
         const downloadLink = document.createElement("a");
@@ -374,7 +386,8 @@ const Watermark: React.FC = () => {
                             gap: 0.5,                       // 每个瓦片之间留 50% 间隙
                             angle: -30,                     // 斜向平铺
                             blendMode: "multiply",          // 乘法混合，低调但有效
-                        }
+                        },
+                        textConfig
                     );
 
                     console.log(`图片 ${img.id} 处理完成`, { url: url.substring(0, 50) + '...', name });
@@ -460,7 +473,8 @@ const Watermark: React.FC = () => {
             await downloadImagesWithWatermarkBatch(
                 allimageData,
                 batchSize,
-                globalConcurrency
+                globalConcurrency,
+                textWatermarkConfig
             );
         } catch (error) {
             console.error("处理水印失败:", error);
@@ -1105,6 +1119,12 @@ const Watermark: React.FC = () => {
                                     />
                                 </div>
                             </div>
+
+                            {/* 文字水印组件 */}
+                            <TextWatermarkControl
+                                config={textWatermarkConfig}
+                                onChange={setTextWatermarkConfig}
+                            />
                         </div>
 
                         {/* 右侧：操作按钮 */}
