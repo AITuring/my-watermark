@@ -21,13 +21,15 @@ interface ImgWithPosition {
     position: WatermarkPosition;
 }
 
-interface TextWatermarkConfig {
+interface MixedWatermarkConfig {
     enabled: boolean;
-    content: string;
+    icon: string; // URL of the icon
+    textLine1: string;
+    textLine2: string;
     color: string;
     fontSize: number;
-    fontFamily: string;
-    isVertical: boolean;
+    gap: number;
+    layout?: 'horizontal' | 'vertical';
 }
 
-export type { ImageType, WatermarkPosition, ImgWithPosition, TextWatermarkConfig };
+export type { ImageType, WatermarkPosition, ImgWithPosition, MixedWatermarkConfig };

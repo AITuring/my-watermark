@@ -18,10 +18,10 @@ import {
     processImage,
     adjustBatchSizeAndConcurrency,
     detectDarkWatermark,
+    createMixedWatermark,
 } from "./utils";
 import { useDeviceDetect } from "@/hooks";
-import { ImageType, WatermarkPosition, ImgWithPosition, TextWatermarkConfig } from "./types";
-import { TextWatermarkControl } from "./components/TextWatermarkControl";
+import { ImageType, WatermarkPosition, ImgWithPosition, TextWatermarkConfig, MixedWatermarkConfig } from "./types";
 import ImageUploader from "./ImageUploader";
 import WatermarkEditor from "./WatermarkEditor";
 import MobileWatermarkEditor from "./MobileWatermarkEditor";
@@ -84,7 +84,41 @@ const Watermark: React.FC = () => {
 
     // 当前照片
     const [currentImg, setCurrentImg] = useState<ImageType | null>();
+    // watermarkUrl 存储当前生效的水印图片URL（可能是上传的，也可能是生成的）
     const [watermarkUrl, setWatermarkUrl] = useState("/logo.png");
+
+    // 模式：image | mixed
+    const [watermarkMode, setWatermarkMode] = useState<"image" | "mixed">("image");
+    // 存储用户上传的图片水印，以便切换回来时恢复
+    const [storedImageWatermarkUrl, setStoredImageWatermarkUrl] = useState("/logo.png");
+
+    // 混合水印配置
+    const [mixedWatermarkConfig, setMixedWatermarkConfig] = useState<MixedWatermarkConfig>({
+        enabled: true,
+        icon: "/logo.png",
+        textLine1: "第一行文字",
+        textLine2: "第二行文字",
+        color: "#000000",
+        fontSize: 30,
+        gap: 20,
+        layout: "horizontal"
+    });
+
+    // 监听混合水印配置变化，生成预览图
+    useEffect(() => {
+        if (watermarkMode === "mixed") {
+            const generate = async () => {
+                if (!mixedWatermarkConfig.icon) return;
+                const url = await createMixedWatermark(mixedWatermarkConfig);
+                if (url) setWatermarkUrl(url);
+            };
+            // Debounce generation? createMixedWatermark is fast enough for canvas
+            const timer = setTimeout(generate, 100);
+            return () => clearTimeout(timer);
+        } else {
+            setWatermarkUrl(storedImageWatermarkUrl);
+        }
+    }, [watermarkMode, mixedWatermarkConfig, storedImageWatermarkUrl]);
 
     const [watermarkPositions, setWatermarkPositions] = useState<
         WatermarkPosition[]
@@ -112,16 +146,6 @@ const Watermark: React.FC = () => {
     // 新增：暗水印开关与强度
     const [darkWatermarkEnabled, setDarkWatermarkEnabled] = useState<boolean>(false);
     const [darkWatermarkStrength, setDarkWatermarkStrength] = useState<number>(0.08);
-
-    // 新增：文字水印配置
-    const [textWatermarkConfig, setTextWatermarkConfig] = useState<TextWatermarkConfig>({
-        enabled: false,
-        content: "我的水印",
-        color: "#000000",
-        fontSize: 50,
-        fontFamily: "SimSun, Songti SC, serif",
-        isVertical: false
-    });
 
     // 移动端菜单状态
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -248,7 +272,13 @@ const Watermark: React.FC = () => {
     const handleWatermarkUpload = (files: File[]) => {
         const reader = new FileReader();
         reader.onload = (event) => {
-            setWatermarkUrl(event.target!.result as string);
+            const url = event.target!.result as string;
+            if (watermarkMode === "image") {
+                setStoredImageWatermarkUrl(url);
+                setWatermarkUrl(url);
+            } else {
+                setMixedWatermarkConfig((prev) => ({ ...prev, icon: url }));
+            }
         };
         reader.readAsDataURL(files[0]);
     };
@@ -291,7 +321,8 @@ const Watermark: React.FC = () => {
         imgPostionList,
         batchSize = 5,
         globalConcurrency = 10,
-        textConfig?: TextWatermarkConfig
+        textConfig?: TextWatermarkConfig,
+        mixedConfig?: MixedWatermarkConfig
     ) {
         const limit = pLimit(globalConcurrency);
         const downloadLink = document.createElement("a");
@@ -387,7 +418,7 @@ const Watermark: React.FC = () => {
                             angle: -30,                     // 斜向平铺
                             blendMode: "multiply",          // 乘法混合，低调但有效
                         },
-                        textConfig
+                        mixedConfig
                     );
 
                     console.log(`图片 ${img.id} 处理完成`, { url: url.substring(0, 50) + '...', name });
@@ -474,7 +505,8 @@ const Watermark: React.FC = () => {
                 allimageData,
                 batchSize,
                 globalConcurrency,
-                textWatermarkConfig
+                undefined, // textConfig placeholder
+                watermarkMode === "mixed" ? mixedWatermarkConfig : undefined
             );
         } catch (error) {
             console.error("处理水印失败:", error);
@@ -962,11 +994,30 @@ const Watermark: React.FC = () => {
                 <div className="bg-white/90 backdrop-blur-md border-t border-slate-200 shadow-lg px-6 py-4">
                     <div className="flex items-center justify-between max-w-[1920px] mx-auto gap-8">
                         {/* 左侧：水印上传与基础设置 */}
-                        <div className="flex items-center gap-6 shrink-0">
+                        <div className="flex items-center gap-4 shrink-0">
+                            {/* 模式切换 Switch */}
+                            <div className="flex flex-col gap-1.5">
+                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                    混合水印
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-sm ${watermarkMode === 'mixed' ? 'text-blue-600 font-medium' : 'text-slate-600'}`}>
+                                        开启
+                                    </span>
+                                    <Switch
+                                        checked={watermarkMode === "mixed"}
+                                        onCheckedChange={(checked) => setWatermarkMode(checked ? "mixed" : "image")}
+                                        className="data-[state=checked]:bg-blue-600"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="h-10 w-[1px] bg-slate-200"></div>
+
                             <div className="relative group">
                                 <ImageUploader
                                     onUpload={handleWatermarkUpload}
-                                    fileType="水印"
+                                    fileType={watermarkMode === "image" ? "水印图片" : "图标"}
                                     className="w-14 h-14 rounded-lg cursor-pointer overflow-hidden border border-slate-200 hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md bg-slate-50"
                                 >
                                     <TooltipProvider>
@@ -974,20 +1025,20 @@ const Watermark: React.FC = () => {
                                             <TooltipTrigger asChild>
                                                 <div className="w-full h-full flex items-center justify-center p-1">
                                                     <img
-                                                        src={watermarkUrl}
+                                                        src={watermarkMode === "image" ? storedImageWatermarkUrl : mixedWatermarkConfig.icon}
                                                         alt="watermark"
                                                         className="max-w-full max-h-full object-contain group-hover:opacity-80 transition-opacity"
                                                     />
                                                 </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="top">
-                                                <p>点击更换水印图片</p>
+                                                <p>点击更换{watermarkMode === "image" ? "水印图片" : "图标"}</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
                                 </ImageUploader>
                                 <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full shadow-sm">
-                                    水印
+                                    {watermarkMode === "image" ? "水印" : "图标"}
                                 </div>
                             </div>
 
@@ -1064,73 +1115,184 @@ const Watermark: React.FC = () => {
                                 />
                             </div>
 
-                            {/* 暗水印 */}
-                            <div className="flex-1 min-w-[220px] max-w-[300px] flex flex-col gap-2 p-2 rounded-lg border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-all">
-                                <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                                            <Icon
-                                                icon="mdi:shield-check-outline"
-                                                className={`transition-colors ${
-                                                    darkWatermarkEnabled
-                                                        ? "text-blue-500"
-                                                        : "text-slate-400"
-                                                }`}
+                            {/* 暗水印 - 仅在非混合模式下显示 */}
+                            {watermarkMode !== "mixed" && (
+                                <div className="flex-1 min-w-[220px] max-w-[300px] flex flex-col gap-2 p-2 rounded-lg border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-all">
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                                <Icon
+                                                    icon="mdi:shield-check-outline"
+                                                    className={`transition-colors ${
+                                                        darkWatermarkEnabled
+                                                            ? "text-blue-500"
+                                                            : "text-slate-400"
+                                                    }`}
+                                                />
+                                                暗水印
+                                            </div>
+                                            <Switch
+                                                checked={darkWatermarkEnabled}
+                                                onCheckedChange={
+                                                    setDarkWatermarkEnabled
+                                                }
+                                                className="scale-75 data-[state=checked]:bg-blue-600"
                                             />
-                                            暗水印
                                         </div>
-                                        <Switch
-                                            checked={darkWatermarkEnabled}
-                                            onCheckedChange={
-                                                setDarkWatermarkEnabled
-                                            }
-                                            className="scale-75 data-[state=checked]:bg-blue-600"
-                                        />
+                                        <span
+                                            className={`text-xs font-mono px-1.5 py-0.5 rounded transition-colors ${
+                                                darkWatermarkEnabled
+                                                    ? "text-slate-600 bg-white shadow-sm"
+                                                    : "text-slate-300 bg-transparent"
+                                            }`}
+                                        >
+                                            {Math.round(
+                                                darkWatermarkStrength * 100
+                                            )}
+                                            %
+                                        </span>
                                     </div>
-                                    <span
-                                        className={`text-xs font-mono px-1.5 py-0.5 rounded transition-colors ${
+                                    <div
+                                        className={`transition-opacity duration-200 ${
                                             darkWatermarkEnabled
-                                                ? "text-slate-600 bg-white shadow-sm"
-                                                : "text-slate-300 bg-transparent"
+                                                ? "opacity-100"
+                                                : "opacity-40 pointer-events-none"
                                         }`}
                                     >
-                                        {Math.round(
-                                            darkWatermarkStrength * 100
-                                        )}
-                                        %
-                                    </span>
+                                        <Slider
+                                            value={[darkWatermarkStrength]}
+                                            onValueChange={(value) =>
+                                                setDarkWatermarkStrength(value[0])
+                                            }
+                                            max={0.25}
+                                            min={0.02}
+                                            step={0.01}
+                                            className="w-full py-1"
+                                        />
+                                    </div>
                                 </div>
-                                <div
-                                    className={`transition-opacity duration-200 ${
-                                        darkWatermarkEnabled
-                                            ? "opacity-100"
-                                            : "opacity-40 pointer-events-none"
-                                    }`}
-                                >
-                                    <Slider
-                                        value={[darkWatermarkStrength]}
-                                        onValueChange={(value) =>
-                                            setDarkWatermarkStrength(value[0])
-                                        }
-                                        max={0.25}
-                                        min={0.02}
-                                        step={0.01}
-                                        className="w-full py-1"
-                                    />
-                                </div>
-                            </div>
+                            )}
 
-                            {/* 文字水印组件 */}
-                            <TextWatermarkControl
-                                config={textWatermarkConfig}
-                                onChange={setTextWatermarkConfig}
-                            />
+                            {/* 混合水印配置 controls */}
+                            {watermarkMode === "mixed" && (
+                                <div className="flex items-center gap-4 border-l pl-4 border-slate-200">
+                                    <div className="flex flex-col gap-2 w-32">
+                                        <input
+                                            type="text"
+                                            value={mixedWatermarkConfig.textLine1}
+                                            onChange={(e) =>
+                                                setMixedWatermarkConfig((p) => ({
+                                                    ...p,
+                                                    textLine1: e.target.value,
+                                                }))
+                                            }
+                                            className="h-7 text-xs px-2 rounded border border-slate-200 focus:border-blue-500 outline-none"
+                                            placeholder="第一行文字"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={mixedWatermarkConfig.textLine2}
+                                            onChange={(e) =>
+                                                setMixedWatermarkConfig((p) => ({
+                                                    ...p,
+                                                    textLine2: e.target.value,
+                                                }))
+                                            }
+                                            className="h-7 text-xs px-2 rounded border border-slate-200 focus:border-blue-500 outline-none"
+                                            placeholder="第二行文字"
+                                        />
+                                    </div>
+
+                                    {/* 布局切换 */}
+                                    <div className="flex flex-col gap-1 items-center">
+                                        <span className="text-[10px] text-slate-400">布局</span>
+                                        <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                                            <button
+                                                className={`p-1 rounded-md transition-all ${
+                                                    mixedWatermarkConfig.layout !== "vertical"
+                                                        ? "bg-white shadow-sm text-blue-600"
+                                                        : "text-slate-400 hover:text-slate-600"
+                                                }`}
+                                                onClick={() =>
+                                                    setMixedWatermarkConfig((p) => ({
+                                                        ...p,
+                                                        layout: "horizontal",
+                                                    }))
+                                                }
+                                                title="水平布局"
+                                            >
+                                                <Icon
+                                                    icon="mdi:format-list-bulleted"
+                                                    className="w-4 h-4"
+                                                />
+                                            </button>
+                                            <button
+                                                className={`p-1 rounded-md transition-all ${
+                                                    mixedWatermarkConfig.layout === "vertical"
+                                                        ? "bg-white shadow-sm text-blue-600"
+                                                        : "text-slate-400 hover:text-slate-600"
+                                                }`}
+                                                onClick={() =>
+                                                    setMixedWatermarkConfig((p) => ({
+                                                        ...p,
+                                                        layout: "vertical",
+                                                    }))
+                                                }
+                                                title="竖直布局"
+                                            >
+                                                <Icon
+                                                    icon="mdi:format-vertical-align-top"
+                                                    className="w-4 h-4 transform rotate-90"
+                                                />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 颜色选择 */}
+                                    <div className="flex flex-col gap-1 items-center">
+                                        <span className="text-[10px] text-slate-400">颜色</span>
+                                        <div className="relative overflow-hidden w-6 h-6 rounded-full border border-slate-200 shadow-sm cursor-pointer">
+                                            <input
+                                                type="color"
+                                                value={mixedWatermarkConfig.color}
+                                                onChange={(e) =>
+                                                    setMixedWatermarkConfig((p) => ({
+                                                        ...p,
+                                                        color: e.target.value,
+                                                    }))
+                                                }
+                                                className="absolute -top-2 -left-2 w-10 h-10 p-0 border-0 cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* 大小控制 */}
+                                    <div className="flex flex-col gap-1 w-24">
+                                        <span className="text-[10px] text-slate-400">字体大小</span>
+                                        <Slider
+                                            value={[mixedWatermarkConfig.fontSize]}
+                                            onValueChange={(v) =>
+                                                setMixedWatermarkConfig((p) => ({
+                                                    ...p,
+                                                    fontSize: v[0],
+                                                }))
+                                            }
+                                            min={10}
+                                            max={100}
+                                            step={1}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 旧的文字水印组件已移除 */}
                         </div>
 
                         {/* 右侧：操作按钮 */}
                         <div className="flex items-center gap-4 shrink-0">
-                            {/* 检测暗水印按钮 - 只有开启且有图时显示 */}
-                            {darkWatermarkEnabled && (
+                            {/* 检测暗水印按钮 - 只有开启且有图时显示，且不在混合模式下 */}
+                            {darkWatermarkEnabled && watermarkMode !== "mixed" && (
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
