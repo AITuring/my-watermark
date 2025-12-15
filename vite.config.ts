@@ -88,11 +88,8 @@ export default defineConfig({
                 manualChunks: {
                     'react-vendor': ['react', 'react-dom', 'react-router-dom', 'scheduler'],
                     'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
-                    'antd-vendor': ['antd'],
-                    'ui-vendor': [
-                        '@radix-ui/react-dialog',
-                        '@radix-ui/react-label',
-                        '@radix-ui/react-progress',
+                        'ui-vendor': [
+                            '@radix-ui/react-dialog', '@radix-ui/react-label', '@radix-ui/react-progress',
                         '@radix-ui/react-scroll-area',
                         '@radix-ui/react-select',
                         '@radix-ui/react-separator',
@@ -130,6 +127,5 @@ export default defineConfig({
     },
     optimizeDeps: {
         entries: ["./src/main.tsx"], // Specify entry file to improve pre-bundling
-        exclude: ["some-heavy-lib"], // Exclude large libs that don’t need pre-bundling
     },
 });
