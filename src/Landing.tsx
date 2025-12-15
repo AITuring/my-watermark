@@ -438,18 +438,76 @@ export default function Landing() {
             </div>
 
             {/* 顶部 Header */}
-            <header className="fixed top-0 left-0 w-full px-6 py-4 z-50 flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-sm border-b border-stone-200/50">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded bg-stone-800 flex items-center justify-center text-[#FDFBF7] font-bold text-lg shadow-sm">
-                        <span className="font-mono text-4xl">☺</span>
-                    </div>
+            <header className="fixed top-0 left-0 w-full px-6 pt-4 pb-2 z-50 flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-sm border-b border-stone-200/50">
+                <div className="flex items-center gap-3 cursor-pointer">
+                    <motion.div
+                        className="relative w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-[#FDFBF7] font-bold text-lg shadow-sm"
+                        initial="rest"
+                        animate="rest"
+                        whileHover="hover"
+                    >
+                        <motion.span
+                            className="font-mono text-4xl"
+                            animate={{ rotate: [0, 360] }}
+                            transition={{ duration: 3, ease: "linear", repeat: Infinity }}
+                        >
+                            ☺
+                        </motion.span>
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none">
+                            <motion.span
+                                className="absolute -ml-4 select-none"
+                                variants={{
+                                    rest: { opacity: 0 },
+                                    hover: {
+                                        y: [0, -16, -32],
+                                        opacity: [0, 1, 0],
+                                        scale: [0.7, 1, 0.9],
+                                        transition: { duration: 1.4, repeat: Infinity, repeatDelay: 0.4, ease: "easeOut" },
+                                    },
+                                }}
+                                aria-hidden="true"
+                            >
+                                😊
+                            </motion.span>
+                            <motion.span
+                                className="absolute select-none"
+                                variants={{
+                                    rest: { opacity: 0 },
+                                    hover: {
+                                        y: [0, -16, -32],
+                                        opacity: [0, 1, 0],
+                                        scale: [0.7, 1, 0.9],
+                                        transition: { duration: 1.4, repeat: Infinity, repeatDelay: 0.4, ease: "easeOut", delay: 0.2 },
+                                    },
+                                }}
+                                aria-hidden="true"
+                            >
+                                😊
+                            </motion.span>
+                            <motion.span
+                                className="absolute ml-4 select-none"
+                                variants={{
+                                    rest: { opacity: 0 },
+                                    hover: {
+                                        y: [0, -16, -32],
+                                        opacity: [0, 1, 0],
+                                        scale: [0.7, 1, 0.9],
+                                        transition: { duration: 1.4, repeat: Infinity, repeatDelay: 0.4, ease: "easeOut", delay: 0.4 },
+                                    },
+                                }}
+                                aria-hidden="true"
+                            >
+                                😊
+                            </motion.span>
+                        </div>
+                    </motion.div>
                     <div className="flex flex-col">
-                        <span className="font-bold text-stone-800 leading-tight font-mono tracking-wide">
+                        <span className="font-bold text-stone-800 leading-tight font-mono tracking-wide text-xl">
                             笑谈间气吐霓虹
                         </span>
-                        <span className="text-[10px] text-stone-500 font-medium uppercase tracking-widest opacity-80 font-mono">
+                        {/* <span className="text-[10px] text-stone-500 font-medium uppercase tracking-widest opacity-80 font-mono">
                             工具合集
-                        </span>
+                        </span> */}
                     </div>
                 </div>
                 {/* <div>
@@ -468,8 +526,24 @@ export default function Landing() {
                         className="text-3xl md:text-4xl font-bold text-stone-800 tracking-wide mb-6 font-mono"
                     >
                         创意与效率的
-                        <span className="text-stone-500 relative inline-block mx-2">
+                        <motion.span
+                            className="text-stone-500 relative inline-block mx-2"
+                            initial="rest"
+                            animate="rest"
+                            whileHover="hover"
+                        >
                             工具箱
+                            <motion.span
+                                className="absolute -top-6 right-2 select-none"
+                                variants={{
+                                    rest: { opacity: 0, scale: 0.6, y: 6, rotate: -12 },
+                                    hover: { opacity: 1, scale: 1, y: 0, rotate: 0 },
+                                }}
+                                transition={{ type: "spring", stiffness: 360, damping: 20 }}
+                                aria-hidden="true"
+                            >
+                                😊
+                            </motion.span>
                             <svg
                                 className="absolute -bottom-1 left-0 w-full h-2 text-stone-300 -z-10"
                                 viewBox="0 0 100 10"
@@ -482,7 +556,7 @@ export default function Landing() {
                                     fill="none"
                                 />
                             </svg>
-                        </span>
+                        </motion.span>
                     </motion.h1>
 
                     {/* <motion.p
