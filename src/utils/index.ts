@@ -1,4 +1,4 @@
-import { ImageType } from "@/types";
+import { ImageType, TextWatermarkConfig, MixedWatermarkConfig } from "@/types";
 import * as StackBlur from "stackblur-canvas";
 
 // ===== 性能优化：内存管理 =====
@@ -274,7 +274,7 @@ async function preprocessImage(file: File): Promise<PreprocessedImage> {
                 } catch (error) {
                     reject(error);
                 } finally {
-                    memoryManager.releaseCanvas(canvas);
+                    MemoryManager.getInstance().releaseCanvas(canvas);
                 }
             };
             image.onerror = reject;
@@ -283,6 +283,307 @@ async function preprocessImage(file: File): Promise<PreprocessedImage> {
         reader.onerror = reject;
         reader.readAsDataURL(file);
     });
+}
+
+// 加载图片辅助函数
+const loadImage = (src: string | File): Promise<HTMLImageElement> =>
+    new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        if (typeof src === "string") {
+            img.src = src;
+        } else {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target?.result as string;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(src);
+        }
+    });
+
+// 生成混合水印图片（图标 + 文字）
+export async function createMixedWatermark(config: MixedWatermarkConfig): Promise<string> {
+    const { icon, textLine1, textLine2, color, fontSize, gap, layout = 'horizontal' } = config;
+    const memoryManager = MemoryManager.getInstance();
+
+    // 1. 加载图标
+    let iconImg: HTMLImageElement;
+    try {
+        iconImg = await loadImage(icon);
+    } catch (e) {
+        console.error("Failed to load icon", e);
+        return "";
+    }
+
+    // 2. 创建临时Canvas用于测量和绘制
+    const canvas = memoryManager.getCanvas();
+    const ctx = canvas.getContext("2d")!;
+
+    // 设置字体以测量文本
+    const font = `bold ${fontSize}px "SimSun", "Songti SC", serif`;
+    ctx.font = font;
+
+    const lineHeight = fontSize * 1.2;
+    // 设定图标高度 = fontSize * 2.5
+    const targetIconHeight = fontSize * 2.5;
+    const scale = targetIconHeight / iconImg.height;
+    const targetIconWidth = iconImg.width * scale;
+
+    let totalWidth = 0;
+    let totalHeight = 0;
+
+    // 布局计算
+    if (layout === 'vertical') {
+        // 竖直布局：图标在顶部居中，文字在下方分两列
+        // 这里的"竖直布局"是指整体排列竖直，且文字竖排
+
+        const colWidth = fontSize;
+        const colGap = fontSize * 0.5;
+        // 文本块的高度取决于最长的一行
+        const textBlockH = Math.max(textLine1.length, textLine2.length) * lineHeight;
+        // 文本块的总宽度
+        const textBlockW = (textLine1 ? colWidth : 0) + (textLine2 ? colWidth : 0) + (textLine1 && textLine2 ? colGap : 0);
+
+        totalWidth = Math.max(targetIconWidth, textBlockW);
+        totalHeight = targetIconHeight + gap + textBlockH;
+    } else {
+        // 水平布局（默认）：图标在左，文字在右
+        const text1Metrics = ctx.measureText(textLine1);
+        const text2Metrics = ctx.measureText(textLine2);
+        const textWidth = Math.max(text1Metrics.width, text2Metrics.width);
+        const textHeight = lineHeight * 2;
+
+        totalWidth = targetIconWidth + gap + textWidth;
+        totalHeight = Math.max(targetIconHeight, textHeight);
+    }
+
+    canvas.width = totalWidth;
+    canvas.height = totalHeight;
+
+    // 清除画布
+    ctx.clearRect(0, 0, totalWidth, totalHeight);
+
+    // 3. 绘制图标（带颜色）
+    // 创建一个临时canvas处理图标颜色
+    const iconCanvas = memoryManager.getCanvas();
+    iconCanvas.width = targetIconWidth;
+    iconCanvas.height = targetIconHeight;
+    const iconCtx = iconCanvas.getContext("2d")!;
+
+    iconCtx.drawImage(iconImg, 0, 0, targetIconWidth, targetIconHeight);
+    iconCtx.globalCompositeOperation = "source-in";
+    iconCtx.fillStyle = color;
+    iconCtx.fillRect(0, 0, targetIconWidth, targetIconHeight);
+
+    // 计算图标位置
+    let iconX = 0;
+    let iconY = 0;
+
+    if (layout === 'vertical') {
+        iconX = (totalWidth - targetIconWidth) / 2;
+        iconY = 0;
+    } else {
+        iconX = 0;
+        iconY = (totalHeight - targetIconHeight) / 2;
+    }
+
+    // 将变色后的图标绘制到主画布
+    ctx.drawImage(iconCanvas, iconX, iconY);
+    memoryManager.releaseCanvas(iconCanvas);
+
+    // 4. 绘制文字
+    ctx.font = font;
+    ctx.fillStyle = color;
+    ctx.textBaseline = "top"; // 统一使用 top，方便计算
+
+    if (layout === 'vertical') {
+        // 竖直文字绘制
+        ctx.textAlign = "center";
+        const colWidth = fontSize;
+        const colGap = fontSize * 0.5;
+        const textBlockW = (textLine1 ? colWidth : 0) + (textLine2 ? colWidth : 0) + (textLine1 && textLine2 ? colGap : 0);
+
+        const startX = (totalWidth - textBlockW) / 2;
+        const startY = targetIconHeight + gap;
+
+        // Line 1 (Left Column)
+        if (textLine1) {
+            const l1X = startX + colWidth / 2;
+            for (let i = 0; i < textLine1.length; i++) {
+                ctx.fillText(textLine1[i], l1X, startY + i * lineHeight);
+            }
+        }
+        // Line 2 (Right Column)
+        if (textLine2) {
+            const offset = textLine1 ? (colWidth + colGap) : 0;
+            const l2X = startX + offset + colWidth / 2;
+            for (let i = 0; i < textLine2.length; i++) {
+                ctx.fillText(textLine2[i], l2X, startY + i * lineHeight);
+            }
+        }
+    } else {
+        // 水平文字绘制
+        ctx.textBaseline = "middle";
+        ctx.textAlign = "left";
+        const textX = targetIconWidth + gap;
+        const midY = totalHeight / 2;
+
+        ctx.fillText(textLine1, textX, midY - lineHeight / 2);
+        ctx.fillText(textLine2, textX, midY + lineHeight / 2);
+    }
+
+    // 5. 导出
+    const dataUrl = canvas.toDataURL("image/png");
+    memoryManager.releaseCanvas(canvas);
+
+    return dataUrl;
+}
+
+// 基于归一化互相关（NCC）的暗水印检测
+async function detectDarkWatermark(
+    imageInput: File | string,
+    watermarkInput: string | HTMLImageElement,
+    options: Partial<DarkWatermarkOptions> = {}
+): Promise<{ present: boolean; score: number }> {
+    const memoryManager = MemoryManager.getInstance();
+
+    // 加载图片
+    // const loadImage = (src: string | File): Promise<HTMLImageElement> =>
+    //    new Promise((resolve, reject) => { ... }) // Moved to top level
+
+
+    const loadWatermarkImage = async (
+        wm: string | HTMLImageElement
+    ): Promise<HTMLImageElement> => {
+        if (typeof wm !== "string") return wm;
+        return loadImage(wm);
+    };
+
+    const [image, watermarkImg] = await Promise.all([
+        loadImage(imageInput),
+        loadWatermarkImage(watermarkInput),
+    ]);
+
+    // 构造与嵌入一致的平铺参数
+    const angle = options.angle ?? -30;
+    const tileScale = options.scale ?? 0.06;
+    const gapRatio = options.gap ?? 0.5;
+    const tileOpacity = Math.max(0.01, Math.min(0.5, options.opacity ?? 0.08));
+
+    const w = image.width;
+    const h = image.height;
+
+    // 瓦片尺寸与间隔
+    const minDim = Math.min(w, h);
+    const tileSize = Math.max(32, Math.floor(minDim * tileScale));
+    const gap = Math.floor(tileSize * gapRatio);
+    const patternSize = tileSize + gap;
+
+    // 构造单个瓦片
+    const patternTile = memoryManager.getCanvas();
+    const pctx = patternTile.getContext("2d")!;
+    patternTile.width = patternSize;
+    patternTile.height = patternSize;
+    pctx.clearRect(0, 0, patternSize, patternSize);
+
+    const wmAspect = watermarkImg.width / watermarkImg.height;
+    let drawW = tileSize;
+    let drawH = tileSize;
+    if (wmAspect > 1) {
+        drawH = Math.floor(tileSize / wmAspect);
+    } else {
+        drawW = Math.floor(tileSize * wmAspect);
+    }
+    const dx = Math.floor((patternSize - drawW) / 2);
+    const dy = Math.floor((patternSize - drawH) / 2);
+    pctx.drawImage(watermarkImg, dx, dy, drawW, drawH);
+
+    // 平铺到整图并旋转
+    const patternFull = memoryManager.getCanvas();
+    const pfctx = patternFull.getContext("2d")!;
+    patternFull.width = w;
+    patternFull.height = h;
+    pfctx.save();
+    const pattern = pfctx.createPattern(patternTile, "repeat")!;
+    pfctx.translate(w / 2, h / 2);
+    pfctx.rotate((angle * Math.PI) / 180);
+    pfctx.translate(-w / 2, -h / 2);
+    pfctx.fillStyle = pattern;
+    pfctx.fillRect(0, 0, w, h);
+    pfctx.restore();
+
+    // 转为灰度
+    const toGray = (canvas: HTMLCanvasElement, srcImg: HTMLImageElement) => {
+        const ctx = canvas.getContext("2d")!;
+        canvas.width = srcImg.width;
+        canvas.height = srcImg.height;
+        ctx.drawImage(srcImg, 0, 0);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const out = new Float32Array(canvas.width * canvas.height);
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            out[j] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
+        return out;
+    };
+
+    const imgCanvas = memoryManager.getCanvas();
+    const imgGray = toGray(imgCanvas, image);
+
+    const patGray = (() => {
+        const data = pfctx.getImageData(0, 0, w, h).data;
+        const out = new Float32Array(w * h);
+        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            out[j] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
+        return out;
+    })();
+
+    // 归一化互相关（NCC）
+    const ncc = (a: Float32Array, b: Float32Array): number => {
+        const n = a.length;
+        let meanA = 0,
+            meanB = 0;
+        for (let i = 0; i < n; i++) {
+            meanA += a[i];
+            meanB += b[i];
+        }
+        meanA /= n;
+        meanB /= n;
+
+        let num = 0,
+            denA = 0,
+            denB = 0;
+        for (let i = 0; i < n; i++) {
+            const da = a[i] - meanA;
+            const db = b[i] - meanB;
+            num += da * db;
+            denA += da * da;
+            denB += db * db;
+        }
+        const denom = Math.sqrt(denA * denB) || 1;
+        return num / denom;
+    };
+
+    // 模式灰度乘以透明度权重，近似 multiply+alpha 的影响
+    for (let i = 0; i < patGray.length; i++) {
+        patGray[i] *= tileOpacity;
+    }
+
+    const score = ncc(imgGray, patGray);
+
+    // 简单阈值：透明度越低阈值越低
+    const threshold = Math.max(0.01, 0.5 * tileOpacity);
+    const present = score >= threshold;
+
+    // 释放资源
+    memoryManager.releaseCanvas(patternTile);
+    memoryManager.releaseCanvas(patternFull);
+    memoryManager.releaseCanvas(imgCanvas);
+
+    return { present, score };
 }
 
 // ===== 性能优化：批处理优化 =====
@@ -519,6 +820,16 @@ function debounce(func, wait) {
     };
 }
 
+// 在 processImage 前，添加可选参数类型（暗水印配置）
+interface DarkWatermarkOptions {
+    enabled?: boolean;
+    opacity?: number; // 0..1
+    scale?: number; // 瓦片尺寸相对图片短边的比例，默认 0.06
+    gap?: number; // 瓦片间隔比例（相对瓦片尺寸），默认 0.5
+    angle?: number; // 填充角度（度），默认 -30
+    blendMode?: GlobalCompositeOperation; // 例如 'multiply' | 'soft-light'
+}
+
 // 图片处理
 async function processImage(
     file: File,
@@ -527,7 +838,9 @@ async function processImage(
     watermarkBlur: boolean,
     quality: number,
     watermarkOpacity: number = 1,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    darkOptions?: DarkWatermarkOptions,
+    mixedConfig?: MixedWatermarkConfig
 ): Promise<{ url: string; name: string }> {
     const memoryManager = MemoryManager.getInstance();
     const startTime = performance.now();
@@ -563,6 +876,7 @@ async function processImage(
             image.onload = async () => {
                 let canvas: HTMLCanvasElement | null = null;
                 let tempCanvas: HTMLCanvasElement | null = null;
+                let patternCanvas: HTMLCanvasElement | null = null; // 暗水印用到的临时画布
 
                 try {
                     onProgress?.(50);
@@ -599,6 +913,9 @@ async function processImage(
                     const watermarkY = watermarkPosition.y;
                     const watermarkWidth = watermarkPosition.width;
                     const watermarkHeight = watermarkPosition.height;
+
+                    // 文字水印绘制逻辑已移至下方，与图片水印互斥
+
 
                     onProgress?.(70);
 
@@ -683,7 +1000,8 @@ async function processImage(
                         watermarkImageSize: {
                             width: watermarkImage.width,
                             height: watermarkImage.height
-                        }
+                        },
+                        textOptions: mixedConfig
                     });
 
                     // 将canvas的原点移动到水印的中心位置
@@ -696,17 +1014,219 @@ async function processImage(
                     ctx.rotate((position.rotation * Math.PI) / 180);
 
                     // 绘制水印
-                    ctx.drawImage(
-                        watermarkImage,
-                        -watermarkWidth / 2,
-                        -watermarkHeight / 2,
-                        watermarkWidth,
-                        watermarkHeight
-                    );
+                    if (mixedConfig && mixedConfig.enabled) {
+                         // 混合水印：直接在主画布上绘制矢量文字和图标
+                         const { textLine1, textLine2, color, fontSize, gap, layout = 'horizontal' } = mixedConfig;
+
+                         // 加载原始 Icon
+                         const iconImg = new Image();
+                         iconImg.crossOrigin = "anonymous";
+                         await new Promise((r, j) => {
+                             iconImg.onload = r;
+                             iconImg.onerror = j;
+                             iconImg.src = mixedConfig.icon;
+                         });
+
+                         const rectW = watermarkWidth;
+                         const rectH = watermarkHeight;
+
+                         // 使用高分辨率基准进行计算，保证清晰度
+                         const designFS = 100;
+                         const designGap = (gap / fontSize) * designFS;
+                         const designLineHeight = designFS * 1.2;
+                         const designIconH = designFS * 2.5;
+
+                         const scaleIcon = designIconH / iconImg.height;
+                         const designIconW = iconImg.width * scaleIcon;
+
+                         let designTotalW = 0;
+                         let designTotalH = 0;
+
+                         // 布局特定参数
+                         const colWidth = designFS;
+                         const colGap = designFS * 0.5;
+                         let textBlockW = 0;
+                         let textBlockH = 0;
+                         let horzTextW = 0;
+                         let horzTextH = 0;
+
+                         if (layout === 'vertical') {
+                             textBlockH = Math.max(textLine1.length, textLine2.length) * designLineHeight;
+                             textBlockW = (textLine1 ? colWidth : 0) + (textLine2 ? colWidth : 0) + (textLine1 && textLine2 ? colGap : 0);
+                             designTotalW = Math.max(designIconW, textBlockW);
+                             designTotalH = designIconH + designGap + textBlockH;
+                         } else {
+                             // 水平布局测量
+                             const tempCtx = memoryManager.getCanvas().getContext('2d')!;
+                             tempCtx.font = `bold ${designFS}px "SimSun", "Songti SC", serif`;
+                             const m1 = tempCtx.measureText(textLine1);
+                             const m2 = tempCtx.measureText(textLine2);
+                             horzTextW = Math.max(m1.width, m2.width);
+                             horzTextH = designLineHeight * 2;
+
+                             designTotalW = designIconW + designGap + horzTextW;
+                             designTotalH = Math.max(designIconH, horzTextH);
+                             memoryManager.releaseCanvas(tempCtx.canvas);
+                         }
+
+                         // 计算缩放比例以适应 rect
+                         const scaleFactor = Math.min(rectW / designTotalW, rectH / designTotalH);
+
+                         // 真实尺寸
+                         const realFS = designFS * scaleFactor;
+                         const realIconW = designIconW * scaleFactor;
+                         const realIconH = designIconH * scaleFactor;
+                         const realGap = designGap * scaleFactor;
+                         const realLineHeight = designLineHeight * scaleFactor;
+
+                         // 内容居中
+                         const contentW = designTotalW * scaleFactor;
+                         const contentH = designTotalH * scaleFactor;
+
+                         // 相对于中心点的起始位置
+                         const startX = -contentW / 2;
+                         const startY = -contentH / 2;
+
+                         // 确定图标位置
+                         let iconX = 0;
+                         let iconY = 0;
+
+                         if (layout === 'vertical') {
+                             iconX = startX + (contentW - realIconW) / 2;
+                             iconY = startY;
+                         } else {
+                             iconX = startX;
+                             iconY = startY + (contentH - realIconH) / 2;
+                         }
+
+                         // 绘制图标 (带颜色)
+                         const iCanvas = memoryManager.getCanvas();
+                         iCanvas.width = realIconW;
+                         iCanvas.height = realIconH;
+                         const iCtx = iCanvas.getContext('2d')!;
+                         iCtx.drawImage(iconImg, 0, 0, realIconW, realIconH);
+                         iCtx.globalCompositeOperation = "source-in";
+                         iCtx.fillStyle = color;
+                         iCtx.fillRect(0, 0, realIconW, realIconH);
+
+                         ctx.drawImage(iCanvas, iconX, iconY);
+                         memoryManager.releaseCanvas(iCanvas);
+
+                         // 绘制文字
+                         ctx.font = `bold ${realFS}px "SimSun", "Songti SC", serif`;
+                         ctx.fillStyle = color;
+
+                         if (layout === 'vertical') {
+                             ctx.textBaseline = "top";
+                             ctx.textAlign = "center";
+
+                             const realColWidth = colWidth * scaleFactor;
+                             const realColGap = colGap * scaleFactor;
+                             const realTextBlockW = textBlockW * scaleFactor;
+
+                             const textBlockX = startX + (contentW - realTextBlockW) / 2;
+                             const textBlockY = iconY + realIconH + realGap;
+
+                             if (textLine1) {
+                                 const l1X = textBlockX + realColWidth / 2;
+                                 for (let i = 0; i < textLine1.length; i++) {
+                                     ctx.fillText(textLine1[i], l1X, textBlockY + i * realLineHeight);
+                                 }
+                             }
+                             if (textLine2) {
+                                 const l2X = textBlockX + (textLine1 ? (realColWidth + realColGap) : 0) + realColWidth / 2;
+                                 for (let i = 0; i < textLine2.length; i++) {
+                                     ctx.fillText(textLine2[i], l2X, textBlockY + i * realLineHeight);
+                                 }
+                             }
+                         } else {
+                             ctx.textBaseline = "middle";
+                             ctx.textAlign = "left";
+
+                             const textX = iconX + realIconW + realGap;
+                             const textCenterY = startY + contentH / 2;
+
+                             ctx.fillText(textLine1, textX, textCenterY - realLineHeight / 2);
+                             ctx.fillText(textLine2, textX, textCenterY + realLineHeight / 2);
+                         }
+                    } else {
+                        // 普通图片水印
+                        ctx.drawImage(
+                            watermarkImage,
+                            -watermarkWidth / 2,
+                            -watermarkHeight / 2,
+                            watermarkWidth,
+                            watermarkHeight
+                        );
+                    }
 
                     console.log('水印绘制完成');
 
                     ctx.restore();
+
+                    // 在导出前绘制“暗水印”平铺（可选）
+                    // 混合水印模式下强制不使用暗水印
+                    if (darkOptions?.enabled && !mixedConfig?.enabled) {
+                        try {
+                            const blendMode = darkOptions.blendMode ?? "multiply";
+                            const tileScale = darkOptions.scale ?? 0.06;
+                            const tileOpacity = Math.max(0.02, Math.min(0.25, darkOptions.opacity ?? 0.08));
+                            const gapRatio = darkOptions.gap ?? 0.5;
+                            const angleRad = ((darkOptions.angle ?? -30) * Math.PI) / 180;
+
+                            // 计算瓦片尺寸与间隔
+                            const minDim = Math.min(canvas.width, canvas.height);
+                            const tileSize = Math.max(32, Math.floor(minDim * tileScale));
+                            const gap = Math.floor(tileSize * gapRatio);
+                            const patternSize = tileSize + gap;
+
+                            // 制作瓦片图案
+                            patternCanvas = memoryManager.getCanvas();
+                            const pctx = patternCanvas.getContext("2d")!;
+                            patternCanvas.width = patternSize;
+                            patternCanvas.height = patternSize;
+                            pctx.clearRect(0, 0, patternSize, patternSize);
+
+                            // 保持水印图案的宽高比
+                            const wmAspect = watermarkImage.width / watermarkImage.height;
+                            let drawW = tileSize;
+                            let drawH = tileSize;
+                            if (wmAspect > 1) {
+                                drawH = Math.floor(tileSize / wmAspect);
+                            } else {
+                                drawW = Math.floor(tileSize * wmAspect);
+                            }
+                            const dx = Math.floor((patternSize - drawW) / 2);
+                            const dy = Math.floor((patternSize - drawH) / 2);
+
+                            // 将水印图案绘制到瓦片中
+                            pctx.save();
+                            pctx.globalAlpha = 1; // 在主画布控制总体透明度
+                            pctx.drawImage(watermarkImage, dx, dy, drawW, drawH);
+                            pctx.restore();
+
+                            const pattern = ctx.createPattern(patternCanvas, "repeat");
+                            if (pattern) {
+                                ctx.save();
+                                // 选择混合模式与透明度
+                                ctx.globalCompositeOperation = blendMode as GlobalCompositeOperation;
+                                ctx.globalAlpha = tileOpacity;
+
+                                // 旋转填充，减少直线平铺的可见性
+                                ctx.translate(canvas.width / 2, canvas.height / 2);
+                                ctx.rotate(angleRad);
+                                ctx.translate(-canvas.width / 2, -canvas.height / 2);
+
+                                ctx.fillStyle = pattern;
+                                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                ctx.restore();
+                            }
+
+                            onProgress?.(95);
+                        } catch (e) {
+                            console.warn("暗水印绘制失败，已跳过：", e);
+                        }
+                    }
 
                     onProgress?.(90);
 
@@ -738,6 +1258,7 @@ async function processImage(
                     // 清理资源
                     if (canvas) memoryManager.releaseCanvas(canvas);
                     if (tempCanvas) memoryManager.releaseCanvas(tempCanvas);
+                    if (patternCanvas) memoryManager.releaseCanvas(patternCanvas); // 释放暗水印临时画布
                 }
             };
 
@@ -1027,4 +1548,5 @@ export {
     adjustBatchSizeAndConcurrency,
     extractDominantColors,
     applyColorToWatermark,
+    detectDarkWatermark,
 };

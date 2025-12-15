@@ -32,6 +32,7 @@ export default defineConfig({
                 ],
             },
             workbox: {
+                maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB
                 globPatterns: ["**/*.{js,css,html,ico,png,svg,json}"],
                 runtimeCaching: [
                     {
@@ -93,7 +94,7 @@ export default defineConfig({
                 }
             },
         },
-        minify: "esbuild",
+        minify: "terser",
         terserOptions: {
             compress: {
                 drop_console: true, // 生产环境自动删除console

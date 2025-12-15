@@ -522,9 +522,9 @@ export default function Landing() {
             <footer className="py-12 text-center text-stone-400 text-xs font-mono tracking-widest relative z-10">
                 <div className="w-12 h-px bg-stone-300 mx-auto mb-4"></div>
                 <p>
-                    &copy; {new Date().getFullYear()} MyTools.{" "}
-                    <span className="mx-2 opacity-50">|</span>{" "}
-                    这里的山水，皆为心画
+                    &copy; {new Date().getFullYear()} 笑谈间气吐霓虹{" "}
+                    {/* <span className="mx-2 opacity-50">|</span>{" "}
+                    这里的山水，皆为心画 */}
                 </p>
             </footer>
         </div>

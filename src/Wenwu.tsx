@@ -83,6 +83,16 @@ const wenwuTypeIcons = Object.fromEntries(
     ])
 ) as Record<string, string>;
 
+// 新增：时代图标映射（从 /src/assets/era/*.png 读取）
+const eraIcons = Object.fromEntries(
+    Object.entries(
+        import.meta.glob("@/assets/era/*.png", { eager: true, as: "url" })
+    ).map(([p, url]) => [
+        (p.split("/").pop() || "").replace(".png", ""),
+        url as string,
+    ])
+) as Record<string, string>;
+
 const artifactImages = Object.fromEntries(
     Object.entries(
         import.meta.glob("@/assets/195/*", { eager: true, as: "url" })
@@ -252,8 +262,10 @@ const Wenwu: React.FC = () => {
     const viewMode = "grid";
 
     // 统一样式：玻璃卡片与标题
-    const glassCard = "rounded-2xl bg-white/12 backdrop-blur-md border border-white/20 shadow-sm";
+    const glassCard = "rounded-2xl bg-gradient-to-b from-white/25 to-white/10 backdrop-blur-2xl border border-white/30 ring-1 ring-white/20 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.4)]";
     const sectionHeading = "text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2";
+    // 新增：弹窗内部的柔和面板样式（用于图片/信息/描述分区）
+    const panelCard = "rounded-2xl bg-white/55 backdrop-blur-xl border border-white/50 ring-1 ring-white/30 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15)]";
 
     // 地图相关状态
     const [mapInstance, setMapInstance] = useState<any>(null);
@@ -400,9 +412,119 @@ const Wenwu: React.FC = () => {
         return Array.from(allMuseums).sort();
     }, [artifacts]);
 
+    // 时代解析与排序权重（从早到晚）
+    const normalizeEraText = (s: string) =>
+        (s || "")
+            .replace(/\s+/g, "")
+            .replace(/（.*?）/g, "")
+            .replace(/\(.*?\)/g, "")
+            .replace(/[·•，,、]/g, "");
+
+    // 更新：时代图标解析，三国分支统一使用“三国”icon；不处理“南北朝”拆分
+    const resolveEraIconKey = (eraRaw: string) => {
+        const era = normalizeEraText(eraRaw);
+
+        // 优先处理“三国”系列（含魏/蜀/吴）
+        if ((era.includes("三国") || /魏|蜀|吴/.test(era)) && eraIcons["三国"]) {
+            return "三国";
+        }
+
+        // 常见时代的直接匹配
+        const keys = [
+            "新石器时代","夏","商","西周","东周","春秋","战国","秦",
+            "西汉","东汉","西晋","东晋","北魏","北燕","北齐",
+            "北朝","南朝","隋","唐","五代","北宋","南宋","西夏",
+            "元","明","清"
+        ];
+        for (const k of keys) {
+            if (era.includes(k) && eraIcons[k]) return k;
+        }
+
+        // 不做“南北朝”的特殊拆分；若文件名刚好匹配则使用
+        if (eraIcons[era]) return era;
+        return undefined;
+    };
+
+    const getEraIcon = (eraRaw: string) => {
+        const key = resolveEraIconKey(eraRaw);
+        return key ? eraIcons[key] : undefined;
+    };
+
+    const getEraRank = (eraRaw: string) => {
+        const era = normalizeEraText(eraRaw);
+
+        // 先匹配更具体的时代前缀，避免“西夏→夏”“北魏→魏”的误匹配
+        const specific: Array<[RegExp, number]> = [
+            [/^新石器时代/, 100],
+            [/^秦/, 600],
+            [/^西汉/, 710],
+            [/^东汉/, 720],
+            [/^西晋/, 880],
+            [/^东晋/, 900],
+            [/^北魏/, 1010],
+            [/^北燕/, 1020],
+            [/^北齐/, 1030],
+            [/^北朝/, 1040],
+            [/^南朝/, 1050],
+            [/^隋/, 1100],
+            [/^唐/, 1200],
+            [/^五代/, 1300],
+            [/^北宋/, 1410],
+            [/^南宋/, 1420],
+            [/^西夏/, 1430], // 放在“夏”之前，避免被“夏”误匹配
+            [/^宋/, 1400],
+            [/^元/, 1500],
+            [/^明/, 1600],
+            [/^清/, 1700],
+            [/^近现代/, 1800],
+            [/^现代/, 1900],
+            [/^西周/, 400],
+            [/^东周/, 500],
+            [/^春秋/, 510],
+            [/^战国/, 520],
+        ];
+        for (const [re, rank] of specific) {
+            if (re.test(era)) return rank;
+        }
+
+        // 通用兜底：更宽的包含匹配
+        const generic: Array<[string, number]> = [
+            ["夏", 200],
+            ["商", 300],
+            ["汉", 700],
+            ["三国", 800],
+            ["魏", 810],
+            ["蜀", 820],
+            ["吴", 830],
+            ["南北朝", 1030],
+        ];
+        for (const [kw, rank] of generic) {
+            if (era.includes(kw)) return rank;
+        }
+
+        // 未识别的时代排在最后
+        return Number.MAX_SAFE_INTEGER;
+    };
+
     const eras = useMemo(() => {
-        const uniqueEras = [...new Set(artifacts.map((item) => item.era))];
-        return uniqueEras.sort();
+        const uniqueEras = Array.from(
+            new Set(
+                artifacts
+                    .map((item) => item.era)
+                    .filter((e) => e && e.trim().length > 0)
+            )
+        );
+
+        // 按时代远近排序：从最早到最近
+        uniqueEras.sort((a, b) => {
+            const ra = getEraRank(a);
+            const rb = getEraRank(b);
+            if (ra !== rb) return ra - rb;
+            // 同一权重下再按字面排序，保证稳定
+            return a.localeCompare(b, "zh");
+        });
+
+        return uniqueEras;
     }, [artifacts]);
 
     // 摘要统计（当前筛选结果）
@@ -1109,9 +1231,7 @@ const Wenwu: React.FC = () => {
                             <h4 class="info-title">${museum}</h4>
                           </div>
                           <div class="info-stats">
-                            <span class="chip chip-primary">当前显示 ${
-                                museumArtifacts.length
-                            }</span>
+
                             <span class="chip">馆藏总数 ${
                                 allMuseumArtifacts.length
                             }</span>
@@ -1526,7 +1646,12 @@ const Wenwu: React.FC = () => {
                                         </SelectItem>
                                         {eras.map((e) => (
                                             <SelectItem key={e} value={e}>
-                                                {e}
+                                                <div className="flex items-center gap-2">
+                                                    {getEraIcon(e) && (
+                                                        <img src={getEraIcon(e) as string} alt={e} className="w-5 h-5 rounded-sm" />
+                                                    )}
+                                                    <span>{e}</span>
+                                                </div>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -1668,32 +1793,37 @@ const Wenwu: React.FC = () => {
                                         </Select>
                                     </div>
 
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-medium text-slate-500 ml-1">
-                                            时代
-                                        </label>
-                                        <Select
-                                            value={selectedEra}
-                                            onValueChange={setSelectedEra}
-                                        >
-                                            <SelectTrigger className="w-full rounded-xl border-slate-200 shadow-sm">
-                                                <SelectValue placeholder="全部时代" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">
-                                                    全部时代
-                                                </SelectItem>
-                                                {eras.map((e) => (
-                                                    <SelectItem
-                                                        key={e}
-                                                        value={e}
-                                                    >
-                                                        {e}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+<div className="space-y-1.5">
+    <label className="text-xs font-medium text-slate-500 ml-1">
+        时代
+    </label>
+    <Select
+        value={selectedEra}
+        onValueChange={setSelectedEra}
+    >
+        <SelectTrigger className="w-full rounded-xl border-slate-200 shadow-sm">
+            <SelectValue placeholder="全部时代" />
+        </SelectTrigger>
+        <SelectContent>
+            <SelectItem value="all">
+                全部时代
+            </SelectItem>
+            {eras.map((e) => (
+                <SelectItem
+                    key={e}
+                    value={e}
+                >
+                    <div className="flex items-center gap-2">
+                        {getEraIcon(e) && (
+                            <img src={getEraIcon(e) as string} alt={e} className="w-5 h-5 rounded-sm" />
+                        )}
+                        <span>{e}</span>
+                    </div>
+                </SelectItem>
+            ))}
+        </SelectContent>
+    </Select>
+</div>
 
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-medium text-slate-500 ml-1">
@@ -1791,15 +1921,11 @@ const Wenwu: React.FC = () => {
                                 <Dialog key={artifact.id}>
                                     <DialogTrigger asChild>
                                         <div
-                                            className={`
+                                            className="
                                             group cursor-pointer bg-white rounded-2xl transition-all duration-300
                                             border border-slate-100 hover:border-violet-100
-                                            ${
-                                                viewMode === "grid"
-                                                    ? "hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]"
-                                                    : "flex gap-4 p-4 hover:bg-slate-50 shadow-sm hover:shadow-md"
-                                            }
-                                        `}
+                                            hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]
+                                        "
                                         >
                                             <div
                                                 className="p-5"
@@ -1817,6 +1943,17 @@ const Wenwu: React.FC = () => {
                                                             )}
                                                             {artifact.type}
                                                         </span>
+                                                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-700 font-medium flex items-center gap-1">
+                                                            {getEraIcon(artifact.era) && (
+                                                                <img
+                                                                    src={getEraIcon(artifact.era) as string}
+                                                                    alt={artifact.era}
+                                                                    className="w-4 h-4 object-contain"
+                                                                />
+                                                            )}
+                                                            {artifact.era}
+                                                        </span>
+
                                                     </div>
                                                 </div>
 
@@ -1826,6 +1963,12 @@ const Wenwu: React.FC = () => {
                                                         highlight={searchTerm}
                                                     />
                                                 </h3>
+
+                                                    <div className="flex items-center gap-2 text-[10px] text-slate-700 font-medium mb-2">
+                                                        <Landmark className="w-3 h-3 shrink-0" />
+                                                        <span className="truncate leading-[16px]">{artifact.collectionLocation}</span>
+                                                    </div>
+
 
                                                 <div className="text-xs text-slate-500 mb-4 line-clamp-2 leading-relaxed">
                                                     {searchTerm ? (
@@ -1845,39 +1988,33 @@ const Wenwu: React.FC = () => {
                                                         />
                                                     )}
                                                 </div>
-
-                                                <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-50">
-                                                    <div className="flex items-center gap-1">
-                                                        <Calendar className="w-3 h-3" />
-                                                        {artifact.era}
-                                                    </div>
-                                                    <div className="flex items-center gap-1 max-w-[50%]">
-                                                        <Landmark className="w-3 h-3 shrink-0" />
-                                                        <span className="truncate">
-                                                            {
-                                                                artifact.collectionLocation
-                                                            }
-                                                        </span>
-                                                    </div>
-                                                </div>
                                             </div>
                                         </div>
                                     </DialogTrigger>
-                                    <DialogContent className="max-w-2xl max-h-[85vh] rounded-3xl bg-gradient-to-b from-white/20 to-white/10 backdrop-blur-2xl border border-white/30 ring-1 ring-white/20 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.4)] overflow-hidden">
-                                        <DialogHeader className="px-2 pb-2 border-b border-white/10">
-                                            <DialogTitle className="text-2xl font-serif text-slate-800">
+                                    <DialogContent className="w-[720px] max-w-[92vw] max-h-[85vh] rounded-3xl bg-gradient-to-b from-white/35 to-white/20 backdrop-blur-2xl border border-white/40 ring-1 ring-white/30 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.22)] overflow-hidden">
+                                        <DialogHeader className="px-8 pb-5 border-b border-white/10">
+                                            <DialogTitle className="text-2xl md:text-[26px] font-serif tracking-tight text-slate-800">
                                                 {artifact.name}
                                             </DialogTitle>
                                             <div className="flex gap-2 mt-2">
                                                 <Badge
-                                                    variant="outline"
-                                                    className="rounded-full px-3 font-normal bg-white border border-slate-200 text-slate-700"
-                                                >
-                                                    {artifact.era}
-                                                </Badge>
+                                                            variant="outline"
+                                                            className="rounded-full px-3 py-1 font-normal bg-white/90 border border-white/60 text-slate-700 shadow-sm"
+                                                        >
+                                                            <span className="flex items-center gap-2">
+                                                                {getEraIcon(artifact.era) && (
+                                                                    <img
+                                                                        src={getEraIcon(artifact.era) as string}
+                                                                        alt={artifact.era}
+                                                                        className="w-5 h-5 rounded-sm"
+                                                                    />
+                                                                )}
+                                                                <span>{artifact.era}</span>
+                                                            </span>
+                                                        </Badge>
                                                 <Badge
                                                     variant="secondary"
-                                                    className="rounded-full px-3 bg-white border border-slate-200 text-slate-700 font-normal"
+                                                    className="rounded-full px-3 py-1 bg-white/90 border border-white/60 text-slate-700 font-normal shadow-sm"
                                                 >
                                                     <span className="flex items-center gap-2">
                                                         {wenwuTypeIcons[artifact.type] && (
@@ -1888,11 +2025,11 @@ const Wenwu: React.FC = () => {
                                                 </Badge>
                                             </div>
                                         </DialogHeader>
-                                        <ScrollArea className="max-h-[70vh] px-2 md:px-0">
-                                            <div className="space-y-6 py-4">
+                                        <ScrollArea className="max-h-[70vh] px-8">
+                                            <div className="space-y-8 py-6">
                                                 {artifact.image && artifactImages[artifact.image.split("/").pop() || ""] && (
-                                                    <div className={`${glassCard} p-3`}>
-                                                        <div className="w-full h-[280px] md:h-[380px] overflow-hidden rounded-xl bg-slate-50">
+                                                    <div className={`${panelCard} p-4`}>
+                                                        <div className="w-full h-[280px] md:h-[380px] overflow-hidden rounded-xl bg-slate-50/60">
                                                             <img
                                                                 src={artifactImages[artifact.image.split("/").pop() || ""]}
                                                                 alt={artifact.name}
@@ -1901,7 +2038,7 @@ const Wenwu: React.FC = () => {
                                                         </div>
                                                     </div>
                                                 )}
-                                                <div className={`${glassCard} p-5 grid grid-cols-1 md:grid-cols-2 gap-6`}>
+                                                <div className={`${panelCard} p-6 grid grid-cols-1 md:grid-cols-2 gap-6`}>
                                                     <div className="space-y-1">
                                                         <span className={sectionHeading}>
                                                             <MapPin className="w-4 h-4 md:w-5 md:h-5 text-rose-500" /> 出土地点
@@ -1933,7 +2070,7 @@ const Wenwu: React.FC = () => {
                                                         <FileText className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />
                                                         文物描述
                                                     </h4>
-                                                    <div className={`${glassCard} p-4`}>
+                                                    <div className={`${panelCard} p-6`}>
                                                         <div className="prose prose-sm prose-slate max-w-none">
                                                             <MarkdownContent
                                                                 content={

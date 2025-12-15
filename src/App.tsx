@@ -151,17 +151,78 @@ const FloatingButtons = () => {
     const isActive = (path: string) => location.pathname === path;
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
-            <TooltipProvider>
-                {open && (
-                    <div className="flex flex-col items-end gap-2">
+        <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end">
+            {open ? (
+                <div className="bg-white/80 backdrop-blur-xl shadow-2xl shadow-black/10 border border-white/60 rounded-[2rem] p-3 flex flex-col items-center gap-3 transition-all hover:bg-white hover:shadow-black/15">
+                    <TooltipProvider>
+                        {[
+                            {
+                                path: "/",
+                                icon: "material-symbols:apps",
+                                label: "应用库",
+                            },
+                            {
+                                path: "/watermark",
+                                icon: "ri:image-ai-line",
+                                label: "水印添加",
+                            },
+                            {
+                                path: "/puzzle",
+                                icon: "tabler:layout-board-split",
+                                label: "图片拼接",
+                            },
+                            {
+                                path: "/restaurant",
+                                icon: "ri:restaurant-2-line",
+                                label: "美食推荐",
+                            },
+                            {
+                                path: "/news",
+                                icon: "ri:news-line",
+                                label: "新闻",
+                            },
+                            {
+                                path: "/google-photo",
+                                icon: "logos:google-photos",
+                                label: "Google 相册",
+                            },
+                            {
+                                path: "/compress",
+                                icon: "material-symbols:compress",
+                                label: "图片压缩",
+                            },
+                        ].map((item) => (
+                            <Tooltip key={item.path}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        title={item.label}
+                                        onClick={() => navigate(item.path)}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
+                                            isActive(item.path)
+                                                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                                                : "text-slate-500 hover:bg-slate-100"
+                                        }`}
+                                    >
+                                        <Icon
+                                            icon={item.icon}
+                                            className="w-5 h-5"
+                                        />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="left">
+                                    {item.label}
+                                </TooltipContent>
+                            </Tooltip>
+                        ))}
+
+                        <div className="w-8 h-px bg-slate-200 my-1"></div>
+
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button
-                                    variant="secondary"
-                                    size="icon"
-                                    className="rounded-full"
+                                <button
+                                    title={isDark ? "切换日间模式" : "切换夜间模式"}
                                     onClick={toggleTheme}
+                                    className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all hover:scale-110 active:scale-95"
                                 >
                                     <Icon
                                         icon={
@@ -169,51 +230,52 @@ const FloatingButtons = () => {
                                                 ? "line-md:moon-rising-alt-loop"
                                                 : "line-md:moon-alt-to-sunny-outline-loop-transition"
                                         }
-                                        className=" w-4 h-4"
+                                        className="w-5 h-5"
                                     />
-                                </Button>
+                                </button>
                             </TooltipTrigger>
-                            <TooltipContent>{isDark ? "夜间" : "白天"}</TooltipContent>
+                            <TooltipContent side="left">
+                                {isDark ? "切换日间模式" : "切换夜间模式"}
+                            </TooltipContent>
                         </Tooltip>
-                        {[
-                            { path: "/", icon: "material-symbols:apps", label: "应用库" },
-                            { path: "/watermark", icon: "ri:image-ai-line", label: "水印添加" },
-                            { path: "/puzzle", icon: "tabler:layout-board-split", label: "图片拼接" },
-                            { path: "/restaurant", icon: "ri:restaurant-2-line", label: "美食推荐" },
-                            { path: "/news", icon: "ri:news-line", label: "新闻" },
-                            { path: "/google-photo", icon: "logos:google-photos", label: "Google 相册" },
-                            { path: "/compress", icon: "material-symbols:compress", label: "图片压缩" },
-                        ].map((item) => (
-                            <Tooltip key={item.path}>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant={isActive(item.path) ? "default" : "secondary"}
-                                        size="icon"
-                                        className={`rounded-full ${isActive(item.path) ? "bg-blue-600 text-white" : ""}`}
-                                        onClick={() => navigate(item.path)}
-                                    >
-                                        <Icon icon={item.icon} className=" w-5 h-5" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>{item.label}</TooltipContent>
-                            </Tooltip>
-                        ))}
-                    </div>
-                )}
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="rounded-full"
-                            onClick={() => setOpen((v) => !v)}
-                        >
-                            <Icon icon="material-symbols:navigation" className=" w-5 h-5" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{location.pathname === "/" ? "应用库" : "导航"}</TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    title="收起导航"
+                                    onClick={() => setOpen(false)}
+                                    className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-all mt-1"
+                                >
+                                    <Icon
+                                        icon="mdi:close"
+                                        className="w-5 h-5"
+                                    />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">
+                                收起导航
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+            ) : (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div
+                                onClick={() => setOpen(true)}
+                                className="w-12 h-12 rounded-full bg-white shadow-xl shadow-slate-300/30 border border-slate-200 flex items-center justify-center text-slate-600 hover:scale-110 hover:text-blue-600 transition-all cursor-pointer group"
+                            >
+                                <Icon
+                                    icon="material-symbols:navigation"
+                                    className="w-6 h-6 group-hover:rotate-12 transition-transform"
+                                />
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">打开导航</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )}
         </div>
     );
 };
