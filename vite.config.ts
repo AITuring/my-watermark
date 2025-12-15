@@ -2,9 +2,9 @@ import path from "path";
 import react from "@vitejs/plugin-react-swc";
 import legacy from "@vitejs/plugin-legacy";
 import { VitePWA } from "vite-plugin-pwa";
-// import viteCompression from "vite-plugin-compression";
+import viteCompression from "vite-plugin-compression";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 
 export default defineConfig({
     plugins: [
@@ -66,15 +66,15 @@ export default defineConfig({
                 ],
             },
         }),
-        // viteCompression({
-        //     verbose: true, // 是否在控制台中输出压缩结果
-        //     disable: false,
-        //     threshold: 10240, // 如果体积大于阈值，将被压缩，单位为b，体积过小时请不要压缩，以免适得其反
-        //     algorithm: "gzip", // 压缩算法，可选['gzip'，' brotliccompress '，'deflate '，'deflateRaw']
-        //     ext: ".gz",
-        //     deleteOriginFile: true, // 源文件压缩后是否删除(我为了看压缩后的效果，先选择了true)
-        // }),
-        process.env.ANALYZE === "true" ? visualizer({ open: true }) : null,
+        viteCompression({
+            verbose: true,
+            disable: false,
+            threshold: 10240,
+            algorithm: "gzip",
+            ext: ".gz",
+            deleteOriginFile: false, // Keep source files for servers that don't support gzip
+        }) as unknown as PluginOption,
+        process.env.ANALYZE === "true" ? (visualizer({ open: true }) as unknown as PluginOption) : null,
     ].filter(Boolean),
     resolve: {
         alias: {
@@ -86,11 +86,37 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: {
-                    'react-core': ['react', 'react-dom'],
-                    'react-router': ['react-router-dom'],
-                    'antd': ['antd'],
-                    'html2canvas': ['html2canvas'],
-                    // ... 更多细分
+                    'react-vendor': ['react', 'react-dom', 'react-router-dom', 'scheduler'],
+                    'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
+                    'antd-vendor': ['antd'],
+                    'ui-vendor': [
+                        '@radix-ui/react-dialog',
+                        '@radix-ui/react-label',
+                        '@radix-ui/react-progress',
+                        '@radix-ui/react-scroll-area',
+                        '@radix-ui/react-select',
+                        '@radix-ui/react-separator',
+                        '@radix-ui/react-slider',
+                        '@radix-ui/react-slot',
+                        '@radix-ui/react-switch',
+                        '@radix-ui/react-tabs',
+                        '@radix-ui/react-tooltip',
+                        'lucide-react',
+                        'framer-motion',
+                        'gsap',
+                        'class-variance-authority',
+                        'clsx',
+                        'tailwind-merge'
+                    ],
+                    'image-vendor': [
+                        'html2canvas',
+                        'konva',
+                        'react-konva',
+                        'stackblur-canvas',
+                        'colorthief',
+                        'chroma-js'
+                    ],
+                    'utils-vendor': ['p-limit', 'file-saver', 'jszip']
                 }
             },
         },

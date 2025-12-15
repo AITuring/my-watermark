@@ -43,6 +43,7 @@ import "react-photo-album/styles.css";
 import html2canvas from "html2canvas";
 import "./puzzle.css";
 import ImagePreview from "./ImagePreview";
+import ThreeLanding from "@/components/ThreeLanding";
 
 
 interface AspectRatio {
@@ -1022,10 +1023,7 @@ const Puzzle = () => {
                 </div>
             ) : (
                 <div className="h-full">
-                    <input {...getInputProps()} />
-                    <div {...getRootProps()} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-10 py-5 rounded-lg text-white text-2xl font-medium bg-opacity-90 bg-blue-500 cursor-pointer flex flex-col items-center hover:bg-blue-500 hover:shadow-md hover:shadow-gray-300 hover:shadow-offset-[-4px,-4px] hover:shadow-opacity-50">
-                        <div>选择图片</div>
-                    </div>
+                    <ThreeLanding getRootProps={getRootProps} getInputProps={getInputProps} />
                 </div>
             )}
         </div>

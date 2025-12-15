@@ -32,4 +32,15 @@ interface MixedWatermarkConfig {
     layout?: 'horizontal' | 'vertical';
 }
 
-export type { ImageType, WatermarkPosition, ImgWithPosition, MixedWatermarkConfig };
+interface TextWatermarkConfig {
+    enabled: boolean;
+    content: string;
+    color: string;
+    fontSize: number;
+    isVertical: boolean;
+    opacity?: number;
+    fontFamily?: string;
+    gap?: number;
+}
+
+export type { ImageType, WatermarkPosition, ImgWithPosition, MixedWatermarkConfig, TextWatermarkConfig };
