@@ -29,23 +29,23 @@ const ToggleSwitch = ({ onChange, defaultChecked }: IToggleSwitchProps) => {
                         className="sr-only"
                     />
                     <div
-                        className={`box block h-6 w-14 rounded-full ${
+                        className={`box block h-8 w-14 rounded-full ${
                             isChecked ? "bg-indigo-500" : "bg-pink-500"
                         }`}
                     >
                         {isChecked && (
-                            <Icon icon="line-md:moon-alt-to-sunny-outline-loop-transition" className="absolute left-1 top-1 flex items-center justify-center w-4 h-4 rounded-full"/>
+                            <Icon icon="line-md:moon-rising-alt-loop" className="absolute left-1.5 top-2 flex items-center justify-center w-4 h-4 rounded-full text-white"/>
                         )}
                     </div>
                     <div
-                        className={`absolute left-1 top-1 flex h-4 w-4 items-center justify-center rounded-full transition ${
+                        className={`absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full transition ${
                             isChecked
-                                ? "translate-x-8 bg-gray-200"
+                                ? "translate-x-6 bg-gray-200"
                                 : "bg-gray-200"
                         }`}
                     />
                     {!isChecked && (
-                        <Icon icon="line-md:moon-rising-alt-loop" className="absolute right-1 top-1 flex items-center justify-center w-4 h-4 rounded-full" />
+                        <Icon icon="line-md:moon-alt-to-sunny-outline-loop-transition" className="absolute right-1.5 top-2 flex items-center justify-center w-4 h-4 rounded-full text-white" />
                     )}
                 </div>
             </label>

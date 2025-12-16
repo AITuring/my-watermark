@@ -14,6 +14,7 @@ import {
     Split,
     Utensils,
     Clock,
+    FileText,
 } from "lucide-react";
 import h001 from "@/assets/history/split_001.png";
 import h002 from "@/assets/history/split_002.png";
@@ -314,6 +315,19 @@ export default function Landing() {
         //     },
         // },
 
+        {
+            id: "rename",
+            title: "文件重命名",
+            description: "批量修改文件名，支持多种规则",
+            icon: FileText,
+            href: "/rename",
+            colorTheme: {
+                bg: "bg-blue-50 dark:bg-blue-900/20",
+                text: "text-blue-700 dark:text-blue-300",
+                border: "hover:border-blue-200 dark:hover:border-blue-700",
+                hoverGradient: "from-blue-100 to-transparent dark:from-blue-900/40",
+            },
+        },
         {
             id: "compress",
             title: "批量压缩",
