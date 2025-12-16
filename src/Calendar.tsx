@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import GenerativeBackground, { GenerativeBackgroundHandle } from './components/GenerativeBackground';
 
@@ -45,17 +44,29 @@ const Calendar: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        // Only spawn a duck every 5 seconds
-        if (date.getSeconds() % 5 !== 0) return;
+        const seconds = date.getSeconds();
 
-        if (backgroundRef.current && secondsRef.current) {
-            const secondsRect = secondsRef.current.getBoundingClientRect();
-            const centerX = secondsRect.left + secondsRect.width / 2;
-            // Spawn at the top of the water (horizon), but slightly down so it's not clipped.
-            // The water canvas starts at 50vh (window.innerHeight / 2).
-            // We add ~40px to ensure the duck is fully visible and hits a valid layer.
-            const spawnY = (window.innerHeight / 2) + 40;
-            backgroundRef.current.addDuck(centerX, spawnY);
+        // Check if page is visible
+        if (document.hidden) return;
+
+        // Spawn a duck every 5 seconds
+        if (seconds % 5 === 0) {
+            if (backgroundRef.current && secondsRef.current) {
+                const secondsRect = secondsRef.current.getBoundingClientRect();
+                const centerX = secondsRect.left + secondsRect.width / 2;
+                // Spawn at the top of the water (horizon), but slightly down so it's not clipped.
+                // The water canvas starts at 50vh (window.innerHeight / 2).
+                // We add ~40px to ensure the duck is fully visible and hits a valid layer.
+                const spawnY = (window.innerHeight / 2) + 40;
+                backgroundRef.current.addDuck(centerX, spawnY);
+            }
+        }
+
+        // Spawn a fish every 10 seconds
+        if (seconds % 10 === 0) {
+            if (backgroundRef.current) {
+                backgroundRef.current.addFish();
+            }
         }
     }, [date]);
 
