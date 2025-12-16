@@ -14,6 +14,7 @@ interface MobileImageGalleryProps {
     setCurrentImg: React.Dispatch<React.SetStateAction<ImageType | null>>;
     currentImageId: string | undefined;
     onImageSelect: () => void;
+    onUpload: (files: File[]) => Promise<void>;
 }
 
 const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
@@ -23,6 +24,7 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
     setCurrentImg,
     currentImageId,
     onImageSelect,
+    onUpload,
 }) => {
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewIndex, setPreviewIndex] = useState(0);
@@ -84,24 +86,12 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
     const handleImagesUpload = async (files: File[]) => {
         try {
             setIsUploading(true);
-            // 导入 loadImageData 函数
-            const { loadImageData } = await import("./utils");
-            // 分批处理图片，避免一次性处理太多
+            // Batch processing, avoiding UI freeze
             const batchSize = 5;
             for (let i = 0; i < files.length; i += batchSize) {
                 const batch = files.slice(i, i + batchSize);
-                const newImages = await loadImageData(batch);
+                await onUpload(batch); // Call parent handler
 
-                // 合并新上传的图片和现有图片
-                setImages((prevImages) => [...prevImages, ...newImages]);
-
-                // 如果是第一张图片，设置为当前图片
-                if (i === 0 && images.length === 0) {
-                    setCurrentImg(newImages[0]);
-                    onImageSelect();
-                }
-
-                // 如果不是最后一批，等待一小段时间再处理下一批
                 if (i + batchSize < files.length) {
                     await new Promise((resolve) => setTimeout(resolve, 100));
                 }

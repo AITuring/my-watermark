@@ -8,7 +8,7 @@ import {
     Text,
 } from "react-konva";
 import useImage from "use-image";
-import { WatermarkPosition } from "./types";
+import { WatermarkPosition, MixedWatermarkConfig } from "./types";
 import { Button } from "@/components/ui/button";
 import {
     Select,
@@ -20,23 +20,30 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
     ChevronLeft,
     ChevronRight,
-    Eye,
-    EyeOff,
     RotateCcw,
     RotateCw,
     ZoomIn,
     ZoomOut,
+    LayoutGrid,
+    Settings,
+    Upload,
 } from "lucide-react";
 import Konva from "konva";
 import ImageWithFixedWidth from "./ImageWithFixedWidth";
+import ImageUploader from "./ImageUploader";
 
 // 绘制辅助线函数
 const drawGuideLines = (layer: Konva.Layer, width: number, height: number) => {
@@ -99,7 +106,29 @@ interface MobileWatermarkEditorProps {
     totalImages?: number;
     onPrevImage?: () => void;
     onNextImage?: () => void;
-    watermarkOpacity?: number; // 新增透明度属性
+
+    // Navigation and Action Props
+    onBack: () => void;
+    onGenerate: () => void;
+    isGenerating: boolean;
+    generateProgress: number;
+
+    // New Props for enhanced functionality
+    watermarkOpacity: number;
+    setWatermarkOpacity: (val: number) => void;
+    watermarkBlur: boolean;
+    setWatermarkBlur: (val: boolean) => void;
+    quality: number;
+    setQuality: (val: number) => void;
+    darkWatermarkEnabled: boolean;
+    setDarkWatermarkEnabled: (val: boolean) => void;
+    darkWatermarkStrength: number;
+    setDarkWatermarkStrength: (val: number) => void;
+    watermarkMode: "image" | "mixed";
+    setWatermarkMode: (mode: "image" | "mixed") => void;
+    mixedWatermarkConfig: MixedWatermarkConfig;
+    setMixedWatermarkConfig: React.Dispatch<React.SetStateAction<MixedWatermarkConfig>>;
+    onWatermarkUpload: (files: File[]) => void;
 }
 
 const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
@@ -112,7 +141,27 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     totalImages = 0,
     onPrevImage,
     onNextImage,
-    watermarkOpacity = 1, // 默认不透明
+
+    onBack,
+    onGenerate,
+    isGenerating,
+    generateProgress,
+
+    watermarkOpacity,
+    setWatermarkOpacity,
+    watermarkBlur,
+    setWatermarkBlur,
+    quality,
+    setQuality,
+    darkWatermarkEnabled,
+    setDarkWatermarkEnabled,
+    darkWatermarkStrength,
+    setDarkWatermarkStrength,
+    watermarkMode,
+    setWatermarkMode,
+    mixedWatermarkConfig,
+    setMixedWatermarkConfig,
+    onWatermarkUpload,
 }) => {
     // 背景图片相关设置
     const [backgroundImageUrl, setBackgroundImageUrl] = useState("");
@@ -161,8 +210,13 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         () => window.innerHeight * 0.8
     );
 
-    // 添加选择位置的状态
-    const [selectedPosition, setSelectedPosition] = useState("middleCenter");
+    const [selectedPosition, setSelectedPosition] = useState<string>("");
+
+    // Settings Dialog State
+    const [settingsOpen, setSettingsOpen] = useState(false);
+
+    // Position Dialog State
+    const [positionDialogOpen, setPositionDialogOpen] = useState(false);
 
     // 添加加载状态
     const [isLoading, setIsLoading] = useState(true);
@@ -243,87 +297,55 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         [selectedPosition, currentWatermarkPosition]
     );
 
-    // 修复：移除可能导致冲突的 useEffect
-    // 注释掉原来的重放位置逻辑，避免冲突
-    /*
-    useEffect(() => {
-        if (!selectedPosition) return;
-        applySelectedPosition(selectedPosition);
-    }, [
-        selectedPosition,
-        backgroundImage,
-        backgroundImageSize.width,
-        backgroundImageSize.height,
-        watermarkImage,
-        watermarkStandardScale,
-        currentScale,
-        backgroundScale,
-    ]);
-    */
-
-    useEffect(() => {
-        if (watermarkRef.current) {
-            // 处理触摸开始事件
-            watermarkRef.current.on("touchstart", (e) => {
-                const touches = e.evt.touches;
-                if (touches.length === 2) {
-                    e.evt.preventDefault();
-                    const distance = getDistance(touches[0], touches[1]);
-                    const rotation = getRotation(touches[0], touches[1]);
-                    setTouchStartDistance(distance);
-                    setTouchStartRotation(rotation);
-                    setInitialScale(position.scaleX);
-                    setInitialRotation(position.rotation);
-                }
-            });
-
-            // 处理触摸移动事件
-            watermarkRef.current.on("touchmove", (e) => {
-                const touches = e.evt.touches;
-                if (
-                    touches.length === 2 &&
-                    touchStartDistance &&
-                    touchStartRotation !== null
-                ) {
-                    e.evt.preventDefault();
-                    const distance = getDistance(touches[0], touches[1]);
-                    const rotation = getRotation(touches[0], touches[1]);
-
-                    // 计算缩放比例
-                    const scale =
-                        (distance / touchStartDistance) * initialScale;
-                    // 计算旋转角度
-                    const newRotation =
-                        initialRotation +
-                        ((rotation - touchStartRotation) * 180) / Math.PI;
-
-                    // 更新位置
-                    const newPosition = {
-                        ...position,
-                        scaleX: Math.max(0.1, Math.min(5, scale)),
-                        scaleY: Math.max(0.1, Math.min(5, scale)),
-                        rotation: newRotation,
-                    };
-                    setPosition(newPosition);
-                    onTransform(newPosition);
-                }
-            });
-
-            // 处理触摸结束事件
-            watermarkRef.current.on("touchend", () => {
-                setTouchStartDistance(null);
-                setTouchStartRotation(null);
-            });
+    // Touch Event Handlers
+    const handleTouchStart = (e: Konva.KonvaEventObject<TouchEvent>) => {
+        const touches = e.evt.touches;
+        if (touches.length === 2) {
+            e.evt.preventDefault();
+            const distance = getDistance(touches[0], touches[1]);
+            const rotation = getRotation(touches[0], touches[1]);
+            setTouchStartDistance(distance);
+            setTouchStartRotation(rotation);
+            setInitialScale(position.scaleX);
+            setInitialRotation(position.rotation);
         }
+    };
 
-        return () => {
-            if (watermarkRef.current) {
-                watermarkRef.current.off("touchstart");
-                watermarkRef.current.off("touchmove");
-                watermarkRef.current.off("touchend");
-            }
-        };
-    }, [position, initialScale, initialRotation, onTransform]);
+    const handleTouchMove = (e: Konva.KonvaEventObject<TouchEvent>) => {
+        const touches = e.evt.touches;
+        if (
+            touches.length === 2 &&
+            touchStartDistance &&
+            touchStartRotation !== null
+        ) {
+            e.evt.preventDefault();
+            const distance = getDistance(touches[0], touches[1]);
+            const rotation = getRotation(touches[0], touches[1]);
+
+            // 计算缩放比例
+            const scale = (distance / touchStartDistance) * initialScale;
+            // 计算旋转角度
+            const newRotation =
+                initialRotation +
+                ((rotation - touchStartRotation) * 180) / Math.PI;
+
+            // 更新位置
+            const newPosition = {
+                ...position,
+                scaleX: Math.max(0.1, Math.min(5, scale)),
+                scaleY: Math.max(0.1, Math.min(5, scale)),
+                rotation: newRotation,
+            };
+            setPosition(newPosition);
+            // Consider throttling this if performance is an issue
+            onTransform(newPosition);
+        }
+    };
+
+    const handleTouchEnd = () => {
+        setTouchStartDistance(null);
+        setTouchStartRotation(null);
+    };
 
     // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
     useEffect(() => {
@@ -888,6 +910,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         setSelectedPosition(value);
         // 强制应用新选择的位置
         applySelectedPosition(value, true);
+        setPositionDialogOpen(false); // Close dialog after selection
     };
 
     // 处理批量/单独模式切换
@@ -909,7 +932,32 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     };
 
     return (
-        <div ref={containerRef} className="relative flex flex-col h-full">
+        <div ref={containerRef} className="relative flex flex-col h-full bg-gray-50">
+            {/* Header */}
+            <header className="flex items-center justify-between px-4 py-3 bg-white shadow-sm z-20">
+                <Button variant="ghost" size="icon" onClick={onBack} className="-ml-2">
+                    <ChevronLeft className="h-6 w-6" />
+                </Button>
+                <div className="font-medium text-lg">
+                    {totalImages > 0 ? `${currentIndex + 1} / ${totalImages}` : "编辑水印"}
+                </div>
+                <Button
+                    onClick={onGenerate}
+                    disabled={isGenerating}
+                    size="sm"
+                    className="bg-blue-600 text-white hover:bg-blue-700 rounded-full px-6"
+                >
+                    {isGenerating ? (
+                        <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>{Math.round(generateProgress)}%</span>
+                        </div>
+                    ) : (
+                        "保存"
+                    )}
+                </Button>
+            </header>
+
             {isLoading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 z-50">
                     <div className="flex flex-col items-center">
@@ -920,36 +968,27 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     </div>
                 </div>
             )}
-            <div className="flex-1 relative flex justify-center items-center">
-                {/* 图片索引指示器 */}
-                {totalImages > 0 && (
-                    <div className="absolute top-2 left-0 right-0 z-10 flex justify-center">
-                        <div className="bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
-                            {currentIndex + 1} / {totalImages}
-                        </div>
-                    </div>
-                )}
-
-                {/* 左右切换按钮 */}
+            <div className="flex-1 relative flex justify-center items-center overflow-hidden bg-gray-100">
+                {/* 左右切换按钮 - Increased Z-Index */}
                 {totalImages > 1 && (
                     <>
                         <Button
-                            variant="outline"
+                            variant="secondary"
                             size="icon"
-                            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white bg-opacity-70 rounded-full"
+                            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 bg-white/80 backdrop-blur-sm shadow-md rounded-full w-10 h-10"
                             onClick={handlePrevImage}
                             disabled={currentIndex === 0}
                         >
-                            <ChevronLeft className="h-5 w-5" />
+                            <ChevronLeft className="h-6 w-6" />
                         </Button>
                         <Button
-                            variant="outline"
+                            variant="secondary"
                             size="icon"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white bg-opacity-70 rounded-full"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 bg-white/80 backdrop-blur-sm shadow-md rounded-full w-10 h-10"
                             onClick={handleNextImage}
                             disabled={currentIndex === totalImages - 1}
                         >
-                            <ChevronRight className="h-5 w-5" />
+                            <ChevronRight className="h-6 w-6" />
                         </Button>
                     </>
                 )}
@@ -1011,7 +1050,11 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 onTap={onWatermarkClick}
                                 onDragEnd={handleDragEnd}
                                 onTransformEnd={handleTransform}
+                                onTouchStart={handleTouchStart}
+                                onTouchMove={handleTouchMove}
+                                onTouchEnd={handleTouchEnd}
                                 opacity={watermarkOpacity} // 应用透明度
+                                rotation={position.rotation} // 确保旋转属性被传递
                             />
                         )}
                         <Transformer
@@ -1035,153 +1078,335 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                 </Stage>
             </div>
 
-            {/* 移动端控制面板 */}
-            <div className="p-3 bg-white border-t">
-                <div className="flex flex-col gap-3">
-                    <div className="flex justify-between">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={toggleGuideLines}
-                                    >
-                                        {showGuideLines ? (
-                                            <EyeOff className="h-5 w-5" />
-                                        ) : (
-                                            <Eye className="h-5 w-5" />
-                                        )}
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    {showGuideLines
-                                        ? "隐藏辅助线"
-                                        : "显示辅助线"}
-                                </TooltipContent>
-                            </Tooltip>
+            {/* 移动端控制面板 - Optimized Layout */}
+            <div className="bg-white border-t z-20 pb-safe">
+                <div className="flex items-center justify-between px-6 py-3">
+                    {/* Left: Settings */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setSettingsOpen(true)}
+                        className="text-gray-600 hover:bg-gray-100 rounded-full w-10 h-10"
+                    >
+                        <Settings className="h-6 w-6" />
+                    </Button>
 
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => handleRotate("left")}
-                                    >
-                                        <RotateCcw className="h-5 w-5" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>左旋转</TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => handleRotate("right")}
-                                    >
-                                        <RotateCw className="h-5 w-5" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>右旋转</TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => handleScale("increase")}
-                                    >
-                                        <ZoomIn className="h-5 w-5" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>放大</TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        onClick={() => handleScale("decrease")}
-                                    >
-                                        <ZoomOut className="h-5 w-5" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>缩小</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <Select
-                                value={selectedPosition}
-                                onValueChange={handlePositionChange}
+                    {/* Center: Fine-tuning Controls */}
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center bg-gray-100 rounded-full p-1">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRotate("left")}
+                                className="h-8 w-8 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
                             >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="选择位置" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>水印位置</SelectLabel>
-                                        <SelectItem value="topLeft">
-                                            左上角
-                                        </SelectItem>
-                                        <SelectItem value="topCenter">
-                                            顶部居中
-                                        </SelectItem>
-                                        <SelectItem value="topRight">
-                                            右上角
-                                        </SelectItem>
-                                        <SelectItem value="middleLeft">
-                                            左侧居中
-                                        </SelectItem>
-                                        <SelectItem value="middleCenter">
-                                            正中心
-                                        </SelectItem>
-                                        <SelectItem value="middleRight">
-                                            右侧居中
-                                        </SelectItem>
-                                        <SelectItem value="bottomLeft">
-                                            左下角
-                                        </SelectItem>
-                                        <SelectItem value="bottomCenter">
-                                            底部居中
-                                        </SelectItem>
-                                        <SelectItem value="bottomRight">
-                                            右下角
-                                        </SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                <RotateCcw className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRotate("right")}
+                                className="h-8 w-8 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
+                            >
+                                <RotateCw className="h-4 w-4" />
+                            </Button>
                         </div>
-                        <div>
-                            <Select
-                                onValueChange={handleModeChange}
-                                defaultValue="batch"
+                        <div className="flex items-center bg-gray-100 rounded-full p-1">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleScale("decrease")}
+                                className="h-8 w-8 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
                             >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="应用模式" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>应用模式</SelectLabel>
-                                        <SelectItem value="single">
-                                            单独应用
-                                        </SelectItem>
-                                        <SelectItem value="batch">
-                                            批量应用
-                                        </SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
+                                <ZoomOut className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleScale("increase")}
+                                className="h-8 w-8 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
+                            >
+                                <ZoomIn className="h-4 w-4" />
+                            </Button>
                         </div>
                     </div>
+
+                    {/* Right: Position Selector */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setPositionDialogOpen(true)}
+                        className="text-gray-600 hover:bg-gray-100 rounded-full w-10 h-10"
+                    >
+                        <LayoutGrid className="h-6 w-6" />
+                    </Button>
                 </div>
             </div>
+
+            {/* Position Selector Dialog */}
+            <Dialog open={positionDialogOpen} onOpenChange={setPositionDialogOpen}>
+                <DialogContent className="bg-white rounded-lg p-6 w-[80vw] max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="text-center mb-4">选择水印位置</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid grid-cols-3 gap-3 aspect-square">
+                        {[
+                            { id: "topLeft", label: "左上" },
+                            { id: "topCenter", label: "上中" },
+                            { id: "topRight", label: "右上" },
+                            { id: "middleLeft", label: "左中" },
+                            { id: "middleCenter", label: "中心" },
+                            { id: "middleRight", label: "右中" },
+                            { id: "bottomLeft", label: "左下" },
+                            { id: "bottomCenter", label: "下中" },
+                            { id: "bottomRight", label: "右下" },
+                        ].map((item) => (
+                            <Button
+                                key={item.id}
+                                variant={selectedPosition === item.id ? "default" : "outline"}
+                                className={`w-full h-full p-0 flex flex-col items-center justify-center ${
+                                    selectedPosition === item.id ? "bg-blue-600 text-white" : "hover:bg-gray-50"
+                                }`}
+                                onClick={() => handlePositionChange(item.id)}
+                            >
+                                <span className="text-sm">{item.label}</span>
+                            </Button>
+                        ))}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Settings Dialog */}
+            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <DialogContent className="bg-white rounded-lg p-4 max-w-[90vw] max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>水印设置</DialogTitle>
+                    </DialogHeader>
+
+                    <Tabs defaultValue="effect" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="effect">效果</TabsTrigger>
+                            <TabsTrigger value="content">内容</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="effect" className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <Label>模式选择</Label>
+                                </div>
+                                <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
+                                    <Button
+                                        variant={isBatch ? "secondary" : "ghost"}
+                                        className={`flex-1 ${isBatch ? "bg-white shadow-sm" : ""}`}
+                                        onClick={() => handleModeChange("batch")}
+                                    >
+                                        批量模式
+                                    </Button>
+                                    <Button
+                                        variant={!isBatch ? "secondary" : "ghost"}
+                                        className={`flex-1 ${!isBatch ? "bg-white shadow-sm" : ""}`}
+                                        onClick={() => handleModeChange("single")}
+                                    >
+                                        单张模式
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="guide-lines">显示辅助线</Label>
+                                <Switch
+                                    id="guide-lines"
+                                    checked={showGuideLines}
+                                    onCheckedChange={setShowGuideLines}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <Label>不透明度: {Math.round(watermarkOpacity * 100)}%</Label>
+                                </div>
+                                <Slider
+                                    value={[watermarkOpacity]}
+                                    max={1}
+                                    step={0.01}
+                                    onValueChange={(vals) => setWatermarkOpacity(vals[0])}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="blur-mode">背景模糊</Label>
+                                <Switch
+                                    id="blur-mode"
+                                    checked={watermarkBlur}
+                                    onCheckedChange={setWatermarkBlur}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <Label>输出质量: {Math.round(quality * 100)}%</Label>
+                                </div>
+                                <Slider
+                                    value={[quality]}
+                                    max={1}
+                                    step={0.01}
+                                    onValueChange={(vals) => setQuality(vals[0])}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t">
+                                <Label htmlFor="dark-watermark">暗水印</Label>
+                                <Switch
+                                    id="dark-watermark"
+                                    checked={darkWatermarkEnabled}
+                                    onCheckedChange={setDarkWatermarkEnabled}
+                                />
+                            </div>
+
+                            {darkWatermarkEnabled && (
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <Label>暗水印强度: {Math.round(darkWatermarkStrength * 100)}%</Label>
+                                    </div>
+                                    <Slider
+                                        value={[darkWatermarkStrength]}
+                                        min={0.02}
+                                        max={0.25}
+                                        step={0.01}
+                                        onValueChange={(vals) => setDarkWatermarkStrength(vals[0])}
+                                    />
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="content" className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>水印模式</Label>
+                                <Select
+                                    value={watermarkMode}
+                                    onValueChange={(val: "image" | "mixed") => setWatermarkMode(val)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="image">图片水印</SelectItem>
+                                        <SelectItem value="mixed">混合水印</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {watermarkMode === "image" ? (
+                                <div className="space-y-2">
+                                    <Label>上传水印图片</Label>
+                                    <ImageUploader
+                                        onUpload={onWatermarkUpload}
+                                        fileType="水印"
+                                        className="w-full"
+                                    >
+                                        <Button variant="outline" className="w-full">
+                                            <Upload className="w-4 h-4 mr-2" />
+                                            更换图片
+                                        </Button>
+                                    </ImageUploader>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>上传图标</Label>
+                                        <ImageUploader
+                                            onUpload={(files) => {
+                                                const reader = new FileReader();
+                                                reader.onload = (e) => {
+                                                    setMixedWatermarkConfig(prev => ({
+                                                        ...prev,
+                                                        icon: e.target?.result as string
+                                                    }));
+                                                };
+                                                reader.readAsDataURL(files[0]);
+                                            }}
+                                            fileType="图标"
+                                            className="w-full"
+                                        >
+                                            <Button variant="outline" className="w-full">
+                                                <Upload className="w-4 h-4 mr-2" />
+                                                更换图标
+                                            </Button>
+                                        </ImageUploader>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>第一行文字</Label>
+                                        <input
+                                            type="text"
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={mixedWatermarkConfig.textLine1}
+                                            onChange={(e) => setMixedWatermarkConfig(prev => ({ ...prev, textLine1: e.target.value }))}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>第二行文字</Label>
+                                        <input
+                                            type="text"
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            value={mixedWatermarkConfig.textLine2}
+                                            onChange={(e) => setMixedWatermarkConfig(prev => ({ ...prev, textLine2: e.target.value }))}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>文字颜色</Label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="color"
+                                                className="h-10 w-20 p-1 rounded border"
+                                                value={mixedWatermarkConfig.color}
+                                                onChange={(e) => setMixedWatermarkConfig(prev => ({ ...prev, color: e.target.value }))}
+                                            />
+                                            <input
+                                                type="text"
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                value={mixedWatermarkConfig.color}
+                                                onChange={(e) => setMixedWatermarkConfig(prev => ({ ...prev, color: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <Label>字体大小: {mixedWatermarkConfig.fontSize}px</Label>
+                                        </div>
+                                        <Slider
+                                            value={[mixedWatermarkConfig.fontSize]}
+                                            min={12}
+                                            max={100}
+                                            step={1}
+                                            onValueChange={(vals) => setMixedWatermarkConfig(prev => ({ ...prev, fontSize: vals[0] }))}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>布局方向</Label>
+                                        <Select
+                                            value={mixedWatermarkConfig.layout}
+                                            onValueChange={(val: "horizontal" | "vertical") => setMixedWatermarkConfig(prev => ({ ...prev, layout: val }))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="horizontal">水平</SelectItem>
+                                                <SelectItem value="vertical">垂直</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

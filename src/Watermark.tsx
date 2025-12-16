@@ -692,38 +692,26 @@ const Watermark: React.FC = () => {
         }
 
         return (
-            <div className="flex flex-col h-screen">
-                {/* 移动端顶部导航 */}
-                <div className="flex justify-between items-center p-3 bg-white/90 backdrop-blur-sm shadow-sm">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    >
-                        <Menu className="h-5 w-5" />
-                    </Button>
-                    <div className="text-center font-medium">
-                        {mobileView === "editor" ? "水印编辑" : "图片库"}
-                    </div>
-                    <div className="flex gap-2">
+            <div className="flex flex-col h-screen bg-background">
+                {/* 移动端顶部导航 - 仅在非编辑器模式下显示，或者编辑器有自己的头 */}
+                {mobileView !== "editor" && (
+                    <div className="flex justify-between items-center p-3 bg-white/90 backdrop-blur-sm shadow-sm z-10">
                         <Button
                             variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                                setMobileView(
-                                    mobileView === "editor"
-                                        ? "gallery"
-                                        : "editor"
-                                )
-                            }
+                            size="icon"
+                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                         >
-                            {mobileView === "editor" ? "图片库" : "编辑器"}
+                            <Menu className="h-5 w-5" />
                         </Button>
+                        <div className="text-center font-medium">
+                            图片库
+                        </div>
+                        <div className="w-10"></div> {/* 占位符 */}
                     </div>
-                </div>
+                )}
 
                 {/* 移动端主内容区 */}
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 overflow-hidden relative">
                     {mobileView === "editor" && currentImg ? (
                         <MobileWatermarkEditor
                             watermarkUrl={watermarkUrl}
@@ -732,11 +720,6 @@ const Watermark: React.FC = () => {
                                 (pos) => pos.id === currentImg.id
                             )}
                             onTransform={(position) => {
-                                console.log(
-                                    "position",
-                                    position,
-                                    currentImg.id
-                                );
                                 handleWatermarkTransform(
                                     currentImg.id,
                                     position
@@ -747,7 +730,6 @@ const Watermark: React.FC = () => {
                                 (img) => img.id === currentImg.id
                             )}
                             onAllTransform={handleAllWatermarkTransform}
-                            watermarkOpacity={watermarkOpacity} // 传递透明度
                             onPrevImage={() => {
                                 const currentIndex = images.findIndex(
                                     (img) => img.id === currentImg.id
@@ -766,6 +748,27 @@ const Watermark: React.FC = () => {
                                     setCurrentImg(nextImg);
                                 }
                             }}
+                            watermarkOpacity={watermarkOpacity}
+                            setWatermarkOpacity={setWatermarkOpacity}
+                            watermarkBlur={watermarkBlur}
+                            setWatermarkBlur={setWatermarkBlur}
+                            quality={quality}
+                            setQuality={setQuality}
+                            darkWatermarkEnabled={darkWatermarkEnabled}
+                            setDarkWatermarkEnabled={setDarkWatermarkEnabled}
+                            darkWatermarkStrength={darkWatermarkStrength}
+                            setDarkWatermarkStrength={setDarkWatermarkStrength}
+                            watermarkMode={watermarkMode}
+                            setWatermarkMode={setWatermarkMode}
+                            mixedWatermarkConfig={mixedWatermarkConfig}
+                            setMixedWatermarkConfig={setMixedWatermarkConfig}
+                            onWatermarkUpload={handleWatermarkUpload}
+
+                            // New Props for UI control
+                            onBack={() => setMobileView("gallery")}
+                            onGenerate={handleApplyWatermarkDebounced}
+                            isGenerating={loading}
+                            generateProgress={smoothProgress}
                         />
                     ) : (
                         <MobileImageGallery
@@ -775,55 +778,15 @@ const Watermark: React.FC = () => {
                             setCurrentImg={setCurrentImg}
                             currentImageId={currentImg?.id}
                             onImageSelect={() => setMobileView("editor")}
+                            onUpload={async (files) => {
+                                const wasEmpty = images.length === 0;
+                                await handleImagesUpload(files);
+                                if (wasEmpty) {
+                                    setMobileView("editor");
+                                }
+                            }}
                         />
                     )}
-                </div>
-
-                {/* 移动端底部工具栏 */}
-                <div className="p-3 border-t bg-white/90 backdrop-blur-sm">
-                    <div className="flex flex-col gap-3">
-                        <div className="flex items-baseline gap-6">
-                            <div className="relative group">
-                                <ImageUploader
-                                    onUpload={handleWatermarkUpload}
-                                    fileType="水印"
-                                    className="w-12 h-12 rounded-md cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors duration-200"
-                                >
-                                    <div className="w-full h-full flex items-center justify-center">
-                                        <img
-                                            src={watermarkUrl}
-                                            alt="watermark"
-                                            className="max-w-full max-h-full object-contain"
-                                        />
-                                    </div>
-                                </ImageUploader>
-                                <div className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-xs px-1 rounded-sm">
-                                    水印
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm">模糊</span>
-                                <Switch
-                                    checked={watermarkBlur}
-                                    onCheckedChange={setWatermarkBlur}
-                                    className="data-[state=checked]:bg-blue-500"
-                                />
-                            </div>
-                            <ProgressButton
-                                onClick={handleApplyWatermarkDebounced}
-                                loading={loading}
-                                progress={smoothProgress}
-                                className="bg-blue-500 hover:bg-blue-600 shadow-md transition-all duration-200"
-                            >
-                                <Icon
-                                    icon="mdi:image-filter-center-focus"
-                                    className="mr-2 h-5 w-5"
-                                />
-                                水印生成
-                            </ProgressButton>
-                        </div>
-                    </div>
                 </div>
             </div>
         );

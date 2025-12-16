@@ -15,7 +15,11 @@ interface ImageWithFixedWidthProps {
     onTap?: () => void;
     onDragEnd?: (e: Konva.KonvaEventObject<DragEvent>) => void;
     onTransformEnd?: (e: Konva.KonvaEventObject<Event>) => void;
+    onTouchStart?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+    onTouchMove?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+    onTouchEnd?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
     opacity?: number; // 新增透明度属性
+    rotation?: number;
 }
 
 const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
