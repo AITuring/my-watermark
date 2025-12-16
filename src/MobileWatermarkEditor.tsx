@@ -40,6 +40,11 @@ import {
     LayoutGrid,
     Settings,
     Upload,
+    Move,
+    Palette,
+    Sun,
+    Moon,
+    Images,
 } from "lucide-react";
 import Konva from "konva";
 import ImageWithFixedWidth from "./ImageWithFixedWidth";
@@ -88,6 +93,7 @@ interface MobileWatermarkEditorProps {
     watermarkUrl: string;
     backgroundImageFile: File;
     currentWatermarkPosition?: WatermarkPosition;
+    stackPreviews?: { id: string; url: string }[];
     onTransform: (position: {
         x: number;
         y: number;
@@ -162,6 +168,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     mixedWatermarkConfig,
     setMixedWatermarkConfig,
     onWatermarkUpload,
+    stackPreviews = [],
 }) => {
     // 背景图片相关设置
     const [backgroundImageUrl, setBackgroundImageUrl] = useState("");
@@ -217,6 +224,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     // Position Dialog State
     const [positionDialogOpen, setPositionDialogOpen] = useState(false);
+
+    // Active Tab State
+    const [activeTab, setActiveTab] = useState<"transform" | "style" | "position">("transform");
 
     // 添加加载状态
     const [isLoading, setIsLoading] = useState(true);
@@ -910,7 +920,6 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         setSelectedPosition(value);
         // 强制应用新选择的位置
         applySelectedPosition(value, true);
-        setPositionDialogOpen(false); // Close dialog after selection
     };
 
     // 处理批量/单独模式切换
@@ -935,8 +944,35 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         <div ref={containerRef} className="relative flex flex-col h-full bg-gray-50">
             {/* Header */}
             <header className="flex items-center justify-between px-4 py-3 bg-white shadow-sm z-20">
-                <Button variant="ghost" size="icon" onClick={onBack} className="-ml-2">
-                    <ChevronLeft className="h-6 w-6" />
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onBack}
+                    className="-ml-2 group relative w-10 h-10 p-0 overflow-visible hover:bg-transparent"
+                >
+                    {stackPreviews.length > 0 ? (
+                        <div className="relative w-full h-full flex items-center justify-center">
+                            {stackPreviews.map((preview, index) => (
+                                <div
+                                    key={preview.id}
+                                    className={`absolute w-7 h-7 rounded-sm overflow-hidden border border-white shadow-sm transition-all duration-300 ease-out origin-center
+                                        ${index === 0 ? 'z-30' : index === 1 ? 'z-20' : 'z-10'}
+                                        ${index === 0 ? 'group-hover:-translate-y-1.5 group-hover:-translate-x-1.5 group-hover:-rotate-6' : ''}
+                                        ${index === 1 ? 'translate-x-0.5 translate-y-0.5 rotate-3 group-hover:translate-x-1.5 group-hover:translate-y-0 group-hover:rotate-6' : ''}
+                                        ${index === 2 ? 'translate-x-1 translate-y-1 rotate-6 group-hover:translate-x-4 group-hover:translate-y-1 group-hover:rotate-12' : ''}
+                                    `}
+                                >
+                                    <img
+                                        src={preview.url}
+                                        alt="stack"
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <Images className="h-6 w-6 transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600" />
+                    )}
                 </Button>
                 <div className="font-medium text-lg">
                     {totalImages > 0 ? `${currentIndex + 1} / ${totalImages}` : "编辑水印"}
@@ -1078,103 +1114,171 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                 </Stage>
             </div>
 
-            {/* 移动端控制面板 - Optimized Layout */}
-            <div className="bg-white border-t z-20 pb-safe">
-                <div className="flex items-center justify-between px-6 py-3">
-                    {/* Left: Settings */}
+            {/* 移动端控制面板 - Tabbed Layout */}
+            <div className="bg-white border-t z-20 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                {/* Contextual Controls Area */}
+                <div className="px-4 py-4 min-h-[80px] flex items-center justify-center">
+                    {activeTab === "transform" && (
+                        <div className="flex items-center gap-6">
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs text-gray-400">旋转</span>
+                                <div className="flex items-center bg-gray-100 rounded-full p-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleRotate("left")}
+                                        className="h-10 w-10 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
+                                    >
+                                        <RotateCcw className="h-5 w-5" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleRotate("right")}
+                                        className="h-10 w-10 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
+                                    >
+                                        <RotateCw className="h-5 w-5" />
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="w-px h-8 bg-gray-200" />
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs text-gray-400">缩放</span>
+                                <div className="flex items-center bg-gray-100 rounded-full p-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleScale("decrease")}
+                                        className="h-10 w-10 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
+                                    >
+                                        <ZoomOut className="h-5 w-5" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleScale("increase")}
+                                        className="h-10 w-10 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
+                                    >
+                                        <ZoomIn className="h-5 w-5" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "style" && (
+                        <div className="w-full flex flex-col gap-4">
+                            <div className="flex items-center justify-between gap-4">
+                                <span className="text-sm text-gray-500 w-16">不透明度</span>
+                                <Slider
+                                    value={[watermarkOpacity]}
+                                    max={1}
+                                    step={0.01}
+                                    onValueChange={(vals) => setWatermarkOpacity(vals[0])}
+                                    className="flex-1"
+                                />
+                                <span className="text-sm text-gray-500 w-8 text-right">
+                                    {Math.round(watermarkOpacity * 100)}%
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-500">水印颜色</span>
+                                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setDarkWatermarkEnabled(false)}
+                                        className={`h-8 px-3 rounded-md ${!darkWatermarkEnabled ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
+                                    >
+                                        <Sun className="h-4 w-4 mr-1" /> 浅色
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setDarkWatermarkEnabled(true)}
+                                        className={`h-8 px-3 rounded-md ${darkWatermarkEnabled ? 'bg-slate-800 shadow-sm text-white' : 'text-gray-500'}`}
+                                    >
+                                        <Moon className="h-4 w-4 mr-1" /> 深色
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "position" && (
+                        <div className="grid grid-cols-3 gap-2 w-full max-w-[240px]">
+                            {[
+                                { id: "topLeft", label: "↖" },
+                                { id: "topCenter", label: "↑" },
+                                { id: "topRight", label: "↗" },
+                                { id: "middleLeft", label: "←" },
+                                { id: "middleCenter", label: "+" },
+                                { id: "middleRight", label: "→" },
+                                { id: "bottomLeft", label: "↙" },
+                                { id: "bottomCenter", label: "↓" },
+                                { id: "bottomRight", label: "↘" },
+                            ].map((item) => (
+                                <Button
+                                    key={item.id}
+                                    variant={selectedPosition === item.id ? "default" : "outline"}
+                                    size="sm"
+                                    className={`h-8 w-full ${
+                                        selectedPosition === item.id ? "bg-blue-600" : "bg-gray-50 hover:bg-gray-100"
+                                    }`}
+                                    onClick={() => handlePositionChange(item.id)}
+                                >
+                                    {item.label}
+                                </Button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="flex items-center justify-around border-t px-2 py-2">
                     <Button
                         variant="ghost"
-                        size="icon"
-                        onClick={() => setSettingsOpen(true)}
-                        className="text-gray-600 hover:bg-gray-100 rounded-full w-10 h-10"
+                        className={`flex flex-col items-center gap-1 h-auto py-2 px-4 rounded-xl ${
+                            activeTab === "transform" ? "bg-blue-50 text-blue-600" : "text-gray-500"
+                        }`}
+                        onClick={() => setActiveTab("transform")}
                     >
-                        <Settings className="h-6 w-6" />
+                        <Move className="h-6 w-6" />
+                        <span className="text-[10px] font-medium">调整</span>
                     </Button>
-
-                    {/* Center: Fine-tuning Controls */}
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center bg-gray-100 rounded-full p-1">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRotate("left")}
-                                className="h-8 w-8 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
-                            >
-                                <RotateCcw className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRotate("right")}
-                                className="h-8 w-8 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
-                            >
-                                <RotateCw className="h-4 w-4" />
-                            </Button>
-                        </div>
-                        <div className="flex items-center bg-gray-100 rounded-full p-1">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleScale("decrease")}
-                                className="h-8 w-8 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
-                            >
-                                <ZoomOut className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleScale("increase")}
-                                className="h-8 w-8 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
-                            >
-                                <ZoomIn className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-
-                    {/* Right: Position Selector */}
                     <Button
                         variant="ghost"
-                        size="icon"
-                        onClick={() => setPositionDialogOpen(true)}
-                        className="text-gray-600 hover:bg-gray-100 rounded-full w-10 h-10"
+                        className={`flex flex-col items-center gap-1 h-auto py-2 px-4 rounded-xl ${
+                            activeTab === "style" ? "bg-blue-50 text-blue-600" : "text-gray-500"
+                        }`}
+                        onClick={() => setActiveTab("style")}
+                    >
+                        <Palette className="h-6 w-6" />
+                        <span className="text-[10px] font-medium">样式</span>
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className={`flex flex-col items-center gap-1 h-auto py-2 px-4 rounded-xl ${
+                            activeTab === "position" ? "bg-blue-50 text-blue-600" : "text-gray-500"
+                        }`}
+                        onClick={() => setActiveTab("position")}
                     >
                         <LayoutGrid className="h-6 w-6" />
+                        <span className="text-[10px] font-medium">位置</span>
+                    </Button>
+                    <div className="w-px h-8 bg-gray-200 mx-2" />
+                    <Button
+                        variant="ghost"
+                        className="flex flex-col items-center gap-1 h-auto py-2 px-4 text-gray-500 hover:bg-gray-100 rounded-xl"
+                        onClick={() => setSettingsOpen(true)}
+                    >
+                        <Settings className="h-6 w-6" />
+                        <span className="text-[10px] font-medium">设置</span>
                     </Button>
                 </div>
             </div>
 
-            {/* Position Selector Dialog */}
-            <Dialog open={positionDialogOpen} onOpenChange={setPositionDialogOpen}>
-                <DialogContent className="bg-white rounded-lg p-6 w-[80vw] max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle className="text-center mb-4">选择水印位置</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid grid-cols-3 gap-3 aspect-square">
-                        {[
-                            { id: "topLeft", label: "左上" },
-                            { id: "topCenter", label: "上中" },
-                            { id: "topRight", label: "右上" },
-                            { id: "middleLeft", label: "左中" },
-                            { id: "middleCenter", label: "中心" },
-                            { id: "middleRight", label: "右中" },
-                            { id: "bottomLeft", label: "左下" },
-                            { id: "bottomCenter", label: "下中" },
-                            { id: "bottomRight", label: "右下" },
-                        ].map((item) => (
-                            <Button
-                                key={item.id}
-                                variant={selectedPosition === item.id ? "default" : "outline"}
-                                className={`w-full h-full p-0 flex flex-col items-center justify-center ${
-                                    selectedPosition === item.id ? "bg-blue-600 text-white" : "hover:bg-gray-50"
-                                }`}
-                                onClick={() => handlePositionChange(item.id)}
-                            >
-                                <span className="text-sm">{item.label}</span>
-                            </Button>
-                        ))}
-                    </div>
-                </DialogContent>
-            </Dialog>
+
 
             {/* Settings Dialog */}
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>

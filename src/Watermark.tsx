@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/tooltip";
 import BackgroundGradientAnimation from "@/components/BackgroundGradientAnimation";
 import ChineseWaveBackground from "./components/ChineseWaveBackground";
-import { Menu } from "lucide-react";
+import { Menu, ChevronLeft, Edit } from "lucide-react";
 import { Icon } from "@iconify/react";
 import {
     loadImageData,
@@ -153,6 +153,28 @@ const Watermark: React.FC = () => {
     const [mobileView, setMobileView] = useState<"editor" | "gallery">(
         "editor"
     );
+
+    // Stack preview URLs for mobile gallery header
+    const [stackPreviews, setStackPreviews] = useState<{id: string, url: string}[]>([]);
+
+    useEffect(() => {
+        if (images.length === 0) {
+            setStackPreviews([]);
+            return;
+        }
+
+        // Only take top 3 for stack
+        const topImages = images.slice(0, 3);
+        const urls = topImages.map(img => ({
+            id: img.id,
+            url: URL.createObjectURL(img.file)
+        }));
+        setStackPreviews(urls);
+
+        return () => {
+            urls.forEach(u => URL.revokeObjectURL(u.url));
+        };
+    }, [images]);
 
     // 添加平滑进度状态
     const [smoothProgress, setSmoothProgress] = useState<number>(0);
@@ -699,9 +721,10 @@ const Watermark: React.FC = () => {
                         <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                            onClick={() => setMobileView("editor")}
+                            className="group"
                         >
-                            <Menu className="h-5 w-5" />
+                            <Edit className="h-5 w-5 transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600" />
                         </Button>
                         <div className="text-center font-medium">
                             图片库
@@ -766,6 +789,7 @@ const Watermark: React.FC = () => {
 
                             // New Props for UI control
                             onBack={() => setMobileView("gallery")}
+                            stackPreviews={stackPreviews}
                             onGenerate={handleApplyWatermarkDebounced}
                             isGenerating={loading}
                             generateProgress={smoothProgress}
