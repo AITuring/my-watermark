@@ -18,6 +18,7 @@ import LandscapePainting from "./components/LandscapePainting";
 import NewsApp from "./News";
 import ImageCollage from "./ImageCollage";
 import Landing from "./Landing";
+import FileRenamer from "./FileRenamer";
 
 // import BorderWatermark from "./BorderWatermark";
 import Lottery from "./Lottery";
@@ -120,6 +121,13 @@ const routeItems = [
         icon: "material-symbols:photo-library-outline",
     },
     {
+        label: "文件重命名",
+        id: "rename",
+        url: "/rename",
+        component: <FileRenamer />,
+        icon: "material-symbols:file-rename-outline",
+    },
+    {
         label: "测试",
         id: "test",
         url: "/test",
@@ -190,6 +198,11 @@ const FloatingButtons = () => {
                                 path: "/compress",
                                 icon: "material-symbols:compress",
                                 label: "图片压缩",
+                            },
+                             {
+                                path: "/wenwu",
+                                icon: "ri:globe-line",
+                                label: "195禁出",
                             },
                         ].map((item) => (
                             <Tooltip key={item.path}>
