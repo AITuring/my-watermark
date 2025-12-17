@@ -161,7 +161,7 @@ const FloatingButtons = () => {
     return (
         <div className="fixed bottom-24 right-6 z-50 flex flex-col items-end">
             {open ? (
-                <div className="bg-white/80 backdrop-blur-xl shadow-2xl shadow-black/10 border border-white/60 rounded-[2rem] p-3 flex flex-col items-center gap-3 transition-all hover:bg-white hover:shadow-black/15">
+                <div className="bg-white/80 backdrop-blur-xl shadow-2xl shadow-black/10 border border-white/60 rounded-[2rem] p-2 flex flex-col items-center gap-2 transition-all hover:bg-white hover:shadow-black/15">
                     <TooltipProvider>
                         {[
                             {
@@ -209,8 +209,11 @@ const FloatingButtons = () => {
                                 <TooltipTrigger asChild>
                                     <button
                                         title={item.label}
-                                        onClick={() => navigate(item.path)}
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
+                                        onClick={() => {
+                                            navigate(item.path);
+                                            setOpen(false);
+                                        }}
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
                                             isActive(item.path)
                                                 ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
                                                 : "text-slate-500 hover:bg-slate-100"
@@ -218,7 +221,7 @@ const FloatingButtons = () => {
                                     >
                                         <Icon
                                             icon={item.icon}
-                                            className="w-5 h-5"
+                                            className="w-4 h-4"
                                         />
                                     </button>
                                 </TooltipTrigger>
@@ -228,14 +231,18 @@ const FloatingButtons = () => {
                             </Tooltip>
                         ))}
 
-                        <div className="w-8 h-px bg-slate-200 my-1"></div>
+                        <div className="w-6 h-px bg-slate-200 my-0.5"></div>
 
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <button
                                     title={isDark ? "切换日间模式" : "切换夜间模式"}
                                     onClick={toggleTheme}
-                                    className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all hover:scale-110 active:scale-95"
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
+                                        isDark
+                                        ? "bg-indigo-500 text-white hover:bg-indigo-600 shadow-md shadow-indigo-500/20"
+                                        : "bg-pink-500 text-white hover:bg-pink-600 shadow-md shadow-pink-500/20"
+                                    }`}
                                 >
                                     <Icon
                                         icon={
@@ -243,7 +250,7 @@ const FloatingButtons = () => {
                                                 ? "line-md:moon-rising-alt-loop"
                                                 : "line-md:moon-alt-to-sunny-outline-loop-transition"
                                         }
-                                        className="w-5 h-5"
+                                        className="w-4 h-4"
                                     />
                                 </button>
                             </TooltipTrigger>
@@ -257,11 +264,11 @@ const FloatingButtons = () => {
                                 <button
                                     title="收起导航"
                                     onClick={() => setOpen(false)}
-                                    className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-all mt-1"
+                                    className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-all mt-1"
                                 >
                                     <Icon
                                         icon="mdi:close"
-                                        className="w-5 h-5"
+                                        className="w-4 h-4"
                                     />
                                 </button>
                             </TooltipTrigger>
@@ -277,11 +284,11 @@ const FloatingButtons = () => {
                         <TooltipTrigger asChild>
                             <div
                                 onClick={() => setOpen(true)}
-                                className="w-12 h-12 rounded-full bg-white shadow-xl shadow-slate-300/30 border border-slate-200 flex items-center justify-center text-slate-600 hover:scale-110 hover:text-blue-600 transition-all cursor-pointer group"
+                                className="w-10 h-10 rounded-full bg-white shadow-xl shadow-slate-300/30 border border-slate-200 flex items-center justify-center text-slate-600 hover:scale-110 hover:text-blue-600 transition-all cursor-pointer group"
                             >
                                 <Icon
                                     icon="material-symbols:navigation"
-                                    className="w-6 h-6 group-hover:rotate-12 transition-transform"
+                                    className="w-5 h-5 group-hover:rotate-12 transition-transform"
                                 />
                             </div>
                         </TooltipTrigger>

@@ -941,9 +941,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     };
 
     return (
-        <div ref={containerRef} className="relative flex flex-col h-full bg-gray-50">
+        <div ref={containerRef} className="relative flex flex-col h-full bg-gray-50 dark:bg-slate-950">
             {/* Header */}
-            <header className="flex items-center justify-between px-4 py-3 bg-white shadow-sm z-20">
+            <header className="flex items-center justify-between px-4 py-3 bg-white dark:bg-slate-900 shadow-sm z-20 dark:border-b dark:border-slate-800">
                 <Button
                     variant="ghost"
                     size="icon"
@@ -955,7 +955,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                             {stackPreviews.map((preview, index) => (
                                 <div
                                     key={preview.id}
-                                    className={`absolute w-7 h-7 rounded-sm overflow-hidden border border-white shadow-sm transition-all duration-300 ease-out origin-center
+                                    className={`absolute w-7 h-7 rounded-sm overflow-hidden border border-white dark:border-slate-700 shadow-sm transition-all duration-300 ease-out origin-center
                                         ${index === 0 ? 'z-30' : index === 1 ? 'z-20' : 'z-10'}
                                         ${index === 0 ? 'group-hover:-translate-y-1.5 group-hover:-translate-x-1.5 group-hover:-rotate-6' : ''}
                                         ${index === 1 ? 'translate-x-0.5 translate-y-0.5 rotate-3 group-hover:translate-x-1.5 group-hover:translate-y-0 group-hover:rotate-6' : ''}
@@ -971,10 +971,10 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                             ))}
                         </div>
                     ) : (
-                        <Images className="h-6 w-6 transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600" />
+                        <Images className="h-6 w-6 transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600 dark:text-slate-200 dark:group-hover:text-blue-400" />
                     )}
                 </Button>
-                <div className="font-medium text-lg">
+                <div className="font-medium text-lg dark:text-slate-200">
                     {totalImages > 0 ? `${currentIndex + 1} / ${totalImages}` : "编辑水印"}
                 </div>
                 <Button
@@ -995,23 +995,23 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             </header>
 
             {isLoading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 z-50">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 dark:bg-slate-900/80 z-50">
                     <div className="flex flex-col items-center">
                         <div className="w-10 h-10 border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></div>
-                        <p className="mt-2 text-sm text-gray-600">
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                             加载图片中...
                         </p>
                     </div>
                 </div>
             )}
-            <div className="flex-1 relative flex justify-center items-center overflow-hidden bg-gray-100">
+            <div className="flex-1 relative flex justify-center items-center overflow-hidden bg-gray-100 dark:bg-slate-950">
                 {/* 左右切换按钮 - Increased Z-Index */}
                 {totalImages > 1 && (
                     <>
                         <Button
                             variant="secondary"
                             size="icon"
-                            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 bg-white/80 backdrop-blur-sm shadow-md rounded-full w-10 h-10"
+                            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 bg-white/80 dark:bg-slate-800/80 dark:text-slate-200 backdrop-blur-sm shadow-md rounded-full w-10 h-10"
                             onClick={handlePrevImage}
                             disabled={currentIndex === 0}
                         >
@@ -1020,7 +1020,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                         <Button
                             variant="secondary"
                             size="icon"
-                            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 bg-white/80 backdrop-blur-sm shadow-md rounded-full w-10 h-10"
+                            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 bg-white/80 dark:bg-slate-800/80 dark:text-slate-200 backdrop-blur-sm shadow-md rounded-full w-10 h-10"
                             onClick={handleNextImage}
                             disabled={currentIndex === totalImages - 1}
                         >
@@ -1033,7 +1033,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     ref={stageRef}
                     width={backgroundImageSize.width}
                     height={backgroundImageSize.height}
-                    className="bg-gray-100"
+                    className="bg-gray-100 dark:bg-slate-950"
                     style={{
                         margin: "0 auto",
                         maxWidth: "100%",
@@ -1115,19 +1115,19 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             </div>
 
             {/* 移动端控制面板 - Tabbed Layout */}
-            <div className="bg-white border-t z-20 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <div className="bg-white dark:bg-slate-900 border-t dark:border-slate-800 z-20 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                 {/* Contextual Controls Area */}
                 <div className="px-4 py-4 min-h-[80px] flex items-center justify-center">
                     {activeTab === "transform" && (
                         <div className="flex items-center gap-6">
                             <div className="flex flex-col items-center gap-1">
-                                <span className="text-xs text-gray-400">旋转</span>
-                                <div className="flex items-center bg-gray-100 rounded-full p-1">
+                                <span className="text-xs text-gray-400 dark:text-gray-500">旋转</span>
+                                <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-full p-1">
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => handleRotate("left")}
-                                        className="h-10 w-10 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
+                                        className="h-10 w-10 text-gray-600 dark:text-gray-300 rounded-full hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm"
                                     >
                                         <RotateCcw className="h-5 w-5" />
                                     </Button>
@@ -1135,21 +1135,21 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => handleRotate("right")}
-                                        className="h-10 w-10 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
+                                        className="h-10 w-10 text-gray-600 dark:text-gray-300 rounded-full hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm"
                                     >
                                         <RotateCw className="h-5 w-5" />
                                     </Button>
                                 </div>
                             </div>
-                            <div className="w-px h-8 bg-gray-200" />
+                            <div className="w-px h-8 bg-gray-200 dark:bg-slate-700" />
                             <div className="flex flex-col items-center gap-1">
-                                <span className="text-xs text-gray-400">缩放</span>
-                                <div className="flex items-center bg-gray-100 rounded-full p-1">
+                                <span className="text-xs text-gray-400 dark:text-gray-500">缩放</span>
+                                <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-full p-1">
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => handleScale("decrease")}
-                                        className="h-10 w-10 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
+                                        className="h-10 w-10 text-gray-600 dark:text-gray-300 rounded-full hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm"
                                     >
                                         <ZoomOut className="h-5 w-5" />
                                     </Button>
@@ -1157,7 +1157,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => handleScale("increase")}
-                                        className="h-10 w-10 text-gray-600 rounded-full hover:bg-white hover:shadow-sm"
+                                        className="h-10 w-10 text-gray-600 dark:text-gray-300 rounded-full hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm"
                                     >
                                         <ZoomIn className="h-5 w-5" />
                                     </Button>
@@ -1169,7 +1169,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     {activeTab === "style" && (
                         <div className="w-full flex flex-col gap-4">
                             <div className="flex items-center justify-between gap-4">
-                                <span className="text-sm text-gray-500 w-16">不透明度</span>
+                                <span className="text-sm text-gray-500 dark:text-gray-400 w-16">不透明度</span>
                                 <Slider
                                     value={[watermarkOpacity]}
                                     max={1}
@@ -1177,18 +1177,18 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                     onValueChange={(vals) => setWatermarkOpacity(vals[0])}
                                     className="flex-1"
                                 />
-                                <span className="text-sm text-gray-500 w-8 text-right">
+                                <span className="text-sm text-gray-500 dark:text-gray-400 w-8 text-right">
                                     {Math.round(watermarkOpacity * 100)}%
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500">水印颜色</span>
-                                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                                <span className="text-sm text-gray-500 dark:text-gray-400">水印颜色</span>
+                                <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-lg p-1">
                                     <Button
                                         size="sm"
                                         variant="ghost"
                                         onClick={() => setDarkWatermarkEnabled(false)}
-                                        className={`h-8 px-3 rounded-md ${!darkWatermarkEnabled ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
+                                        className={`h-8 px-3 rounded-md ${!darkWatermarkEnabled ? 'bg-white dark:bg-slate-700 shadow-sm text-black dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
                                     >
                                         <Sun className="h-4 w-4 mr-1" /> 浅色
                                     </Button>
@@ -1196,7 +1196,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         size="sm"
                                         variant="ghost"
                                         onClick={() => setDarkWatermarkEnabled(true)}
-                                        className={`h-8 px-3 rounded-md ${darkWatermarkEnabled ? 'bg-slate-800 shadow-sm text-white' : 'text-gray-500'}`}
+                                        className={`h-8 px-3 rounded-md ${darkWatermarkEnabled ? 'bg-slate-800 shadow-sm text-white' : 'text-gray-500 dark:text-gray-400'}`}
                                     >
                                         <Moon className="h-4 w-4 mr-1" /> 深色
                                     </Button>
@@ -1223,7 +1223,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                     variant={selectedPosition === item.id ? "default" : "outline"}
                                     size="sm"
                                     className={`h-8 w-full ${
-                                        selectedPosition === item.id ? "bg-blue-600" : "bg-gray-50 hover:bg-gray-100"
+                                        selectedPosition === item.id ? "bg-blue-600" : "bg-gray-50 dark:bg-slate-800 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                                     }`}
                                     onClick={() => handlePositionChange(item.id)}
                                 >
@@ -1235,11 +1235,11 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex items-center justify-around border-t px-2 py-2">
+                <div className="flex items-center justify-around border-t dark:border-slate-800 px-2 py-2">
                     <Button
                         variant="ghost"
                         className={`flex flex-col items-center gap-1 h-auto py-2 px-4 rounded-xl ${
-                            activeTab === "transform" ? "bg-blue-50 text-blue-600" : "text-gray-500"
+                            activeTab === "transform" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
                         }`}
                         onClick={() => setActiveTab("transform")}
                     >
@@ -1249,7 +1249,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     <Button
                         variant="ghost"
                         className={`flex flex-col items-center gap-1 h-auto py-2 px-4 rounded-xl ${
-                            activeTab === "style" ? "bg-blue-50 text-blue-600" : "text-gray-500"
+                            activeTab === "style" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
                         }`}
                         onClick={() => setActiveTab("style")}
                     >
@@ -1259,17 +1259,17 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     <Button
                         variant="ghost"
                         className={`flex flex-col items-center gap-1 h-auto py-2 px-4 rounded-xl ${
-                            activeTab === "position" ? "bg-blue-50 text-blue-600" : "text-gray-500"
+                            activeTab === "position" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
                         }`}
                         onClick={() => setActiveTab("position")}
                     >
                         <LayoutGrid className="h-6 w-6" />
                         <span className="text-[10px] font-medium">位置</span>
                     </Button>
-                    <div className="w-px h-8 bg-gray-200 mx-2" />
+                    <div className="w-px h-8 bg-gray-200 dark:bg-slate-700 mx-2" />
                     <Button
                         variant="ghost"
-                        className="flex flex-col items-center gap-1 h-auto py-2 px-4 text-gray-500 hover:bg-gray-100 rounded-xl"
+                        className="flex flex-col items-center gap-1 h-auto py-2 px-4 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl"
                         onClick={() => setSettingsOpen(true)}
                     >
                         <Settings className="h-6 w-6" />
@@ -1282,9 +1282,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
             {/* Settings Dialog */}
             <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-                <DialogContent className="bg-white rounded-lg p-4 max-w-[90vw] max-h-[80vh] overflow-y-auto">
+                <DialogContent className="bg-white dark:bg-slate-900 dark:border-slate-800 rounded-lg p-4 max-w-[90vw] max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>水印设置</DialogTitle>
+                        <DialogTitle className="dark:text-slate-200">水印设置</DialogTitle>
                     </DialogHeader>
 
                     <Tabs defaultValue="effect" className="w-full">

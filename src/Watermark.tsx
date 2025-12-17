@@ -622,11 +622,11 @@ const Watermark: React.FC = () => {
                             onUpload={handleImagesUpload}
                             fileType="背景"
                         >
-                            <div className="group p-6 md:p-8 rounded-3xl text-slate-700 bg-white/20 backdrop-blur-xl cursor-pointer flex flex-col items-center hover:bg-white/30 transition-all duration-500 shadow-2xl border border-white/30 hover:border-white/50 hover:shadow-3xl hover:scale-105 transform">
+                            <div className="group p-6 md:p-8 rounded-3xl text-slate-700 dark:text-slate-200 bg-white/20 dark:bg-black/40 backdrop-blur-xl cursor-pointer flex flex-col items-center hover:bg-white/30 dark:hover:bg-white/10 transition-all duration-500 shadow-2xl border border-white/30 hover:border-white/50 hover:shadow-3xl hover:scale-105 transform">
                                 {/* 图片动画容器 */}
                                 <div className="relative mb-3 md:mb-4 w-16 h-12 md:w-18 md:h-14">
                                     {/* 底层图片 */}
-                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg shadow-lg transform transition-all duration-700 ease-out group-hover:translate-x-3 group-hover:translate-y-2 group-hover:rotate-6 group-hover:scale-95">
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded-lg shadow-lg transform transition-all duration-700 ease-out group-hover:translate-x-3 group-hover:translate-y-2 group-hover:rotate-6 group-hover:scale-95">
                                         <div className="w-full h-full rounded-lg overflow-hidden relative">
                                             {/* 图片内容 - 风景 */}
                                             <div className="absolute inset-0 bg-gradient-to-b from-blue-200 to-green-200"></div>
@@ -637,7 +637,7 @@ const Watermark: React.FC = () => {
                                     </div>
 
                                     {/* 中层图片 */}
-                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg shadow-xl transform transition-all duration-600 ease-out group-hover:-translate-x-2 group-hover:translate-y-1 group-hover:-rotate-3 group-hover:scale-105 z-10">
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-600 dark:to-slate-500 rounded-lg shadow-xl transform transition-all duration-600 ease-out group-hover:-translate-x-2 group-hover:translate-y-1 group-hover:-rotate-3 group-hover:scale-105 z-10">
                                         <div className="w-full h-full rounded-lg overflow-hidden relative">
                                             {/* 图片内容 - 城市 */}
                                             <div className="absolute inset-0 bg-gradient-to-b from-orange-200 to-yellow-200"></div>
@@ -649,7 +649,7 @@ const Watermark: React.FC = () => {
                                     </div>
 
                                     {/* 顶层图片 */}
-                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-white to-slate-100 rounded-lg shadow-2xl transform transition-all duration-500 ease-out group-hover:-translate-x-4 group-hover:-translate-y-2 group-hover:-rotate-8 group-hover:scale-110 z-20">
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-white to-slate-100 dark:from-slate-500 dark:to-slate-400 rounded-lg shadow-2xl transform transition-all duration-500 ease-out group-hover:-translate-x-4 group-hover:-translate-y-2 group-hover:-rotate-8 group-hover:scale-110 z-20">
                                         <div className="w-full h-full rounded-lg overflow-hidden relative">
                                             {/* 图片内容 - 山景 */}
                                             <div className="absolute inset-0 bg-gradient-to-b from-blue-100 to-purple-100"></div>
@@ -668,10 +668,10 @@ const Watermark: React.FC = () => {
 
                                     {/* 上传指示器 */}
                                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 delay-300 z-30">
-                                        <div className="bg-white/90 rounded-full p-2 shadow-lg backdrop-blur-sm">
+                                        <div className="bg-white/90 dark:bg-slate-800/90 rounded-full p-2 shadow-lg backdrop-blur-sm">
                                             <Icon
                                                 icon="mdi:plus"
-                                                className="h-3 w-3 md:h-4 md:w-4 text-slate-600"
+                                                className="h-3 w-3 md:h-4 md:w-4 text-slate-600 dark:text-slate-300"
                                             />
                                         </div>
                                     </div>
@@ -693,10 +693,10 @@ const Watermark: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <span className="text-base md:text-lg font-light tracking-wide text-slate-700/90 text-center group-hover:text-slate-800 transition-colors duration-300">
+                                <span className="text-base md:text-lg font-light tracking-wide text-slate-700/90 dark:text-slate-200/90 text-center group-hover:text-slate-800 dark:group-hover:text-white transition-colors duration-300">
                                     上传背景图片
                                 </span>
-                                <span className="text-xs md:text-sm text-slate-600/70 mt-1 md:mt-2 text-center group-hover:text-slate-700/80 transition-colors duration-300">
+                                <span className="text-xs md:text-sm text-slate-600/70 dark:text-slate-400/70 mt-1 md:mt-2 text-center group-hover:text-slate-700/80 dark:group-hover:text-slate-300/80 transition-colors duration-300">
                                     支持 JPG、PNG 格式
                                 </span>
 
@@ -717,16 +717,16 @@ const Watermark: React.FC = () => {
             <div className="flex flex-col h-screen bg-background">
                 {/* 移动端顶部导航 - 仅在非编辑器模式下显示，或者编辑器有自己的头 */}
                 {mobileView !== "editor" && (
-                    <div className="flex justify-between items-center p-3 bg-white/90 backdrop-blur-sm shadow-sm z-10">
+                    <div className="flex justify-between items-center p-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm shadow-sm z-10">
                         <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setMobileView("editor")}
                             className="group"
                         >
-                            <Edit className="h-5 w-5 transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600" />
+                            <Edit className="h-5 w-5 transition-all duration-300 group-hover:scale-110 group-hover:text-blue-600 dark:text-slate-400 dark:group-hover:text-blue-400" />
                         </Button>
-                        <div className="text-center font-medium">
+                        <div className="text-center font-medium dark:text-slate-200">
                             图片库
                         </div>
                         <div className="w-10"></div> {/* 占位符 */}
@@ -831,7 +831,7 @@ const Watermark: React.FC = () => {
                                 {/* 图片动画容器 */}
                                 <div className="relative mb-3 md:mb-4 w-16 h-12 md:w-18 md:h-14">
                                     {/* 底层图片 */}
-                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg shadow-lg transform transition-all duration-700 ease-out group-hover:translate-x-3 group-hover:translate-y-2 group-hover:rotate-6 group-hover:scale-95">
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded-lg shadow-lg transform transition-all duration-700 ease-out group-hover:translate-x-3 group-hover:translate-y-2 group-hover:rotate-6 group-hover:scale-95">
                                         <div className="w-full h-full rounded-lg overflow-hidden relative">
                                             {/* 图片内容 - 风景 */}
                                             <div className="absolute inset-0 bg-gradient-to-b from-blue-200 to-green-200"></div>
@@ -842,7 +842,7 @@ const Watermark: React.FC = () => {
                                     </div>
 
                                     {/* 中层图片 */}
-                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg shadow-xl transform transition-all duration-600 ease-out group-hover:-translate-x-2 group-hover:translate-y-1 group-hover:-rotate-3 group-hover:scale-105 z-10">
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-600 dark:to-slate-500 rounded-lg shadow-xl transform transition-all duration-600 ease-out group-hover:-translate-x-2 group-hover:translate-y-1 group-hover:-rotate-3 group-hover:scale-105 z-10">
                                         <div className="w-full h-full rounded-lg overflow-hidden relative">
                                             {/* 图片内容 - 城市 */}
                                             <div className="absolute inset-0 bg-gradient-to-b from-orange-200 to-yellow-200"></div>
@@ -854,7 +854,7 @@ const Watermark: React.FC = () => {
                                     </div>
 
                                     {/* 顶层图片 */}
-                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-white to-slate-100 rounded-lg shadow-2xl transform transition-all duration-500 ease-out group-hover:-translate-x-4 group-hover:-translate-y-2 group-hover:-rotate-8 group-hover:scale-110 z-20">
+                                    <div className="absolute inset-0 w-12 h-10 md:w-14 md:h-12 bg-gradient-to-br from-white to-slate-100 dark:from-slate-500 dark:to-slate-400 rounded-lg shadow-2xl transform transition-all duration-500 ease-out group-hover:-translate-x-4 group-hover:-translate-y-2 group-hover:-rotate-8 group-hover:scale-110 z-20">
                                         <div className="w-full h-full rounded-lg overflow-hidden relative">
                                             {/* 图片内容 - 自然山景 */}
                                             <div className="absolute inset-0 bg-gradient-to-b from-sky-200 via-blue-100 to-emerald-100"></div>
@@ -941,7 +941,7 @@ const Watermark: React.FC = () => {
         }
 
         return (
-            <div className="flex flex-col h-screen justify-between">
+            <div className="flex flex-col h-screen justify-between bg-slate-50 dark:bg-slate-950">
                 <div className="flex p-4 justify-between gap-2">
                     {images.length > 0 && (
                         <VerticalCarousel
@@ -978,17 +978,17 @@ const Watermark: React.FC = () => {
                         />
                     )}
                 </div>
-                <div className="bg-white/90 backdrop-blur-md border-t border-slate-200 shadow-lg px-6 py-4">
+                <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 shadow-lg px-6 py-4">
                     <div className="flex items-center justify-between max-w-[1920px] mx-auto gap-8">
                         {/* 左侧：水印上传与基础设置 */}
                         <div className="flex items-center gap-4 shrink-0">
                             {/* 模式切换 Switch */}
                             <div className="flex flex-col gap-1.5">
-                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                     混合水印
                                 </span>
                                 <div className="flex items-center gap-2">
-                                    <span className={`text-sm ${watermarkMode === 'mixed' ? 'text-blue-600 font-medium' : 'text-slate-600'}`}>
+                                    <span className={`text-sm ${watermarkMode === 'mixed' ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-slate-600 dark:text-slate-300'}`}>
                                         开启
                                     </span>
                                     <Switch
@@ -999,13 +999,13 @@ const Watermark: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="h-10 w-[1px] bg-slate-200"></div>
+                            <div className="h-10 w-[1px] bg-slate-200 dark:bg-slate-700"></div>
 
                             <div className="relative group">
                                 <ImageUploader
                                     onUpload={handleWatermarkUpload}
                                     fileType={watermarkMode === "image" ? "水印图片" : "图标"}
-                                    className="w-14 h-14 rounded-lg cursor-pointer overflow-hidden border border-slate-200 hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md bg-slate-50"
+                                    className="w-14 h-14 rounded-lg cursor-pointer overflow-hidden border border-slate-200 dark:border-slate-700 hover:border-blue-500 transition-all duration-200 shadow-sm hover:shadow-md bg-slate-50 dark:bg-slate-800"
                                 >
                                     <TooltipProvider>
                                         <Tooltip>
@@ -1029,14 +1029,14 @@ const Watermark: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="h-10 w-[1px] bg-slate-200"></div>
+                            <div className="h-10 w-[1px] bg-slate-200 dark:bg-slate-700"></div>
 
                             <div className="flex flex-col gap-1.5">
-                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                     基础设置
                                 </span>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm text-slate-700">
+                                    <span className="text-sm text-slate-700 dark:text-slate-300">
                                         背景模糊
                                     </span>
                                     <Switch
@@ -1053,14 +1053,14 @@ const Watermark: React.FC = () => {
                             {/* 图片质量 */}
                             <div className="flex-1 min-w-[180px] max-w-[240px] flex flex-col gap-2 group">
                                 <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                                         <Icon
                                             icon="mdi:quality-high"
-                                            className="text-slate-400 group-hover:text-blue-500 transition-colors"
+                                            className="text-slate-400 dark:text-slate-500 group-hover:text-blue-500 transition-colors"
                                         />
                                         图片质量
                                     </div>
-                                    <span className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                                         {Math.round(quality * 100)}%
                                     </span>
                                 </div>
@@ -1079,14 +1079,14 @@ const Watermark: React.FC = () => {
                             {/* 水印透明度 */}
                             <div className="flex-1 min-w-[180px] max-w-[240px] flex flex-col gap-2 group">
                                 <div className="flex justify-between items-center">
-                                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                    <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                                         <Icon
                                             icon="mdi:opacity"
-                                            className="text-slate-400 group-hover:text-blue-500 transition-colors"
+                                            className="text-slate-400 dark:text-slate-500 group-hover:text-blue-500 transition-colors"
                                         />
                                         水印透明度
                                     </div>
-                                    <span className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                    <span className="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                                         {Math.round(watermarkOpacity * 100)}%
                                     </span>
                                 </div>
@@ -1104,16 +1104,16 @@ const Watermark: React.FC = () => {
 
                             {/* 暗水印 - 仅在非混合模式下显示 */}
                             {watermarkMode !== "mixed" && (
-                                <div className="flex-1 min-w-[220px] max-w-[300px] flex flex-col gap-2 p-2 rounded-lg border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-all">
+                                <div className="flex-1 min-w-[220px] max-w-[300px] flex flex-col gap-2 p-2 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-2">
-                                            <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                                            <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
                                                 <Icon
                                                     icon="mdi:shield-check-outline"
                                                     className={`transition-colors ${
                                                         darkWatermarkEnabled
                                                             ? "text-blue-500"
-                                                            : "text-slate-400"
+                                                            : "text-slate-400 dark:text-slate-500"
                                                     }`}
                                                 />
                                                 暗水印
@@ -1129,8 +1129,8 @@ const Watermark: React.FC = () => {
                                         <span
                                             className={`text-xs font-mono px-1.5 py-0.5 rounded transition-colors ${
                                                 darkWatermarkEnabled
-                                                    ? "text-slate-600 bg-white shadow-sm"
-                                                    : "text-slate-300 bg-transparent"
+                                                    ? "text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-700 shadow-sm"
+                                                    : "text-slate-300 dark:text-slate-600 bg-transparent"
                                             }`}
                                         >
                                             {Math.round(
@@ -1162,7 +1162,7 @@ const Watermark: React.FC = () => {
 
                             {/* 混合水印配置 controls */}
                             {watermarkMode === "mixed" && (
-                                <div className="flex items-center gap-4 border-l pl-4 border-slate-200">
+                                <div className="flex items-center gap-4 border-l pl-4 border-slate-200 dark:border-slate-700">
                                     <div className="flex flex-col gap-2 w-32">
                                         <input
                                             type="text"
@@ -1173,7 +1173,7 @@ const Watermark: React.FC = () => {
                                                     textLine1: e.target.value,
                                                 }))
                                             }
-                                            className="h-7 text-xs px-2 rounded border border-slate-200 focus:border-blue-500 outline-none"
+                                            className="h-7 text-xs px-2 rounded border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 focus:border-blue-500 outline-none"
                                             placeholder="第一行文字"
                                         />
                                         <input
@@ -1185,20 +1185,20 @@ const Watermark: React.FC = () => {
                                                     textLine2: e.target.value,
                                                 }))
                                             }
-                                            className="h-7 text-xs px-2 rounded border border-slate-200 focus:border-blue-500 outline-none"
+                                            className="h-7 text-xs px-2 rounded border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 focus:border-blue-500 outline-none"
                                             placeholder="第二行文字"
                                         />
                                     </div>
 
                                     {/* 布局切换 */}
                                     <div className="flex flex-col gap-1 items-center">
-                                        <span className="text-[10px] text-slate-400">布局</span>
-                                        <div className="flex bg-slate-100 p-0.5 rounded-lg">
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500">布局</span>
+                                        <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
                                             <button
                                                 className={`p-1 rounded-md transition-all ${
                                                     mixedWatermarkConfig.layout !== "vertical"
-                                                        ? "bg-white shadow-sm text-blue-600"
-                                                        : "text-slate-400 hover:text-slate-600"
+                                                        ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400"
+                                                        : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                                                 }`}
                                                 onClick={() =>
                                                     setMixedWatermarkConfig((p) => ({
@@ -1216,8 +1216,8 @@ const Watermark: React.FC = () => {
                                             <button
                                                 className={`p-1 rounded-md transition-all ${
                                                     mixedWatermarkConfig.layout === "vertical"
-                                                        ? "bg-white shadow-sm text-blue-600"
-                                                        : "text-slate-400 hover:text-slate-600"
+                                                        ? "bg-white dark:bg-slate-700 shadow-sm text-blue-600 dark:text-blue-400"
+                                                        : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                                                 }`}
                                                 onClick={() =>
                                                     setMixedWatermarkConfig((p) => ({
@@ -1237,8 +1237,8 @@ const Watermark: React.FC = () => {
 
                                     {/* 颜色选择 */}
                                     <div className="flex flex-col gap-1 items-center">
-                                        <span className="text-[10px] text-slate-400">颜色</span>
-                                        <div className="relative overflow-hidden w-6 h-6 rounded-full border border-slate-200 shadow-sm cursor-pointer">
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500">颜色</span>
+                                        <div className="relative overflow-hidden w-6 h-6 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer">
                                             <input
                                                 type="color"
                                                 value={mixedWatermarkConfig.color}
@@ -1255,7 +1255,7 @@ const Watermark: React.FC = () => {
 
                                     {/* 大小控制 */}
                                     <div className="flex flex-col gap-1 w-24">
-                                        <span className="text-[10px] text-slate-400">字体大小</span>
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500">字体大小</span>
                                         <Slider
                                             value={[mixedWatermarkConfig.fontSize]}
                                             onValueChange={(v) =>
@@ -1314,7 +1314,7 @@ const Watermark: React.FC = () => {
                                                     );
                                                 }}
                                                 disabled={!currentImg}
-                                                className="text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                                                className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800"
                                             >
                                                 <Icon
                                                     icon="mdi:shield-search"

@@ -110,16 +110,16 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
     };
 
     return (
-        <div className="flex flex-col h-full bg-background">
-            <div className="p-3 border-b flex justify-between items-center">
-                <Badge variant="outline" className="text-sm">
+        <div className="flex flex-col h-full bg-background dark:bg-slate-950">
+            <div className="p-3 border-b dark:border-slate-800 flex justify-between items-center">
+                <Badge variant="outline" className="text-sm dark:text-slate-200">
                     背景图片 ({images.length})
                 </Badge>
                 <div className="flex gap-2">
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8"
+                        className="h-8 dark:text-slate-200 dark:hover:bg-slate-800"
                         onClick={() => {
                             setImages([]);
                             setImageUploaderVisible(true);
@@ -137,7 +137,7 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8"
+                            className="h-8 dark:text-slate-200 dark:hover:bg-slate-800"
                             disabled={isUploading}
                         >
                             {isUploading ? (
@@ -182,7 +182,7 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="h-6 w-6 bg-white/80 opacity-70 hover:opacity-100 transition-opacity"
+                                    className="h-6 w-6 bg-white/80 dark:bg-slate-800/80 dark:text-slate-200 opacity-70 hover:opacity-100 transition-opacity border-none"
                                     onClick={(e) =>
                                         handlePreviewImage(e, index)
                                     }
