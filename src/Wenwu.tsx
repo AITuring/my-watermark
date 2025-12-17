@@ -69,16 +69,16 @@ import artifactsData from "./195.json";
 
 // 在文件末尾添加 Markdown 样式组件
 // 导入图片资源
-import historyIcon from "@/assets/history/split_002.jpg";
+import historyIcon from "@/assets/history/split_002.png";
 const historyImages = Object.values(
     import.meta.glob("@/assets/history/split_*.jpg", { eager: true, as: "url" })
 );
 
 const wenwuTypeIcons = Object.fromEntries(
     Object.entries(
-        import.meta.glob("@/assets/wenwu-type/*.jpg", { eager: true, as: "url" })
+        import.meta.glob("@/assets/wenwu-type/*.png", { eager: true, as: "url" })
     ).map(([p, url]) => [
-        (p.split("/").pop() || "").replace(".jpg", ""),
+        (p.split("/").pop() || "").replace(".png", ""),
         url as string,
     ])
 ) as Record<string, string>;
@@ -182,55 +182,55 @@ const MarkdownContent: React.FC<{ content: string; className?: string }> = ({
                 rehypePlugins={[rehypeHighlight]}
                 components={{
                     h1: ({ children }) => (
-                        <h1 className="text-xl font-bold mb-3 text-slate-800">
+                        <h1 className="text-xl font-bold mb-3 text-slate-800 dark:text-slate-100">
                             {children}
                         </h1>
                     ),
                     h2: ({ children }) => (
-                        <h2 className="text-lg font-semibold mb-2 text-slate-800">
+                        <h2 className="text-lg font-semibold mb-2 text-slate-800 dark:text-slate-100">
                             {children}
                         </h2>
                     ),
                     h3: ({ children }) => (
-                        <h3 className="text-base font-semibold mb-2 text-slate-700">
+                        <h3 className="text-base font-semibold mb-2 text-slate-700 dark:text-slate-200">
                             {children}
                         </h3>
                     ),
                     p: ({ children }) => (
-                        <p className="mb-3 leading-relaxed text-slate-700">
+                        <p className="mb-3 leading-relaxed text-slate-700 dark:text-slate-300">
                             {children}
                         </p>
                     ),
                     ul: ({ children }) => (
-                        <ul className="list-disc list-inside mb-3 space-y-1">
+                        <ul className="list-disc list-inside mb-3 space-y-1 dark:text-slate-300">
                             {children}
                         </ul>
                     ),
                     ol: ({ children }) => (
-                        <ol className="list-decimal list-inside mb-3 space-y-1">
+                        <ol className="list-decimal list-inside mb-3 space-y-1 dark:text-slate-300">
                             {children}
                         </ol>
                     ),
                     li: ({ children }) => (
-                        <li className="text-slate-700">{children}</li>
+                        <li className="text-slate-700 dark:text-slate-300">{children}</li>
                     ),
                     strong: ({ children }) => (
-                        <strong className="font-semibold text-slate-800">
+                        <strong className="font-semibold text-slate-800 dark:text-slate-100">
                             {children}
                         </strong>
                     ),
                     em: ({ children }) => (
-                        <em className="italic text-slate-700">{children}</em>
+                        <em className="italic text-slate-700 dark:text-slate-300">{children}</em>
                     ),
                     blockquote: ({ children }) => (
-                        <blockquote className="border-l-4 border-blue-200 pl-4 py-2 mb-3 bg-blue-50 text-slate-700">
+                        <blockquote className="border-l-4 border-blue-200 dark:border-blue-900 pl-4 py-2 mb-3 bg-blue-50 dark:bg-blue-950/30 text-slate-700 dark:text-slate-300">
                             {children}
                         </blockquote>
                     ),
                     code: ({ children, className }) => {
                         const isInline = !className;
                         return isInline ? (
-                            <code className="bg-slate-100 px-1 py-0.5 rounded text-sm font-mono text-slate-800">
+                            <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-sm font-mono text-slate-800 dark:text-slate-200">
                                 {children}
                             </code>
                         ) : (
@@ -238,7 +238,7 @@ const MarkdownContent: React.FC<{ content: string; className?: string }> = ({
                         );
                     },
                     pre: ({ children }) => (
-                        <pre className="bg-slate-100 p-3 rounded-lg overflow-x-auto mb-3">
+                        <pre className="bg-slate-100 dark:bg-slate-800 p-3 rounded-lg overflow-x-auto mb-3">
                             {children}
                         </pre>
                     ),
@@ -262,10 +262,10 @@ const Wenwu: React.FC = () => {
     const viewMode = "grid";
 
     // 统一样式：玻璃卡片与标题
-    const glassCard = "rounded-2xl bg-gradient-to-b from-white/25 to-white/10 backdrop-blur-2xl border border-white/30 ring-1 ring-white/20 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.4)]";
-    const sectionHeading = "text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2";
+    const glassCard = "rounded-2xl bg-gradient-to-b from-white/25 to-white/10 dark:from-slate-900/25 dark:to-slate-900/10 backdrop-blur-2xl border border-white/30 dark:border-slate-700/30 ring-1 ring-white/20 dark:ring-slate-700/20 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.4)]";
+    const sectionHeading = "text-sm md:text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2";
     // 新增：弹窗内部的柔和面板样式（用于图片/信息/描述分区）
-    const panelCard = "rounded-2xl bg-white/55 backdrop-blur-xl border border-white/50 ring-1 ring-white/30 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15)]";
+    const panelCard = "rounded-2xl bg-white/55 dark:bg-slate-900/55 backdrop-blur-xl border border-white/50 dark:border-slate-700/50 ring-1 ring-white/30 dark:ring-slate-700/30 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15)]";
 
     // 地图相关状态
     const [mapInstance, setMapInstance] = useState<any>(null);
@@ -1467,79 +1467,79 @@ const Wenwu: React.FC = () => {
     const getBatchColor = (batch: string) => {
         switch (batch) {
             case "第一批":
-                return "bg-red-100 text-red-800 border-red-200";
+                return "bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/50";
             case "第二批":
-                return "bg-blue-100 text-blue-800 border-blue-200";
+                return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/50";
             case "第三批":
-                return "bg-green-100 text-green-800 border-green-200";
+                return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800/50";
             default:
-                return "bg-gray-100 text-gray-800 border-gray-200";
+                return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
         }
     };
 
     // 获取类型颜色
     const getTypeColor = (type: string) => {
         const colors = {
-            青铜: "bg-amber-100 text-amber-800",
-            陶瓷: "bg-orange-100 text-orange-800",
-            绘画: "bg-purple-100 text-purple-800",
-            书法: "bg-indigo-100 text-indigo-800",
-            金银: "bg-yellow-100 text-yellow-800",
-            玉器: "bg-emerald-100 text-emerald-800",
-            漆器: "bg-rose-100 text-rose-800",
-            服饰: "bg-pink-100 text-pink-800",
+            青铜: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+            陶瓷: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+            绘画: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+            书法: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+            金银: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+            玉器: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+            漆器: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
+            服饰: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
         };
         return (
-            colors[type as keyof typeof colors] || "bg-gray-100 text-gray-800"
+            colors[type as keyof typeof colors] || "bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-300"
         );
     };
 
     // 获取时代颜色
     const getEraColor = (era: string) => {
         const colors = {
-            新石器时代: "bg-red-100 text-red-800",
-            商: "bg-red-100 text-red-800",
-            西周: "bg-orange-100 text-orange-800",
-            春秋: "bg-yellow-100 text-yellow-800",
-            战国: "bg-green-100 text-green-800",
-            秦: "bg-teal-100 text-teal-800",
-            西汉: "bg-blue-100 text-blue-800",
-            东汉: "bg-indigo-100 text-indigo-800",
-            三国: "bg-purple-100 text-purple-800",
-            西晋: "bg-pink-100 text-pink-800",
-            东晋: "bg-rose-100 text-rose-800",
-            南北朝: "bg-cyan-100 text-cyan-800",
-            隋: "bg-lime-100 text-lime-800",
-            唐: "bg-emerald-100 text-emerald-800",
-            五代: "bg-sky-100 text-sky-800",
-            北宋: "bg-violet-100 text-violet-800",
-            南宋: "bg-fuchsia-100 text-fuchsia-800",
-            元: "bg-amber-100 text-amber-800",
-            明: "bg-red-100 text-red-800",
-            清: "bg-blue-100 text-blue-800",
+            新石器时代: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+            商: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+            西周: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
+            春秋: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+            战国: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+            秦: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
+            西汉: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+            东汉: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
+            三国: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+            西晋: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
+            东晋: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
+            南北朝: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300",
+            隋: "bg-lime-100 text-lime-800 dark:bg-lime-900/30 dark:text-lime-300",
+            唐: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+            五代: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300",
+            北宋: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
+            南宋: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/30 dark:text-fuchsia-300",
+            元: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+            明: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+            清: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
         };
         return (
-            colors[era as keyof typeof colors] || "bg-slate-100 text-slate-800"
+            colors[era as keyof typeof colors] || "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300"
         );
     };
 
     console.log(types,eras);
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] text-slate-600 font-sans selection:bg-violet-200 selection:text-violet-900">
+        <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] text-slate-600 dark:text-slate-400 font-sans selection:bg-violet-200 dark:selection:bg-violet-900 selection:text-violet-900 dark:selection:text-violet-100">
             {/* 顶部导航栏 */}
-            <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/70 border-b border-slate-200/50 supports-[backdrop-filter]:bg-white/60">
+            <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-slate-200/50 dark:border-slate-800/50 supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-900/60">
                 <div className="max-w-[1800px] mx-auto px-4 h-auto lg:h-20 py-3 lg:py-0 flex flex-col lg:flex-row items-center justify-between gap-4">
                     <div className="flex items-center justify-between w-full lg:w-auto">
                         <div className="flex items-center gap-2 flex-shrink-0">
-                            <div className="w-8 h-8 overflow-hidden shadow-lg shadow-blue-500/20">
+                            <div className="w-8 h-8 overflow-hidden ">
                                 <img
                                     src={historyIcon}
                                     alt="Icon"
                                     className="w-full h-full object-cover"
                                 />
                             </div>
-                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 font-serif tracking-tight whitespace-nowrap">
+                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-400 font-serif tracking-tight whitespace-nowrap">
                                 禁止出境展览文物
                             </h1>
                         </div>
@@ -1554,7 +1554,7 @@ const Wenwu: React.FC = () => {
                             </div>
                             <input
                                 type="text"
-                                className="block w-full pl-10 pr-3 py-2 border-none rounded-full leading-5 bg-slate-100/80 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:bg-white transition-all duration-300 shadow-inner hover:bg-slate-100"
+                                className="block w-full pl-10 pr-3 py-2 border-none rounded-full leading-5 bg-slate-100/80 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:bg-white dark:focus:bg-slate-900 transition-all duration-300 shadow-inner hover:bg-slate-100 dark:hover:bg-slate-800"
                                 placeholder="搜索文物、年代、地点..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -1568,7 +1568,7 @@ const Wenwu: React.FC = () => {
                                     value={selectedBatch}
                                     onValueChange={setSelectedBatch}
                                 >
-                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs pr-16">
+                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 shadow-sm hover:bg-white dark:hover:bg-slate-800 text-xs pr-16 dark:text-slate-200">
                                         <SelectValue placeholder="批次" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1600,7 +1600,7 @@ const Wenwu: React.FC = () => {
                                     value={selectedType}
                                     onValueChange={setSelectedType}
                                 >
-                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs pr-16">
+                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 shadow-sm hover:bg-white dark:hover:bg-slate-800 text-xs pr-16 dark:text-slate-200">
                                         <SelectValue placeholder="类别" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1637,7 +1637,7 @@ const Wenwu: React.FC = () => {
                                     value={selectedEra}
                                     onValueChange={setSelectedEra}
                                 >
-                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs pr-16">
+                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 shadow-sm hover:bg-white dark:hover:bg-slate-800 text-xs pr-16 dark:text-slate-200">
                                         <SelectValue placeholder="时代" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1648,7 +1648,7 @@ const Wenwu: React.FC = () => {
                                             <SelectItem key={e} value={e}>
                                                 <div className="flex items-center gap-2">
                                                     {getEraIcon(e) && (
-                                                        <img src={getEraIcon(e) as string} alt={e} className="w-5 h-5 rounded-sm" />
+                                                        <img src={getEraIcon(e) as string} alt={e} className="w-5 h-5 rounded-sm " />
                                                     )}
                                                     <span>{e}</span>
                                                 </div>
@@ -1674,7 +1674,7 @@ const Wenwu: React.FC = () => {
                                     value={selectedCollection}
                                     onValueChange={setSelectedCollection}
                                 >
-                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 bg-slate-50/50 shadow-sm hover:bg-white text-xs pr-16">
+                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 shadow-sm hover:bg-white dark:hover:bg-slate-800 text-xs pr-16 dark:text-slate-200">
                                         <SelectValue placeholder="馆藏" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1705,7 +1705,7 @@ const Wenwu: React.FC = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={resetFilters}
-                                className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                                className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800"
                                 title="重置"
                             >
                                 <X className="w-3.5 h-3.5" />
@@ -1815,7 +1815,7 @@ const Wenwu: React.FC = () => {
                 >
                     <div className="flex items-center gap-2">
                         {getEraIcon(e) && (
-                            <img src={getEraIcon(e) as string} alt={e} className="w-5 h-5 rounded-sm" />
+                            <img src={getEraIcon(e) as string} alt={e} className="w-5 h-5 rounded-sm " />
                         )}
                         <span>{e}</span>
                     </div>
@@ -1922,8 +1922,8 @@ const Wenwu: React.FC = () => {
                                     <DialogTrigger asChild>
                                         <div
                                             className="
-                                            group cursor-pointer bg-white rounded-2xl transition-all duration-300
-                                            border border-slate-100 hover:border-violet-100
+                                            group cursor-pointer bg-white dark:bg-slate-900 rounded-2xl transition-all duration-300
+                                            border border-slate-100 dark:border-slate-800 hover:border-violet-100 dark:hover:border-violet-900
                                             hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]
                                         "
                                         >
@@ -1933,22 +1933,22 @@ const Wenwu: React.FC = () => {
                                                 <div className="flex justify-between items-start mb-3">
                                                     <div className="flex gap-2">
                                                         <span
-                                                            className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-white text-slate-700 border border-slate-200"
+                                                            className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                                                         >
                                                             {artifact.batch}
                                                         </span>
-                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-700 font-medium flex items-center gap-1">
+                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1">
                                                             {wenwuTypeIcons[artifact.type] && (
                                                                 <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-5 h-5 rounded-sm" />
                                                             )}
                                                             {artifact.type}
                                                         </span>
-                                                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-700 font-medium flex items-center gap-1">
+                                                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1">
                                                             {getEraIcon(artifact.era) && (
                                                                 <img
                                                                     src={getEraIcon(artifact.era) as string}
                                                                     alt={artifact.era}
-                                                                    className="w-4 h-4 object-contain"
+                                                                    className="w-4 h-4 object-contain "
                                                                 />
                                                             )}
                                                             {artifact.era}
@@ -1957,20 +1957,20 @@ const Wenwu: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                <h3 className="text-lg font-bold text-slate-800 mb-2 font-serif group-hover:text-violet-700 transition-colors line-clamp-1">
+                                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2 font-serif group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors line-clamp-1">
                                                     <HighlightText
                                                         text={artifact.name}
                                                         highlight={searchTerm}
                                                     />
                                                 </h3>
 
-                                                    <div className="flex items-center gap-2 text-[10px] text-slate-700 font-medium mb-2">
+                                                    <div className="flex items-center gap-2 text-[10px] text-slate-700 dark:text-slate-400 font-medium mb-2">
                                                         <Landmark className="w-3 h-3 shrink-0" />
                                                         <span className="truncate leading-[16px]">{artifact.collectionLocation}</span>
                                                     </div>
 
 
-                                                <div className="text-xs text-slate-500 mb-4 line-clamp-2 leading-relaxed">
+                                                <div className="text-xs text-slate-500 dark:text-slate-500 mb-4 line-clamp-2 leading-relaxed">
                                                     {searchTerm ? (
                                                         <HighlightText
                                                             text={artifact.desc}
@@ -1984,24 +1984,24 @@ const Wenwu: React.FC = () => {
                                                             content={
                                                                 artifact.desc
                                                             }
-                                                            className="[&>p]:mb-0 text-slate-500"
+                                                            className="[&>p]:mb-0 text-slate-500 dark:text-slate-400"
                                                         />
                                                     )}
                                                 </div>
                                             </div>
                                         </div>
                                     </DialogTrigger>
-                                    <DialogContent className="w-[720px] max-w-[92vw] max-h-[85vh] rounded-3xl bg-gradient-to-b from-white/35 to-white/20 backdrop-blur-2xl border border-white/40 ring-1 ring-white/30 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.22)] overflow-hidden">
-                                        <DialogHeader className="px-8 pb-5 border-b border-white/10">
-                                            <DialogTitle className="text-2xl md:text-[26px] font-serif tracking-tight text-slate-800">
+                                    <DialogContent className="w-[720px] max-w-[92vw] max-h-[85vh] rounded-3xl bg-gradient-to-b from-white/35 to-white/20 dark:from-slate-900/80 dark:to-slate-950/80 backdrop-blur-2xl border border-white/40 dark:border-slate-700/40 ring-1 ring-white/30 dark:ring-slate-700/30 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.22)] overflow-hidden">
+                                        <DialogHeader className="px-8 pb-5 border-b border-white/10 dark:border-slate-700/20">
+                                            <DialogTitle className="text-2xl md:text-[26px] font-serif tracking-tight text-slate-800 dark:text-slate-100">
                                                 {artifact.name}
                                             </DialogTitle>
                                             <div className="flex gap-2 mt-2">
                                                 <Badge
-                                                            variant="outline"
-                                                            className="rounded-full px-3 py-1 font-normal bg-white/90 border border-white/60 text-slate-700 shadow-sm"
-                                                        >
-                                                            <span className="flex items-center gap-2">
+                                                    variant="outline"
+                                                    className="rounded-full px-3 py-1 font-normal bg-white/90 dark:bg-slate-800/90 border border-white/60 dark:border-slate-600/60 text-slate-700 dark:text-slate-300 shadow-sm"
+                                                >
+                                                    <span className="flex items-center gap-2">
                                                                 {getEraIcon(artifact.era) && (
                                                                     <img
                                                                         src={getEraIcon(artifact.era) as string}
@@ -2014,7 +2014,7 @@ const Wenwu: React.FC = () => {
                                                         </Badge>
                                                 <Badge
                                                     variant="secondary"
-                                                    className="rounded-full px-3 py-1 bg-white/90 border border-white/60 text-slate-700 font-normal shadow-sm"
+                                                    className="rounded-full px-3 py-1 bg-white/90 dark:bg-slate-800/90 border border-white/60 dark:border-slate-600/60 text-slate-700 dark:text-slate-300 font-normal shadow-sm"
                                                 >
                                                     <span className="flex items-center gap-2">
                                                         {wenwuTypeIcons[artifact.type] && (
@@ -2029,7 +2029,7 @@ const Wenwu: React.FC = () => {
                                             <div className="space-y-8 py-6">
                                                 {artifact.image && artifactImages[artifact.image.split("/").pop() || ""] && (
                                                     <div className={`${panelCard} p-4`}>
-                                                        <div className="w-full h-[280px] md:h-[380px] overflow-hidden rounded-xl bg-slate-50/60">
+                                                        <div className="w-full h-[280px] md:h-[380px] overflow-hidden rounded-xl bg-slate-50/60 dark:bg-slate-800/60">
                                                             <img
                                                                 src={artifactImages[artifact.image.split("/").pop() || ""]}
                                                                 alt={artifact.name}
@@ -2043,7 +2043,7 @@ const Wenwu: React.FC = () => {
                                                         <span className={sectionHeading}>
                                                             <MapPin className="w-4 h-4 md:w-5 md:h-5 text-rose-500" /> 出土地点
                                                         </span>
-                                                        <p className="text-sm md:text-base font-medium text-slate-800">
+                                                        <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
                                                             {artifact.excavationLocation}
                                                         </p>
                                                     </div>
@@ -2051,7 +2051,7 @@ const Wenwu: React.FC = () => {
                                                         <span className={sectionHeading}>
                                                             <Calendar className="w-4 h-4 md:w-5 md:h-5 text-violet-500" /> 出土时间
                                                         </span>
-                                                        <p className="text-sm md:text-base font-medium text-slate-800">
+                                                        <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
                                                             {artifact.excavationTime}
                                                         </p>
                                                     </div>
@@ -2059,19 +2059,19 @@ const Wenwu: React.FC = () => {
                                                         <span className={sectionHeading}>
                                                             <Landmark className="w-4 h-4 md:w-5 md:h-5 text-blue-500" /> 馆藏地点
                                                         </span>
-                                                        <p className="text-sm md:text-base font-medium text-slate-800">
+                                                        <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
                                                             {artifact.collectionLocation}
                                                         </p>
                                                     </div>
                                                 </div>
 
                                                 <div>
-                                                    <h4 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
+                                                    <h4 className="text-sm md:text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                                                         <FileText className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />
                                                         文物描述
                                                     </h4>
                                                     <div className={`${panelCard} p-6`}>
-                                                        <div className="prose prose-sm prose-slate max-w-none">
+                                                        <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
                                                             <MarkdownContent
                                                                 content={
                                                                     artifact.detail && artifact.detail.trim()
@@ -2095,20 +2095,20 @@ const Wenwu: React.FC = () => {
                 {/* 右侧栏：地图 (5 Columns) */}
                 <div className="lg:col-span-5 mt-6 lg:mt-0">
                     <div className="lg:sticky lg:top-24">
-                        <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 overflow-hidden h-[500px] lg:h-[calc(100vh-8rem)] lg:min-h-[500px] relative group">
+                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800 overflow-hidden h-[500px] lg:h-[calc(100vh-8rem)] lg:min-h-[500px] relative group">
                             {/* 地图标题浮层 */}
-                            <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50">
-                                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <div className="absolute top-4 left-4 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50 dark:border-slate-700/50">
+                                <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-2">
                                     <MapPin className="w-4 h-4 text-violet-500" />
                                     博物馆分布
                                 </h3>
                             </div>
 
                             {isLoadingMap ? (
-                                <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                                <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
                                     <div className="flex flex-col items-center gap-3">
                                         <div className="w-8 h-8 border-2 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
-                                        <span className="text-xs text-slate-400">
+                                        <span className="text-xs text-slate-400 dark:text-slate-500">
                                             加载地图资源...
                                         </span>
                                     </div>
@@ -2116,7 +2116,7 @@ const Wenwu: React.FC = () => {
                             ) : (
                                 <div
                                     ref={mapContainerRef}
-                                    className="w-full h-full bg-slate-50 transition-opacity duration-500"
+                                    className="w-full h-full bg-slate-50 dark:bg-slate-900 transition-opacity duration-500"
                                 />
                             )}
                         </div>

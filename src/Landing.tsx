@@ -14,25 +14,26 @@ import {
     Split,
     Utensils,
     Clock,
+    FileText,
 } from "lucide-react";
-import h001 from "@/assets/history/split_001.jpg";
-import h002 from "@/assets/history/split_002.jpg";
-import h003 from "@/assets/history/split_003.jpg";
-import h004 from "@/assets/history/split_004.jpg";
-import h005 from "@/assets/history/split_005.jpg";
-import h006 from "@/assets/history/split_006.jpg";
-import h007 from "@/assets/history/split_007.jpg";
-import h008 from "@/assets/history/split_008.jpg";
-import h009 from "@/assets/history/split_009.jpg";
-import h010 from "@/assets/history/split_010.jpg";
-import h011 from "@/assets/history/split_011.jpg";
-import h012 from "@/assets/history/split_012.jpg";
-import h013 from "@/assets/history/split_013.jpg";
-import h014 from "@/assets/history/split_014.jpg";
-import h015 from "@/assets/history/split_015.jpg";
-import h016 from "@/assets/history/split_016.jpg";
-import h017 from "@/assets/history/split_017.jpg";
-import h018 from "@/assets/history/split_018.jpg";
+import h001 from "@/assets/history/split_001.png";
+import h002 from "@/assets/history/split_002.png";
+import h003 from "@/assets/history/split_003.png";
+import h004 from "@/assets/history/split_004.png";
+import h005 from "@/assets/history/split_005.png";
+import h006 from "@/assets/history/split_006.png";
+import h007 from "@/assets/history/split_007.png";
+import h008 from "@/assets/history/split_008.png";
+import h009 from "@/assets/history/split_009.png";
+import h010 from "@/assets/history/split_010.png";
+import h011 from "@/assets/history/split_011.png";
+import h012 from "@/assets/history/split_012.png";
+import h013 from "@/assets/history/split_013.png";
+import h014 from "@/assets/history/split_014.png";
+import h015 from "@/assets/history/split_015.png";
+import h016 from "@/assets/history/split_016.png";
+import h017 from "@/assets/history/split_017.png";
+import h018 from "@/assets/history/split_018.png";
 
 const HISTORY_ICONS = [
     h001,
@@ -164,7 +165,7 @@ const ToolCard = ({
         <motion.div
             whileHover={{ y: -4, scale: 1.005 }}
             whileTap={{ scale: 0.98 }}
-            className={`group relative overflow-hidden rounded-lg border border-stone-200/60 bg-[#eff0f0] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] ${item.colorTheme.border} transition-all duration-300 cursor-pointer p-4 flex flex-col items-start justify-between gap-3 h-64 md:h-72`}
+            className={`group relative overflow-hidden rounded-lg border border-stone-200/60 dark:border-stone-700/60 bg-[#eff0f0] dark:bg-[#262626] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-none ${item.colorTheme.border} transition-all duration-300 cursor-pointer p-4 flex flex-col items-start justify-between gap-3 h-64 md:h-72`}
             onClick={onClick}
         >
             {/* 背景装饰：微弱的色块 - 进一步减淡以突出水墨 */}
@@ -189,17 +190,17 @@ const ToolCard = ({
             <div className="flex items-center gap-4 relative z-10">
                 {/* 图标容器 */}
                 <div
-                    className={`shrink-0 p-2.5 rounded-lg bg-white/80 border border-stone-100 shadow-sm ${item.colorTheme.text} transition-transform duration-300 group-hover:scale-105 backdrop-blur-sm`}
+                    className={`shrink-0 p-2.5 rounded-lg bg-white/80 dark:bg-stone-700/80 border border-stone-100 dark:border-stone-600 shadow-sm ${item.colorTheme.text} transition-transform duration-300 group-hover:scale-105 backdrop-blur-sm`}
                 >
                     <Icon size={20} strokeWidth={1.5} />
                 </div>
 
                 {/* 文字内容 */}
                 <div className="flex flex-col z-10">
-                    <h3 className="text-sm md:text-base font-bold text-stone-700 group-hover:text-black tracking-tight font-mono">
+                    <h3 className="text-sm md:text-base font-bold text-stone-700 dark:text-stone-200 group-hover:text-black dark:group-hover:text-white tracking-tight font-mono">
                         {item.title.replace("\n", "")}
                     </h3>
-                    <p className="text-xs text-stone-500 group-hover:text-stone-600 leading-relaxed line-clamp-2 mt-0.5 font-mono opacity-80">
+                    <p className="text-xs text-stone-500 dark:text-stone-400 group-hover:text-stone-600 dark:group-hover:text-stone-300 leading-relaxed line-clamp-2 mt-0.5 font-mono opacity-80">
                         {item.description}
                     </p>
                 </div>
@@ -254,10 +255,10 @@ export default function Landing() {
             icon: Stamp,
             href: "/watermark",
             colorTheme: {
-                bg: "bg-cyan-50",
-                text: "text-cyan-700",
-                border: "hover:border-cyan-200",
-                hoverGradient: "from-cyan-100 to-transparent",
+                bg: "bg-cyan-50 dark:bg-cyan-900/20",
+                text: "text-cyan-700 dark:text-cyan-300",
+                border: "hover:border-cyan-200 dark:hover:border-cyan-700",
+                hoverGradient: "from-cyan-100 to-transparent dark:from-cyan-900/40",
             },
         },
         {
@@ -267,10 +268,10 @@ export default function Landing() {
             icon: Layers,
             href: "/puzzle",
             colorTheme: {
-                bg: "bg-violet-50",
-                text: "text-violet-700",
-                border: "hover:border-violet-200",
-                hoverGradient: "from-violet-100 to-transparent",
+                bg: "bg-violet-50 dark:bg-violet-900/20",
+                text: "text-violet-700 dark:text-violet-300",
+                border: "hover:border-violet-200 dark:hover:border-violet-700",
+                hoverGradient: "from-violet-100 to-transparent dark:from-violet-900/40",
             },
         },
         {
@@ -280,10 +281,10 @@ export default function Landing() {
             icon: Image,
             href: "/google-photo",
             colorTheme: {
-                bg: "bg-indigo-50",
-                text: "text-indigo-700",
-                border: "hover:border-indigo-200",
-                hoverGradient: "from-indigo-100 to-transparent",
+                bg: "bg-indigo-50 dark:bg-indigo-900/20",
+                text: "text-indigo-700 dark:text-indigo-300",
+                border: "hover:border-indigo-200 dark:hover:border-indigo-700",
+                hoverGradient: "from-indigo-100 to-transparent dark:from-indigo-900/40",
             },
         },
         // 还不成熟
@@ -315,16 +316,29 @@ export default function Landing() {
         // },
 
         {
+            id: "rename",
+            title: "文件重命名",
+            description: "批量修改文件名，支持多种规则",
+            icon: FileText,
+            href: "/rename",
+            colorTheme: {
+                bg: "bg-blue-50 dark:bg-blue-900/20",
+                text: "text-blue-700 dark:text-blue-300",
+                border: "hover:border-blue-200 dark:hover:border-blue-700",
+                hoverGradient: "from-blue-100 to-transparent dark:from-blue-900/40",
+            },
+        },
+        {
             id: "compress",
             title: "批量压缩",
             description: "高效压缩图片体积，保持画质",
             icon: Shrink,
             href: "/compress",
             colorTheme: {
-                bg: "bg-slate-100",
-                text: "text-slate-700",
-                border: "hover:border-slate-300",
-                hoverGradient: "from-slate-200 to-transparent",
+                bg: "bg-slate-100 dark:bg-slate-800",
+                text: "text-slate-700 dark:text-slate-300",
+                border: "hover:border-slate-300 dark:hover:border-slate-600",
+                hoverGradient: "from-slate-200 to-transparent dark:from-slate-800",
             },
         },
         {
@@ -334,10 +348,10 @@ export default function Landing() {
             icon: Map,
             href: "/wenwu",
             colorTheme: {
-                bg: "bg-amber-50",
-                text: "text-amber-700",
-                border: "hover:border-amber-200",
-                hoverGradient: "from-amber-100 to-transparent",
+                bg: "bg-amber-50 dark:bg-amber-900/20",
+                text: "text-amber-700 dark:text-amber-300",
+                border: "hover:border-amber-200 dark:hover:border-amber-700",
+                hoverGradient: "from-amber-100 to-transparent dark:from-amber-900/40",
             },
         },
         {
@@ -347,10 +361,10 @@ export default function Landing() {
             icon: Split,
             href: "/split",
             colorTheme: {
-                bg: "bg-lime-50",
-                text: "text-lime-700",
-                border: "hover:border-lime-200",
-                hoverGradient: "from-lime-100 to-transparent",
+                bg: "bg-lime-50 dark:bg-lime-900/20",
+                text: "text-lime-700 dark:text-lime-300",
+                border: "hover:border-lime-200 dark:hover:border-lime-700",
+                hoverGradient: "from-lime-100 to-transparent dark:from-lime-900/40",
             },
         },
         {
@@ -360,10 +374,10 @@ export default function Landing() {
             icon: Clock,
             href: "/calendar",
             colorTheme: {
-                bg: "bg-yellow-50",
-                text: "text-yellow-700",
-                border: "hover:border-yellow-200",
-                hoverGradient: "from-yellow-100 to-transparent",
+                bg: "bg-yellow-50 dark:bg-yellow-900/20",
+                text: "text-yellow-700 dark:text-yellow-300",
+                border: "hover:border-yellow-200 dark:hover:border-yellow-700",
+                hoverGradient: "from-yellow-100 to-transparent dark:from-yellow-900/40",
             },
         },
         {
@@ -373,10 +387,10 @@ export default function Landing() {
             icon: Newspaper,
             href: "/news",
             colorTheme: {
-                bg: "bg-red-50",
-                text: "text-red-700",
-                border: "hover:border-red-200",
-                hoverGradient: "from-red-100 to-transparent",
+                bg: "bg-red-50 dark:bg-red-900/20",
+                text: "text-red-700 dark:text-red-300",
+                border: "hover:border-red-200 dark:hover:border-red-700",
+                hoverGradient: "from-red-100 to-transparent dark:from-red-900/40",
             },
         },
         {
@@ -386,10 +400,10 @@ export default function Landing() {
             icon: Utensils,
             href: "/restaurant",
             colorTheme: {
-                bg: "bg-orange-50",
-                text: "text-orange-700",
-                border: "hover:border-orange-200",
-                hoverGradient: "from-orange-100 to-transparent",
+                bg: "bg-orange-50 dark:bg-orange-900/20",
+                text: "text-orange-700 dark:text-orange-300",
+                border: "hover:border-orange-200 dark:hover:border-orange-700",
+                hoverGradient: "from-orange-100 to-transparent dark:from-orange-900/40",
             },
         },
         {
@@ -399,18 +413,18 @@ export default function Landing() {
             icon: LayoutGrid,
             href: "/collage",
             colorTheme: {
-                bg: "bg-fuchsia-50",
-                text: "text-fuchsia-700",
-                border: "hover:border-fuchsia-200",
-                hoverGradient: "from-fuchsia-100 to-transparent",
+                bg: "bg-fuchsia-50 dark:bg-fuchsia-900/20",
+                text: "text-fuchsia-700 dark:text-fuchsia-300",
+                border: "hover:border-fuchsia-200 dark:hover:border-fuchsia-700",
+                hoverGradient: "from-fuchsia-100 to-transparent dark:from-fuchsia-900/40",
             },
         },
     ];
 
     return (
-        <div className="min-h-screen w-full bg-[#FDFBF7] text-stone-800 font-mono selection:bg-stone-200 selection:text-stone-800 overflow-x-hidden relative">
+        <div className="min-h-screen w-full bg-[#FDFBF7] dark:bg-[#1a1a1a] text-stone-800 dark:text-stone-200 font-mono selection:bg-stone-200 dark:selection:bg-stone-700 selection:text-stone-800 dark:selection:text-stone-100 overflow-x-hidden relative">
             {/* 背景装饰：静态水墨波浪意象 - 极简处理 */}
-            <div className="fixed bottom-0 left-0 w-full h-[40vh] z-0 pointer-events-none opacity-[0.03] text-stone-900">
+            <div className="fixed bottom-0 left-0 w-full h-[40vh] z-0 pointer-events-none opacity-[0.03] text-stone-900 dark:text-stone-100 dark:opacity-[0.05]">
                 <svg
                     className="w-full h-full"
                     viewBox="0 0 1440 320"
@@ -423,7 +437,7 @@ export default function Landing() {
                     ></path>
                 </svg>
             </div>
-            <div className="fixed bottom-0 left-0 w-full h-[45vh] z-0 pointer-events-none opacity-[0.02] text-stone-800">
+            <div className="fixed bottom-0 left-0 w-full h-[45vh] z-0 pointer-events-none opacity-[0.02] text-stone-800 dark:text-stone-100 dark:opacity-[0.03]">
                 <svg
                     className="w-full h-full"
                     viewBox="0 0 1440 320"
@@ -438,7 +452,7 @@ export default function Landing() {
             </div>
 
             {/* 顶部 Header */}
-            <header className="fixed top-0 left-0 w-full px-6 pt-4 pb-2 z-50 flex justify-between items-center bg-[#FDFBF7]/80 backdrop-blur-sm border-b border-stone-200/50">
+            <header className="fixed top-0 left-0 w-full px-6 pt-4 pb-2 z-50 flex justify-between items-center bg-[#FDFBF7]/80 dark:bg-[#1a1a1a]/80 backdrop-blur-sm border-b border-stone-200/50 dark:border-stone-700/50">
                 <div className="flex items-center gap-3 cursor-pointer">
                     <motion.div
                         className="relative w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-[#FDFBF7] font-bold text-lg shadow-sm"
@@ -502,7 +516,7 @@ export default function Landing() {
                         </div>
                     </motion.div>
                     <div className="flex flex-col">
-                        <span className="font-bold text-stone-800 leading-tight font-mono tracking-wide text-xl">
+                        <span className="font-bold text-stone-800 dark:text-stone-100 leading-tight font-mono tracking-wide text-xl">
                             笑谈间气吐霓虹
                         </span>
                         {/* <span className="text-[10px] text-stone-500 font-medium uppercase tracking-widest opacity-80 font-mono">
@@ -510,9 +524,9 @@ export default function Landing() {
                         </span> */}
                     </div>
                 </div>
-                {/* <div>
+                <div>
                     <DarkToggle />
-                </div> */}
+                </div>
             </header>
 
             {/* Main Content */}
@@ -523,11 +537,11 @@ export default function Landing() {
                         initial={{ opacity: 0, y: 15 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8 }}
-                        className="text-3xl md:text-4xl font-bold text-stone-800 tracking-wide mb-6 font-mono"
+                        className="text-3xl md:text-4xl font-bold text-stone-800 dark:text-stone-100 tracking-wide mb-6 font-mono"
                     >
                         创意与效率的
                         <motion.span
-                            className="text-stone-500 relative inline-block mx-2"
+                            className="text-stone-500 dark:text-stone-400 relative inline-block mx-2"
                             initial="rest"
                             animate="rest"
                             whileHover="hover"
@@ -593,8 +607,8 @@ export default function Landing() {
             </main>
 
             {/* Footer */}
-            <footer className="py-12 text-center text-stone-400 text-xs font-mono tracking-widest relative z-10">
-                <div className="w-12 h-px bg-stone-300 mx-auto mb-4"></div>
+            <footer className="py-12 text-center text-stone-400 dark:text-stone-600 text-xs font-mono tracking-widest relative z-10">
+                <div className="w-12 h-px bg-stone-300 dark:bg-stone-700 mx-auto mb-4"></div>
                 <p>
                     &copy; {new Date().getFullYear()} 笑谈间气吐霓虹{" "}
                     {/* <span className="mx-2 opacity-50">|</span>{" "}
