@@ -45,6 +45,7 @@ import {
     Sun,
     Moon,
     Images,
+    Undo2,
 } from "lucide-react";
 import Konva from "konva";
 import ImageWithFixedWidth from "./ImageWithFixedWidth";
@@ -795,6 +796,103 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     setSelectedPosition("");
     };
 
+    const handleCenter = () => {
+        if (!backgroundImage || !watermarkImage) return;
+        const centerX = 0.5;
+        const centerY = 0.5;
+        const minDimension = Math.min(
+            backgroundImage.naturalWidth,
+            backgroundImage.naturalHeight
+        );
+        const standardWatermarkSize = minDimension * 0.1;
+        const standardScale = standardWatermarkSize / watermarkImage.naturalWidth;
+        const finalScale = standardScale * currentScale;
+        const renderWidth = watermarkImage.naturalWidth * finalScale * backgroundScale;
+        const renderHeight = (watermarkImage.naturalHeight / watermarkImage.naturalWidth) * renderWidth;
+        const pixelOffset = 4;
+        const previewOffsetX = (pixelOffset / backgroundImage.naturalWidth) * backgroundImageSize.width;
+        const previewOffsetY = (pixelOffset / backgroundImage.naturalHeight) * backgroundImageSize.height;
+        let leftTopX = centerX - renderWidth / 2 / backgroundImageSize.width;
+        let leftTopY = centerY - renderHeight / 2 / backgroundImageSize.height;
+        const adjustedLeftTopX = Math.max(
+            previewOffsetX / backgroundImageSize.width,
+            Math.min(
+                (backgroundImageSize.width - renderWidth - previewOffsetX) / backgroundImageSize.width,
+                leftTopX
+            )
+        );
+        const adjustedLeftTopY = Math.max(
+            previewOffsetY / backgroundImageSize.height,
+            Math.min(
+                (backgroundImageSize.height - renderHeight - previewOffsetY) / backgroundImageSize.height,
+                leftTopY
+            )
+        );
+        const newPos = {
+            id: position.id,
+            x: adjustedLeftTopX,
+            y: adjustedLeftTopY,
+            scaleX: currentScale,
+            scaleY: currentScale,
+            rotation: position.rotation,
+        };
+        setPosition(newPos);
+        if (isBatch) {
+            onAllTransform(newPos);
+        } else {
+            onTransform(newPos);
+        }
+    };
+
+    const handleReset = () => {
+        if (!backgroundImage || !watermarkImage) return;
+        setCurrentScale(1);
+        const minDimension = Math.min(
+            backgroundImage.naturalWidth,
+            backgroundImage.naturalHeight
+        );
+        const standardWatermarkSize = minDimension * 0.1;
+        const standardScale = standardWatermarkSize / watermarkImage.naturalWidth;
+        const finalScale = standardScale * 1;
+        const renderWidth = watermarkImage.naturalWidth * finalScale * backgroundScale;
+        const renderHeight = (watermarkImage.naturalHeight / watermarkImage.naturalWidth) * renderWidth;
+        const centerX = 0.5;
+        const centerY = 0.5;
+        const pixelOffset = 4;
+        const previewOffsetX = (pixelOffset / backgroundImage.naturalWidth) * backgroundImageSize.width;
+        const previewOffsetY = (pixelOffset / backgroundImage.naturalHeight) * backgroundImageSize.height;
+        let leftTopX = centerX - renderWidth / 2 / backgroundImageSize.width;
+        let leftTopY = centerY - renderHeight / 2 / backgroundImageSize.height;
+        const adjustedLeftTopX = Math.max(
+            previewOffsetX / backgroundImageSize.width,
+            Math.min(
+                (backgroundImageSize.width - renderWidth - previewOffsetX) / backgroundImageSize.width,
+                leftTopX
+            )
+        );
+        const adjustedLeftTopY = Math.max(
+            previewOffsetY / backgroundImageSize.height,
+            Math.min(
+                (backgroundImageSize.height - renderHeight - previewOffsetY) / backgroundImageSize.height,
+                leftTopY
+            )
+        );
+        const newPos = {
+            id: position.id,
+            x: adjustedLeftTopX,
+            y: adjustedLeftTopY,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0,
+        };
+        setPosition(newPos);
+        if (isBatch) {
+            onAllTransform(newPos);
+        } else {
+            onTransform(newPos);
+        }
+    };
+
     // 更新参考线的函数
     const updateGuideLines = () => {
         if (
@@ -1089,6 +1187,8 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 onTouchStart={handleTouchStart}
                                 onTouchMove={handleTouchMove}
                                 onTouchEnd={handleTouchEnd}
+                                onDblClick={handleCenter}
+                                onDblTap={handleCenter}
                                 opacity={watermarkOpacity} // 应用透明度
                                 rotation={position.rotation} // 确保旋转属性被传递
                             />
@@ -1119,49 +1219,63 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                 {/* Contextual Controls Area */}
                 <div className="px-4 py-4 min-h-[80px] flex items-center justify-center">
                     {activeTab === "transform" && (
-                        <div className="flex items-center gap-6">
-                            <div className="flex flex-col items-center gap-1">
-                                <span className="text-xs text-gray-400 dark:text-gray-500">旋转</span>
-                                <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-full p-1">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleRotate("left")}
-                                        className="h-10 w-10 text-gray-600 dark:text-gray-300 rounded-full hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm"
-                                    >
-                                        <RotateCcw className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleRotate("right")}
-                                        className="h-10 w-10 text-gray-600 dark:text-gray-300 rounded-full hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm"
-                                    >
-                                        <RotateCw className="h-5 w-5" />
-                                    </Button>
-                                </div>
+                        <div className="flex items-center justify-between w-full max-w-[420px] px-2">
+                            <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-2xl p-1 shadow-sm">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleRotate("left")}
+                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
+                                >
+                                    <RotateCcw className="h-6 w-6" />
+                                </Button>
+                                <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleRotate("right")}
+                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
+                                >
+                                    <RotateCw className="h-6 w-6" />
+                                </Button>
                             </div>
-                            <div className="w-px h-8 bg-gray-200 dark:bg-slate-700" />
-                            <div className="flex flex-col items-center gap-1">
-                                <span className="text-xs text-gray-400 dark:text-gray-500">缩放</span>
-                                <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-full p-1">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleScale("decrease")}
-                                        className="h-10 w-10 text-gray-600 dark:text-gray-300 rounded-full hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm"
-                                    >
-                                        <ZoomOut className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleScale("increase")}
-                                        className="h-10 w-10 text-gray-600 dark:text-gray-300 rounded-full hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm"
-                                    >
-                                        <ZoomIn className="h-5 w-5" />
-                                    </Button>
-                                </div>
+                            <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-2xl p-1 shadow-sm">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleScale("decrease")}
+                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
+                                >
+                                    <ZoomOut className="h-6 w-6" />
+                                </Button>
+                                <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleScale("increase")}
+                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
+                                >
+                                    <ZoomIn className="h-6 w-6" />
+                                </Button>
+                            </div>
+                            <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-2xl p-1 shadow-sm">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleCenter}
+                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
+                                >
+                                    <LayoutGrid className="h-6 w-6" />
+                                </Button>
+                                <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-1"></div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={handleReset}
+                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
+                                >
+                                    <Undo2 className="h-6 w-6" />
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -1182,7 +1296,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 </span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500 dark:text-gray-400">水印颜色</span>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">暗水印</span>
                                 <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-lg p-1">
                                     <Button
                                         size="sm"
@@ -1206,7 +1320,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     )}
 
                     {activeTab === "position" && (
-                        <div className="grid grid-cols-3 gap-2 w-full max-w-[240px]">
+                        <div className="grid grid-cols-3 gap-3 w-full max-w-[200px]">
                             {[
                                 { id: "topLeft", label: "↖" },
                                 { id: "topCenter", label: "↑" },
@@ -1222,12 +1336,14 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                     key={item.id}
                                     variant={selectedPosition === item.id ? "default" : "outline"}
                                     size="sm"
-                                    className={`h-8 w-full ${
-                                        selectedPosition === item.id ? "bg-blue-600" : "bg-gray-50 dark:bg-slate-800 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
+                                    className={`h-10 w-full rounded-xl transition-all ${
+                                        selectedPosition === item.id
+                                            ? "bg-blue-600 shadow-md transform scale-105"
+                                            : "bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700"
                                     }`}
                                     onClick={() => handlePositionChange(item.id)}
                                 >
-                                    {item.label}
+                                    <span className="text-lg font-bold">{item.label}</span>
                                 </Button>
                             ))}
                         </div>
@@ -1235,11 +1351,13 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex items-center justify-around border-t dark:border-slate-800 px-2 py-2">
+                <div className="grid grid-cols-4 gap-1 px-2 py-3 border-t dark:border-slate-800 bg-white dark:bg-slate-900">
                     <Button
                         variant="ghost"
-                        className={`flex flex-col items-center gap-1 h-auto py-2 px-4 rounded-xl ${
-                            activeTab === "transform" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
+                        className={`flex flex-col items-center justify-center gap-1 h-14 rounded-2xl transition-all ${
+                            activeTab === "transform"
+                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800"
                         }`}
                         onClick={() => setActiveTab("transform")}
                     >
@@ -1248,8 +1366,10 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     </Button>
                     <Button
                         variant="ghost"
-                        className={`flex flex-col items-center gap-1 h-auto py-2 px-4 rounded-xl ${
-                            activeTab === "style" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
+                        className={`flex flex-col items-center justify-center gap-1 h-14 rounded-2xl transition-all ${
+                            activeTab === "style"
+                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800"
                         }`}
                         onClick={() => setActiveTab("style")}
                     >
@@ -1258,18 +1378,19 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     </Button>
                     <Button
                         variant="ghost"
-                        className={`flex flex-col items-center gap-1 h-auto py-2 px-4 rounded-xl ${
-                            activeTab === "position" ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
+                        className={`flex flex-col items-center justify-center gap-1 h-14 rounded-2xl transition-all ${
+                            activeTab === "position"
+                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800"
                         }`}
                         onClick={() => setActiveTab("position")}
                     >
                         <LayoutGrid className="h-6 w-6" />
                         <span className="text-[10px] font-medium">位置</span>
                     </Button>
-                    <div className="w-px h-8 bg-gray-200 dark:bg-slate-700 mx-2" />
                     <Button
                         variant="ghost"
-                        className="flex flex-col items-center gap-1 h-auto py-2 px-4 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl"
+                        className="flex flex-col items-center justify-center gap-1 h-14 rounded-2xl text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
                         onClick={() => setSettingsOpen(true)}
                     >
                         <Settings className="h-6 w-6" />
