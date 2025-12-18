@@ -33,19 +33,10 @@ import { Label } from "@/components/ui/label";
 import {
     ChevronLeft,
     ChevronRight,
-    RotateCcw,
-    RotateCw,
-    ZoomIn,
-    ZoomOut,
-    LayoutGrid,
     Settings,
     Upload,
     Move,
-    Palette,
-    Sun,
-    Moon,
     Images,
-    Undo2,
 } from "lucide-react";
 import Konva from "konva";
 import ImageWithFixedWidth from "./ImageWithFixedWidth";
@@ -227,10 +218,12 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     const [positionDialogOpen, setPositionDialogOpen] = useState(false);
 
     // Active Tab State
-    const [activeTab, setActiveTab] = useState<"transform" | "style" | "position">("transform");
+    const [activeTab, setActiveTab] = useState<"transform" | "watermark">("transform");
 
     // 添加加载状态
     const [isLoading, setIsLoading] = useState(true);
+
+    const [isInteracting, setIsInteracting] = useState(false);
 
     const watermarkRef = useRef<Konva.Image>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
@@ -844,54 +837,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         }
     };
 
-    const handleReset = () => {
-        if (!backgroundImage || !watermarkImage) return;
-        setCurrentScale(1);
-        const minDimension = Math.min(
-            backgroundImage.naturalWidth,
-            backgroundImage.naturalHeight
-        );
-        const standardWatermarkSize = minDimension * 0.1;
-        const standardScale = standardWatermarkSize / watermarkImage.naturalWidth;
-        const finalScale = standardScale * 1;
-        const renderWidth = watermarkImage.naturalWidth * finalScale * backgroundScale;
-        const renderHeight = (watermarkImage.naturalHeight / watermarkImage.naturalWidth) * renderWidth;
-        const centerX = 0.5;
-        const centerY = 0.5;
-        const pixelOffset = 4;
-        const previewOffsetX = (pixelOffset / backgroundImage.naturalWidth) * backgroundImageSize.width;
-        const previewOffsetY = (pixelOffset / backgroundImage.naturalHeight) * backgroundImageSize.height;
-        let leftTopX = centerX - renderWidth / 2 / backgroundImageSize.width;
-        let leftTopY = centerY - renderHeight / 2 / backgroundImageSize.height;
-        const adjustedLeftTopX = Math.max(
-            previewOffsetX / backgroundImageSize.width,
-            Math.min(
-                (backgroundImageSize.width - renderWidth - previewOffsetX) / backgroundImageSize.width,
-                leftTopX
-            )
-        );
-        const adjustedLeftTopY = Math.max(
-            previewOffsetY / backgroundImageSize.height,
-            Math.min(
-                (backgroundImageSize.height - renderHeight - previewOffsetY) / backgroundImageSize.height,
-                leftTopY
-            )
-        );
-        const newPos = {
-            id: position.id,
-            x: adjustedLeftTopX,
-            y: adjustedLeftTopY,
-            scaleX: 1,
-            scaleY: 1,
-            rotation: 0,
-        };
-        setPosition(newPos);
-        if (isBatch) {
-            onAllTransform(newPos);
-        } else {
-            onTransform(newPos);
-        }
-    };
+
 
     // 更新参考线的函数
     const updateGuideLines = () => {
@@ -1046,18 +992,22 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     variant="ghost"
                     size="icon"
                     onClick={onBack}
-                    className="-ml-2 group relative w-10 h-10 p-0 overflow-visible hover:bg-transparent"
+                    onPointerDown={() => setIsInteracting(true)}
+                    onPointerUp={() => setIsInteracting(false)}
+                    onPointerCancel={() => setIsInteracting(false)}
+                    onPointerLeave={() => setIsInteracting(false)}
+                    className={`-ml-2 group relative w-10 h-10 p-0 overflow-visible hover:bg-transparent ${isInteracting ? 'is-press' : ''}`}
                 >
                     {stackPreviews.length > 0 ? (
                         <div className="relative w-full h-full flex items-center justify-center">
                             {stackPreviews.map((preview, index) => (
                                 <div
                                     key={preview.id}
-                                    className={`absolute w-7 h-7 rounded-sm overflow-hidden border border-white dark:border-slate-700 shadow-sm transition-all duration-300 ease-out origin-center
+                                    className={`absolute w-7 h-7 rounded-sm overflow-hidden border border-white dark:border-slate-700 shadow-sm transition-all duration-300 ease-out origin-bottom
                                         ${index === 0 ? 'z-30' : index === 1 ? 'z-20' : 'z-10'}
-                                        ${index === 0 ? 'group-hover:-translate-y-1.5 group-hover:-translate-x-1.5 group-hover:-rotate-6' : ''}
-                                        ${index === 1 ? 'translate-x-0.5 translate-y-0.5 rotate-3 group-hover:translate-x-1.5 group-hover:translate-y-0 group-hover:rotate-6' : ''}
-                                        ${index === 2 ? 'translate-x-1 translate-y-1 rotate-6 group-hover:translate-x-4 group-hover:translate-y-1 group-hover:rotate-12' : ''}
+                                        ${index === 0 ? 'group-hover:-rotate-[20deg] group-hover:-translate-x-4 group-[.is-press]:-rotate-[20deg] group-[.is-press]:-translate-x-4' : ''}
+                                        ${index === 1 ? 'rotate-3 translate-x-[2px] group-hover:rotate-0 group-hover:translate-x-0 group-hover:-translate-y-3 group-[.is-press]:rotate-0 group-[.is-press]:translate-x-0 group-[.is-press]:-translate-y-3' : ''}
+                                        ${index === 2 ? 'rotate-6 translate-x-[4px] group-hover:rotate-[20deg] group-hover:translate-x-4 group-[.is-press]:rotate-[20deg] group-[.is-press]:translate-x-4' : ''}
                                     `}
                                 >
                                     <img
@@ -1073,7 +1023,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     )}
                 </Button>
                 <div className="font-medium text-lg dark:text-slate-200">
-                    {totalImages > 0 ? `${currentIndex + 1} / ${totalImages}` : "编辑水印"}
+                    {totalImages > 0 ? `第${currentIndex + 1} / ${totalImages}张` : "编辑水印"}
                 </div>
                 <Button
                     onClick={onGenerate}
@@ -1217,300 +1167,78 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             {/* 移动端控制面板 - Tabbed Layout */}
             <div className="bg-white dark:bg-slate-900 border-t dark:border-slate-800 z-20 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                 {/* Contextual Controls Area */}
-                <div className="px-4 py-4 min-h-[80px] flex items-center justify-center">
+                <div className="px-2 py-2 min-h-[60px] flex items-center justify-center">
                     {activeTab === "transform" && (
-                        <div className="flex items-center justify-between w-full max-w-[420px] px-2">
-                            <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-2xl p-1 shadow-sm">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleRotate("left")}
-                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
-                                >
-                                    <RotateCcw className="h-6 w-6" />
-                                </Button>
-                                <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-1"></div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleRotate("right")}
-                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
-                                >
-                                    <RotateCw className="h-6 w-6" />
-                                </Button>
-                            </div>
-                            <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-2xl p-1 shadow-sm">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleScale("decrease")}
-                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
-                                >
-                                    <ZoomOut className="h-6 w-6" />
-                                </Button>
-                                <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-1"></div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleScale("increase")}
-                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
-                                >
-                                    <ZoomIn className="h-6 w-6" />
-                                </Button>
-                            </div>
-                            <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-2xl p-1 shadow-sm">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={handleCenter}
-                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
-                                >
-                                    <LayoutGrid className="h-6 w-6" />
-                                </Button>
-                                <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-1"></div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={handleReset}
-                                    className="h-12 w-12 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all"
-                                >
-                                    <Undo2 className="h-6 w-6" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === "style" && (
-                        <div className="w-full flex flex-col gap-4">
-                            <div className="flex items-center justify-between gap-4">
-                                <span className="text-sm text-gray-500 dark:text-gray-400 w-16">不透明度</span>
-                                <Slider
-                                    value={[watermarkOpacity]}
-                                    max={1}
-                                    step={0.01}
-                                    onValueChange={(vals) => setWatermarkOpacity(vals[0])}
-                                    className="flex-1"
-                                />
-                                <span className="text-sm text-gray-500 dark:text-gray-400 w-8 text-right">
-                                    {Math.round(watermarkOpacity * 100)}%
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500 dark:text-gray-400">暗水印</span>
-                                <div className="flex items-center bg-gray-100 dark:bg-slate-800 rounded-lg p-1">
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => setDarkWatermarkEnabled(false)}
-                                        className={`h-8 px-3 rounded-md ${!darkWatermarkEnabled ? 'bg-white dark:bg-slate-700 shadow-sm text-black dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
-                                    >
-                                        <Sun className="h-4 w-4 mr-1" /> 浅色
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => setDarkWatermarkEnabled(true)}
-                                        className={`h-8 px-3 rounded-md ${darkWatermarkEnabled ? 'bg-slate-800 shadow-sm text-white' : 'text-gray-500 dark:text-gray-400'}`}
-                                    >
-                                        <Moon className="h-4 w-4 mr-1" /> 深色
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === "position" && (
-                        <div className="grid grid-cols-3 gap-3 w-full max-w-[200px]">
-                            {[
-                                { id: "topLeft", label: "↖" },
-                                { id: "topCenter", label: "↑" },
-                                { id: "topRight", label: "↗" },
-                                { id: "middleLeft", label: "←" },
-                                { id: "middleCenter", label: "+" },
-                                { id: "middleRight", label: "→" },
-                                { id: "bottomLeft", label: "↙" },
-                                { id: "bottomCenter", label: "↓" },
-                                { id: "bottomRight", label: "↘" },
-                            ].map((item) => (
-                                <Button
-                                    key={item.id}
-                                    variant={selectedPosition === item.id ? "default" : "outline"}
-                                    size="sm"
-                                    className={`h-10 w-full rounded-xl transition-all ${
-                                        selectedPosition === item.id
-                                            ? "bg-blue-600 shadow-md transform scale-105"
-                                            : "bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700"
-                                    }`}
-                                    onClick={() => handlePositionChange(item.id)}
-                                >
-                                    <span className="text-lg font-bold">{item.label}</span>
-                                </Button>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Tab Navigation */}
-                <div className="grid grid-cols-4 gap-1 px-2 py-3 border-t dark:border-slate-800 bg-white dark:bg-slate-900">
-                    <Button
-                        variant="ghost"
-                        className={`flex flex-col items-center justify-center gap-1 h-14 rounded-2xl transition-all ${
-                            activeTab === "transform"
-                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800"
-                        }`}
-                        onClick={() => setActiveTab("transform")}
-                    >
-                        <Move className="h-6 w-6" />
-                        <span className="text-[10px] font-medium">调整</span>
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`flex flex-col items-center justify-center gap-1 h-14 rounded-2xl transition-all ${
-                            activeTab === "style"
-                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800"
-                        }`}
-                        onClick={() => setActiveTab("style")}
-                    >
-                        <Palette className="h-6 w-6" />
-                        <span className="text-[10px] font-medium">样式</span>
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className={`flex flex-col items-center justify-center gap-1 h-14 rounded-2xl transition-all ${
-                            activeTab === "position"
-                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
-                                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800"
-                        }`}
-                        onClick={() => setActiveTab("position")}
-                    >
-                        <LayoutGrid className="h-6 w-6" />
-                        <span className="text-[10px] font-medium">位置</span>
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        className="flex flex-col items-center justify-center gap-1 h-14 rounded-2xl text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
-                        onClick={() => setSettingsOpen(true)}
-                    >
-                        <Settings className="h-6 w-6" />
-                        <span className="text-[10px] font-medium">设置</span>
-                    </Button>
-                </div>
-            </div>
-
-
-
-            {/* Settings Dialog */}
-            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-                <DialogContent className="bg-white dark:bg-slate-900 dark:border-slate-800 rounded-lg p-4 max-w-[90vw] max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="dark:text-slate-200">水印设置</DialogTitle>
-                    </DialogHeader>
-
-                    <Tabs defaultValue="effect" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="effect">效果</TabsTrigger>
-                            <TabsTrigger value="content">内容</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="effect" className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <Label>模式选择</Label>
-                                </div>
-                                <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
-                                    <Button
-                                        variant={isBatch ? "secondary" : "ghost"}
-                                        className={`flex-1 ${isBatch ? "bg-white shadow-sm" : ""}`}
-                                        onClick={() => handleModeChange("batch")}
-                                    >
-                                        批量模式
-                                    </Button>
-                                    <Button
-                                        variant={!isBatch ? "secondary" : "ghost"}
-                                        className={`flex-1 ${!isBatch ? "bg-white shadow-sm" : ""}`}
-                                        onClick={() => handleModeChange("single")}
-                                    >
-                                        单张模式
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="guide-lines">显示辅助线</Label>
-                                <Switch
-                                    id="guide-lines"
-                                    checked={showGuideLines}
-                                    onCheckedChange={setShowGuideLines}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <Label>不透明度: {Math.round(watermarkOpacity * 100)}%</Label>
-                                </div>
-                                <Slider
-                                    value={[watermarkOpacity]}
-                                    max={1}
-                                    step={0.01}
-                                    onValueChange={(vals) => setWatermarkOpacity(vals[0])}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="blur-mode">背景模糊</Label>
-                                <Switch
-                                    id="blur-mode"
-                                    checked={watermarkBlur}
-                                    onCheckedChange={setWatermarkBlur}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <Label>输出质量: {Math.round(quality * 100)}%</Label>
-                                </div>
-                                <Slider
-                                    value={[quality]}
-                                    max={1}
-                                    step={0.01}
-                                    onValueChange={(vals) => setQuality(vals[0])}
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-between pt-2 border-t">
-                                <Label htmlFor="dark-watermark">暗水印</Label>
-                                <Switch
-                                    id="dark-watermark"
-                                    checked={darkWatermarkEnabled}
-                                    onCheckedChange={setDarkWatermarkEnabled}
-                                />
-                            </div>
-
-                            {darkWatermarkEnabled && (
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <Label>暗水印强度: {Math.round(darkWatermarkStrength * 100)}%</Label>
+                        <div className="w-full max-w-[560px] px-2">
+                            <div className="flex flex-col gap-2">
+                                {/* 顶部控制组：位置和范围 - 紧凑行 */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="bg-gray-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+                                        <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">水印位置</span>
+                                        <Select value={selectedPosition} onValueChange={handlePositionChange}>
+                                            <SelectTrigger className="h-6 w-[80px] bg-transparent border-0 shadow-none p-0 text-xs justify-end focus:ring-0">
+                                                <SelectValue placeholder="位置" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="topLeft">左上</SelectItem>
+                                                <SelectItem value="topCenter">上中</SelectItem>
+                                                <SelectItem value="topRight">右上</SelectItem>
+                                                <SelectItem value="middleLeft">左中</SelectItem>
+                                                <SelectItem value="middleCenter">居中</SelectItem>
+                                                <SelectItem value="middleRight">右中</SelectItem>
+                                                <SelectItem value="bottomLeft">左下</SelectItem>
+                                                <SelectItem value="bottomCenter">下中</SelectItem>
+                                                <SelectItem value="bottomRight">右下</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
-                                    <Slider
-                                        value={[darkWatermarkStrength]}
-                                        min={0.02}
-                                        max={0.25}
-                                        step={0.01}
-                                        onValueChange={(vals) => setDarkWatermarkStrength(vals[0])}
-                                    />
+                                    <div className="bg-gray-50 dark:bg-slate-800/50 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+                                        <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">应用范围</span>
+                                        <Select value={isBatch ? 'batch' : 'single'} onValueChange={handleModeChange}>
+                                            <SelectTrigger className="h-6 w-[80px] bg-transparent border-0 shadow-none p-0 text-xs justify-end focus:ring-0">
+                                                <SelectValue placeholder="范围" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="batch">批量应用</SelectItem>
+                                                <SelectItem value="single">单张应用</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
-                            )}
-                        </TabsContent>
 
-                        <TabsContent value="content" className="space-y-4 py-4">
+                                {/* 滑块控制组 - 极简布局 */}
+                                <div className="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-3 space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">水印透明度</span>
+                                        <Slider value={[watermarkOpacity]} max={1} step={0.01} onValueChange={(v) => setWatermarkOpacity(v[0])} className="w-24 flex-shrink-0" />
+                                        <span className="text-xs font-mono text-gray-500 w-7 text-right">{Math.round(watermarkOpacity * 100)}%</span>
+                                        {/* <div className="w-px h-3 bg-gray-200 dark:bg-slate-700 mx-1"></div> */}
+                                        <div className="flex items-center gap-1.5 cursor-pointer ml-auto" onClick={() => setWatermarkBlur(!watermarkBlur)}>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">背景模糊</span>
+                                            <Switch checked={watermarkBlur} onCheckedChange={setWatermarkBlur} className="scale-75" />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">导出质量</span>
+                                        <Slider value={[quality]} max={1} step={0.01} onValueChange={(v) => setQuality(v[0])} className="w-24 flex-shrink-0" />
+                                        <span className="text-xs font-mono text-gray-500 w-7 text-right">{Math.round(quality * 100)}%</span>
+                                        {/* <div className="w-px h-3 bg-gray-200 dark:bg-slate-700 mx-1"></div> */}
+                                        <div className="flex items-center gap-1.5 cursor-pointer ml-auto" onClick={() => setShowGuideLines(!showGuideLines)}>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">辅助线</span>
+                                            <Switch checked={showGuideLines} onCheckedChange={setShowGuideLines} className="scale-75" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "watermark" && (
+                        <div className="w-full flex flex-col gap-4">
                             <div className="space-y-2">
                                 <Label>水印模式</Label>
-                                <Select
-                                    value={watermarkMode}
-                                    onValueChange={(val: "image" | "mixed") => setWatermarkMode(val)}
-                                >
+                                <Select value={watermarkMode} onValueChange={(val: "image" | "mixed") => setWatermarkMode(val)}>
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
@@ -1524,14 +1252,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                             {watermarkMode === "image" ? (
                                 <div className="space-y-2">
                                     <Label>上传水印图片</Label>
-                                    <ImageUploader
-                                        onUpload={onWatermarkUpload}
-                                        fileType="水印"
-                                        className="w-full"
-                                    >
+                                    <ImageUploader onUpload={onWatermarkUpload} fileType="水印" className="w-full">
                                         <Button variant="outline" className="w-full">
-                                            <Upload className="w-4 h-4 mr-2" />
-                                            更换图片
+                                            <Upload className="w-4 h-4 mr-2" /> 更换图片
                                         </Button>
                                     </ImageUploader>
                                 </div>
@@ -1543,10 +1266,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                             onUpload={(files) => {
                                                 const reader = new FileReader();
                                                 reader.onload = (e) => {
-                                                    setMixedWatermarkConfig(prev => ({
-                                                        ...prev,
-                                                        icon: e.target?.result as string
-                                                    }));
+                                                    setMixedWatermarkConfig(prev => ({ ...prev, icon: e.target?.result as string }));
                                                 };
                                                 reader.readAsDataURL(files[0]);
                                             }}
@@ -1554,69 +1274,35 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                             className="w-full"
                                         >
                                             <Button variant="outline" className="w-full">
-                                                <Upload className="w-4 h-4 mr-2" />
-                                                更换图标
+                                                <Upload className="w-4 h-4 mr-2" /> 更换图标
                                             </Button>
                                         </ImageUploader>
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label>第一行文字</Label>
-                                        <input
-                                            type="text"
-                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                            value={mixedWatermarkConfig.textLine1}
-                                            onChange={(e) => setMixedWatermarkConfig(prev => ({ ...prev, textLine1: e.target.value }))}
-                                        />
+                                        <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={mixedWatermarkConfig.textLine1} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine1: e.target.value }))} />
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label>第二行文字</Label>
-                                        <input
-                                            type="text"
-                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                            value={mixedWatermarkConfig.textLine2}
-                                            onChange={(e) => setMixedWatermarkConfig(prev => ({ ...prev, textLine2: e.target.value }))}
-                                        />
+                                        <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={mixedWatermarkConfig.textLine2} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: e.target.value }))} />
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label>文字颜色</Label>
                                         <div className="flex gap-2">
-                                            <input
-                                                type="color"
-                                                className="h-10 w-20 p-1 rounded border"
-                                                value={mixedWatermarkConfig.color}
-                                                onChange={(e) => setMixedWatermarkConfig(prev => ({ ...prev, color: e.target.value }))}
-                                            />
-                                            <input
-                                                type="text"
-                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                                value={mixedWatermarkConfig.color}
-                                                onChange={(e) => setMixedWatermarkConfig(prev => ({ ...prev, color: e.target.value }))}
-                                            />
+                                            <input type="color" className="h-10 w-20 p-1 rounded border" value={mixedWatermarkConfig.color} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, color: e.target.value }))} />
+                                            <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={mixedWatermarkConfig.color} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, color: e.target.value }))} />
                                         </div>
                                     </div>
-
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center">
                                             <Label>字体大小: {mixedWatermarkConfig.fontSize}px</Label>
                                         </div>
-                                        <Slider
-                                            value={[mixedWatermarkConfig.fontSize]}
-                                            min={12}
-                                            max={100}
-                                            step={1}
-                                            onValueChange={(vals) => setMixedWatermarkConfig(prev => ({ ...prev, fontSize: vals[0] }))}
-                                        />
+                                        <Slider value={[mixedWatermarkConfig.fontSize]} min={12} max={100} step={1} onValueChange={(v)=>setMixedWatermarkConfig(prev=>({ ...prev, fontSize: v[0] }))} />
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label>布局方向</Label>
-                                        <Select
-                                            value={mixedWatermarkConfig.layout}
-                                            onValueChange={(val: "horizontal" | "vertical") => setMixedWatermarkConfig(prev => ({ ...prev, layout: val }))}
-                                        >
+                                        <Select value={mixedWatermarkConfig.layout} onValueChange={(val: "horizontal" | "vertical")=>setMixedWatermarkConfig(prev=>({ ...prev, layout: val }))}>
                                             <SelectTrigger>
                                                 <SelectValue />
                                             </SelectTrigger>
@@ -1628,10 +1314,43 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                     </div>
                                 </div>
                             )}
-                        </TabsContent>
-                    </Tabs>
-                </DialogContent>
-            </Dialog>
+                        </div>
+                    )}
+
+
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="grid grid-cols-2 gap-4 px-6 py-2 border-t dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                    <Button
+                        variant="ghost"
+                        className={`flex items-center justify-center gap-2 h-9 rounded-full transition-all ${
+                            activeTab === "transform"
+                                ? "bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
+                                : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+                        }`}
+                        onClick={() => setActiveTab("transform")}
+                    >
+                        <Move className="h-3.5 w-3.5" />
+                        <span className="text-xs font-medium">调整</span>
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className={`flex items-center justify-center gap-2 h-9 rounded-full transition-all ${
+                            activeTab === "watermark"
+                                ? "bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
+                                : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+                        }`}
+                        onClick={() => setActiveTab("watermark")}
+                    >
+                        <Images className="h-3.5 w-3.5" />
+                        <span className="text-xs font-medium">水印</span>
+                    </Button>
+                </div>
+            </div>
+
+
+
         </div>
     );
 };
