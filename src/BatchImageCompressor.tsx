@@ -49,10 +49,9 @@ const BatchImageCompressor: React.FC = () => {
   // 压缩单张图片
   const compressImage = async (file: File, qualityValue: number): Promise<File> => {
     const options = {
-      maxSizeMB: 10, // 最大文件大小
-      maxWidthOrHeight: 1920, // 最大宽度或高度
+      maxSizeMB: 200, // 设置一个较大的值，避免强制压缩
       useWebWorker: true,
-      quality: qualityValue, // 压缩质量
+      initialQuality: qualityValue, // 压缩质量 (修正参数名)
     };
 
     try {
@@ -218,7 +217,7 @@ const BatchImageCompressor: React.FC = () => {
                   onValueChange={setQuality}
                   max={1}
                   min={0.1}
-                  step={0.1}
+                  step={0.05}
                   className="w-full"
                   disabled={isCompressing}
                 />
