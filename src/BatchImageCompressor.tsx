@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Download, Upload, Image as ImageIcon } from 'lucide-react';
+import { FractalBackground } from '@/components/FractalBackground';
 
 interface CompressedImage {
   id: string;
@@ -161,10 +162,16 @@ const BatchImageCompressor: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+    <div className="min-h-screen w-full relative">
+      <div className="fixed inset-0 z-0">
+        <FractalBackground />
+      </div>
+
+      <div className="relative z-10 p-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <Card className="bg-white/80 backdrop-blur-md shadow-xl border-white/50">
+            <CardHeader>
+            <CardTitle className="flex items-center gap-2">
             <ImageIcon className="w-6 h-6" />
             批量图片压缩工具
           </CardTitle>
@@ -173,18 +180,20 @@ const BatchImageCompressor: React.FC = () => {
           {/* 上传区域 */}
           <div
             {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-              isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+            className={`relative overflow-hidden border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+              isDragActive ? 'border-blue-500 bg-blue-50/50' : 'border-gray-300 hover:border-gray-400 hover:bg-white/50'
             }`}
           >
-            <input {...getInputProps()} />
-            <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-lg font-medium text-gray-700">
-              {isDragActive ? '释放文件到这里' : '拖拽图片到这里，或点击选择文件'}
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
-              支持 JPEG、PNG、WebP、BMP 格式，可选择多个文件
-            </p>
+            <div className="relative z-10">
+              <input {...getInputProps()} />
+              <Upload className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <p className="text-lg font-medium text-gray-700">
+                {isDragActive ? '释放文件到这里' : '拖拽图片到这里，或点击选择文件'}
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                支持 JPEG、PNG、WebP、BMP 格式，可选择多个文件
+              </p>
+            </div>
           </div>
 
           {/* 质量控制 */}
@@ -305,8 +314,10 @@ const BatchImageCompressor: React.FC = () => {
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        </div>
+      </div>
     </div>
   );
 };
