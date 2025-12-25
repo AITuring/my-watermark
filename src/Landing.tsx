@@ -15,6 +15,7 @@ import {
     Utensils,
     Clock,
     FileText,
+    Aperture
 } from "lucide-react";
 import h001 from "@/assets/history/split_001.png";
 import h002 from "@/assets/history/split_002.png";
@@ -314,7 +315,19 @@ export default function Landing() {
         //         hoverGradient: "from-rose-100 to-transparent",
         //     },
         // },
-
+        {
+            id: "frame",
+            title: "照片边框",
+            description: "为照片添加优雅的边框",
+            icon: Aperture,
+            href: "/frame",
+            colorTheme: {
+                bg: "bg-rose-50",
+                text: "text-rose-700",
+                border: "hover:border-rose-200",
+                hoverGradient: "from-rose-100 to-transparent",
+            },
+        },
         {
             id: "rename",
             title: "文件重命名",
