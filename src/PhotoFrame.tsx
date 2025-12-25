@@ -9,9 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import ImageUploader from './ImageUploader';
-import { Download, RotateCcw, Upload, Trash2, Plus, Image as ImageIcon, Film, BoxSelect, Camera, Newspaper, Aperture } from 'lucide-react';
+import { Download, RotateCcw, Upload, Trash2, Plus, Image as ImageIcon, Film, BoxSelect, Camera, Newspaper, Aperture, Copy, Calendar as CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ExifData {
@@ -51,6 +52,30 @@ const PhotoFrame: React.FC = () => {
     const [borderColor, setBorderColor] = useState('#ffffff');
     const [textColor, setTextColor] = useState('#000000');
     const [autoTextColor, setAutoTextColor] = useState(true);
+
+    // Floating Specific
+    const [floatingBorderColor, setFloatingBorderColor] = useState('#ffffff');
+    const [floatingShadow, setFloatingShadow] = useState(true);
+    const [floatingShadowSize, setFloatingShadowSize] = useState(0.05);
+    const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+    const [bgImageObj] = useImage(backgroundImage || '', 'anonymous');
+
+    const PRESETS = {
+        brands: ['Sony', 'Fujifilm', 'Canon', 'Nikon', 'Leica', 'Apple', 'DJI', 'Hasselblad', 'Panasonic', 'Olympus', 'Ricoh', 'Sigma'],
+        models: ['A7M4', 'A7R5', 'X100VI', 'X-T5', 'R5', 'R6', 'Zf', 'Z8', 'M11', 'Q3', 'iPhone 16 Pro', 'GR IIIx'],
+        focalLengths: ['16mm', '24mm', '28mm', '35mm', '50mm', '85mm', '105mm', '135mm', '200mm'],
+        apertures: ['f/1.2', 'f/1.4', 'f/1.8', 'f/2.0', 'f/2.8', 'f/4', 'f/5.6', 'f/8', 'f/11', 'f/16', 'f/22'],
+        isos: ['50', '100', '125', '160', '200', '400', '800', '1600', '3200', '6400', '12800'],
+        shutters: ['1/8000', '1/4000', '1/2000', '1/1000', '1/500', '1/250', '1/125', '1/60', '1/30', '1/15', '1/8', '1/4', '1/2', '1"', '30"']
+    };
+
+    const ZEN_BACKGROUNDS = [
+        { name: '纯净', url: null, color: '#ffffff' },
+        { name: '宣纸', url: 'https://images.unsplash.com/photo-1528459061998-56fd57ad86e3?auto=format&fit=crop&w=800&q=80', color: '#f5f5f0' },
+        { name: '水墨', url: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=800&q=80', color: '#e0e5ec' },
+        { name: '迷雾', url: 'https://images.unsplash.com/photo-1485236715568-ddc5ee6ca227?auto=format&fit=crop&w=800&q=80', color: '#cfd8dc' },
+        { name: '枯山水', url: 'https://images.unsplash.com/photo-1599940778173-e276d4acb2e7?auto=format&fit=crop&w=800&q=80', color: '#e6d2b5' },
+    ];
 
     // Editable Params (Per image overrides could be complex, keeping global for now or sync on select)
     // To support per-image edits, we might need to store these in the FrameImage object.
@@ -133,6 +158,63 @@ const PhotoFrame: React.FC = () => {
                 setSelectedId(null);
             }
         }
+    };
+
+    const copyImage = async () => {
+        if (stageRef.current && selectedImage) {
+            try {
+                const pixelRatio = 3;
+                const dataUrl = stageRef.current.toDataURL({ pixelRatio });
+                const blob = await (await fetch(dataUrl)).blob();
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        [blob.type]: blob
+                    })
+                ]);
+                toast.success("已复制到剪贴板");
+            } catch (err) {
+                console.error(err);
+                toast.error("复制失败，请尝试使用保存功能");
+            }
+        }
+    };
+
+    // Keyboard Navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!selectedId || images.length <= 1) return;
+            // Avoid conflict with input fields
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+            const currentIndex = images.findIndex(img => img.id === selectedId);
+            if (currentIndex === -1) return;
+
+            if (e.key === 'ArrowLeft') {
+                const prevIndex = currentIndex > 0 ? currentIndex - 1 : images.length - 1;
+                setSelectedId(images[prevIndex].id);
+            } else if (e.key === 'ArrowRight') {
+                const nextIndex = currentIndex < images.length - 1 ? currentIndex + 1 : 0;
+                setSelectedId(images[nextIndex].id);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [images, selectedId]);
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        if (files.length > 0) {
+            await handleUpload(files);
+            toast.success(`已添加 ${files.length} 张图片`);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
     };
 
     const downloadImage = () => {
@@ -239,6 +321,46 @@ const PhotoFrame: React.FC = () => {
         }
     };
 
+    // Helper to get ISO string for the date input value
+    const getIsoDate = (dateStr: string) => {
+        if (!dateStr) return '';
+        const cleanStr = dateStr.trim();
+        // Replace colons in date part (YYYY:MM:DD) with dashes
+        let iso = cleanStr.replace(/^(\d{4}):(\d{2}):(\d{2})/, '$1-$2-$3');
+        // Replace space with T
+        if (iso.includes(' ')) iso = iso.replace(' ', 'T');
+
+        const date = new Date(iso);
+        if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+        return '';
+    };
+
+    const handleDateSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const dateVal = e.target.value; // YYYY-MM-DDTHH:mm
+        if (!dateVal) return;
+
+        const date = new Date(dateVal);
+        if (isNaN(date.getTime())) return;
+
+        // Format to YYYY:MM:DD HH:MM:SS
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = '00';
+
+        const formatted = `${year}:${month}:${day} ${hours}:${minutes}:${seconds}`;
+        updateParam('dateTime', formatted);
+    };
+
     // Auto color logic
     useEffect(() => {
         if (autoTextColor) {
@@ -338,17 +460,88 @@ const PhotoFrame: React.FC = () => {
                                                 key={c}
                                                 className={`w-6 h-6 rounded-full border ${borderColor === c ? 'border-blue-500 scale-110' : 'border-gray-600'}`}
                                                 style={{ backgroundColor: c }}
-                                                onClick={() => setBorderColor(c)}
+                                                onClick={() => {
+                                                    setBorderColor(c);
+                                                    setBackgroundImage(null);
+                                                }}
                                             />
                                         ))}
                                         <input
                                             type="color"
                                             value={borderColor}
-                                            onChange={(e) => setBorderColor(e.target.value)}
+                                            onChange={(e) => {
+                                                setBorderColor(e.target.value);
+                                                setBackgroundImage(null);
+                                            }}
                                             className="w-6 h-6 rounded-full overflow-hidden border-0 p-0"
                                         />
                                     </div>
                                 </div>
+
+                                {template === 'floating' && (
+                                    <div className="space-y-4 border-t border-white/10 pt-4 mt-4">
+                                        <Label className="text-xs font-semibold text-gray-400">悬浮样式设置</Label>
+
+                                        {/* Zen Backgrounds */}
+                                        <div className="space-y-2">
+                                            <Label className="text-xs">禅意背景</Label>
+                                            <div className="grid grid-cols-5 gap-2">
+                                                {ZEN_BACKGROUNDS.map((bg) => (
+                                                    <button
+                                                        key={bg.name}
+                                                        onClick={() => {
+                                                            setBackgroundImage(bg.url);
+                                                            if (bg.url === null) setBorderColor('#ffffff');
+                                                        }}
+                                                        className={`w-full aspect-square rounded-md overflow-hidden border transition-all ${
+                                                            backgroundImage === bg.url ? 'border-blue-500 ring-2 ring-blue-500/50' : 'border-white/10 hover:border-white/30'
+                                                        }`}
+                                                        title={bg.name}
+                                                    >
+                                                        {bg.url ? (
+                                                            <img src={bg.url} className="w-full h-full object-cover" alt={bg.name} />
+                                                        ) : (
+                                                            <div className="w-full h-full bg-white flex items-center justify-center">
+                                                                <span className="text-[10px] text-black">无</span>
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-xs">内边框颜色</Label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="color"
+                                                    value={floatingBorderColor}
+                                                    onChange={(e) => setFloatingBorderColor(e.target.value)}
+                                                    className="w-6 h-6 rounded-full overflow-hidden border-0 p-0"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-xs">显示阴影</Label>
+                                            <Switch checked={floatingShadow} onCheckedChange={setFloatingShadow} />
+                                        </div>
+
+                                        {floatingShadow && (
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between">
+                                                    <Label className="text-xs">阴影宽度</Label>
+                                                    <span className="text-xs text-muted-foreground">{Math.round(floatingShadowSize * 100)}%</span>
+                                                </div>
+                                                <Slider
+                                                    value={[floatingShadowSize * 100]} max={15} step={0.5}
+                                                    onValueChange={(v) => setFloatingShadowSize(v[0] / 100)}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="flex items-center justify-between">
                                     <Label>文字颜色</Label>
                                     <div className="flex items-center gap-2">
@@ -370,7 +563,11 @@ const PhotoFrame: React.FC = () => {
                 </div>
 
                 {/* Center: Canvas Area */}
-                <div className="flex-1 flex items-center justify-center bg-zinc-900/30 p-8 relative">
+                <div
+                    className="flex-1 flex items-center justify-center bg-zinc-900/30 p-8 relative"
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                >
                     {layout && (
                         <div className="shadow-2xl shadow-black/50">
                             <Stage
@@ -387,11 +584,18 @@ const PhotoFrame: React.FC = () => {
                                         y={0}
                                         width={layout.totalW}
                                         height={layout.totalH}
-                                        fill={template === 'film' ? '#111111' : borderColor}
+                                        fill={template === 'film' ? '#111111' : (backgroundImage ? undefined : borderColor)}
+                                        fillPatternImage={backgroundImage && bgImageObj ? bgImageObj : undefined}
+                                        fillPatternScale={
+                                            backgroundImage && bgImageObj ? {
+                                                x: layout.totalW / bgImageObj.width,
+                                                y: layout.totalH / bgImageObj.height
+                                            } : undefined
+                                        }
                                     />
 
                                     {/* Shadow for Floating */}
-                                    {template === 'floating' && (
+                                    {template === 'floating' && floatingShadow && (
                                         <Rect
                                             x={layout.imgX}
                                             y={layout.imgY}
@@ -399,8 +603,8 @@ const PhotoFrame: React.FC = () => {
                                             height={layout.imgH}
                                             fill="black"
                                             shadowColor="black"
-                                            shadowBlur={layout.imgW * 0.05}
-                                            shadowOffset={{ x: layout.imgW * 0.02, y: layout.imgW * 0.02 }}
+                                            shadowBlur={layout.imgW * floatingShadowSize}
+                                            shadowOffset={{ x: layout.imgW * (floatingShadowSize * 0.4), y: layout.imgW * (floatingShadowSize * 0.4) }}
                                             shadowOpacity={0.4}
                                         />
                                     )}
@@ -413,7 +617,7 @@ const PhotoFrame: React.FC = () => {
                                         width={layout.imgW}
                                         height={layout.imgH}
                                         // Add a thin white border for Floating to separate from bg
-                                        stroke={template === 'floating' ? 'white' : undefined}
+                                        stroke={template === 'floating' ? floatingBorderColor : undefined}
                                         strokeWidth={template === 'floating' ? layout.imgW * 0.01 : 0}
                                         cornerRadius={template === 'film' ? layout.imgW * 0.005 : 0}
                                     />
@@ -508,10 +712,10 @@ const PhotoFrame: React.FC = () => {
                                                     {/* Sprocket Holes: Standard 35mm pitch is 4.75mm, hole is 2.8mm x 2mm */}
                                                     {/* We approximate ratio: Hole W ~ 0.6 * H, Gap ~ 0.4 * W */}
                                                     {Array.from({ length: Math.ceil(layout.totalW / (layout.bottomH * 0.5)) }).map((_, i) => {
-                                                        const holeH = layout.bottomH * 0.6; // Taller holes
-                                                        const holeW = holeH * 0.65; // Aspect ratio
+                                                        const holeH = layout.bottomH * 0.55; // Slightly reduced height to give more room for text
+                                                        const holeW = holeH * 0.65;
                                                         const gap = holeW * 0.8;
-                                                        const startX = (layout.totalW - (Math.ceil(layout.totalW / (holeW + gap)) * (holeW + gap))) / 2; // Center alignment
+                                                        const startX = (layout.totalW - (Math.ceil(layout.totalW / (holeW + gap)) * (holeW + gap))) / 2;
                                                         const x = startX + i * (holeW + gap);
 
                                                         if (x < -holeW || x > layout.totalW) return null;
@@ -524,7 +728,7 @@ const PhotoFrame: React.FC = () => {
                                                                     y={(layout.bottomH - holeH) / 2}
                                                                     width={holeW}
                                                                     height={holeH}
-                                                                    fill="#e2e2e2" // Slightly off-white for realistic light source
+                                                                    fill="#e2e2e2"
                                                                     cornerRadius={holeW * 0.25}
                                                                     shadowColor="white"
                                                                     shadowBlur={2}
@@ -548,42 +752,33 @@ const PhotoFrame: React.FC = () => {
 
                                                     {/* Edge Data (simulating Kodak/Fuji edge markings) */}
                                                     <Group opacity={0.85}>
+                                                        {/* Bottom Bar Text: Camera Model & ISO - Moved strictly to the top edge of bottom bar */}
                                                         <Text
                                                             text={`${customParams.make.toUpperCase()} ${customParams.model.toUpperCase()}   ►   ${customParams.iso}`}
-                                                            fontSize={layout.bottomH * 0.2 * fontSize}
+                                                            fontSize={layout.bottomH * 0.12 * fontSize}
                                                             fill="#f59e0b" // Amber-500
                                                             fontFamily="Courier New, monospace"
                                                             fontStyle="bold"
                                                             align="center"
                                                             width={layout.totalW}
-                                                            y={layout.totalH - layout.bottomH * 0.78}
+                                                            y={layout.totalH - layout.bottomH + layout.bottomH * 0.05}
                                                             shadowColor="#d97706"
                                                             shadowBlur={1}
                                                             shadowOpacity={0.5}
                                                         />
-                                                        {/* Top Edge: Frame Numbers & Date */}
+                                                        {/* Top Bar Text: Frame Numbers & Date - Moved strictly to the bottom edge of top bar */}
                                                         <Text
                                                             text={`${customParams.dateTime}    •    24    24A`}
-                                                            fontSize={layout.bottomH * 0.2 * fontSize}
+                                                            fontSize={layout.bottomH * 0.12 * fontSize}
                                                             fill="#f59e0b"
                                                             fontFamily="Courier New, monospace"
                                                             fontStyle="bold"
                                                             align="center"
                                                             width={layout.totalW}
-                                                            y={layout.bottomH * 0.58}
+                                                            y={layout.bottomH * 0.85}
                                                             shadowColor="#d97706"
                                                             shadowBlur={1}
                                                             shadowOpacity={0.5}
-                                                        />
-                                                        {/* Frame Number Graphic on side */}
-                                                        <Text
-                                                            text="24"
-                                                            fontSize={layout.bottomH * 0.35 * fontSize}
-                                                            fill="#f59e0b"
-                                                            fontFamily="Impact, sans-serif"
-                                                            x={layout.totalW - layout.bottomH * 2}
-                                                            y={layout.totalH - layout.bottomH * 0.85}
-                                                            opacity={0.9}
                                                         />
                                                     </Group>
                                                 </Group>
@@ -632,19 +827,43 @@ const PhotoFrame: React.FC = () => {
                                             <div className="grid gap-3">
                                                 <div className="grid grid-cols-4 items-center gap-2">
                                                     <Label className="text-xs text-gray-400">品牌</Label>
-                                                    <Input
-                                                        className="col-span-3 h-8 bg-zinc-900 border-zinc-800"
-                                                        value={customParams.make}
-                                                        onChange={(e) => updateParam('make', e.target.value)}
-                                                    />
+                                                    <div className="col-span-3 flex gap-1">
+                                                        <Input
+                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1"
+                                                            value={customParams.make}
+                                                            onChange={(e) => updateParam('make', e.target.value)}
+                                                        />
+                                                        <Select onValueChange={(v) => updateParam('make', v)}>
+                                                            <SelectTrigger className="h-8 w-8 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                                <span className="sr-only">选择品牌</span>
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {PRESETS.brands.map(b => (
+                                                                    <SelectItem key={b} value={b}>{b}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
                                                 </div>
                                                 <div className="grid grid-cols-4 items-center gap-2">
                                                     <Label className="text-xs text-gray-400">型号</Label>
-                                                    <Input
-                                                        className="col-span-3 h-8 bg-zinc-900 border-zinc-800"
-                                                        value={customParams.model}
-                                                        onChange={(e) => updateParam('model', e.target.value)}
-                                                    />
+                                                    <div className="col-span-3 flex gap-1">
+                                                        <Input
+                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1"
+                                                            value={customParams.model}
+                                                            onChange={(e) => updateParam('model', e.target.value)}
+                                                        />
+                                                        <Select onValueChange={(v) => updateParam('model', v)}>
+                                                            <SelectTrigger className="h-8 w-8 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                                <span className="sr-only">选择型号</span>
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {PRESETS.models.map(m => (
+                                                                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
                                                 </div>
                                                 <div className="grid grid-cols-4 items-center gap-2">
                                                     <Label className="text-xs text-gray-400">镜头</Label>
@@ -655,40 +874,101 @@ const PhotoFrame: React.FC = () => {
                                                     />
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-2">
-                                                    <Input
-                                                        className="h-8 bg-zinc-900 border-zinc-800"
-                                                        value={customParams.focalLength}
-                                                        onChange={(e) => updateParam('focalLength', e.target.value)}
-                                                        placeholder="焦距"
-                                                    />
-                                                    <Input
-                                                        className="h-8 bg-zinc-900 border-zinc-800"
-                                                        value={customParams.fNumber}
-                                                        onChange={(e) => updateParam('fNumber', e.target.value)}
-                                                        placeholder="光圈"
-                                                    />
+                                                    <div className="flex gap-1">
+                                                        <Input
+                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1 min-w-0"
+                                                            value={customParams.focalLength}
+                                                            onChange={(e) => updateParam('focalLength', e.target.value)}
+                                                            placeholder="焦距"
+                                                        />
+                                                        <Select onValueChange={(v) => updateParam('focalLength', v)}>
+                                                            <SelectTrigger className="h-8 w-6 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                                <span className="sr-only">焦距</span>
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {PRESETS.focalLengths.map(f => (
+                                                                    <SelectItem key={f} value={f}>{f}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <Input
+                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1 min-w-0"
+                                                            value={customParams.fNumber}
+                                                            onChange={(e) => updateParam('fNumber', e.target.value)}
+                                                            placeholder="光圈"
+                                                        />
+                                                        <Select onValueChange={(v) => updateParam('fNumber', v)}>
+                                                            <SelectTrigger className="h-8 w-6 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                                <span className="sr-only">光圈</span>
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {PRESETS.apertures.map(a => (
+                                                                    <SelectItem key={a} value={a}>{a}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-2">
-                                                    <Input
-                                                        className="h-8 bg-zinc-900 border-zinc-800"
-                                                        value={customParams.exposureTime}
-                                                        onChange={(e) => updateParam('exposureTime', e.target.value)}
-                                                        placeholder="快门"
-                                                    />
-                                                    <Input
-                                                        className="h-8 bg-zinc-900 border-zinc-800"
-                                                        value={customParams.iso}
-                                                        onChange={(e) => updateParam('iso', e.target.value)}
-                                                        placeholder="ISO"
-                                                    />
+                                                    <div className="flex gap-1">
+                                                        <Input
+                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1 min-w-0"
+                                                            value={customParams.exposureTime}
+                                                            onChange={(e) => updateParam('exposureTime', e.target.value)}
+                                                            placeholder="快门"
+                                                        />
+                                                        <Select onValueChange={(v) => updateParam('exposureTime', v)}>
+                                                            <SelectTrigger className="h-8 w-6 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                                <span className="sr-only">快门</span>
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {PRESETS.shutters.map(s => (
+                                                                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <Input
+                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1 min-w-0"
+                                                            value={customParams.iso}
+                                                            onChange={(e) => updateParam('iso', e.target.value)}
+                                                            placeholder="ISO"
+                                                        />
+                                                        <Select onValueChange={(v) => updateParam('iso', v)}>
+                                                            <SelectTrigger className="h-8 w-6 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                                <span className="sr-only">ISO</span>
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {PRESETS.isos.map(i => (
+                                                                    <SelectItem key={i} value={i}>{i}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
                                                 </div>
                                                 <div className="grid grid-cols-4 items-center gap-2">
                                                     <Label className="text-xs text-gray-400">日期</Label>
-                                                    <Input
-                                                        className="col-span-3 h-8 bg-zinc-900 border-zinc-800"
-                                                        value={customParams.dateTime}
-                                                        onChange={(e) => updateParam('dateTime', e.target.value)}
-                                                    />
+                                                    <div className="col-span-3 flex gap-2">
+                                                        <Input
+                                                            className="flex-1 h-8 bg-zinc-900 border-zinc-800"
+                                                            value={customParams.dateTime}
+                                                            onChange={(e) => updateParam('dateTime', e.target.value)}
+                                                        />
+                                                        <div className="relative">
+                                                            <Button variant="outline" size="icon" className="h-8 w-8 border-zinc-800 bg-zinc-900 text-muted-foreground">
+                                                                <CalendarIcon className="h-4 w-4" />
+                                                            </Button>
+                                                            <input
+                                                                type="datetime-local"
+                                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                                value={getIsoDate(customParams.dateTime)}
+                                                                onChange={handleDateSelect}
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
@@ -754,10 +1034,14 @@ const PhotoFrame: React.FC = () => {
                             </div>
                         </ScrollArea>
 
-                        <div className="p-4 border-t border-white/10">
-                            <Button className="w-full" size="lg" onClick={downloadImage}>
+                        <div className="p-4 border-t border-white/10 flex gap-2">
+                            <Button className="flex-1" variant="secondary" onClick={copyImage}>
+                                <Copy className="w-4 h-4 mr-2" />
+                                复制
+                            </Button>
+                            <Button className="flex-1" onClick={downloadImage}>
                                 <Download className="w-4 h-4 mr-2" />
-                                保存图片
+                                保存
                             </Button>
                         </div>
                     </Tabs>
