@@ -38,12 +38,14 @@ interface FrameImage {
 }
 
 type FrameTemplate = 'gallery' | 'floating' | 'polaroid' | 'magazine' | 'film' | 'round';
+type AspectRatio = 'original' | '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '21:9';
 
 const PhotoFrame: React.FC = () => {
     // State
     const [images, setImages] = useState<FrameImage[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [template, setTemplate] = useState<FrameTemplate>('gallery');
+    const [aspectRatio, setAspectRatio] = useState<AspectRatio>('original');
 
     // Style Settings
     const [borderSize, setBorderSize] = useState(0.05); // 0.0 - 0.15
@@ -92,10 +94,10 @@ const PhotoFrame: React.FC = () => {
     const selectedImage = useMemo(() => images.find(img => img.id === selectedId), [images, selectedId]);
     const [konvaImage] = useImage(selectedImage?.url || '', 'anonymous');
 
-    // Reset image params when image or template changes
+    // Reset image params when image, template or aspect ratio changes
     useEffect(() => {
         setImgParams({ scale: 1, x: 0, y: 0 });
-    }, [selectedId, template]);
+    }, [selectedId, template, aspectRatio]);
 
     // Sync custom params when image changes
     useEffect(() => {
@@ -252,6 +254,31 @@ const PhotoFrame: React.FC = () => {
         let imgW = konvaImage.width;
         let imgH = konvaImage.height;
 
+        // Apply Aspect Ratio Crop (Skip for Round, it uses Canvas Padding)
+        if (aspectRatio !== 'original' && template !== 'round') {
+            const currentRatio = imgW / imgH;
+            let targetRatio = 1;
+
+            switch (aspectRatio) {
+                case '1:1': targetRatio = 1; break;
+                case '4:3': targetRatio = 4 / 3; break;
+                case '3:4': targetRatio = 3 / 4; break;
+                case '16:9': targetRatio = 16 / 9; break;
+                case '9:16': targetRatio = 9 / 16; break;
+                case '3:2': targetRatio = 3 / 2; break;
+                case '2:3': targetRatio = 2 / 3; break;
+                case '21:9': targetRatio = 21 / 9; break;
+            }
+
+            if (currentRatio > targetRatio) {
+                // Image is wider than target: Crop Width
+                imgW = imgH * targetRatio;
+            } else {
+                // Image is taller than target: Crop Height
+                imgH = imgW / targetRatio;
+            }
+        }
+
         let borderW = imgW * borderSize;
         let bottomH = 0;
         let totalW = 0;
@@ -324,37 +351,49 @@ const PhotoFrame: React.FC = () => {
             const diameter = Math.min(imgW, imgH);
             const pad = Math.max(diameter * 0.15, imgW * borderSize);
 
-            totalW = diameter + pad * 2;
-            totalH = diameter + pad * 2;
+            // Base Dimensions (Square)
+            let finalW = diameter + pad * 2;
+            let finalH = diameter + pad * 2;
 
-            // Round Template defaults to COVER (Math.max) to ensure no empty space
-            const baseScale = Math.max(diameter / imgW, diameter / imgH);
+            // Apply Aspect Ratio as Canvas Padding for Round
+            if (aspectRatio !== 'original') {
+                let targetRatio = 1;
+                switch (aspectRatio) {
+                    case '1:1': targetRatio = 1; break;
+                    case '4:3': targetRatio = 4 / 3; break;
+                    case '3:4': targetRatio = 3 / 4; break;
+                    case '16:9': targetRatio = 16 / 9; break;
+                    case '9:16': targetRatio = 9 / 16; break;
+                    case '3:2': targetRatio = 3 / 2; break;
+                    case '2:3': targetRatio = 2 / 3; break;
+                    case '21:9': targetRatio = 21 / 9; break;
+                }
 
-            // Recalculate imgW/imgH to be the "content" size (the circle diameter equivalent)
-            // But actually, we want imgW/imgH to represent the Viewport size for consistency
-            // For Round, viewport is the Circle.
-            // But KonvaImage needs the actual Image dimensions to scale from.
+                const currentRatio = finalW / finalH; // Always 1 initially
+                if (targetRatio > currentRatio) {
+                    finalW = finalH * targetRatio;
+                } else {
+                    finalH = finalW / targetRatio;
+                }
+            }
 
-            // Let's store the Viewport dimensions for clipping
-            // And keep imgW/imgH as the *Source* dimensions for the logic?
-            // No, standard flow uses imgW/imgH as the frame content size.
+            totalW = finalW;
+            totalH = finalH;
 
-            // For Round, let's say the "Frame Content" is the diameter.
-            // But we render the image *scaled* to cover it.
+            // Center the Round Content (Circle) in the Canvas
+            imgX = (totalW - diameter) / 2;
+            imgY = (totalH - diameter) / 2;
 
             bottomH = 0;
             borderW = pad;
             roundDiameter = diameter;
             roundPad = pad;
-
-            // We don't change imgW/imgH here, they remain the original image size
-            // The Render logic will handle the scaling.
         }
 
         const scale = Math.min(stageWidth / totalW, stageHeight / totalH);
 
         return { totalW, totalH, imgX, imgY, imgW, imgH, scale, bottomH, borderW, roundPad, roundDiameter };
-    }, [konvaImage, template, borderSize, bottomSize, stageWidth, stageHeight]);
+    }, [konvaImage, template, borderSize, bottomSize, stageWidth, stageHeight, aspectRatio]);
 
     // Handle param changes
     const updateParam = (key: keyof ExifData, value: string) => {
@@ -441,6 +480,27 @@ const PhotoFrame: React.FC = () => {
                     </div>
                     <ScrollArea className="flex-1">
                         <div className="p-4 space-y-6">
+                            {/* Aspect Ratio Selector */}
+                            <div className="space-y-3">
+                                <Label>图片比例</Label>
+                                <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
+                                    <SelectTrigger className="w-full bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+                                        <span className="truncate">{aspectRatio === 'original' ? '原始比例' : aspectRatio}</span>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="original">原始比例</SelectItem>
+                                        <SelectItem value="1:1">1:1 (正方形)</SelectItem>
+                                        <SelectItem value="4:3">4:3 (横向)</SelectItem>
+                                        <SelectItem value="3:4">3:4 (纵向)</SelectItem>
+                                        <SelectItem value="3:2">3:2 (标准)</SelectItem>
+                                        <SelectItem value="2:3">2:3 (标准)</SelectItem>
+                                        <SelectItem value="16:9">16:9 (电影)</SelectItem>
+                                        <SelectItem value="9:16">9:16 (快拍)</SelectItem>
+                                        <SelectItem value="21:9">21:9 (宽屏)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
                             {/* Templates */}
                             <div className="space-y-3">
                                 <Label>模版风格</Label>
@@ -697,18 +757,12 @@ const PhotoFrame: React.FC = () => {
                                         const viewH = isRound ? layout.roundDiameter : layout.imgH;
 
                                         // Base Scale to Fit/Cover
-                                        // Round: Cover (Math.max)
-                                        // Others: Fit (Math.min) - effectively 1 because layout.imgW/H matches image aspect ratio mostly
-                                        // But if layout.imgW/H is fixed (e.g. template logic changes), this adapts.
-                                        // Currently layout.imgW = konvaImage.width (for most).
-                                        const baseScale = isRound
-                                            ? Math.max(viewW / layout.imgW, viewH / layout.imgH)
-                                            : Math.min(viewW / layout.imgW, viewH / layout.imgH); // Usually 1
+                                        const baseScale = Math.max(viewW / konvaImage.width, viewH / konvaImage.height);
 
                                         // Current Display Dimensions
                                         const currentScale = baseScale * imgParams.scale;
-                                        const dispW = layout.imgW * currentScale;
-                                        const dispH = layout.imgH * currentScale;
+                                        const dispW = konvaImage.width * currentScale;
+                                        const dispH = konvaImage.height * currentScale;
 
                                         // Bounds Calculation for Drag
                                         // We want to allow dragging but keep image covering the view if possible (if larger)
@@ -725,8 +779,8 @@ const PhotoFrame: React.FC = () => {
                                         // But we need to clamp them effectively during drag end
 
                                         // Group Position
-                                        const groupX = isRound ? layout.roundPad : layout.imgX;
-                                        const groupY = isRound ? layout.roundPad : layout.imgY;
+                                        const groupX = layout.imgX;
+                                        const groupY = layout.imgY;
 
                                         return (
                                             <Group
