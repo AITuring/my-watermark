@@ -63,6 +63,9 @@ const PhotoFrame: React.FC = () => {
     const [roundRingColor, setRoundRingColor] = useState('#000000');
     const [roundRingWidth, setRoundRingWidth] = useState(0.015);
 
+    // Unified Image Transform State (Scale & Position)
+    const [imgParams, setImgParams] = useState({ scale: 1, x: 0, y: 0 });
+
     const PRESETS = {
         brands: ['Sony', 'Fujifilm', 'Canon', 'Nikon', 'Leica', 'Apple', 'DJI', 'Hasselblad', 'Panasonic', 'Olympus', 'Ricoh', 'Sigma'],
         models: ['A7M4', 'A7R5', 'X100VI', 'X-T5', 'R5', 'R6', 'Zf', 'Z8', 'M11', 'Q3', 'iPhone 16 Pro', 'GR IIIx'],
@@ -88,6 +91,11 @@ const PhotoFrame: React.FC = () => {
     const stageRef = useRef<any>(null);
     const selectedImage = useMemo(() => images.find(img => img.id === selectedId), [images, selectedId]);
     const [konvaImage] = useImage(selectedImage?.url || '', 'anonymous');
+
+    // Reset image params when image or template changes
+    useEffect(() => {
+        setImgParams({ scale: 1, x: 0, y: 0 });
+    }, [selectedId, template]);
 
     // Sync custom params when image changes
     useEffect(() => {
@@ -241,7 +249,7 @@ const PhotoFrame: React.FC = () => {
     const layout = useMemo(() => {
         if (!konvaImage) return null;
 
-       let imgW = konvaImage.width;
+        let imgW = konvaImage.width;
         let imgH = konvaImage.height;
 
         let borderW = imgW * borderSize;
@@ -319,30 +327,34 @@ const PhotoFrame: React.FC = () => {
             totalW = diameter + pad * 2;
             totalH = diameter + pad * 2;
 
-            const baseScale = Math.min(diameter / imgW, diameter / imgH);
-            const dispW = imgW * baseScale * Math.max(1, roundImgScale);
-            const dispH = imgH * baseScale * Math.max(1, roundImgScale);
+            // Round Template defaults to COVER (Math.max) to ensure no empty space
+            const baseScale = Math.max(diameter / imgW, diameter / imgH);
 
-            imgW = dispW;
-            imgH = dispH;
+            // Recalculate imgW/imgH to be the "content" size (the circle diameter equivalent)
+            // But actually, we want imgW/imgH to represent the Viewport size for consistency
+            // For Round, viewport is the Circle.
+            // But KonvaImage needs the actual Image dimensions to scale from.
 
-            const minX = diameter - dispW;
-            const minY = diameter - dispH;
-            const offX = Math.min(0, Math.max(minX, roundImgPos.x));
-            const offY = Math.min(0, Math.max(minY, roundImgPos.y));
+            // Let's store the Viewport dimensions for clipping
+            // And keep imgW/imgH as the *Source* dimensions for the logic?
+            // No, standard flow uses imgW/imgH as the frame content size.
+
+            // For Round, let's say the "Frame Content" is the diameter.
+            // But we render the image *scaled* to cover it.
 
             bottomH = 0;
             borderW = pad;
             roundDiameter = diameter;
             roundPad = pad;
-            var roundImgX = offX;
-            var roundImgY = offY;
+
+            // We don't change imgW/imgH here, they remain the original image size
+            // The Render logic will handle the scaling.
         }
 
         const scale = Math.min(stageWidth / totalW, stageHeight / totalH);
 
-        return { totalW, totalH, imgX, imgY, imgW, imgH, scale, bottomH, borderW, roundPad, roundDiameter, roundImgX, roundImgY };
-    }, [konvaImage, template, borderSize, bottomSize, stageWidth, stageHeight, roundImgScale, roundImgPos]);
+        return { totalW, totalH, imgX, imgY, imgW, imgH, scale, bottomH, borderW, roundPad, roundDiameter };
+    }, [konvaImage, template, borderSize, bottomSize, stageWidth, stageHeight]);
 
     // Handle param changes
     const updateParam = (key: keyof ExifData, value: string) => {
@@ -479,6 +491,24 @@ const PhotoFrame: React.FC = () => {
                                         onValueChange={(v) => setBorderSize(v[0] / 100)}
                                     />
                                 </div>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                        <Label>图片缩放</Label>
+                                        <span className="text-xs text-muted-foreground">{Math.round(imgParams.scale * 100)}%</span>
+                                    </div>
+                                    <Slider
+                                        value={[imgParams.scale * 100]}
+                                        min={50}
+                                        max={500}
+                                        step={5}
+                                        onValueChange={(v) => setImgParams(prev => ({ ...prev, scale: v[0] / 100 }))}
+                                    />
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <Button variant="ghost" size="sm" onClick={() => setImgParams({ scale: 1, x: 0, y: 0 })} className="h-6 text-xs text-muted-foreground">
+                                        重置图片位置
+                                    </Button>
+                                </div>
                             </div>
 
                             {/* Colors */}
@@ -587,16 +617,6 @@ const PhotoFrame: React.FC = () => {
                                             </div>
                                             <Slider value={[roundRingWidth * 100]} max={10} step={0.5} onValueChange={(v) => setRoundRingWidth(v[0] / 100)} />
                                         </div>
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between">
-                                                <Label className="text-xs">缩放</Label>
-                                                <span className="text-xs text-muted-foreground">{Math.round(roundImgScale * 100)}%</span>
-                                            </div>
-                                            <Slider value={[roundImgScale * 100]} min={100} max={300} step={5} onValueChange={(v) => setRoundImgScale(v[0] / 100)} />
-                                        </div>
-                                        <div className="flex gap-2 justify-end">
-                                            <Button variant="outline" size="sm" onClick={() => { setRoundImgScale(1); setRoundImgPos({ x: 0, y: 0 }); }}>重置</Button>
-                                        </div>
                                     </div>
                                 )}
 
@@ -668,56 +688,181 @@ const PhotoFrame: React.FC = () => {
                                     )}
 
                                     {/* Image */}
-                                    {template === 'round' ? (
-                                        <>
+                                    {(() => {
+                                        // Unified Image Rendering Logic
+                                        const isRound = template === 'round';
+
+                                        // Viewport Dimensions (The masking area)
+                                        const viewW = isRound ? layout.roundDiameter : layout.imgW;
+                                        const viewH = isRound ? layout.roundDiameter : layout.imgH;
+
+                                        // Base Scale to Fit/Cover
+                                        // Round: Cover (Math.max)
+                                        // Others: Fit (Math.min) - effectively 1 because layout.imgW/H matches image aspect ratio mostly
+                                        // But if layout.imgW/H is fixed (e.g. template logic changes), this adapts.
+                                        // Currently layout.imgW = konvaImage.width (for most).
+                                        const baseScale = isRound
+                                            ? Math.max(viewW / layout.imgW, viewH / layout.imgH)
+                                            : Math.min(viewW / layout.imgW, viewH / layout.imgH); // Usually 1
+
+                                        // Current Display Dimensions
+                                        const currentScale = baseScale * imgParams.scale;
+                                        const dispW = layout.imgW * currentScale;
+                                        const dispH = layout.imgH * currentScale;
+
+                                        // Bounds Calculation for Drag
+                                        // We want to allow dragging but keep image covering the view if possible (if larger)
+                                        // Or contained if smaller?
+                                        // "Fill display area" -> We enforce covering if scale >= 1
+
+                                        const minX = viewW - dispW;
+                                        const minY = viewH - dispH;
+                                        const maxX = 0; // Assuming top-left alignment base
+                                        const maxY = 0;
+
+                                        // Position
+                                        // We apply imgParams.x/y as offsets
+                                        // But we need to clamp them effectively during drag end
+
+                                        // Group Position
+                                        const groupX = isRound ? layout.roundPad : layout.imgX;
+                                        const groupY = isRound ? layout.roundPad : layout.imgY;
+
+                                        return (
                                             <Group
-                                                x={layout.roundPad}
-                                                y={layout.roundPad}
-                                                clipFunc={(ctx) => {
+                                                x={groupX}
+                                                y={groupY}
+                                                clipFunc={isRound ? (ctx) => {
                                                     const d = layout.roundDiameter;
                                                     ctx.beginPath();
                                                     ctx.arc(d / 2, d / 2, d / 2, 0, Math.PI * 2);
                                                     ctx.closePath();
-                                                }}
+                                                } : undefined}
+                                                clipX={!isRound ? 0 : undefined}
+                                                clipY={!isRound ? 0 : undefined}
+                                                clipWidth={!isRound ? viewW : undefined}
+                                                clipHeight={!isRound ? viewH : undefined}
                                             >
                                                 <KonvaImage
                                                     image={konvaImage}
-                                                    x={layout.roundImgX}
-                                                    y={layout.roundImgY}
-                                                    width={layout.imgW}
-                                                    height={layout.imgH}
+                                                    x={imgParams.x} // Controlled position
+                                                    y={imgParams.y}
+                                                    scaleX={currentScale}
+                                                    scaleY={currentScale}
                                                     draggable
-                                                    dragBoundFunc={(pos) => {
-                                                        const minX = layout.roundDiameter - layout.imgW;
-                                                        const minY = layout.roundDiameter - layout.imgH;
-                                                        const x = Math.min(0, Math.max(minX, pos.x));
-                                                        const y = Math.min(0, Math.max(minY, pos.y));
-                                                        return { x, y };
+                                                    onDragEnd={(e) => {
+                                                        const node = e.target;
+                                                        const x = node.x();
+                                                        const y = node.y();
+
+                                                        // Calculate Bounds based on *current* scale
+                                                        // Re-calculate local vars because closure might be stale?
+                                                        // No, render scope is fresh.
+
+                                                        let newX = x;
+                                                        let newY = y;
+
+                                                        // Constrain: Image should not leave the Viewport empty
+                                                        // If dispW > viewW, x must be between minX and maxX
+                                                        if (dispW >= viewW) {
+                                                            if (newX < minX) newX = minX;
+                                                            if (newX > maxX) newX = maxX;
+                                                        } else {
+                                                            // If image is smaller than view (e.g. zoomed out below fit), center it?
+                                                            // Or just clamp to bounds?
+                                                            // For now, let's clamp to center or left?
+                                                            // Simple: clamp to bounds usually works.
+                                                            // If dispW < viewW, minX is POSITIVE. maxX is 0.
+                                                            // So x must be between minX (positive) and 0? No.
+                                                            // If dispW < viewW, we probably want to center.
+                                                            newX = (viewW - dispW) / 2;
+                                                        }
+
+                                                        if (dispH >= viewH) {
+                                                            if (newY < minY) newY = minY;
+                                                            if (newY > maxY) newY = maxY;
+                                                        } else {
+                                                            newY = (viewH - dispH) / 2;
+                                                        }
+
+                                                        // Snap animation
+                                                        if (Math.abs(newX - x) > 1 || Math.abs(newY - y) > 1) {
+                                                            node.to({
+                                                                x: newX,
+                                                                y: newY,
+                                                                duration: 0.2,
+                                                                easing: Konva.Easings.EaseOut,
+                                                                onFinish: () => {
+                                                                    setImgParams(p => ({ ...p, x: newX, y: newY }));
+                                                                }
+                                                            });
+                                                        } else {
+                                                            setImgParams(p => ({ ...p, x: newX, y: newY }));
+                                                        }
                                                     }}
-                                                    onDragEnd={(e) => setRoundImgPos({ x: e.target.x(), y: e.target.y() })}
+                                                    onWheel={(e) => {
+                                                        e.evt.preventDefault();
+                                                        e.evt.stopPropagation();
+
+                                                        const stage = e.target.getStage();
+                                                        if (!stage) return;
+
+                                                        const scaleBy = 1.05;
+                                                        const oldScale = imgParams.scale;
+                                                        const pointer = stage.getPointerPosition();
+
+                                                        if (!pointer) return;
+
+                                                        // Pointer relative to the Group
+                                                        // Group absolute position = groupX * layout.scale
+                                                        // Wait, stage scale affects everything.
+                                                        // The Group is at (groupX, groupY) inside the Stage.
+                                                        // Stage is scaled by layout.scale.
+                                                        // So Group screen pos = (groupX * layout.scale, groupY * layout.scale).
+                                                        // Pointer is in screen coordinates? No, Konva pointer is usually stage relative?
+                                                        // getPointerPosition returns position relative to container (stage).
+
+                                                        // Mouse relative to Group (unscaled by stage)
+                                                        const mouseX = (pointer.x / layout.scale) - groupX;
+                                                        const mouseY = (pointer.y / layout.scale) - groupY;
+
+                                                        // Mouse relative to Image (before zoom)
+                                                        // Image is at (imgParams.x, imgParams.y) inside Group
+                                                        const mousePointTo = {
+                                                            x: (mouseX - imgParams.x) / oldScale,
+                                                            y: (mouseY - imgParams.y) / oldScale,
+                                                        };
+
+                                                        const newScaleRaw = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
+                                                        // Limit scale (0.5x to 5x)
+                                                        const newScale = Math.max(0.5, Math.min(5, newScaleRaw));
+
+                                                        const newPos = {
+                                                            x: mouseX - mousePointTo.x * newScale,
+                                                            y: mouseY - mousePointTo.y * newScale,
+                                                        };
+
+                                                        setImgParams({ scale: newScale, ...newPos });
+                                                    }}
+                                                    // Add stroke/border properties for non-Round templates
+                                                    stroke={!isRound && template === 'floating' ? floatingBorderColor : undefined}
+                                                    strokeWidth={!isRound && template === 'floating' ? layout.imgW * 0.01 : 0}
+                                                    cornerRadius={!isRound && template === 'film' ? layout.imgW * 0.005 : 0}
                                                 />
+                                                {/* Round Template Ring (Overlay) */}
+                                                {isRound && (
+                                                    <Circle
+                                                        x={layout.roundDiameter / 2}
+                                                        y={layout.roundDiameter / 2}
+                                                        radius={layout.roundDiameter / 2}
+                                                        stroke={roundRingColor}
+                                                        strokeWidth={Math.max(2, layout.roundDiameter * roundRingWidth)}
+                                                        listening={false} // Pass events through to image
+                                                    />
+                                                )}
                                             </Group>
-                                            <Circle
-                                                x={layout.roundPad + layout.roundDiameter / 2}
-                                                y={layout.roundPad + layout.roundDiameter / 2}
-                                                radius={layout.roundDiameter / 2}
-                                                stroke={roundRingColor}
-                                                strokeWidth={Math.max(2, layout.roundDiameter * roundRingWidth)}
-                                            />
-                                        </>
-                                    ) : (
-                                        <KonvaImage
-                                            image={konvaImage}
-                                            x={layout.imgX}
-                                            y={layout.imgY}
-                                            width={layout.imgW}
-                                            height={layout.imgH}
-                                            // Add a thin white border for Floating to separate from bg
-                                            stroke={template === 'floating' ? floatingBorderColor : undefined}
-                                            strokeWidth={template === 'floating' ? layout.imgW * 0.01 : 0}
-                                            cornerRadius={template === 'film' ? layout.imgW * 0.005 : 0}
-                                        />
-                                    )}
+                                        );
+                                    })()}
 
                                     {/* Text Info */}
                                     {customParams && (
