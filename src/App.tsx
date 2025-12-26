@@ -32,6 +32,7 @@ import BatchImageCompressor from "./BatchImageCompressor";
 import GooglePhoto from "./GooglePhoto";
 import ImageSplitter from "./ImageSplitter";
 import Calendar from "./Calendar";
+import ChristmasTreeHand from "./ChristmasTreeHand";
 import PhotoFrame from "./PhotoFrame";
 import { Toaster } from "sonner";
 
@@ -149,6 +150,13 @@ const routeItems = [
         icon: "material-symbols:test-tube",
     },
     {
+        label: "圣诞树",
+        id: "christmas",
+        url: "/christmas",
+        component: <ChristmasTreeHand />,
+        icon: "mdi:pine-tree",
+    },
+    {
         label: "日历",
         id: "calendar",
         url: "/calendar",
@@ -237,6 +245,7 @@ const FloatingButtons = () => {
         { path: "/google-photo", icon: "logos:google-photos", label: "Google 相册" },
         { path: "/compress", icon: "material-symbols:compress", label: "图片压缩" },
         { path: "/wenwu", icon: "ri:globe-line", label: "195禁出" },
+        { path: "/christmas", icon: "mdi:pine-tree", label: "圣诞树" },
     ];
 
     return (

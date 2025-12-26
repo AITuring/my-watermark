@@ -13,12 +13,14 @@ interface ImageWithFixedWidthProps {
     draggable?: boolean;
     onClick?: () => void;
     onTap?: () => void;
+    onDblClick?: () => void;
+    onDblTap?: () => void;
     onDragEnd?: (e: Konva.KonvaEventObject<DragEvent>) => void;
     onTransformEnd?: (e: Konva.KonvaEventObject<Event>) => void;
     onTouchStart?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
     onTouchMove?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
     onTouchEnd?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
-    opacity?: number; // 新增透明度属性
+    opacity?: number;
     rotation?: number;
 }
 
@@ -34,9 +36,11 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
             draggable,
             onClick,
             onTap,
+            onDblClick,
+            onDblTap,
             onDragEnd,
             onTransformEnd,
-            opacity = 1, // 默认不透明
+            opacity = 1,
             ...otherProps
         },
         ref
@@ -63,9 +67,11 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
                 ref={ref}
                 onClick={onClick}
                 onTap={onTap}
+                onDblClick={onDblClick}
+                onDblTap={onDblTap}
                 onDragEnd={onDragEnd}
                 onTransformEnd={onTransformEnd}
-                opacity={opacity} // 应用透明度
+                opacity={opacity}
                 {...otherProps}
                 width={size.width}
                 height={size.height}
