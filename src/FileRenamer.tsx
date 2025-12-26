@@ -9,7 +9,8 @@ import {
   RefreshCw,
   X,
   ArrowRight,
-  Wand2
+  Wand2,
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -56,6 +57,7 @@ interface Rule {
 const FileRenamer: React.FC = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
+  const [filterKeyword, setFilterKeyword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
 
@@ -125,6 +127,7 @@ const FileRenamer: React.FC = () => {
     setFiles([]);
     setDirHandle(null);
     setRules([]);
+    setFilterKeyword('');
     toast.success('已清空列表');
   };
 
@@ -158,7 +161,9 @@ const FileRenamer: React.FC = () => {
 
   // --- Preview Calculation ---
   const processedFiles = useMemo(() => {
-    return files.map(file => {
+    return files
+      .filter(file => file.originalName.toLowerCase().includes(filterKeyword.toLowerCase()))
+      .map(file => {
       let name = file.originalName;
       const extIndex = name.lastIndexOf('.');
       let baseName = extIndex !== -1 ? name.substring(0, extIndex) : name;
@@ -179,16 +184,16 @@ const FileRenamer: React.FC = () => {
         newName: baseName + extension
       };
     });
-  }, [files, rules]);
+  }, [files, rules, filterKeyword]);
 
   // --- Execution ---
   const handleRename = async () => {
-    if (files.length === 0) return;
+    if (processedFiles.length === 0) return;
 
     // 尝试获取工作目录句柄，以优化批量处理权限
     let workingDirHandle = dirHandle;
 
-    if (!workingDirHandle && files.length > 1) {
+    if (!workingDirHandle && processedFiles.length > 1) {
         const confirmMsg = "检测到您选择了多个文件。\n\n为了避免浏览器对每个文件都弹出权限请求，建议您授权这些文件所在的文件夹。\n\n是否现在选择文件夹？";
         if (window.confirm(confirmMsg)) {
             try {
@@ -209,8 +214,8 @@ const FileRenamer: React.FC = () => {
         }
     } else {
         // 如果是单文件模式，尝试获取第一个文件的权限
-        if (files.length > 0) {
-             const hasPerm = await verifyPermission(files[0].handle, true);
+        if (processedFiles.length > 0) {
+             const hasPerm = await verifyPermission(processedFiles[0].handle, true);
              if (!hasPerm) {
                  toast.error("请授予文件读写权限");
                  return;
@@ -286,7 +291,10 @@ const FileRenamer: React.FC = () => {
       }
     }
 
-    setFiles(newFiles);
+    setFiles(prev => {
+      const processedMap = new Map(newFiles.map(f => [f.id, f]));
+      return prev.map(f => processedMap.get(f.id) || f);
+    });
     setIsProcessing(false);
 
     if (successCount > 0) {
@@ -499,13 +507,20 @@ const FileRenamer: React.FC = () => {
                   <FileText className="w-4 h-4 text-slate-400" />
                   <span className="font-semibold text-slate-700 dark:text-slate-200">文件预览</span>
                   <Badge variant="outline" className="ml-2 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700">
-                    {files.length} 个文件
+                    {processedFiles.length !== files.length ? `${processedFiles.length} / ${files.length}` : files.length} 个文件
                   </Badge>
                 </div>
                 {files.length > 0 && (
-                   <span className="text-xs text-slate-400">
-                     预览更改效果
-                   </span>
+                   <div className="relative">
+                     <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                     <input
+                       type="text"
+                       value={filterKeyword}
+                       onChange={(e) => setFilterKeyword(e.target.value)}
+                       placeholder="筛选文件名..."
+                       className="pl-8 pr-3 py-1 text-xs h-7 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8C7CF0] w-40 transition-all placeholder:text-slate-400 text-slate-600 dark:text-slate-300"
+                     />
+                   </div>
                 )}
               </div>
 

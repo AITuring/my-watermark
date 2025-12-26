@@ -32,6 +32,7 @@ import BatchImageCompressor from "./BatchImageCompressor";
 import GooglePhoto from "./GooglePhoto";
 import ImageSplitter from "./ImageSplitter";
 import Calendar from "./Calendar";
+import PhotoFrame from "./PhotoFrame";
 import { Toaster } from "sonner";
 
 
@@ -63,6 +64,13 @@ const routeItems = [
         url: "/google-photo",
         component: <GooglePhoto />,
         icon: "logos:google-photos",
+    },
+    {
+        label: "简约相框",
+        id: "frame",
+        url: "/frame",
+        component: <PhotoFrame />,
+        icon: "ri:image-edit-line",
     },
     {
         label: "图片分割",
