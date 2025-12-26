@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect, Text, Group } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Rect, Text, Group, Circle } from 'react-konva';
 import useImage from 'use-image';
 import ExifReader from 'exifreader';
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ interface FrameImage {
     exif: ExifData;
 }
 
-type FrameTemplate = 'gallery' | 'floating' | 'polaroid' | 'magazine' | 'film';
+type FrameTemplate = 'gallery' | 'floating' | 'polaroid' | 'magazine' | 'film' | 'round';
 
 const PhotoFrame: React.FC = () => {
     // State
@@ -59,6 +59,9 @@ const PhotoFrame: React.FC = () => {
     const [floatingShadowSize, setFloatingShadowSize] = useState(0.05);
     const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
     const [bgImageObj] = useImage(backgroundImage || '', 'anonymous');
+
+    const [roundRingColor, setRoundRingColor] = useState('#000000');
+    const [roundRingWidth, setRoundRingWidth] = useState(0.015);
 
     const PRESETS = {
         brands: ['Sony', 'Fujifilm', 'Canon', 'Nikon', 'Leica', 'Apple', 'DJI', 'Hasselblad', 'Panasonic', 'Olympus', 'Ricoh', 'Sigma'],
@@ -238,8 +241,8 @@ const PhotoFrame: React.FC = () => {
     const layout = useMemo(() => {
         if (!konvaImage) return null;
 
-        const imgW = konvaImage.width;
-        const imgH = konvaImage.height;
+       let imgW = konvaImage.width;
+        let imgH = konvaImage.height;
 
         let borderW = imgW * borderSize;
         let bottomH = 0;
@@ -247,6 +250,8 @@ const PhotoFrame: React.FC = () => {
         let totalH = 0;
         let imgX = 0;
         let imgY = 0;
+        let roundDiameter = 0;
+        let roundPad = 0;
 
         if (template === 'gallery') {
             // Gallery: Classic Polaroid/Museum mat
@@ -307,12 +312,37 @@ const PhotoFrame: React.FC = () => {
             imgX = 0;
             imgY = fBar;
             bottomH = fBar;
+        } else if (template === 'round') {
+            const diameter = Math.min(imgW, imgH);
+            const pad = Math.max(diameter * 0.15, imgW * borderSize);
+
+            totalW = diameter + pad * 2;
+            totalH = diameter + pad * 2;
+
+            const baseScale = Math.min(diameter / imgW, diameter / imgH);
+            const dispW = imgW * baseScale * Math.max(1, roundImgScale);
+            const dispH = imgH * baseScale * Math.max(1, roundImgScale);
+
+            imgW = dispW;
+            imgH = dispH;
+
+            const minX = diameter - dispW;
+            const minY = diameter - dispH;
+            const offX = Math.min(0, Math.max(minX, roundImgPos.x));
+            const offY = Math.min(0, Math.max(minY, roundImgPos.y));
+
+            bottomH = 0;
+            borderW = pad;
+            roundDiameter = diameter;
+            roundPad = pad;
+            var roundImgX = offX;
+            var roundImgY = offY;
         }
 
         const scale = Math.min(stageWidth / totalW, stageHeight / totalH);
 
-        return { totalW, totalH, imgX, imgY, imgW, imgH, scale, bottomH, borderW };
-    }, [konvaImage, template, borderSize, bottomSize, stageWidth, stageHeight]);
+        return { totalW, totalH, imgX, imgY, imgW, imgH, scale, bottomH, borderW, roundPad, roundDiameter, roundImgX, roundImgY };
+    }, [konvaImage, template, borderSize, bottomSize, stageWidth, stageHeight, roundImgScale, roundImgPos]);
 
     // Handle param changes
     const updateParam = (key: keyof ExifData, value: string) => {
@@ -373,15 +403,15 @@ const PhotoFrame: React.FC = () => {
 
     if (images.length === 0) {
          return (
-             <div className="fixed inset-0 z-50 flex flex-col items-center justify-center  bg-zinc-950 text-white">
-                <div className="w-full max-w-xl p-8 border border-white/10 rounded-xl bg-zinc-900/50 backdrop-blur-sm text-center">
+             <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white text-black dark:bg-zinc-950 dark:text-white">
+                <div className="w-full max-w-xl p-8 border rounded-xl backdrop-blur-sm text-center bg-white dark:bg-zinc-900/50 border-zinc-200 dark:border-white/10">
                     <div className="mb-6 flex justify-center">
-                        <div className="p-4 bg-white/10 rounded-full">
-                            <Upload className="w-10 h-10 text-white" />
+                        <div className="p-4 rounded-full bg-black/10 dark:bg-white/10">
+                            <Upload className="w-10 h-10 text-black dark:text-white" />
                         </div>
                     </div>
                     <h2 className="text-2xl font-bold mb-2">上传图片</h2>
-                    <p className="text-gray-400 mb-8">添加优雅的边框和拍摄参数</p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-8">添加优雅的边框和拍摄参数</p>
                     <ImageUploader onUpload={handleUpload} />
                 </div>
             </div>
@@ -389,11 +419,11 @@ const PhotoFrame: React.FC = () => {
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col h-full w-full bg-zinc-950 text-white overflow-hidden">
+        <div className="fixed inset-0 z-50 flex flex-col h-full w-full bg-white text-black dark:bg-zinc-950 dark:text-white overflow-hidden">
             {/* Main Workspace */}
             <div className="flex-1 flex overflow-hidden">
                 {/* Left: Style Controls */}
-                <div className="w-80 bg-zinc-950 border-r border-white/10 flex flex-col z-10 h-full overflow-hidden">
+                <div className="w-80 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-white/10 flex flex-col z-10 h-full overflow-hidden">
                     <div className="p-4 border-b border-white/10">
                         <h3 className="font-semibold text-sm">外观样式</h3>
                     </div>
@@ -405,6 +435,7 @@ const PhotoFrame: React.FC = () => {
                                 <div className="grid grid-cols-3 gap-2">
                                     {[
                                         { id: 'gallery', name: '画廊', icon: ImageIcon },
+                                        { id: 'round', name: '圆形', icon: Aperture },
                                         { id: 'film', name: '电影胶卷', icon: Film },
                                         { id: 'floating', name: '悬浮', icon: BoxSelect },
                                         { id: 'polaroid', name: '拍立得', icon: Camera },
@@ -416,7 +447,7 @@ const PhotoFrame: React.FC = () => {
                                             className={`flex flex-col items-center justify-center p-3 rounded-lg border transition-all ${
                                                 template === t.id
                                                     ? 'bg-white text-black border-white'
-                                                    : 'bg-zinc-900 border-zinc-800 text-gray-400 hover:bg-zinc-800'
+                                                    : 'bg-zinc-100 border-zinc-200 text-gray-600 hover:bg-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 dark:text-gray-400 dark:hover:bg-zinc-800'
                                             }`}
                                         >
                                             <t.icon className="w-6 h-6 mb-2" />
@@ -542,6 +573,33 @@ const PhotoFrame: React.FC = () => {
                                     </div>
                                 )}
 
+                                {template === 'round' && (
+                                    <div className="space-y-4 border-t border-white/10 pt-4 mt-4">
+                                        <Label className="text-xs font-semibold text-gray-400">圆形样式设置</Label>
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-xs">圆环颜色</Label>
+                                            <input type="color" value={roundRingColor} onChange={(e) => setRoundRingColor(e.target.value)} className="w-6 h-6 rounded-full overflow-hidden border-0 p-0" />
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between">
+                                                <Label className="text-xs">圆环宽度</Label>
+                                                <span className="text-xs text-muted-foreground">{Math.round(roundRingWidth * 100)}%</span>
+                                            </div>
+                                            <Slider value={[roundRingWidth * 100]} max={10} step={0.5} onValueChange={(v) => setRoundRingWidth(v[0] / 100)} />
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between">
+                                                <Label className="text-xs">缩放</Label>
+                                                <span className="text-xs text-muted-foreground">{Math.round(roundImgScale * 100)}%</span>
+                                            </div>
+                                            <Slider value={[roundImgScale * 100]} min={100} max={300} step={5} onValueChange={(v) => setRoundImgScale(v[0] / 100)} />
+                                        </div>
+                                        <div className="flex gap-2 justify-end">
+                                            <Button variant="outline" size="sm" onClick={() => { setRoundImgScale(1); setRoundImgPos({ x: 0, y: 0 }); }}>重置</Button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="flex items-center justify-between">
                                     <Label>文字颜色</Label>
                                     <div className="flex items-center gap-2">
@@ -564,7 +622,7 @@ const PhotoFrame: React.FC = () => {
 
                 {/* Center: Canvas Area */}
                 <div
-                    className="flex-1 flex items-center justify-center bg-zinc-900/30 p-8 relative"
+                    className="flex-1 flex items-center justify-center bg-zinc-100/50 dark:bg-zinc-900/30 p-8 relative"
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                 >
@@ -610,17 +668,56 @@ const PhotoFrame: React.FC = () => {
                                     )}
 
                                     {/* Image */}
-                                    <KonvaImage
-                                        image={konvaImage}
-                                        x={layout.imgX}
-                                        y={layout.imgY}
-                                        width={layout.imgW}
-                                        height={layout.imgH}
-                                        // Add a thin white border for Floating to separate from bg
-                                        stroke={template === 'floating' ? floatingBorderColor : undefined}
-                                        strokeWidth={template === 'floating' ? layout.imgW * 0.01 : 0}
-                                        cornerRadius={template === 'film' ? layout.imgW * 0.005 : 0}
-                                    />
+                                    {template === 'round' ? (
+                                        <>
+                                            <Group
+                                                x={layout.roundPad}
+                                                y={layout.roundPad}
+                                                clipFunc={(ctx) => {
+                                                    const d = layout.roundDiameter;
+                                                    ctx.beginPath();
+                                                    ctx.arc(d / 2, d / 2, d / 2, 0, Math.PI * 2);
+                                                    ctx.closePath();
+                                                }}
+                                            >
+                                                <KonvaImage
+                                                    image={konvaImage}
+                                                    x={layout.roundImgX}
+                                                    y={layout.roundImgY}
+                                                    width={layout.imgW}
+                                                    height={layout.imgH}
+                                                    draggable
+                                                    dragBoundFunc={(pos) => {
+                                                        const minX = layout.roundDiameter - layout.imgW;
+                                                        const minY = layout.roundDiameter - layout.imgH;
+                                                        const x = Math.min(0, Math.max(minX, pos.x));
+                                                        const y = Math.min(0, Math.max(minY, pos.y));
+                                                        return { x, y };
+                                                    }}
+                                                    onDragEnd={(e) => setRoundImgPos({ x: e.target.x(), y: e.target.y() })}
+                                                />
+                                            </Group>
+                                            <Circle
+                                                x={layout.roundPad + layout.roundDiameter / 2}
+                                                y={layout.roundPad + layout.roundDiameter / 2}
+                                                radius={layout.roundDiameter / 2}
+                                                stroke={roundRingColor}
+                                                strokeWidth={Math.max(2, layout.roundDiameter * roundRingWidth)}
+                                            />
+                                        </>
+                                    ) : (
+                                        <KonvaImage
+                                            image={konvaImage}
+                                            x={layout.imgX}
+                                            y={layout.imgY}
+                                            width={layout.imgW}
+                                            height={layout.imgH}
+                                            // Add a thin white border for Floating to separate from bg
+                                            stroke={template === 'floating' ? floatingBorderColor : undefined}
+                                            strokeWidth={template === 'floating' ? layout.imgW * 0.01 : 0}
+                                            cornerRadius={template === 'film' ? layout.imgW * 0.005 : 0}
+                                        />
+                                    )}
 
                                     {/* Text Info */}
                                     {customParams && (
@@ -808,11 +905,11 @@ const PhotoFrame: React.FC = () => {
                 </div>
 
                 {/* Right: Controls & EXIF */}
-                <div className="w-80 bg-zinc-950 border-l border-white/10 flex flex-col z-10 h-full overflow-hidden">
+                <div className="w-80 bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-white/10 flex flex-col z-10 h-full overflow-hidden">
                     <Tabs defaultValue="params" className="flex-1 flex flex-col overflow-hidden">
                         <div className="p-4 border-b border-white/10">
                             <h3 className="font-semibold text-sm mb-3">图片信息</h3>
-                            <TabsList className="grid w-full grid-cols-2 bg-zinc-900 p-1">
+                            <TabsList className="grid w-full grid-cols-2 bg-zinc-100 dark:bg-zinc-900 p-1">
                                 <TabsTrigger value="params">参数编辑</TabsTrigger>
                                 <TabsTrigger value="exif">原始数据</TabsTrigger>
                             </TabsList>
@@ -829,12 +926,12 @@ const PhotoFrame: React.FC = () => {
                                                     <Label className="text-xs text-gray-400">品牌</Label>
                                                     <div className="col-span-3 flex gap-1">
                                                         <Input
-                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1"
+                                                            className="h-8 flex-1 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-black dark:text-white"
                                                             value={customParams.make}
                                                             onChange={(e) => updateParam('make', e.target.value)}
                                                         />
                                                         <Select onValueChange={(v) => updateParam('make', v)}>
-                                                            <SelectTrigger className="h-8 w-8 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                            <SelectTrigger className="h-8 w-8 px-0 justify-center bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-muted-foreground">
                                                                 <span className="sr-only">选择品牌</span>
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -849,12 +946,12 @@ const PhotoFrame: React.FC = () => {
                                                     <Label className="text-xs text-gray-400">型号</Label>
                                                     <div className="col-span-3 flex gap-1">
                                                         <Input
-                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1"
+                                                            className="h-8 flex-1 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-black dark:text-white"
                                                             value={customParams.model}
                                                             onChange={(e) => updateParam('model', e.target.value)}
                                                         />
                                                         <Select onValueChange={(v) => updateParam('model', v)}>
-                                                            <SelectTrigger className="h-8 w-8 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                            <SelectTrigger className="h-8 w-8 px-0 justify-center bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-muted-foreground">
                                                                 <span className="sr-only">选择型号</span>
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -868,7 +965,7 @@ const PhotoFrame: React.FC = () => {
                                                 <div className="grid grid-cols-4 items-center gap-2">
                                                     <Label className="text-xs text-gray-400">镜头</Label>
                                                     <Input
-                                                        className="col-span-3 h-8 bg-zinc-900 border-zinc-800"
+                                                        className="col-span-3 h-8 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-black dark:text-white"
                                                         value={customParams.lens}
                                                         onChange={(e) => updateParam('lens', e.target.value)}
                                                     />
@@ -876,13 +973,13 @@ const PhotoFrame: React.FC = () => {
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <div className="flex gap-1">
                                                         <Input
-                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1 min-w-0"
+                                                            className="h-8 flex-1 min-w-0 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-black dark:text-white"
                                                             value={customParams.focalLength}
                                                             onChange={(e) => updateParam('focalLength', e.target.value)}
                                                             placeholder="焦距"
                                                         />
                                                         <Select onValueChange={(v) => updateParam('focalLength', v)}>
-                                                            <SelectTrigger className="h-8 w-6 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                            <SelectTrigger className="h-8 w-6 px-0 justify-center bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-muted-foreground">
                                                                 <span className="sr-only">焦距</span>
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -894,13 +991,13 @@ const PhotoFrame: React.FC = () => {
                                                     </div>
                                                     <div className="flex gap-1">
                                                         <Input
-                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1 min-w-0"
+                                                            className="h-8 flex-1 min-w-0 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-black dark:text-white"
                                                             value={customParams.fNumber}
                                                             onChange={(e) => updateParam('fNumber', e.target.value)}
                                                             placeholder="光圈"
                                                         />
                                                         <Select onValueChange={(v) => updateParam('fNumber', v)}>
-                                                            <SelectTrigger className="h-8 w-6 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                            <SelectTrigger className="h-8 w-6 px-0 justify-center bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-muted-foreground">
                                                                 <span className="sr-only">光圈</span>
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -914,13 +1011,13 @@ const PhotoFrame: React.FC = () => {
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <div className="flex gap-1">
                                                         <Input
-                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1 min-w-0"
+                                                            className="h-8 flex-1 min-w-0 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-black dark:text-white"
                                                             value={customParams.exposureTime}
                                                             onChange={(e) => updateParam('exposureTime', e.target.value)}
                                                             placeholder="快门"
                                                         />
                                                         <Select onValueChange={(v) => updateParam('exposureTime', v)}>
-                                                            <SelectTrigger className="h-8 w-6 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                            <SelectTrigger className="h-8 w-6 px-0 justify-center bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-muted-foreground">
                                                                 <span className="sr-only">快门</span>
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -932,13 +1029,13 @@ const PhotoFrame: React.FC = () => {
                                                     </div>
                                                     <div className="flex gap-1">
                                                         <Input
-                                                            className="h-8 bg-zinc-900 border-zinc-800 flex-1 min-w-0"
+                                                            className="h-8 flex-1 min-w-0 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-black dark:text-white"
                                                             value={customParams.iso}
                                                             onChange={(e) => updateParam('iso', e.target.value)}
                                                             placeholder="ISO"
                                                         />
                                                         <Select onValueChange={(v) => updateParam('iso', v)}>
-                                                            <SelectTrigger className="h-8 w-6 px-0 border-zinc-800 bg-zinc-900 justify-center text-muted-foreground">
+                                                            <SelectTrigger className="h-8 w-6 px-0 justify-center bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-muted-foreground">
                                                                 <span className="sr-only">ISO</span>
                                                             </SelectTrigger>
                                                             <SelectContent>
@@ -953,12 +1050,12 @@ const PhotoFrame: React.FC = () => {
                                                     <Label className="text-xs text-gray-400">日期</Label>
                                                     <div className="col-span-3 flex gap-2">
                                                         <Input
-                                                            className="flex-1 h-8 bg-zinc-900 border-zinc-800"
+                                                            className="flex-1 h-8 bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-800 text-black dark:text-white"
                                                             value={customParams.dateTime}
                                                             onChange={(e) => updateParam('dateTime', e.target.value)}
                                                         />
                                                         <div className="relative">
-                                                            <Button variant="outline" size="icon" className="h-8 w-8 border-zinc-800 bg-zinc-900 text-muted-foreground">
+                                                            <Button variant="outline" size="icon" className="h-8 w-8 border-zinc-300 bg-white text-gray-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-muted-foreground">
                                                                 <CalendarIcon className="h-4 w-4" />
                                                             </Button>
                                                             <input
@@ -977,9 +1074,9 @@ const PhotoFrame: React.FC = () => {
 
                                 <TabsContent value="exif" className="m-0">
                                     {selectedImage && (
-                                        <Card className="bg-zinc-900 border-zinc-800 p-4 space-y-6">
+                                        <Card className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 p-4 space-y-6">
                                             <div className="space-y-4">
-                                                <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
+                                                <div className="bg-zinc-100/60 dark:bg-zinc-800/50 rounded-lg p-3 space-y-2">
                                                     <div className="flex justify-between text-sm">
                                                         <span className="text-gray-400">文件</span>
                                                         <span className="font-mono truncate max-w-[150px]">{selectedImage.exif.fileName}</span>
@@ -995,34 +1092,34 @@ const PhotoFrame: React.FC = () => {
                                                 </div>
 
                                                 <div className="space-y-2">
-                                                    <div className="flex justify-between text-sm py-1 border-b border-zinc-800">
-                                                        <span className="text-gray-400">厂商</span>
+                                                    <div className="flex justify-between text-sm py-1 border-b border-zinc-200 dark:border-zinc-800">
+                                                        <span className="text-gray-600 dark:text-gray-400">厂商</span>
                                                         <span>{selectedImage.exif.make}</span>
                                                     </div>
-                                                    <div className="flex justify-between text-sm py-1 border-b border-zinc-800">
-                                                        <span className="text-gray-400">型号</span>
+                                                    <div className="flex justify-between text-sm py-1 border-b border-zinc-200 dark:border-zinc-800">
+                                                        <span className="text-gray-600 dark:text-gray-400">型号</span>
                                                         <span>{selectedImage.exif.model}</span>
                                                     </div>
-                                                    <div className="flex justify-between text-sm py-1 border-b border-zinc-800">
-                                                        <span className="text-gray-400">软件</span>
+                                                    <div className="flex justify-between text-sm py-1 border-b border-zinc-200 dark:border-zinc-800">
+                                                        <span className="text-gray-600 dark:text-gray-400">软件</span>
                                                         <span className="truncate max-w-[150px]">{selectedImage.exif.software || '-'}</span>
                                                     </div>
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-3">
-                                                    <div className="bg-zinc-800/30 p-2 rounded text-center">
+                                                    <div className="bg-zinc-100/60 dark:bg-zinc-800/30 p-2 rounded text-center">
                                                         <div className="text-xs text-gray-500 uppercase">Focal</div>
                                                         <div className="font-medium">{selectedImage.exif.focalLength}</div>
                                                     </div>
-                                                    <div className="bg-zinc-800/30 p-2 rounded text-center">
+                                                    <div className="bg-zinc-100/60 dark:bg-zinc-800/30 p-2 rounded text-center">
                                                         <div className="text-xs text-gray-500 uppercase">Aperture</div>
                                                         <div className="font-medium">{selectedImage.exif.fNumber}</div>
                                                     </div>
-                                                    <div className="bg-zinc-800/30 p-2 rounded text-center">
+                                                    <div className="bg-zinc-100/60 dark:bg-zinc-800/30 p-2 rounded text-center">
                                                         <div className="text-xs text-gray-500 uppercase">Shutter</div>
                                                         <div className="font-medium">{selectedImage.exif.exposureTime}</div>
                                                     </div>
-                                                    <div className="bg-zinc-800/30 p-2 rounded text-center">
+                                                    <div className="bg-zinc-100/60 dark:bg-zinc-800/30 p-2 rounded text-center">
                                                         <div className="text-xs text-gray-500 uppercase">ISO</div>
                                                         <div className="font-medium">{selectedImage.exif.iso}</div>
                                                     </div>
@@ -1049,7 +1146,7 @@ const PhotoFrame: React.FC = () => {
             </div>
 
             {/* Bottom: Gallery Bar */}
-            <div className=" bg-zinc-900 border-t border-white/10 flex flex-col">
+            <div className="bg-zinc-100 dark:bg-zinc-900 border-t border-zinc-200 dark:border-white/10 flex flex-col">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
                     <div className="flex items-center gap-2">
                         <Film className="w-4 h-4 text-gray-400" />
@@ -1080,7 +1177,7 @@ const PhotoFrame: React.FC = () => {
                                 onClick={() => setSelectedId(img.id)}
                                 className={`relative group cursor-pointer transition-all duration-300 flex-shrink-0 ${
                                     selectedId === img.id
-                                        ? 'ring-2 ring-white scale-105'
+                                        ? 'ring-2 ring-black dark:ring-white scale-105'
                                         : 'opacity-60 hover:opacity-100 hover:scale-105'
                                 }`}
                             >
