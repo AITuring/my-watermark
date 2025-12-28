@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect, Text, Group, Circle } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Rect, Text, Group, Circle, Line } from 'react-konva';
 import useImage from 'use-image';
 import ExifReader from 'exifreader';
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ interface FrameImage {
 
 type FrameTemplate = 'gallery' | 'floating' | 'polaroid' | 'magazine' | 'film' | 'round';
 type AspectRatio = 'original' | '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '21:9';
+type WatermarkStyle = 'classic' | 'tech' | 'minimal' | 'bold' | 'simple';
 
 const PhotoFrame: React.FC = () => {
     // State
@@ -46,6 +47,7 @@ const PhotoFrame: React.FC = () => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [template, setTemplate] = useState<FrameTemplate>('gallery');
     const [aspectRatio, setAspectRatio] = useState<AspectRatio>('original');
+    const [watermarkStyle, setWatermarkStyle] = useState<WatermarkStyle>('classic');
 
     // Style Settings
     const [borderSize, setBorderSize] = useState(0.05); // 0.0 - 0.15
@@ -481,25 +483,52 @@ const PhotoFrame: React.FC = () => {
                     <ScrollArea className="flex-1">
                         <div className="p-4 space-y-6">
                             {/* Aspect Ratio Selector */}
-                            <div className="space-y-3">
-                                <Label>图片比例</Label>
-                                <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
-                                    <SelectTrigger className="w-full bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
-                                        <span className="truncate">{aspectRatio === 'original' ? '原始比例' : aspectRatio}</span>
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="original">原始比例</SelectItem>
-                                        <SelectItem value="1:1">1:1 (正方形)</SelectItem>
-                                        <SelectItem value="4:3">4:3 (横向)</SelectItem>
-                                        <SelectItem value="3:4">3:4 (纵向)</SelectItem>
-                                        <SelectItem value="3:2">3:2 (标准)</SelectItem>
-                                        <SelectItem value="2:3">2:3 (标准)</SelectItem>
-                                        <SelectItem value="16:9">16:9 (电影)</SelectItem>
-                                        <SelectItem value="9:16">9:16 (快拍)</SelectItem>
-                                        <SelectItem value="21:9">21:9 (宽屏)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            {template !== 'round' && (
+                                <div className="space-y-3">
+                                    <Label>图片比例</Label>
+                                    <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
+                                        <SelectTrigger className="w-full bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+                                            <span className="truncate">{aspectRatio === 'original' ? '原始比例' : aspectRatio}</span>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="original">原始比例</SelectItem>
+                                            <SelectItem value="1:1">1:1 (正方形)</SelectItem>
+                                            <SelectItem value="4:3">4:3 (横向)</SelectItem>
+                                            <SelectItem value="3:4">3:4 (纵向)</SelectItem>
+                                            <SelectItem value="3:2">3:2 (标准)</SelectItem>
+                                            <SelectItem value="2:3">2:3 (标准)</SelectItem>
+                                            <SelectItem value="16:9">16:9 (电影)</SelectItem>
+                                            <SelectItem value="9:16">9:16 (快拍)</SelectItem>
+                                            <SelectItem value="21:9">21:9 (宽屏)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+
+                             {/* Watermark Style Selector (Gallery Only) */}
+                             {template === 'gallery' && (
+                                <div className="space-y-3">
+                                    <Label>水印布局</Label>
+                                    <Select value={watermarkStyle} onValueChange={(v) => setWatermarkStyle(v as WatermarkStyle)}>
+                                        <SelectTrigger className="w-full bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+                                            <span className="truncate">
+                                                {watermarkStyle === 'classic' && '经典布局'}
+                                                {watermarkStyle === 'tech' && '旗舰影像 (模拟)'}
+                                                {watermarkStyle === 'minimal' && '极简居中'}
+                                                {watermarkStyle === 'bold' && '居中大字'}
+                                                {watermarkStyle === 'simple' && '左对齐'}
+                                            </span>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="classic">经典布局</SelectItem>
+                                            <SelectItem value="tech">旗舰影像 (模拟)</SelectItem>
+                                            <SelectItem value="minimal">极简居中</SelectItem>
+                                            <SelectItem value="bold">居中大字</SelectItem>
+                                            <SelectItem value="simple">左对齐</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
 
                             {/* Templates */}
                             <div className="space-y-3">
@@ -923,40 +952,178 @@ const PhotoFrame: React.FC = () => {
                                         <Group>
                                             {(template === 'gallery' || template === 'polaroid') && (
                                                 <Group x={layout.imgX} y={layout.imgY + layout.imgH + (layout.bottomH - layout.borderW) / 2}>
-                                                    {/* Left: Brand/Model */}
-                                                    <Text
-                                                        text={`${customParams.make}\n${customParams.model}`}
-                                                        fontSize={layout.imgH * 0.025 * fontSize * 1.2}
-                                                        fontStyle="bold"
-                                                        fill={textColor}
-                                                        fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
-                                                        lineHeight={1.2}
-                                                        y={-layout.imgH * 0.025 * fontSize * 0.5}
-                                                    />
 
-                                                    {/* Right: Params */}
-                                                    <Group>
-                                                         <Text
-                                                            text={`${customParams.focalLength}  ${customParams.fNumber}  ${customParams.exposureTime}  ${customParams.iso}`}
-                                                            fontSize={layout.imgH * 0.025 * fontSize * 1.2}
-                                                            fontStyle="bold"
-                                                            fill={textColor}
-                                                            fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
-                                                            align="right"
-                                                            width={layout.imgW}
-                                                            y={-layout.imgH * 0.025 * fontSize * 0.5}
-                                                        />
-                                                        <Text
-                                                            text={customParams.dateTime}
-                                                            fontSize={layout.imgH * 0.02 * fontSize}
-                                                            fill={textColor}
-                                                            opacity={0.6}
-                                                            fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
-                                                            align="right"
-                                                            width={layout.imgW}
-                                                            y={layout.imgH * 0.025 * fontSize * 1.2}
-                                                        />
-                                                    </Group>
+                                                    {/* Style: Classic (Original) */}
+                                                    {(watermarkStyle === 'classic' || template === 'polaroid') && (
+                                                        <Group>
+                                                            {/* Left: Brand/Model */}
+                                                            <Text
+                                                                text={`${customParams.make}\n${customParams.model}`}
+                                                                fontSize={layout.imgH * 0.025 * fontSize * 1.2}
+                                                                fontStyle="bold"
+                                                                fill={textColor}
+                                                                fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
+                                                                lineHeight={1.2}
+                                                                y={-layout.imgH * 0.025 * fontSize * 0.5}
+                                                            />
+                                                            {/* Right: Params */}
+                                                            <Group>
+                                                                 <Text
+                                                                    text={`${customParams.focalLength}  ${customParams.fNumber}  ${customParams.exposureTime}  ${customParams.iso}`}
+                                                                    fontSize={layout.imgH * 0.025 * fontSize * 1.2}
+                                                                    fontStyle="bold"
+                                                                    fill={textColor}
+                                                                    fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
+                                                                    align="right"
+                                                                    width={layout.imgW}
+                                                                    y={-layout.imgH * 0.025 * fontSize * 0.5}
+                                                                />
+                                                                <Text
+                                                                    text={customParams.dateTime}
+                                                                    fontSize={layout.imgH * 0.02 * fontSize}
+                                                                    fill={textColor}
+                                                                    opacity={0.6}
+                                                                    fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
+                                                                    align="right"
+                                                                    width={layout.imgW}
+                                                                    y={layout.imgH * 0.025 * fontSize * 1.2}
+                                                                />
+                                                            </Group>
+                                                        </Group>
+                                                    )}
+
+                                                    {/* Style: Tech (Simulated Brand Layout) */}
+                                                    {template === 'gallery' && watermarkStyle === 'tech' && (
+                                                        <Group>
+                                                            {/* Logo/Brand Area (Simulated Red Dot if Leica/Xiaomi, or just text) */}
+                                                            <Group y={-layout.imgH * 0.015 * fontSize}>
+                                                                <Circle
+                                                                    radius={layout.imgH * 0.035 * fontSize}
+                                                                    fill="#D90000"
+                                                                    y={layout.imgH * 0.015 * fontSize}
+                                                                    x={layout.imgH * 0.035 * fontSize}
+                                                                />
+                                                                <Text
+                                                                    text={customParams.make.substring(0, 1).toUpperCase()}
+                                                                    fontSize={layout.imgH * 0.03 * fontSize}
+                                                                    fontStyle="bold"
+                                                                    fill="white"
+                                                                    align="center"
+                                                                    width={layout.imgH * 0.07 * fontSize}
+                                                                    y={0}
+                                                                />
+                                                            </Group>
+
+                                                            <Text
+                                                                text={`${customParams.model}`}
+                                                                fontSize={layout.imgH * 0.03 * fontSize}
+                                                                fontStyle="bold"
+                                                                fill={textColor}
+                                                                x={layout.imgH * 0.09 * fontSize}
+                                                                y={-layout.imgH * 0.005 * fontSize}
+                                                            />
+
+                                                            {/* Divider & Params */}
+                                                            <Group x={layout.imgW} offsetX={0}>
+                                                                <Line
+                                                                    points={[0, -layout.imgH * 0.02 * fontSize, 0, layout.imgH * 0.05 * fontSize]}
+                                                                    stroke={textColor}
+                                                                    strokeWidth={1}
+                                                                    opacity={0.3}
+                                                                    x={-layout.imgW * 0.35} // Approx pos
+                                                                />
+                                                                {/* We need precise alignment, using right alignment on width */}
+                                                                <Text
+                                                                    text={`${customParams.focalLength} ${customParams.fNumber} ${customParams.exposureTime} ${customParams.iso}`}
+                                                                    fontSize={layout.imgH * 0.022 * fontSize}
+                                                                    fontStyle="bold"
+                                                                    fill={textColor}
+                                                                    align="right"
+                                                                    width={layout.imgW}
+                                                                    y={-layout.imgH * 0.015 * fontSize}
+                                                                />
+                                                                 <Text
+                                                                    text={customParams.dateTime}
+                                                                    fontSize={layout.imgH * 0.018 * fontSize}
+                                                                    fill={textColor}
+                                                                    opacity={0.5}
+                                                                    align="right"
+                                                                    width={layout.imgW}
+                                                                    y={layout.imgH * 0.02 * fontSize}
+                                                                />
+                                                            </Group>
+                                                        </Group>
+                                                    )}
+
+                                                    {/* Style: Minimal (Centered) */}
+                                                    {template === 'gallery' && watermarkStyle === 'minimal' && (
+                                                        <Group>
+                                                            <Text
+                                                                text={`${customParams.model}  ·  ${customParams.focalLength} ${customParams.fNumber} ${customParams.iso}`}
+                                                                fontSize={layout.imgH * 0.02 * fontSize}
+                                                                fill={textColor}
+                                                                opacity={0.8}
+                                                                align="center"
+                                                                width={layout.imgW}
+                                                                y={-layout.imgH * 0.01 * fontSize}
+                                                            />
+                                                            <Text
+                                                                text={customParams.dateTime}
+                                                                fontSize={layout.imgH * 0.015 * fontSize}
+                                                                fill={textColor}
+                                                                opacity={0.5}
+                                                                align="center"
+                                                                width={layout.imgW}
+                                                                y={layout.imgH * 0.02 * fontSize}
+                                                            />
+                                                        </Group>
+                                                    )}
+
+                                                    {/* Style: Bold (Center Big Model) */}
+                                                    {template === 'gallery' && watermarkStyle === 'bold' && (
+                                                        <Group>
+                                                            <Text
+                                                                text={customParams.model.toUpperCase()}
+                                                                fontSize={layout.imgH * 0.04 * fontSize}
+                                                                fontStyle="bold"
+                                                                fill={textColor}
+                                                                align="center"
+                                                                width={layout.imgW}
+                                                                y={-layout.imgH * 0.02 * fontSize}
+                                                                letterSpacing={2}
+                                                            />
+                                                            <Text
+                                                                text={`${customParams.focalLength} | ${customParams.fNumber} | ${customParams.exposureTime} | ${customParams.iso}`}
+                                                                fontSize={layout.imgH * 0.018 * fontSize}
+                                                                fill={textColor}
+                                                                opacity={0.7}
+                                                                align="center"
+                                                                width={layout.imgW}
+                                                                y={layout.imgH * 0.035 * fontSize}
+                                                            />
+                                                        </Group>
+                                                    )}
+
+                                                     {/* Style: Simple (Left Aligned) */}
+                                                     {template === 'gallery' && watermarkStyle === 'simple' && (
+                                                        <Group>
+                                                            <Text
+                                                                text={`${customParams.model}`}
+                                                                fontSize={layout.imgH * 0.025 * fontSize}
+                                                                fontStyle="bold"
+                                                                fill={textColor}
+                                                                y={-layout.imgH * 0.015 * fontSize}
+                                                            />
+                                                            <Text
+                                                                text={`${customParams.focalLength}  ${customParams.fNumber}  ${customParams.iso}  ${customParams.dateTime}`}
+                                                                fontSize={layout.imgH * 0.02 * fontSize}
+                                                                fill={textColor}
+                                                                opacity={0.6}
+                                                                y={layout.imgH * 0.02 * fontSize}
+                                                            />
+                                                        </Group>
+                                                    )}
+
                                                 </Group>
                                             )}
 
