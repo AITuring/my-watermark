@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Stage, Layer, Image as KonvaImage, Rect, Text, Group, Circle } from 'react-konva';
+import { Stage, Layer, Image as KonvaImage, Rect, Text, Group, Circle, Line } from 'react-konva';
 import useImage from 'use-image';
 import ExifReader from 'exifreader';
 import { Button } from "@/components/ui/button";
@@ -38,12 +38,16 @@ interface FrameImage {
 }
 
 type FrameTemplate = 'gallery' | 'floating' | 'polaroid' | 'magazine' | 'film' | 'round';
+type AspectRatio = 'original' | '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '21:9';
+type WatermarkStyle = 'classic' | 'tech' | 'minimal' | 'bold' | 'simple';
 
 const PhotoFrame: React.FC = () => {
     // State
     const [images, setImages] = useState<FrameImage[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [template, setTemplate] = useState<FrameTemplate>('gallery');
+    const [aspectRatio, setAspectRatio] = useState<AspectRatio>('original');
+    const [watermarkStyle, setWatermarkStyle] = useState<WatermarkStyle>('classic');
 
     // Style Settings
     const [borderSize, setBorderSize] = useState(0.05); // 0.0 - 0.15
@@ -62,6 +66,9 @@ const PhotoFrame: React.FC = () => {
 
     const [roundRingColor, setRoundRingColor] = useState('#000000');
     const [roundRingWidth, setRoundRingWidth] = useState(0.015);
+
+    // Unified Image Transform State (Scale & Position)
+    const [imgParams, setImgParams] = useState({ scale: 1, x: 0, y: 0 });
 
     const PRESETS = {
         brands: ['Sony', 'Fujifilm', 'Canon', 'Nikon', 'Leica', 'Apple', 'DJI', 'Hasselblad', 'Panasonic', 'Olympus', 'Ricoh', 'Sigma'],
@@ -88,6 +95,11 @@ const PhotoFrame: React.FC = () => {
     const stageRef = useRef<any>(null);
     const selectedImage = useMemo(() => images.find(img => img.id === selectedId), [images, selectedId]);
     const [konvaImage] = useImage(selectedImage?.url || '', 'anonymous');
+
+    // Reset image params when image, template or aspect ratio changes
+    useEffect(() => {
+        setImgParams({ scale: 1, x: 0, y: 0 });
+    }, [selectedId, template, aspectRatio]);
 
     // Sync custom params when image changes
     useEffect(() => {
@@ -241,8 +253,33 @@ const PhotoFrame: React.FC = () => {
     const layout = useMemo(() => {
         if (!konvaImage) return null;
 
-       let imgW = konvaImage.width;
+        let imgW = konvaImage.width;
         let imgH = konvaImage.height;
+
+        // Apply Aspect Ratio Crop (Skip for Round, it uses Canvas Padding)
+        if (aspectRatio !== 'original' && template !== 'round') {
+            const currentRatio = imgW / imgH;
+            let targetRatio = 1;
+
+            switch (aspectRatio) {
+                case '1:1': targetRatio = 1; break;
+                case '4:3': targetRatio = 4 / 3; break;
+                case '3:4': targetRatio = 3 / 4; break;
+                case '16:9': targetRatio = 16 / 9; break;
+                case '9:16': targetRatio = 9 / 16; break;
+                case '3:2': targetRatio = 3 / 2; break;
+                case '2:3': targetRatio = 2 / 3; break;
+                case '21:9': targetRatio = 21 / 9; break;
+            }
+
+            if (currentRatio > targetRatio) {
+                // Image is wider than target: Crop Width
+                imgW = imgH * targetRatio;
+            } else {
+                // Image is taller than target: Crop Height
+                imgH = imgW / targetRatio;
+            }
+        }
 
         let borderW = imgW * borderSize;
         let bottomH = 0;
@@ -316,33 +353,49 @@ const PhotoFrame: React.FC = () => {
             const diameter = Math.min(imgW, imgH);
             const pad = Math.max(diameter * 0.15, imgW * borderSize);
 
-            totalW = diameter + pad * 2;
-            totalH = diameter + pad * 2;
+            // Base Dimensions (Square)
+            let finalW = diameter + pad * 2;
+            let finalH = diameter + pad * 2;
 
-            const baseScale = Math.min(diameter / imgW, diameter / imgH);
-            const dispW = imgW * baseScale * Math.max(1, roundImgScale);
-            const dispH = imgH * baseScale * Math.max(1, roundImgScale);
+            // Apply Aspect Ratio as Canvas Padding for Round
+            if (aspectRatio !== 'original') {
+                let targetRatio = 1;
+                switch (aspectRatio) {
+                    case '1:1': targetRatio = 1; break;
+                    case '4:3': targetRatio = 4 / 3; break;
+                    case '3:4': targetRatio = 3 / 4; break;
+                    case '16:9': targetRatio = 16 / 9; break;
+                    case '9:16': targetRatio = 9 / 16; break;
+                    case '3:2': targetRatio = 3 / 2; break;
+                    case '2:3': targetRatio = 2 / 3; break;
+                    case '21:9': targetRatio = 21 / 9; break;
+                }
 
-            imgW = dispW;
-            imgH = dispH;
+                const currentRatio = finalW / finalH; // Always 1 initially
+                if (targetRatio > currentRatio) {
+                    finalW = finalH * targetRatio;
+                } else {
+                    finalH = finalW / targetRatio;
+                }
+            }
 
-            const minX = diameter - dispW;
-            const minY = diameter - dispH;
-            const offX = Math.min(0, Math.max(minX, roundImgPos.x));
-            const offY = Math.min(0, Math.max(minY, roundImgPos.y));
+            totalW = finalW;
+            totalH = finalH;
+
+            // Center the Round Content (Circle) in the Canvas
+            imgX = (totalW - diameter) / 2;
+            imgY = (totalH - diameter) / 2;
 
             bottomH = 0;
             borderW = pad;
             roundDiameter = diameter;
             roundPad = pad;
-            var roundImgX = offX;
-            var roundImgY = offY;
         }
 
         const scale = Math.min(stageWidth / totalW, stageHeight / totalH);
 
-        return { totalW, totalH, imgX, imgY, imgW, imgH, scale, bottomH, borderW, roundPad, roundDiameter, roundImgX, roundImgY };
-    }, [konvaImage, template, borderSize, bottomSize, stageWidth, stageHeight, roundImgScale, roundImgPos]);
+        return { totalW, totalH, imgX, imgY, imgW, imgH, scale, bottomH, borderW, roundPad, roundDiameter };
+    }, [konvaImage, template, borderSize, bottomSize, stageWidth, stageHeight, aspectRatio]);
 
     // Handle param changes
     const updateParam = (key: keyof ExifData, value: string) => {
@@ -429,6 +482,54 @@ const PhotoFrame: React.FC = () => {
                     </div>
                     <ScrollArea className="flex-1">
                         <div className="p-4 space-y-6">
+                            {/* Aspect Ratio Selector */}
+                            {template !== 'round' && (
+                                <div className="space-y-3">
+                                    <Label>图片比例</Label>
+                                    <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
+                                        <SelectTrigger className="w-full bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+                                            <span className="truncate">{aspectRatio === 'original' ? '原始比例' : aspectRatio}</span>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="original">原始比例</SelectItem>
+                                            <SelectItem value="1:1">1:1 (正方形)</SelectItem>
+                                            <SelectItem value="4:3">4:3 (横向)</SelectItem>
+                                            <SelectItem value="3:4">3:4 (纵向)</SelectItem>
+                                            <SelectItem value="3:2">3:2 (标准)</SelectItem>
+                                            <SelectItem value="2:3">2:3 (标准)</SelectItem>
+                                            <SelectItem value="16:9">16:9 (电影)</SelectItem>
+                                            <SelectItem value="9:16">9:16 (快拍)</SelectItem>
+                                            <SelectItem value="21:9">21:9 (宽屏)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+
+                             {/* Watermark Style Selector (Gallery Only) */}
+                             {template === 'gallery' && (
+                                <div className="space-y-3">
+                                    <Label>水印布局</Label>
+                                    <Select value={watermarkStyle} onValueChange={(v) => setWatermarkStyle(v as WatermarkStyle)}>
+                                        <SelectTrigger className="w-full bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+                                            <span className="truncate">
+                                                {watermarkStyle === 'classic' && '经典布局'}
+                                                {watermarkStyle === 'tech' && '旗舰影像 (模拟)'}
+                                                {watermarkStyle === 'minimal' && '极简居中'}
+                                                {watermarkStyle === 'bold' && '居中大字'}
+                                                {watermarkStyle === 'simple' && '左对齐'}
+                                            </span>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="classic">经典布局</SelectItem>
+                                            <SelectItem value="tech">旗舰影像 (模拟)</SelectItem>
+                                            <SelectItem value="minimal">极简居中</SelectItem>
+                                            <SelectItem value="bold">居中大字</SelectItem>
+                                            <SelectItem value="simple">左对齐</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+
                             {/* Templates */}
                             <div className="space-y-3">
                                 <Label>模版风格</Label>
@@ -478,6 +579,24 @@ const PhotoFrame: React.FC = () => {
                                         value={[borderSize * 100]} max={15} step={0.5}
                                         onValueChange={(v) => setBorderSize(v[0] / 100)}
                                     />
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between">
+                                        <Label>图片缩放</Label>
+                                        <span className="text-xs text-muted-foreground">{Math.round(imgParams.scale * 100)}%</span>
+                                    </div>
+                                    <Slider
+                                        value={[imgParams.scale * 100]}
+                                        min={50}
+                                        max={500}
+                                        step={5}
+                                        onValueChange={(v) => setImgParams(prev => ({ ...prev, scale: v[0] / 100 }))}
+                                    />
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <Button variant="ghost" size="sm" onClick={() => setImgParams({ scale: 1, x: 0, y: 0 })} className="h-6 text-xs text-muted-foreground">
+                                        重置图片位置
+                                    </Button>
                                 </div>
                             </div>
 
@@ -587,16 +706,6 @@ const PhotoFrame: React.FC = () => {
                                             </div>
                                             <Slider value={[roundRingWidth * 100]} max={10} step={0.5} onValueChange={(v) => setRoundRingWidth(v[0] / 100)} />
                                         </div>
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between">
-                                                <Label className="text-xs">缩放</Label>
-                                                <span className="text-xs text-muted-foreground">{Math.round(roundImgScale * 100)}%</span>
-                                            </div>
-                                            <Slider value={[roundImgScale * 100]} min={100} max={300} step={5} onValueChange={(v) => setRoundImgScale(v[0] / 100)} />
-                                        </div>
-                                        <div className="flex gap-2 justify-end">
-                                            <Button variant="outline" size="sm" onClick={() => { setRoundImgScale(1); setRoundImgPos({ x: 0, y: 0 }); }}>重置</Button>
-                                        </div>
                                     </div>
                                 )}
 
@@ -668,96 +777,353 @@ const PhotoFrame: React.FC = () => {
                                     )}
 
                                     {/* Image */}
-                                    {template === 'round' ? (
-                                        <>
+                                    {(() => {
+                                        // Unified Image Rendering Logic
+                                        const isRound = template === 'round';
+
+                                        // Viewport Dimensions (The masking area)
+                                        const viewW = isRound ? layout.roundDiameter : layout.imgW;
+                                        const viewH = isRound ? layout.roundDiameter : layout.imgH;
+
+                                        // Base Scale to Fit/Cover
+                                        const baseScale = Math.max(viewW / konvaImage.width, viewH / konvaImage.height);
+
+                                        // Current Display Dimensions
+                                        const currentScale = baseScale * imgParams.scale;
+                                        const dispW = konvaImage.width * currentScale;
+                                        const dispH = konvaImage.height * currentScale;
+
+                                        // Bounds Calculation for Drag
+                                        // We want to allow dragging but keep image covering the view if possible (if larger)
+                                        // Or contained if smaller?
+                                        // "Fill display area" -> We enforce covering if scale >= 1
+
+                                        const minX = viewW - dispW;
+                                        const minY = viewH - dispH;
+                                        const maxX = 0; // Assuming top-left alignment base
+                                        const maxY = 0;
+
+                                        // Position
+                                        // We apply imgParams.x/y as offsets
+                                        // But we need to clamp them effectively during drag end
+
+                                        // Group Position
+                                        const groupX = layout.imgX;
+                                        const groupY = layout.imgY;
+
+                                        return (
                                             <Group
-                                                x={layout.roundPad}
-                                                y={layout.roundPad}
-                                                clipFunc={(ctx) => {
+                                                x={groupX}
+                                                y={groupY}
+                                                clipFunc={isRound ? (ctx) => {
                                                     const d = layout.roundDiameter;
                                                     ctx.beginPath();
                                                     ctx.arc(d / 2, d / 2, d / 2, 0, Math.PI * 2);
                                                     ctx.closePath();
-                                                }}
+                                                } : undefined}
+                                                clipX={!isRound ? 0 : undefined}
+                                                clipY={!isRound ? 0 : undefined}
+                                                clipWidth={!isRound ? viewW : undefined}
+                                                clipHeight={!isRound ? viewH : undefined}
                                             >
                                                 <KonvaImage
                                                     image={konvaImage}
-                                                    x={layout.roundImgX}
-                                                    y={layout.roundImgY}
-                                                    width={layout.imgW}
-                                                    height={layout.imgH}
+                                                    x={imgParams.x} // Controlled position
+                                                    y={imgParams.y}
+                                                    scaleX={currentScale}
+                                                    scaleY={currentScale}
                                                     draggable
-                                                    dragBoundFunc={(pos) => {
-                                                        const minX = layout.roundDiameter - layout.imgW;
-                                                        const minY = layout.roundDiameter - layout.imgH;
-                                                        const x = Math.min(0, Math.max(minX, pos.x));
-                                                        const y = Math.min(0, Math.max(minY, pos.y));
-                                                        return { x, y };
+                                                    onDragEnd={(e) => {
+                                                        const node = e.target;
+                                                        const x = node.x();
+                                                        const y = node.y();
+
+                                                        // Calculate Bounds based on *current* scale
+                                                        // Re-calculate local vars because closure might be stale?
+                                                        // No, render scope is fresh.
+
+                                                        let newX = x;
+                                                        let newY = y;
+
+                                                        // Constrain: Image should not leave the Viewport empty
+                                                        // If dispW > viewW, x must be between minX and maxX
+                                                        if (dispW >= viewW) {
+                                                            if (newX < minX) newX = minX;
+                                                            if (newX > maxX) newX = maxX;
+                                                        } else {
+                                                            // If image is smaller than view (e.g. zoomed out below fit), center it?
+                                                            // Or just clamp to bounds?
+                                                            // For now, let's clamp to center or left?
+                                                            // Simple: clamp to bounds usually works.
+                                                            // If dispW < viewW, minX is POSITIVE. maxX is 0.
+                                                            // So x must be between minX (positive) and 0? No.
+                                                            // If dispW < viewW, we probably want to center.
+                                                            newX = (viewW - dispW) / 2;
+                                                        }
+
+                                                        if (dispH >= viewH) {
+                                                            if (newY < minY) newY = minY;
+                                                            if (newY > maxY) newY = maxY;
+                                                        } else {
+                                                            newY = (viewH - dispH) / 2;
+                                                        }
+
+                                                        // Snap animation
+                                                        if (Math.abs(newX - x) > 1 || Math.abs(newY - y) > 1) {
+                                                            node.to({
+                                                                x: newX,
+                                                                y: newY,
+                                                                duration: 0.2,
+                                                                easing: Konva.Easings.EaseOut,
+                                                                onFinish: () => {
+                                                                    setImgParams(p => ({ ...p, x: newX, y: newY }));
+                                                                }
+                                                            });
+                                                        } else {
+                                                            setImgParams(p => ({ ...p, x: newX, y: newY }));
+                                                        }
                                                     }}
-                                                    onDragEnd={(e) => setRoundImgPos({ x: e.target.x(), y: e.target.y() })}
+                                                    onWheel={(e) => {
+                                                        e.evt.preventDefault();
+                                                        e.evt.stopPropagation();
+
+                                                        const stage = e.target.getStage();
+                                                        if (!stage) return;
+
+                                                        const scaleBy = 1.05;
+                                                        const oldScale = imgParams.scale;
+                                                        const pointer = stage.getPointerPosition();
+
+                                                        if (!pointer) return;
+
+                                                        // Pointer relative to the Group
+                                                        // Group absolute position = groupX * layout.scale
+                                                        // Wait, stage scale affects everything.
+                                                        // The Group is at (groupX, groupY) inside the Stage.
+                                                        // Stage is scaled by layout.scale.
+                                                        // So Group screen pos = (groupX * layout.scale, groupY * layout.scale).
+                                                        // Pointer is in screen coordinates? No, Konva pointer is usually stage relative?
+                                                        // getPointerPosition returns position relative to container (stage).
+
+                                                        // Mouse relative to Group (unscaled by stage)
+                                                        const mouseX = (pointer.x / layout.scale) - groupX;
+                                                        const mouseY = (pointer.y / layout.scale) - groupY;
+
+                                                        // Mouse relative to Image (before zoom)
+                                                        // Image is at (imgParams.x, imgParams.y) inside Group
+                                                        const mousePointTo = {
+                                                            x: (mouseX - imgParams.x) / oldScale,
+                                                            y: (mouseY - imgParams.y) / oldScale,
+                                                        };
+
+                                                        const newScaleRaw = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
+                                                        // Limit scale (0.5x to 5x)
+                                                        const newScale = Math.max(0.5, Math.min(5, newScaleRaw));
+
+                                                        const newPos = {
+                                                            x: mouseX - mousePointTo.x * newScale,
+                                                            y: mouseY - mousePointTo.y * newScale,
+                                                        };
+
+                                                        setImgParams({ scale: newScale, ...newPos });
+                                                    }}
+                                                    // Add stroke/border properties for non-Round templates
+                                                    stroke={!isRound && template === 'floating' ? floatingBorderColor : undefined}
+                                                    strokeWidth={!isRound && template === 'floating' ? layout.imgW * 0.01 : 0}
+                                                    cornerRadius={!isRound && template === 'film' ? layout.imgW * 0.005 : 0}
                                                 />
+                                                {/* Round Template Ring (Overlay) */}
+                                                {isRound && (
+                                                    <Circle
+                                                        x={layout.roundDiameter / 2}
+                                                        y={layout.roundDiameter / 2}
+                                                        radius={layout.roundDiameter / 2}
+                                                        stroke={roundRingColor}
+                                                        strokeWidth={Math.max(2, layout.roundDiameter * roundRingWidth)}
+                                                        listening={false} // Pass events through to image
+                                                    />
+                                                )}
                                             </Group>
-                                            <Circle
-                                                x={layout.roundPad + layout.roundDiameter / 2}
-                                                y={layout.roundPad + layout.roundDiameter / 2}
-                                                radius={layout.roundDiameter / 2}
-                                                stroke={roundRingColor}
-                                                strokeWidth={Math.max(2, layout.roundDiameter * roundRingWidth)}
-                                            />
-                                        </>
-                                    ) : (
-                                        <KonvaImage
-                                            image={konvaImage}
-                                            x={layout.imgX}
-                                            y={layout.imgY}
-                                            width={layout.imgW}
-                                            height={layout.imgH}
-                                            // Add a thin white border for Floating to separate from bg
-                                            stroke={template === 'floating' ? floatingBorderColor : undefined}
-                                            strokeWidth={template === 'floating' ? layout.imgW * 0.01 : 0}
-                                            cornerRadius={template === 'film' ? layout.imgW * 0.005 : 0}
-                                        />
-                                    )}
+                                        );
+                                    })()}
 
                                     {/* Text Info */}
                                     {customParams && (
                                         <Group>
                                             {(template === 'gallery' || template === 'polaroid') && (
                                                 <Group x={layout.imgX} y={layout.imgY + layout.imgH + (layout.bottomH - layout.borderW) / 2}>
-                                                    {/* Left: Brand/Model */}
-                                                    <Text
-                                                        text={`${customParams.make}\n${customParams.model}`}
-                                                        fontSize={layout.imgH * 0.025 * fontSize * 1.2}
-                                                        fontStyle="bold"
-                                                        fill={textColor}
-                                                        fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
-                                                        lineHeight={1.2}
-                                                        y={-layout.imgH * 0.025 * fontSize * 0.5}
-                                                    />
 
-                                                    {/* Right: Params */}
-                                                    <Group>
-                                                         <Text
-                                                            text={`${customParams.focalLength}  ${customParams.fNumber}  ${customParams.exposureTime}  ${customParams.iso}`}
-                                                            fontSize={layout.imgH * 0.025 * fontSize * 1.2}
-                                                            fontStyle="bold"
-                                                            fill={textColor}
-                                                            fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
-                                                            align="right"
-                                                            width={layout.imgW}
-                                                            y={-layout.imgH * 0.025 * fontSize * 0.5}
-                                                        />
-                                                        <Text
-                                                            text={customParams.dateTime}
-                                                            fontSize={layout.imgH * 0.02 * fontSize}
-                                                            fill={textColor}
-                                                            opacity={0.6}
-                                                            fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
-                                                            align="right"
-                                                            width={layout.imgW}
-                                                            y={layout.imgH * 0.025 * fontSize * 1.2}
-                                                        />
-                                                    </Group>
+                                                    {/* Style: Classic (Original) */}
+                                                    {(watermarkStyle === 'classic' || template === 'polaroid') && (
+                                                        <Group>
+                                                            {/* Left: Brand/Model */}
+                                                            <Text
+                                                                text={`${customParams.make}\n${customParams.model}`}
+                                                                fontSize={layout.imgH * 0.025 * fontSize * 1.2}
+                                                                fontStyle="bold"
+                                                                fill={textColor}
+                                                                fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
+                                                                lineHeight={1.2}
+                                                                y={-layout.imgH * 0.025 * fontSize * 0.5}
+                                                            />
+                                                            {/* Right: Params */}
+                                                            <Group>
+                                                                 <Text
+                                                                    text={`${customParams.focalLength}  ${customParams.fNumber}  ${customParams.exposureTime}  ${customParams.iso}`}
+                                                                    fontSize={layout.imgH * 0.025 * fontSize * 1.2}
+                                                                    fontStyle="bold"
+                                                                    fill={textColor}
+                                                                    fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
+                                                                    align="right"
+                                                                    width={layout.imgW}
+                                                                    y={-layout.imgH * 0.025 * fontSize * 0.5}
+                                                                />
+                                                                <Text
+                                                                    text={customParams.dateTime}
+                                                                    fontSize={layout.imgH * 0.02 * fontSize}
+                                                                    fill={textColor}
+                                                                    opacity={0.6}
+                                                                    fontFamily={template === 'polaroid' ? 'Courier New, monospace' : 'Inter, sans-serif'}
+                                                                    align="right"
+                                                                    width={layout.imgW}
+                                                                    y={layout.imgH * 0.025 * fontSize * 1.2}
+                                                                />
+                                                            </Group>
+                                                        </Group>
+                                                    )}
+
+                                                    {/* Style: Tech (Simulated Brand Layout) */}
+                                                    {template === 'gallery' && watermarkStyle === 'tech' && (
+                                                        <Group>
+                                                            {/* Logo/Brand Area (Simulated Red Dot if Leica/Xiaomi, or just text) */}
+                                                            <Group y={-layout.imgH * 0.015 * fontSize}>
+                                                                <Circle
+                                                                    radius={layout.imgH * 0.035 * fontSize}
+                                                                    fill="#D90000"
+                                                                    y={layout.imgH * 0.015 * fontSize}
+                                                                    x={layout.imgH * 0.035 * fontSize}
+                                                                />
+                                                                <Text
+                                                                    text={customParams.make.substring(0, 1).toUpperCase()}
+                                                                    fontSize={layout.imgH * 0.03 * fontSize}
+                                                                    fontStyle="bold"
+                                                                    fill="white"
+                                                                    align="center"
+                                                                    width={layout.imgH * 0.07 * fontSize}
+                                                                    y={0}
+                                                                />
+                                                            </Group>
+
+                                                            <Text
+                                                                text={`${customParams.model}`}
+                                                                fontSize={layout.imgH * 0.03 * fontSize}
+                                                                fontStyle="bold"
+                                                                fill={textColor}
+                                                                x={layout.imgH * 0.09 * fontSize}
+                                                                y={-layout.imgH * 0.005 * fontSize}
+                                                            />
+
+                                                            {/* Divider & Params */}
+                                                            <Group x={layout.imgW} offsetX={0}>
+                                                                <Line
+                                                                    points={[0, -layout.imgH * 0.02 * fontSize, 0, layout.imgH * 0.05 * fontSize]}
+                                                                    stroke={textColor}
+                                                                    strokeWidth={1}
+                                                                    opacity={0.3}
+                                                                    x={-layout.imgW * 0.35} // Approx pos
+                                                                />
+                                                                {/* We need precise alignment, using right alignment on width */}
+                                                                <Text
+                                                                    text={`${customParams.focalLength} ${customParams.fNumber} ${customParams.exposureTime} ${customParams.iso}`}
+                                                                    fontSize={layout.imgH * 0.022 * fontSize}
+                                                                    fontStyle="bold"
+                                                                    fill={textColor}
+                                                                    align="right"
+                                                                    width={layout.imgW}
+                                                                    y={-layout.imgH * 0.015 * fontSize}
+                                                                />
+                                                                 <Text
+                                                                    text={customParams.dateTime}
+                                                                    fontSize={layout.imgH * 0.018 * fontSize}
+                                                                    fill={textColor}
+                                                                    opacity={0.5}
+                                                                    align="right"
+                                                                    width={layout.imgW}
+                                                                    y={layout.imgH * 0.02 * fontSize}
+                                                                />
+                                                            </Group>
+                                                        </Group>
+                                                    )}
+
+                                                    {/* Style: Minimal (Centered) */}
+                                                    {template === 'gallery' && watermarkStyle === 'minimal' && (
+                                                        <Group>
+                                                            <Text
+                                                                text={`${customParams.model}  ·  ${customParams.focalLength} ${customParams.fNumber} ${customParams.iso}`}
+                                                                fontSize={layout.imgH * 0.02 * fontSize}
+                                                                fill={textColor}
+                                                                opacity={0.8}
+                                                                align="center"
+                                                                width={layout.imgW}
+                                                                y={-layout.imgH * 0.01 * fontSize}
+                                                            />
+                                                            <Text
+                                                                text={customParams.dateTime}
+                                                                fontSize={layout.imgH * 0.015 * fontSize}
+                                                                fill={textColor}
+                                                                opacity={0.5}
+                                                                align="center"
+                                                                width={layout.imgW}
+                                                                y={layout.imgH * 0.02 * fontSize}
+                                                            />
+                                                        </Group>
+                                                    )}
+
+                                                    {/* Style: Bold (Center Big Model) */}
+                                                    {template === 'gallery' && watermarkStyle === 'bold' && (
+                                                        <Group>
+                                                            <Text
+                                                                text={customParams.model.toUpperCase()}
+                                                                fontSize={layout.imgH * 0.04 * fontSize}
+                                                                fontStyle="bold"
+                                                                fill={textColor}
+                                                                align="center"
+                                                                width={layout.imgW}
+                                                                y={-layout.imgH * 0.02 * fontSize}
+                                                                letterSpacing={2}
+                                                            />
+                                                            <Text
+                                                                text={`${customParams.focalLength} | ${customParams.fNumber} | ${customParams.exposureTime} | ${customParams.iso}`}
+                                                                fontSize={layout.imgH * 0.018 * fontSize}
+                                                                fill={textColor}
+                                                                opacity={0.7}
+                                                                align="center"
+                                                                width={layout.imgW}
+                                                                y={layout.imgH * 0.035 * fontSize}
+                                                            />
+                                                        </Group>
+                                                    )}
+
+                                                     {/* Style: Simple (Left Aligned) */}
+                                                     {template === 'gallery' && watermarkStyle === 'simple' && (
+                                                        <Group>
+                                                            <Text
+                                                                text={`${customParams.model}`}
+                                                                fontSize={layout.imgH * 0.025 * fontSize}
+                                                                fontStyle="bold"
+                                                                fill={textColor}
+                                                                y={-layout.imgH * 0.015 * fontSize}
+                                                            />
+                                                            <Text
+                                                                text={`${customParams.focalLength}  ${customParams.fNumber}  ${customParams.iso}  ${customParams.dateTime}`}
+                                                                fontSize={layout.imgH * 0.02 * fontSize}
+                                                                fill={textColor}
+                                                                opacity={0.6}
+                                                                y={layout.imgH * 0.02 * fontSize}
+                                                            />
+                                                        </Group>
+                                                    )}
+
                                                 </Group>
                                             )}
 
