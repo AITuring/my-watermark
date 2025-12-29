@@ -35,6 +35,7 @@ import ImageSplitter from "./ImageSplitter";
 import Calendar from "./Calendar";
 import ChristmasTreeHand from "./ChristmasTreeHand";
 import PhotoFrame from "./PhotoFrame";
+import Gallery from "./Gallery";
 import { Toaster } from "sonner";
 
 
@@ -143,6 +144,13 @@ const routeItems = [
         url: "/mosaic",
         component: <CreativeMosaic />,
         icon: "material-symbols:mosaic-outline",
+    },
+    {
+        label: "年度相册",
+        id: "gallery",
+        url: "/gallery",
+        component: <Gallery />,
+        icon: "material-symbols:photo-library-outline",
     },
     {
         label: "测试",
