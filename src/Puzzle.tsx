@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Icon } from "@iconify/react";
 import {
     closestCenter,
@@ -41,6 +42,8 @@ import clsx from "clsx";
 import PhotoAlbum, { Photo } from "react-photo-album";
 import "react-photo-album/styles.css";
 import html2canvas from "html2canvas";
+import { saveAs } from "file-saver";
+import JSZip from "jszip";
 import "./puzzle.css";
 import ImagePreview from "./ImagePreview";
 import ThreeLanding from "@/components/ThreeLanding";
@@ -262,6 +265,13 @@ const Puzzle = () => {
     const [selectedRatio, setSelectedRatio] = useState<AspectRatio | null>(
         null
     );
+    const [tiltAngle, setTiltAngle] = useState<number>(0);
+    const [tiltScale, setTiltScale] = useState<number>(1);
+    const [vignette, setVignette] = useState<boolean>(true);
+    const [pageScale, setPageScale] = useState<number>(1);
+    const [estimatedPages, setEstimatedPages] = useState<number>(1);
+    const [showPagePreview, setShowPagePreview] = useState<boolean>(true);
+    const [overlayBounds, setOverlayBounds] = useState<number[]>([]);
 
     // 添加一个状态来存储容器尺寸
     const [containerSize, setContainerSize] = useState<{
@@ -458,146 +468,165 @@ const Puzzle = () => {
             return;
         }
         setSpinning(true);
-        const galleryElement = galleryRef.current;
-        const canvasElement = galleryElement
-            ? galleryElement
-            : document.getElementById("container");
+        const target = document.getElementById("tilt-wrapper") || document.getElementById("gallery") || document.getElementById("container");
 
         try {
-            // 1. 先生成原始图片
-            const originalCanvas = await html2canvas(canvasElement, {
+            const originalCanvas = await html2canvas(target, {
                 scale: inputScale,
                 useCORS: true,
                 allowTaint: true,
                 backgroundColor: "#ffffff",
                 logging: false,
                 onclone: (clonedDoc) => {
+                    const container = clonedDoc.getElementById("container") as HTMLElement | null;
+                    const wrapper = clonedDoc.getElementById("tilt-wrapper") as HTMLElement | null;
+                    if (container) container.style.overflow = "visible";
+                    if (wrapper) wrapper.style.overflow = "visible";
                     const images = clonedDoc.getElementsByTagName("img");
                     return Promise.all(
-                        Array.from(images).map(
-                            (img) =>
-                                new Promise((resolve) => {
-                                    if (img.complete) {
-                                        resolve(null);
-                                    } else {
-                                        img.onload = () => resolve(null);
-                                    }
-                                })
+                        Array.from(images).map((img) =>
+                            new Promise((resolve) => {
+                                if (img.complete) {
+                                    resolve(null);
+                                } else {
+                                    img.onload = () => resolve(null);
+                                }
+                            })
                         )
                     );
                 },
             });
 
-            // 2. 根据是否选择了自适应来决定是否添加边框
-            let finalCanvas;
+            const padding = Math.round(40 * inputScale);
+            const fullCanvas = document.createElement("canvas");
+            fullCanvas.width = originalCanvas.width + padding * 2;
+            fullCanvas.height = originalCanvas.height + padding * 2;
+            const fctx = fullCanvas.getContext("2d")!;
+            fctx.fillStyle = "#ffffff";
+            fctx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
+            fctx.drawImage(originalCanvas, padding, padding);
+
             if (!selectedRatio || selectedRatio.width === null) {
-                // 自适应模式：直接使用原始画布
-                finalCanvas = originalCanvas;
-            } else {
-                // TODO 就还有问题.....
-                // 指定长宽比模式：添加边框
-                const originalWidth = originalCanvas.width;
-                const originalHeight = originalCanvas.height;
-                const targetRatio = selectedRatio.width / selectedRatio.height;
-                let padding = 100;
-
-                // 如果height > widhth,那么一定是纵向的，要满足
-
-                let finalWidth,
-                    finalHeight,
-                    paddingBottom = 0;
-
-                if (originalHeight <= originalWidth) {
-                    // 横向的，宽可以确定，就是width+2个padding
-                    finalWidth = originalWidth + 2 * padding;
-
-                    finalHeight = finalWidth * targetRatio;
-                    paddingBottom = Math.max((finalHeight - (originalHeight + padding)), padding);
-                } else {
-                    finalHeight = originalHeight + 2 * padding;
-                    finalWidth = finalHeight / targetRatio;
-                    const realBottom = finalWidth - (originalWidth + padding);
-                    paddingBottom = (realBottom+padding) / 2;
-                    padding = (realBottom+padding) / 2;
+                if (vignette) {
+                    const g = fctx.createRadialGradient(
+                        fullCanvas.width / 2,
+                        fullCanvas.height / 2,
+                        Math.min(fullCanvas.width, fullCanvas.height) * 0.45,
+                        fullCanvas.width / 2,
+                        fullCanvas.height / 2,
+                        Math.max(fullCanvas.width, fullCanvas.height) * 0.6
+                    );
+                    g.addColorStop(0, "rgba(0,0,0,0)");
+                    g.addColorStop(1, "rgba(0,0,0,0.35)");
+                    fctx.fillStyle = g;
+                    fctx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
                 }
+                fullCanvas.toBlob((blob) => {
+                    if (!blob) return;
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = "album-long.jpeg";
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    setSpinning(false);
+                    toast.success("大图合成成功！");
+                }, "image/jpeg", 0.9);
+            } else {
+                const ratio = selectedRatio.width / selectedRatio.height;
+                const pageW = fullCanvas.width;
+                const pageH = Math.max(1, Math.round(pageW / ratio));
+                const pageSourceH = Math.max(1, Math.round(pageH / Math.max(pageScale, 0.1)));
 
-                // paddingBottom = Math.abs(
-                //     (originalWidth + 2 * padding) / targetRatio -
-                //         (originalHeight + padding)
-                // );
+                const breaksCss = overlayBounds && overlayBounds.length > 0 ? overlayBounds : [];
+                const boundaries = [0, ...breaksCss.map(v => Math.round(padding + v * inputScale)), fullCanvas.height];
 
-                // const finalHeight = originalHeight + padding + paddingBottom;
-
-                console.log(
-                    originalHeight,
-                    originalWidth,
-                    targetRatio,
-                    padding,
-                    paddingBottom
-                );
-
-                console.log(
-                    "finalWidth:",
-                    finalWidth,
-                    "finalHeight:",
-                    finalHeight,
-                    "padding:",
-                    padding
-                );
-
-                finalCanvas = document.createElement("canvas");
-                finalCanvas.width = finalWidth;
-                finalCanvas.height = finalHeight;
-                const ctx = finalCanvas.getContext("2d");
-
-                // 填充白色背景
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0, 0, finalWidth, finalHeight);
-
-                // 在中心绘制原始图片
-                const x = padding;
-                const y = padding;
-                ctx.drawImage(originalCanvas, x, y);
-            }
-
-            // 3. 导出最终图片
-            finalCanvas.toBlob(
-                (blob) => {
-                    if (blob) {
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement("a");
-                        link.href = url;
-                        link.download = "my-image.jpeg";
-                        link.click();
-                        URL.revokeObjectURL(url);
-                        setSpinning(false);
-                        toast.success("大图合成成功！");
+                const zip = new JSZip();
+                const files: {name:string,blob:Blob}[] = [];
+                for (let i = 1; i < boundaries.length; i++) {
+                    const prev = boundaries[i - 1];
+                    const end = boundaries[i];
+                    const sliceH = Math.max(0, end - prev);
+                    const page = document.createElement("canvas");
+                    page.width = pageW;
+                    page.height = pageH;
+                    const pctx = page.getContext("2d")!;
+                    pctx.imageSmoothingEnabled = true;
+                    pctx.imageSmoothingQuality = "high";
+                    pctx.fillStyle = "#ffffff";
+                    pctx.fillRect(0, 0, pageW, pageH);
+                    if (sliceH > 0) {
+                        const scaleFactor = pageH / Math.max(pageSourceH, 1);
+                        const dh = Math.min(pageH, Math.round(sliceH * scaleFactor));
+                        const dy = Math.round((pageH - dh) / 2);
+                        pctx.drawImage(fullCanvas, 0, prev, fullCanvas.width, sliceH, 0, dy, pageW, dh);
                     }
-                },
-                "image/jpeg",
-                0.9
-            );
+                    if (vignette) {
+                        const g = pctx.createRadialGradient(pageW / 2, pageH / 2, Math.min(pageW, pageH) * 0.45, pageW / 2, pageH / 2, Math.max(pageW, pageH) * 0.6);
+                        g.addColorStop(0, "rgba(0,0,0,0)");
+                        g.addColorStop(1, "rgba(0,0,0,0.35)");
+                        pctx.fillStyle = g;
+                        pctx.fillRect(0, 0, pageW, pageH);
+                    }
+                    await new Promise((r) => requestAnimationFrame(() => r(null)));
+                    const blob = (page as any).convertToBlob ? await (page as any).convertToBlob({ type: "image/jpeg", quality: 0.9 }) : await new Promise<Blob | null>((resolve) => page.toBlob(resolve, "image/jpeg", 0.9));
+                    if (blob) files.push({ name: `album-${selectedRatio.label}-${files.length + 1}.jpeg`, blob });
+                }
+                files.forEach(f => zip.file(f.name, f.blob));
+                const zipBlob = await zip.generateAsync({ type: "blob" });
+                saveAs(zipBlob, `album-${selectedRatio.label}-${files.length}p.zip`);
+                setSpinning(false);
+                toast.success(`已打包导出 ${files.length} 张`);
+            }
         } catch (error) {
-            console.error("Export error:", error);
             setSpinning(false);
             toast.error("导出失败，请重试", { position: "top-center" });
         }
     };
 
     const renderContainer = (containerProps: any) => (
-        <div ref={galleryRef} id="container">
+        <div ref={galleryRef} id="container" style={{ position: 'relative', overflow: 'hidden' }}>
             <div
-                {...containerProps}
-                id="gallery"
+                id="tilt-wrapper"
                 style={{
-                    ...(containerProps?.style ?? {}),
-                    padding: `${margin}px`,
-                    boxSizing: 'border-box',
-                    // TODO 这里可以自定义背景颜色
+                    position: 'relative',
+                    display: 'inline-block',
+                    transform: `rotate(${tiltAngle}deg) scale(${tiltScale})`,
+                    transformOrigin: 'center',
+                    transition: 'transform 300ms ease',
+                    willChange: 'transform',
                 }}
             >
-                {containerProps?.children}
+                <div
+                    {...containerProps}
+                    id="gallery"
+                    style={{
+                        ...(containerProps?.style ?? {}),
+                        padding: `${margin}px`,
+                        boxSizing: 'border-box',
+                    }}
+                >
+                    {containerProps?.children}
+                </div>
+                {showPagePreview && selectedRatio?.width && overlayBounds.length > 0 && (
+                    <div id="page-overlay" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                        {overlayBounds.map((y, i) => (
+                            <div key={i} style={{ position: 'absolute', top: `${y}px`, left: 0, right: 0, height: 0, borderTop: '2px dashed rgba(255,0,0,0.5)' }} />
+                        ))}
+                    </div>
+                )}
             </div>
+            {vignette && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        pointerEvents: 'none',
+                        background:
+                            'radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.35) 100%)',
+                    }}
+                />
+            )}
         </div>
     );
 
@@ -796,6 +825,34 @@ const Puzzle = () => {
         images.length
     ]); // 只需要监听 label 和图片数量
 
+    useEffect(() => {
+        const wrapper = document.getElementById("tilt-wrapper") as HTMLElement | null;
+        if (!wrapper) { setEstimatedPages(1); setOverlayBounds([]); return; }
+        const rect = wrapper.getBoundingClientRect();
+        if (!selectedRatio || selectedRatio.width === null) { setEstimatedPages(1); setOverlayBounds([]); return; }
+        const ratio = selectedRatio.width / selectedRatio.height;
+        const pageW = rect.width;
+        const pageH = pageW / ratio;
+        const pageSourceH = pageH / Math.max(pageScale, 0.1);
+        const frames = Array.from(wrapper.querySelectorAll('.photo-frame')) as HTMLElement[];
+        const bottoms = Array.from(new Set(frames.map(el => el.getBoundingClientRect().bottom - rect.top).filter(v => v > 0))).sort((a,b)=>a-b);
+        const snapTolerance = Math.max(12, margin + 8);
+        const pages = Math.max(1, Math.ceil((rect.height) / pageSourceH));
+        const breaks: number[] = [];
+        for (let i = 1; i < pages; i++) {
+            const ideal = i * pageSourceH;
+            let snapped = ideal;
+            for (let j = 0; j < bottoms.length; j++) {
+                const b = bottoms[j];
+                if (Math.abs(b - ideal) <= snapTolerance) { snapped = b; break; }
+            }
+            breaks.push(Math.min(Math.max(snapped, 0), rect.height));
+        }
+        const uniqueBreaks = Array.from(new Set(breaks.map(v => Math.round(v)))).sort((a,b)=>a-b);
+        setEstimatedPages(uniqueBreaks.length + 1);
+        setOverlayBounds(uniqueBreaks);
+    }, [selectedRatio?.width, selectedRatio?.height, tiltAngle, tiltScale, margin, layout, inputColumns, images.length, containerSize.width, containerSize.height, pageScale]);
+
     console.log(inputColumns, selectedRatio);
 
     return (
@@ -963,6 +1020,71 @@ const Puzzle = () => {
                                     value={inputScale}
                                     onChange={(e) => setInputScale(Number(e.target.value))}
                                 />
+                            </div>
+                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
+                                <div className="text-xs sm:text-sm">倾斜角度:</div>
+                                <Slider
+                                    className="w-24 sm:w-28 ml-2"
+                                    value={[tiltAngle]}
+                                    min={-45}
+                                    max={45}
+                                    step={1}
+                                    onValueChange={(value) => setTiltAngle(value[0])}
+                                />
+                                <input
+                                    type="number"
+                                    className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
+                                    min={-45}
+                                    max={45}
+                                    value={tiltAngle}
+                                    onChange={(e) => setTiltAngle(Number(e.target.value))}
+                                />
+                            </div>
+                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
+                                <div className="text-xs sm:text-sm">缩放:</div>
+                                <Slider
+                                    className="w-24 sm:w-28 ml-2"
+                                    value={[tiltScale]}
+                                    min={0.6}
+                                    max={1.6}
+                                    step={0.05}
+                                    onValueChange={(value) => setTiltScale(Number(value[0]))}
+                                />
+                                <input
+                                    type="number"
+                                    className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
+                                    min={0.6}
+                                    max={1.6}
+                                    step={0.05}
+                                    value={tiltScale}
+                                    onChange={(e) => setTiltScale(Number(e.target.value))}
+                                />
+                            </div>
+                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
+                                <div className="text-xs sm:text-sm">暗角:</div>
+                                <Switch checked={vignette} onCheckedChange={setVignette} />
+                            </div>
+                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
+                                <div className="text-xs sm:text-sm">每页内容缩放:</div>
+                                <Slider
+                                    className="w-24 sm:w-28 ml-2"
+                                    value={[pageScale]}
+                                    min={0.6}
+                                    max={1.5}
+                                    step={0.05}
+                                    onValueChange={(v) => setPageScale(Number(v[0]))}
+                                />
+                                <input
+                                    type="number"
+                                    className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
+                                    min={0.6}
+                                    max={1.5}
+                                    step={0.05}
+                                    value={pageScale}
+                                    onChange={(e) => setPageScale(Number(e.target.value))}
+                                />
+                                <Badge variant="outline" className="ml-2">预估页数: {(!selectedRatio || selectedRatio.width === null) ? 1 : estimatedPages}</Badge>
+                                <div className="ml-3 flex items-center gap-2"><span>分页预览:</span><Switch checked={showPagePreview} onCheckedChange={setShowPagePreview} /></div>
                             </div>
                         </div>
                         <Separator className="my-2" />

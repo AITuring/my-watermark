@@ -19,6 +19,7 @@ import NewsApp from "./News";
 import ImageCollage from "./ImageCollage";
 import Landing from "./Landing";
 import FileRenamer from "./FileRenamer";
+import CreativeMosaic from "./CreativeMosaic";
 
 // import BorderWatermark from "./BorderWatermark";
 import Lottery from "./Lottery";
@@ -135,6 +136,13 @@ const routeItems = [
         url: "/rename",
         component: <FileRenamer />,
         icon: "material-symbols:file-rename-outline",
+    },
+    {
+        label: "创意马赛克",
+        id: "mosaic",
+        url: "/mosaic",
+        component: <CreativeMosaic />,
+        icon: "material-symbols:mosaic-outline",
     },
     {
         label: "测试",
