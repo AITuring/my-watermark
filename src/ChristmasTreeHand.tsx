@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas as CanvasSource, useFrame } from "@react-three/fiber";
+
+// Workaround for React 18/19 type mismatch
+const Canvas = CanvasSource as unknown as React.FC<any>;
 import { Points, PointMaterial, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { Hands } from "@mediapipe/hands";

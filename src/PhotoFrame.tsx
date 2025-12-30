@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Stage, Layer, Image as KonvaImage, Rect, Text, Group, Circle, Line } from 'react-konva';
+import Konva from 'konva';
 import useImage from 'use-image';
 import ExifReader from 'exifreader';
 import { Button } from "@/components/ui/button";

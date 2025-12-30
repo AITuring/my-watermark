@@ -1,5 +1,8 @@
 import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas as CanvasSource, useFrame, useThree } from '@react-three/fiber';
+
+// Workaround for React 18/19 type mismatch
+const Canvas = CanvasSource as unknown as React.FC<any>;
 import { Color, Vector2 } from 'three';
 import * as THREE from 'three';
 
@@ -107,7 +110,7 @@ export const FractalBackground: React.FC = () => {
     const isDark = useDarkMode();
     return (
         <div className="absolute inset-0 -z-10 w-full h-full pointer-events-none">
-            <Canvas camera={{ position: [0, 0, 1] }} resize={{ scroll: false }}>
+            <Canvas camera={{ position: [0, 0, 1] }}>
                 <FractalPlane isDark={isDark} />
             </Canvas>
         </div>
