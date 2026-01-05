@@ -48,7 +48,9 @@ extend({ ParticleMaterial });
 
 const COUNT = 150000; // Keep 150k for performance safety, temp.html used 200k
 
-const Particles = ({ modelUrl, rotation, scale }: { modelUrl: string | null; rotation: { x: number; y: number }; scale: number }) => {
+type ArtifactTheme = 'gold' | 'verdigris';
+
+const Particles = ({ modelUrl, rotation, scale, theme }: { modelUrl: string | null; rotation: { x: number; y: number }; scale: number; theme: ArtifactTheme }) => {
   const mesh = useRef<THREE.Points>(null);
   const material = useRef<any>(null);
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
@@ -106,11 +108,13 @@ const Particles = ({ modelUrl, rotation, scale }: { modelUrl: string | null; rot
             positions[i3+1] = r * Math.sin(phi) * Math.sin(theta);
             positions[i3+2] = r * Math.cos(phi);
 
-            const isGold = Math.random() > 0.85;
-            // Gold: 0.6, 0.5, 0.1 | Blue: 0.0, 0.4, 0.3
-            colors[i3] = isGold ? 0.6 : 0.0;
-            colors[i3+1] = isGold ? 0.5 : 0.4;
-            colors[i3+2] = isGold ? 0.1 : 0.3;
+            const isAccent = Math.random() > 0.85;
+            // Nebula palette stays teal with a few warmer sparks
+            if (isAccent) {
+              colors[i3] = 0.9; colors[i3+1] = 0.8; colors[i3+2] = 0.3;
+            } else {
+              colors[i3] = 0.05; colors[i3+1] = 0.5; colors[i3+2] = 0.55;
+            }
 
             sizes[i] = Math.random() < 0.05 ? 0.35 : 0.08;
         }
@@ -155,12 +159,22 @@ const Particles = ({ modelUrl, rotation, scale }: { modelUrl: string | null; rot
                         positions[i3+1] = ty + (Math.random() - 0.5) * jitter;
                         positions[i3+2] = tz + (Math.random() - 0.5) * jitter;
 
-                        const isGold = Math.random() > 0.75;
-                        // Slightly dimmer palette to avoid overexposure with additive blending
-                        // Gold: 0.7, 0.55, 0.18 | Cyan: 0.05, 0.6, 0.5
-                        colors[i3] = isGold ? 0.7 : 0.05;
-                        colors[i3+1] = isGold ? 0.55 : 0.6;
-                        colors[i3+2] = isGold ? 0.18 : 0.5;
+                        const accent = Math.random() > 0.8;
+                        if (theme === 'gold') {
+                          // Sun wheel: warm golden body with cyan glints
+                          if (accent) {
+                            colors[i3] = 0.15; colors[i3+1] = 0.85; colors[i3+2] = 0.9;
+                          } else {
+                            colors[i3] = 0.9; colors[i3+1] = 0.75; colors[i3+2] = 0.28;
+                          }
+                        } else {
+                          // Other bronzes: verdigris base with occasional gold highlights
+                          if (accent) {
+                            colors[i3] = 0.9; colors[i3+1] = 0.8; colors[i3+2] = 0.35;
+                          } else {
+                            colors[i3] = 0.08; colors[i3+1] = 0.7; colors[i3+2] = 0.55;
+                          }
+                        }
 
                         const rand = Math.random();
                         if (rand > 0.98) sizes[i] = 0.16;
@@ -174,14 +188,18 @@ const Particles = ({ modelUrl, rotation, scale }: { modelUrl: string | null; rot
                         positions[i3+1] = (Math.random() - 0.5) * 300; // Height variation
                         positions[i3+2] = r * Math.sin(theta);
 
-                        colors[i3] = 0.05; colors[i3+1] = 0.2; colors[i3+2] = 0.3;
+                        if (theme === 'gold') {
+                          colors[i3] = 0.85; colors[i3+1] = 0.7; colors[i3+2] = 0.28;
+                        } else {
+                          colors[i3] = 0.08; colors[i3+1] = 0.55; colors[i3+2] = 0.5;
+                        }
                         sizes[i] = 0.06;
                     }
                 }
             }
         });
     }
-  }, [modelUrl]);
+  }, [modelUrl, theme]);
 
   useFrame((state) => {
     if (!geometry || !mesh.current) return;
@@ -267,9 +285,10 @@ interface ArtifactCanvasProps {
   modelUrl: string | null;
   rotation: { x: number; y: number };
   scale: number;
+  theme: ArtifactTheme;
 }
 
-export const ArtifactCanvas: React.FC<ArtifactCanvasProps> = ({ modelUrl, rotation, scale }) => {
+export const ArtifactCanvas: React.FC<ArtifactCanvasProps> = ({ modelUrl, rotation, scale, theme }) => {
   return (
     <div className="w-full h-full bg-[#000406]">
       <Canvas camera={{ position: [0, 0, 22], fov: 40 }}>
@@ -277,7 +296,7 @@ export const ArtifactCanvas: React.FC<ArtifactCanvasProps> = ({ modelUrl, rotati
         <ambientLight intensity={0.5} />
 
         {/* Pass null for modelUrl to trigger nebula mode initially or when no model selected */}
-        <Particles modelUrl={modelUrl || null} rotation={rotation} scale={scale} />
+        <Particles modelUrl={modelUrl || null} rotation={rotation} scale={scale} theme={theme} />
 
         <EffectComposer multisampling={0}>
           <Bloom
