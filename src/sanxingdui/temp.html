@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三星堆数字遗产交互系统 - 增强重构版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+    <!-- MediaPipe 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+    <style>
+        body { margin: 0; background: #000406; color: white; overflow: hidden; font-family: 'Inter', sans-serif; cursor: crosshair; }
+        canvas { display: block; }
+        .ui-overlay { pointer-events: none; }
+        .ui-interact { pointer-events: auto; }
+        .glass-panel { background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .scanline { background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,255,204,0.02) 50%); background-size: 100% 4px; }
+        .custom-loader { border: 2px solid rgba(0,255,204,0.1); border-top: 2px solid #00ffcc; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #sidebar { transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        .ok-progress { position: absolute; bottom: 0; left: 0; height: 3px; background: #00ffcc; width: 0%; transition: width 0.1s linear; box-shadow: 0 0 10px #00ffcc; }
+
+        /* 圆形进度条样式 */
+        .circular-progress { position: absolute; bottom: 10px; left: 10px; width: 40px; height: 40px; transform: rotate(-90deg); filter: drop-shadow(0 0 5px #00ffcc); }
+        .circular-progress circle { fill: none; stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset 0.1s linear; }
+        .bg-circle { stroke: rgba(255,255,255,0.1); }
+        .fg-circle { stroke: #00ffcc; stroke-dasharray: 100; stroke-dashoffset: 100; }
+    </style>
+</head>
+<body>
+    <div id="canvas-container" class="fixed inset-0 z-0"></div>
+    <div class="fixed inset-0 pointer-events-none scanline z-10 opacity-30"></div>
+
+    <div class="ui-overlay fixed inset-0 z-20 p-12 flex flex-col justify-between">
+        <header class="flex justify-between items-start">
+            <div>
+                <div class="w-12 h-0.5 bg-yellow-500 mb-4"></div>
+                <h1 class="text-3xl font-extralight tracking-[0.5em] mb-2 uppercase">Sanxingdui</h1>
+                <h2 class="text-lg font-light tracking-[0.2em] text-white/40">沉睡三千年，一醒惊天下。</h2>
+            </div>
+            <button onclick="toggleFullScreen()" class="ui-interact glass-panel p-3 rounded-full hover:bg-white/10 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+            </button>
+        </header>
+
+        <footer class="flex justify-between items-end">
+            <div class="space-y-4">
+                <div class="glass-panel p-4 rounded-2xl w-48 flex items-center gap-4 border-l-2 border-l-cyan-500 relative overflow-hidden">
+                    <div id="vision-dot" class="w-2 h-2 rounded-full bg-red-600"></div>
+                    <div>
+                        <div class="text-[8px] tracking-widest text-white/40 uppercase mb-1">Hand Tracking</div>
+                        <div id="gesture-name" class="text-xs font-medium text-cyan-400">等待输入...</div>
+                    </div>
+                    <div id="ok-bar" class="ok-progress"></div>
+                </div>
+            </div>
+            <div class="text-right flex flex-col items-end">
+                <div class="text-[8px] text-white/20 tracking-[0.3em] uppercase mb-1">Current Artifact</div>
+                <div id="asset-name" class="text-sm font-light tracking-[0.2em] text-white/80">星云待机模式</div>
+            </div>
+        </footer>
+    </div>
+
+    <div id="sidebar" class="fixed left-0 top-0 h-full w-80 glass-panel border-r border-white/10 z-50 -translate-x-full flex flex-col">
+        <div class="p-10 flex flex-col h-full">
+            <div class="flex justify-between items-center mb-10">
+                <span class="text-xs tracking-[0.4em] text-white/60 uppercase">Archives / 档案库</span>
+                <button onclick="toggleSidebar(false)" class="ui-interact text-[10px] text-cyan-400 uppercase">Close</button>
+            </div>
+            <div id="model-list" class="ui-interact flex-1 overflow-y-auto space-y-3 pr-2"></div>
+            <div class="mt-8 ui-interact">
+                <label class="block p-5 border border-dashed border-white/20 rounded-2xl text-center cursor-pointer hover:border-cyan-400 transition-all group">
+                    <span class="text-[9px] text-white/40 group-hover:text-cyan-400 tracking-widest uppercase">+ 导入 OBJ 文件</span>
+                    <input type="file" multiple accept=".obj" class="hidden" onchange="handleFileUpload(event)">
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="toggleSidebar(true)" class="ui-interact fixed left-6 top-1/2 -translate-y-1/2 z-40 p-5 rounded-full group">
+        <div class="flex flex-col gap-2">
+            <div class="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-cyan-400"></div>
+            <div class="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-cyan-400"></div>
+            <div class="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-cyan-400"></div>
+        </div>
+    </button>
+
+    <div id="info-panel" class="fixed right-12 top-1/2 -translate-y-1/2 w-96 glass-panel p-10 rounded-[2.5rem] opacity-0 transition-all duration-700 translate-x-12 z-30">
+        <div class="text-[8px] text-yellow-500 tracking-[0.5em] mb-6 uppercase">Asset Record</div>
+        <h3 id="panel-title" class="text-2xl font-light mb-6 border-b border-white/10 pb-6 tracking-wide">星云状态</h3>
+        <p id="panel-desc" class="text-xs leading-relaxed text-white/60 font-light text-justify italic">系统处于静默待机状态...</p>
+    </div>
+
+    <div class="fixed bottom-12 left-12 w-52 h-36 glass-panel rounded-3xl overflow-hidden z-40">
+        <video id="input_video" class="absolute inset-0 w-full h-full object-cover opacity-30 grayscale" playsinline></video>
+        <canvas id="output_canvas" class="absolute inset-0 w-full h-full"></canvas>
+        <!-- 圆形进度条 -->
+        <svg class="circular-progress" viewBox="0 0 36 36">
+            <circle class="bg-circle" cx="18" cy="18" r="16"></circle>
+            <circle id="ok-circle" class="fg-circle" cx="18" cy="18" r="16"></circle>
+        </svg>
+        <div id="loading-overlay" class="absolute inset-0 flex items-center justify-center bg-black/40">
+            <div class="custom-loader"></div>
+        </div>
+    </div>
+
+    <script>
+        const config = { count: 200000, colors: { dark: 0x000406 }, apiKey: "" };
+        let scene, camera, renderer, composer, points;
+        let targetPositions = new Float32Array(config.count * 3);
+        let targetColors = new Float32Array(config.count * 3);
+        let targetSizes = new Float32Array(config.count);
+        let currentRotationY = 0;
+        let lerpScale = 1.0;
+        let targetScale = 1.0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let models = [];
+        let activeModelIndex = -1;
+        let okGestureStartTime = null;
+
+        // 缩放平滑变量
+        let basePinchDist = null;
+        let baseScale = 1.0;
+
+        function initApp() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(config.colors.dark);
+            camera = new THREE.PerspectiveCamera(25, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 180;
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            composer = new THREE.EffectComposer(renderer);
+            composer.addPass(new THREE.RenderPass(scene, camera));
+            composer.addPass(new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.5, 0.8));
+
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(config.count * 3);
+            const colors = new Float32Array(config.count * 3);
+            const sizes = new Float32Array(config.count);
+
+            for (let i = 0; i < config.count; i++) {
+                const i3 = i * 3;
+                positions[i3] = (Math.random() - 0.5) * 800;
+                positions[i3+1] = (Math.random() - 0.5) * 800;
+                positions[i3+2] = (Math.random() - 0.5) * 800;
+                targetPositions[i3] = positions[i3];
+                targetPositions[i3+1] = positions[i3+1];
+                targetPositions[i3+2] = positions[i3+2];
+                colors[i3] = 0.1; colors[i3+1] = 0.4; colors[i3+2] = 0.6;
+                targetColors[i3] = colors[i3]; targetColors[i3+1] = colors[i3+1]; targetColors[i3+2] = colors[i3+2];
+                sizes[i] = Math.random() < 0.05 ? 0.35 : 0.08;
+                targetSizes[i] = sizes[i];
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+            points = new THREE.Points(geometry, new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 }, uRotation: { value: 0 }, uScale: { value: 1.0 } },
+                vertexShader: `
+                    attribute float size; attribute vec3 color; varying vec3 vColor;
+                    uniform float uTime; uniform float uRotation; uniform float uScale;
+                    void main() {
+                        vColor = color; vec3 pos = position * uScale;
+                        float s = sin(uRotation); float c = cos(uRotation);
+                        mat2 rot = mat2(c, -s, s, c); pos.xz = rot * pos.xz;
+                        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                        gl_PointSize = size * (2000.0 / -mvPosition.z);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `,
+                fragmentShader: `
+                    varying vec3 vColor;
+                    void main() {
+                        float d = distance(gl_PointCoord, vec2(0.5));
+                        if (d > 0.5) discard;
+                        gl_FragColor = vec4(vColor, (1.0 - d * 2.0) * 0.8);
+                    }
+                `,
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+            }));
+            scene.add(points);
+
+            window.addEventListener('mousedown', (e) => { if(e.button === 0) { isDragging = true; lastMouseX = e.clientX; } });
+            window.addEventListener('mousemove', (e) => { if (isDragging) { currentRotationY += (e.clientX - lastMouseX) * 0.005; lastMouseX = e.clientX; } });
+            window.addEventListener('mouseup', () => isDragging = false);
+
+            window.addEventListener('wheel', (e) => {
+                targetScale -= e.deltaY * 0.001;
+                targetScale = Math.max(0.3, Math.min(3.0, targetScale));
+            });
+
+            window.addEventListener('dblclick', () => {
+                if (models.length > 0) reconstructModel((activeModelIndex + 1) % models.length);
+                else setNebulaMode();
+            });
+
+            animate();
+            setNebulaMode();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!isDragging) currentRotationY += 0.0012;
+            lerpScale += (targetScale - lerpScale) * 0.1;
+            points.material.uniforms.uTime.value = performance.now() * 0.001;
+            points.material.uniforms.uRotation.value = currentRotationY;
+            points.material.uniforms.uScale.value = lerpScale;
+
+            const pos = points.geometry.attributes.position.array;
+            const col = points.geometry.attributes.color.array;
+            const siz = points.geometry.attributes.size.array;
+
+            for (let i = 0; i < config.count; i++) {
+                const i3 = i * 3;
+                pos[i3] += (targetPositions[i3] - pos[i3]) * 0.06;
+                pos[i3+1] += (targetPositions[i3+1] - pos[i3+1]) * 0.06;
+                pos[i3+2] += (targetPositions[i3+2] - pos[i3+2]) * 0.06;
+                col[i3] += (targetColors[i3] - col[i3]) * 0.04;
+                col[i3+1] += (targetColors[i3+1] - col[i3+1]) * 0.04;
+                col[i3+2] += (targetColors[i3+2] - col[i3+2]) * 0.04;
+                siz[i] += (targetSizes[i] - siz[i]) * 0.06;
+            }
+            points.geometry.attributes.position.needsUpdate = true;
+            points.geometry.attributes.color.needsUpdate = true;
+            points.geometry.attributes.size.needsUpdate = true;
+            composer.render();
+        }
+
+        function setNebulaMode() {
+            document.getElementById('asset-name').innerText = "星云待机模式";
+            activeModelIndex = -1;
+            targetScale = 1.0;
+            for (let i = 0; i < config.count; i++) {
+                const i3 = i * 3;
+                const r = 50 + Math.random() * 100;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos((Math.random() * 2) - 1);
+                targetPositions[i3] = r * Math.sin(phi) * Math.cos(theta);
+                targetPositions[i3+1] = r * Math.sin(phi) * Math.sin(theta);
+                targetPositions[i3+2] = r * Math.cos(phi);
+                const isGold = Math.random() > 0.85;
+                targetColors[i3] = isGold ? 0.6 : 0.0; targetColors[i3+1] = isGold ? 0.5 : 0.4; targetColors[i3+2] = isGold ? 0.1 : 0.3;
+                targetSizes[i] = Math.random() < 0.05 ? 0.35 : 0.08;
+            }
+            document.getElementById('info-panel').classList.add('opacity-0');
+        }
+
+        function reconstructModel(index) {
+            const modelData = models[index];
+            activeModelIndex = index;
+            document.getElementById('asset-name').innerText = modelData.name;
+            const samplerPoints = [];
+            modelData.group.traverse(child => {
+                if (child.isMesh) {
+                    const geom = child.geometry.isBufferGeometry ? child.geometry : new THREE.BufferGeometry().fromGeometry(child.geometry);
+                    const posAttr = geom.attributes.position;
+                    for (let i = 0; i < posAttr.count; i++) samplerPoints.push(new THREE.Vector3().fromBufferAttribute(posAttr, i).applyMatrix4(child.matrixWorld));
+                }
+            });
+
+            const box = new THREE.Box3().setFromObject(modelData.group);
+            const center = box.getCenter(new THREE.Vector3());
+            const scale = 55 / Math.max(box.getSize(new THREE.Vector3()).x, box.getSize(new THREE.Vector3()).y, box.getSize(new THREE.Vector3()).z);
+            const bodyCount = Math.floor(config.count * 0.9);
+
+            for (let i = 0; i < config.count; i++) {
+                const i3 = i * 3;
+                if(i < bodyCount) {
+                    const p = samplerPoints[Math.floor(Math.random() * samplerPoints.length)];
+                    const jitter = 0.02;
+                    targetPositions[i3] = (p.x - center.x) * scale + (Math.random() - 0.5) * jitter;
+                    targetPositions[i3+1] = (p.y - center.y) * scale + (Math.random() - 0.5) * jitter;
+                    targetPositions[i3+2] = (p.z - center.z) * scale + (Math.random() - 0.5) * jitter;
+                    const isGold = Math.random() > 0.75;
+                    targetColors[i3] = isGold ? 1.0 : 0.05;
+                    targetColors[i3+1] = isGold ? 0.85 : 0.95;
+                    targetColors[i3+2] = isGold ? 0.2 : 0.8;
+                    const rand = Math.random();
+                    if(rand > 0.98) targetSizes[i] = 0.3;
+                    else if(rand > 0.9) targetSizes[i] = 0.15;
+                    else targetSizes[i] = 0.045;
+                } else {
+                    const r = 100 + Math.random() * 150;
+                    const theta = Math.random() * Math.PI * 2;
+                    targetPositions[i3] = r * Math.cos(theta);
+                    targetPositions[i3+1] = (Math.random() - 0.5) * 300;
+                    targetPositions[i3+2] = r * Math.sin(theta);
+                    targetColors[i3] = 0.05; targetColors[i3+1] = 0.2; targetColors[i3+2] = 0.3;
+                    targetSizes[i] = 0.06;
+                }
+            }
+            showInfo(modelData.name);
+            toggleSidebar(false);
+        }
+
+        async function showInfo(name) {
+            const panel = document.getElementById('info-panel');
+            document.getElementById('panel-title').innerText = name;
+            panel.classList.remove('opacity-0', 'translate-x-12');
+            try {
+                const prompt = `以博学且富有诗意的语气详细介绍三星堆文物：${name}。控制在150字内。`;
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${config.apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await response.json();
+                document.getElementById('panel-desc').innerText = data.candidates[0].content.parts[0].text;
+            } catch (e) {
+                document.getElementById('panel-desc').innerText = "古蜀之灵，青铜为骨。在这光影交织的数字化重构中，窥见消失三千年的神秘祭礼。";
+            }
+        }
+
+        window.toggleSidebar = (show) => document.getElementById('sidebar').style.transform = show ? 'translateX(0)' : 'translateX(-100%)';
+        window.toggleFullScreen = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
+        window.handleFileUpload = (e) => {
+            const loader = new THREE.OBJLoader();
+            Array.from(e.target.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    models.push({ id: Date.now(), name: file.name.replace('.obj', ''), group: loader.parse(ev.target.result) });
+                    renderModelList();
+                };
+                reader.readAsText(file);
+            });
+            toggleSidebar(true);
+        };
+
+        function renderModelList() {
+            const list = document.getElementById('model-list'); list.innerHTML = '';
+            models.forEach((m, i) => {
+                const div = document.createElement('div');
+                div.className = "p-4 bg-white/5 border border-white/5 rounded-2xl cursor-pointer hover:bg-cyan-500/10 transition-all flex justify-between group";
+                div.innerHTML = `<span class="text-[10px] text-white/50 group-hover:text-white uppercase">${m.name}</span>`;
+                div.onclick = () => reconstructModel(i);
+                list.appendChild(div);
+            });
+        }
+
+        function initVision() {
+            const videoElement = document.getElementById('input_video');
+            const canvasElement = document.getElementById('output_canvas');
+            const canvasCtx = canvasElement.getContext('2d');
+            const hands = new Hands({ locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.7,
+                minTrackingConfidence: 0.7
+            });
+
+            hands.onResults((results) => {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                canvasCtx.save();
+                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+                const okBar = document.getElementById('ok-bar');
+                const okCircle = document.getElementById('ok-circle');
+                const visionDot = document.getElementById('vision-dot');
+                const gestureLabel = document.getElementById('gesture-name');
+
+                if (results.multiHandLandmarks?.length > 0) {
+                    visionDot.className = "w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#00ffcc]";
+                    const lm = results.multiHandLandmarks[0];
+
+                    drawConnectors(canvasCtx, lm, HAND_CONNECTIONS, {color: '#00FFFF', lineWidth: 2});
+                    drawLandmarks(canvasCtx, lm, {color: '#FFD700', lineWidth: 1, radius: 2});
+
+                    // 计算基础距离
+                    const dist = (p1, p2) => Math.hypot(lm[p1].x - lm[p2].x, lm[p1].y - lm[p2].y);
+                    const palmSize = dist(0, 5);
+
+                    // --- 优化后的平滑放大逻辑 (拇指食指间距) ---
+                    // 当手势不是 OK 且手指张开时开启实时缩放
+                    const isFingersExtended = lm[12].y < lm[9].y && lm[16].y < lm[13].y;
+                    const pinchDist = dist(4, 8);
+
+                    if (isFingersExtended && pinchDist > palmSize * 0.8) {
+                        if (basePinchDist === null) {
+                            basePinchDist = pinchDist;
+                            baseScale = targetScale;
+                        }
+                        // 映射比例：当前间距相对于起始间距的倍率
+                        let scaleFactor = pinchDist / basePinchDist;
+                        targetScale = Math.max(0.3, Math.min(3.0, baseScale * scaleFactor));
+                        gestureLabel.innerText = "平滑缩放中...";
+                    } else {
+                        basePinchDist = null; // 重置
+                    }
+
+                    // --- OK手势与圆形进度条 ---
+                    const isOK = dist(4, 8) < 0.06 && lm[12].y < lm[10].y;
+
+                    if (isOK) {
+                        gestureLabel.innerText = "即将切换模型...";
+                        if (!okGestureStartTime) okGestureStartTime = Date.now();
+                        const elapsed = Date.now() - okGestureStartTime;
+                        const progress = Math.min(100, (elapsed / 1500) * 100);
+
+                        // 更新底部条
+                        okBar.style.width = progress + "%";
+                        // 更新圆形进度条 (100 -> 0 表示从空到满)
+                        okCircle.style.strokeDashoffset = 100 - progress;
+
+                        if (elapsed > 1500) {
+                            if(models.length > 0) reconstructModel((activeModelIndex + 1) % models.length);
+                            okGestureStartTime = null;
+                        }
+                    } else {
+                        okGestureStartTime = null;
+                        okBar.style.width = "0%";
+                        okCircle.style.strokeDashoffset = 100;
+                        if (!basePinchDist) gestureLabel.innerText = "手势交互中";
+                    }
+
+                    // 随手掌位置旋转
+                    currentRotationY += (lm[0].x - 0.5) * 0.1;
+
+                } else {
+                    visionDot.className = "w-2 h-2 rounded-full bg-red-600";
+                    gestureLabel.innerText = "等待输入...";
+                    okBar.style.width = "0%";
+                    okCircle.style.strokeDashoffset = 100;
+                    okGestureStartTime = null;
+                    basePinchDist = null;
+                }
+                canvasCtx.restore();
+            });
+
+            const cameraPipe = new Camera(videoElement, {
+                onFrame: async () => {
+                    canvasElement.width = videoElement.videoWidth;
+                    canvasElement.height = videoElement.videoHeight;
+                    await hands.send({image: videoElement});
+                },
+                width: 320, height: 240
+            });
+
+            cameraPipe.start().catch(err => {
+                console.error("Camera access error:", err);
+                document.getElementById('gesture-name').innerText = "摄像头不可用";
+            });
+        }
+
+        window.onload = () => { initApp(); initVision(); };
+    </script>
+</body>
+</html>

@@ -36,6 +36,7 @@ import Calendar from "./Calendar";
 import ChristmasTreeHand from "./ChristmasTreeHand";
 import PhotoFrame from "./PhotoFrame";
 import Gallery from "./Gallery";
+import Sanxingdui from "./sanxingdui";
 import { Toaster } from "sonner";
 
 
@@ -178,6 +179,13 @@ const routeItems = [
         url: "/calendar",
         component: <Calendar />,
         icon: "material-symbols:calendar-month-outline",
+    },
+    {
+        label: "三星堆",
+        id: "sanxingdui",
+        url: "/sxd",
+        component: <Sanxingdui />,
+        icon: "material-symbols:gesture-2",
     },
 ];
 
