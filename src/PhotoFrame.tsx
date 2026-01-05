@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import ImageUploader from './ImageUploader';
-import { Download, RotateCcw, Upload, Trash2, Plus, Image as ImageIcon, Film, BoxSelect, Camera, Newspaper, Aperture, Copy, Calendar as CalendarIcon } from 'lucide-react';
+import { Download, RotateCcw, Upload, Trash2, Plus, Image as ImageIcon, Film, BoxSelect, Camera, Newspaper, Aperture, Copy, Calendar as CalendarIcon, Layers, PenTool } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ExifData {
@@ -38,7 +38,7 @@ interface FrameImage {
     exif: ExifData;
 }
 
-type FrameTemplate = 'gallery' | 'floating' | 'polaroid' | 'magazine' | 'film' | 'round';
+type FrameTemplate = 'gallery' | 'floating' | 'polaroid' | 'magazine' | 'film' | 'round' | 'blur';
 type AspectRatio = 'original' | '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '21:9';
 type WatermarkStyle = 'classic' | 'tech' | 'minimal' | 'bold' | 'simple';
 
@@ -47,7 +47,8 @@ const PhotoFrame: React.FC = () => {
     const [images, setImages] = useState<FrameImage[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [template, setTemplate] = useState<FrameTemplate>('gallery');
-    const [aspectRatio, setAspectRatio] = useState<AspectRatio>('original');
+    const [imageAspectRatio, setImageAspectRatio] = useState<AspectRatio>('original');
+    const [frameAspectRatio, setFrameAspectRatio] = useState<AspectRatio>('original');
     const [watermarkStyle, setWatermarkStyle] = useState<WatermarkStyle>('classic');
 
     // Style Settings
@@ -67,6 +68,19 @@ const PhotoFrame: React.FC = () => {
 
     const [roundRingColor, setRoundRingColor] = useState('#000000');
     const [roundRingWidth, setRoundRingWidth] = useState(0.015);
+    const [blurLevel, setBlurLevel] = useState(100);
+
+    // Signature State
+    const [signatureEnabled, setSignatureEnabled] = useState(false);
+    const [signatureType, setSignatureType] = useState<'text' | 'image'>('text');
+    const [signatureText, setSignatureText] = useState('');
+    const [signatureImage, setSignatureImage] = useState<string | null>(null);
+    const [sigImageObj] = useImage(signatureImage || '', 'anonymous');
+    const [signaturePosition, setSignaturePosition] = useState<'bottom-right' | 'bottom-left' | 'bottom-center' | 'center'>('bottom-right');
+    const [signatureSize, setSignatureSize] = useState(1);
+    const [signatureOpacity, setSignatureOpacity] = useState(0.8);
+    const [signatureColor, setSignatureColor] = useState('#000000');
+    const [signatureFont, setSignatureFont] = useState('SignPainter, "Brush Script MT", cursive');
 
     // Unified Image Transform State (Scale & Position)
     const [imgParams, setImgParams] = useState({ scale: 1, x: 0, y: 0 });
@@ -100,7 +114,7 @@ const PhotoFrame: React.FC = () => {
     // Reset image params when image, template or aspect ratio changes
     useEffect(() => {
         setImgParams({ scale: 1, x: 0, y: 0 });
-    }, [selectedId, template, aspectRatio]);
+    }, [selectedId, template, imageAspectRatio, frameAspectRatio]);
 
     // Sync custom params when image changes
     useEffect(() => {
@@ -176,10 +190,199 @@ const PhotoFrame: React.FC = () => {
         }
     };
 
+
+    // Calculate Layout
+    const stageWidth = window.innerWidth * 0.6;
+    const stageHeight = window.innerHeight * 0.7;
+
+    const layout = useMemo(() => {
+        if (!konvaImage) return null;
+
+        let imgW = konvaImage.width;
+        let imgH = konvaImage.height;
+
+        // 1. Apply Image Aspect Ratio Crop (Skip for Round, it uses Canvas Padding)
+        if (imageAspectRatio !== 'original' && template !== 'round') {
+            const currentRatio = imgW / imgH;
+            let targetRatio = 1;
+
+            switch (imageAspectRatio) {
+                case '1:1': targetRatio = 1; break;
+                case '4:3': targetRatio = 4 / 3; break;
+                case '3:4': targetRatio = 3 / 4; break;
+                case '16:9': targetRatio = 16 / 9; break;
+                case '9:16': targetRatio = 9 / 16; break;
+                case '3:2': targetRatio = 3 / 2; break;
+                case '2:3': targetRatio = 2 / 3; break;
+                case '21:9': targetRatio = 21 / 9; break;
+            }
+
+            if (currentRatio > targetRatio) {
+                // Image is wider than target: Crop Width
+                imgW = imgH * targetRatio;
+            } else {
+                // Image is taller than target: Crop Height
+                imgH = imgW / targetRatio;
+            }
+        }
+
+        // 2. Calculate Content Dimensions based on Template
+        let borderW = imgW * borderSize;
+        let bottomH = 0;
+        let contentW = 0;
+        let contentH = 0;
+        let imgX = 0;
+        let imgY = 0;
+        let roundDiameter = 0;
+        let roundPad = 0;
+
+        if (template === 'gallery') {
+            // Gallery: Classic Polaroid/Museum mat
+            // Sides and Top are equal (borderW), Bottom is larger (borderW + bottomH)
+            const bottomPadding = imgH * Math.max(bottomSize, 0.05); // Ensure at least some bottom
+
+            contentW = imgW + borderW * 2;
+            contentH = imgH + borderW + bottomPadding;
+
+            imgX = borderW;
+            imgY = borderW;
+            bottomH = bottomPadding; // For text positioning
+
+        } else if (template === 'floating') {
+            // Floating: Image sits in center of large canvas with shadow
+            // borderSize controls the canvas "padding" around the image
+
+            const padding = Math.max(imgW * 0.1, imgW * borderSize * 2);
+
+            contentW = imgW + padding * 2;
+            contentH = imgH + padding * 2;
+
+            imgX = padding;
+            imgY = padding;
+
+        } else if (template === 'polaroid') {
+            // Polaroid: Thicker borders, very large chin
+            const pBorder = imgW * 0.06;
+            const pBottom = imgH * 0.25;
+
+            contentW = imgW + pBorder * 2;
+            contentH = imgH + pBorder + pBottom;
+
+            imgX = pBorder;
+            imgY = pBorder;
+            bottomH = pBottom;
+
+        } else if (template === 'magazine') {
+            // Magazine: Image on top, large white area below with editorial typography
+            // Minimal side borders
+            const mBorder = imgW * 0.03;
+            const mBottom = imgH * 0.3;
+
+            contentW = imgW + mBorder * 2;
+            contentH = imgH + mBorder + mBottom;
+
+            imgX = mBorder;
+            imgY = mBorder;
+            bottomH = mBottom;
+
+        } else if (template === 'film') {
+            // Film Strip: Black bars on top/bottom with sprocket holes
+            const fBar = imgH * 0.15;
+
+            contentW = imgW;
+            contentH = imgH + fBar * 2;
+
+            imgX = 0;
+            imgY = fBar;
+            bottomH = fBar;
+        } else if (template === 'blur') {
+            // Blur: Image in center, background is blurred image
+            // borderSize controls the padding
+            const padding = Math.max(imgW * 0.1, imgW * borderSize * 2);
+
+            contentW = imgW + padding * 2;
+            contentH = imgH + padding * 2;
+
+            imgX = padding;
+            imgY = padding;
+        } else if (template === 'round') {
+            const diameter = Math.min(imgW, imgH);
+            const pad = Math.max(diameter * 0.15, imgW * borderSize);
+
+            // Base Dimensions (Square)
+            let finalW = diameter + pad * 2;
+            let finalH = diameter + pad * 2;
+
+            // Apply Image Aspect Ratio as Canvas Padding for Round (Round logic was unique)
+            // But now we split it. imageAspectRatio should probably not affect round content shape (it's always round)
+            // But maybe it affects the canvas?
+            // Let's stick to the previous logic: imageAspectRatio on Round changed the canvas aspect ratio.
+            // So if template is round, imageAspectRatio acts like frameAspectRatio in the old logic.
+            // But now we have frameAspectRatio. So imageAspectRatio for Round is redundant (always 1:1 circle).
+            // Let's assume content is square 1:1 for Round initially.
+
+            contentW = finalW;
+            contentH = finalH;
+
+            // Center the Round Content (Circle) in the Canvas
+            imgX = (contentW - diameter) / 2;
+            imgY = (contentH - diameter) / 2;
+
+            bottomH = 0;
+            borderW = pad;
+            roundDiameter = diameter;
+            roundPad = pad;
+        }
+
+        // 3. Apply Frame Aspect Ratio (Extend Canvas)
+        let totalW = contentW;
+        let totalH = contentH;
+        let frameOffsetX = 0;
+        let frameOffsetY = 0;
+
+        if (frameAspectRatio !== 'original') {
+             let targetRatio = 1;
+             switch (frameAspectRatio) {
+                 case '1:1': targetRatio = 1; break;
+                 case '4:3': targetRatio = 4 / 3; break;
+                 case '3:4': targetRatio = 3 / 4; break;
+                 case '16:9': targetRatio = 16 / 9; break;
+                 case '9:16': targetRatio = 9 / 16; break;
+                 case '3:2': targetRatio = 3 / 2; break;
+                 case '2:3': targetRatio = 2 / 3; break;
+                 case '21:9': targetRatio = 21 / 9; break;
+             }
+
+             const currentContentRatio = contentW / contentH;
+
+             if (targetRatio > currentContentRatio) {
+                 // Target is wider than content -> Increase Width
+                 totalW = contentH * targetRatio;
+                 totalH = contentH;
+                 frameOffsetX = (totalW - contentW) / 2;
+             } else {
+                 // Target is taller than content -> Increase Height
+                 totalW = contentW;
+                 totalH = contentW / targetRatio;
+                 frameOffsetY = (totalH - contentH) / 2;
+             }
+        }
+
+        // Adjust Image Position by Frame Offset
+        imgX += frameOffsetX;
+        imgY += frameOffsetY;
+
+        const scale = Math.min(stageWidth / totalW, stageHeight / totalH);
+
+        return { totalW, totalH, imgX, imgY, imgW, imgH, scale, bottomH, borderW, roundPad, roundDiameter };
+    }, [konvaImage, template, borderSize, bottomSize, stageWidth, stageHeight, imageAspectRatio, frameAspectRatio]);
+
+    // Handlers
     const copyImage = async () => {
-        if (stageRef.current && selectedImage) {
+        if (stageRef.current && selectedImage && layout) {
             try {
-                const pixelRatio = 3;
+                // Restore original resolution
+                const pixelRatio = 1 / layout.scale;
                 const dataUrl = stageRef.current.toDataURL({ pixelRatio });
                 const blob = await (await fetch(dataUrl)).blob();
                 await navigator.clipboard.write([
@@ -192,6 +395,21 @@ const PhotoFrame: React.FC = () => {
                 console.error(err);
                 toast.error("复制失败，请尝试使用保存功能");
             }
+        }
+    };
+
+    const downloadImage = () => {
+        if (stageRef.current && selectedImage && layout) {
+            // Restore original resolution
+            const pixelRatio = 1 / layout.scale;
+            const uri = stageRef.current.toDataURL({ pixelRatio });
+            const link = document.createElement('a');
+            link.download = `framed_${selectedImage.file.name.replace(/\.[^/.]+$/, "")}.png`;
+            link.href = uri;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast.success("图片已保存");
         }
     };
 
@@ -233,170 +451,16 @@ const PhotoFrame: React.FC = () => {
         e.stopPropagation();
     };
 
-    const downloadImage = () => {
-        if (stageRef.current && selectedImage) {
-            const pixelRatio = 3;
-            const uri = stageRef.current.toDataURL({ pixelRatio });
-            const link = document.createElement('a');
-            link.download = `framed_${selectedImage.file.name.replace(/\.[^/.]+$/, "")}.png`;
-            link.href = uri;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            toast.success("图片已保存");
+    const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setSignatureImage(event.target?.result as string);
+            };
+            reader.readAsDataURL(file);
         }
     };
-
-    // Calculate Layout
-    const stageWidth = window.innerWidth * 0.6;
-    const stageHeight = window.innerHeight * 0.7;
-
-    const layout = useMemo(() => {
-        if (!konvaImage) return null;
-
-        let imgW = konvaImage.width;
-        let imgH = konvaImage.height;
-
-        // Apply Aspect Ratio Crop (Skip for Round, it uses Canvas Padding)
-        if (aspectRatio !== 'original' && template !== 'round') {
-            const currentRatio = imgW / imgH;
-            let targetRatio = 1;
-
-            switch (aspectRatio) {
-                case '1:1': targetRatio = 1; break;
-                case '4:3': targetRatio = 4 / 3; break;
-                case '3:4': targetRatio = 3 / 4; break;
-                case '16:9': targetRatio = 16 / 9; break;
-                case '9:16': targetRatio = 9 / 16; break;
-                case '3:2': targetRatio = 3 / 2; break;
-                case '2:3': targetRatio = 2 / 3; break;
-                case '21:9': targetRatio = 21 / 9; break;
-            }
-
-            if (currentRatio > targetRatio) {
-                // Image is wider than target: Crop Width
-                imgW = imgH * targetRatio;
-            } else {
-                // Image is taller than target: Crop Height
-                imgH = imgW / targetRatio;
-            }
-        }
-
-        let borderW = imgW * borderSize;
-        let bottomH = 0;
-        let totalW = 0;
-        let totalH = 0;
-        let imgX = 0;
-        let imgY = 0;
-        let roundDiameter = 0;
-        let roundPad = 0;
-
-        if (template === 'gallery') {
-            // Gallery: Classic Polaroid/Museum mat
-            // Sides and Top are equal (borderW), Bottom is larger (borderW + bottomH)
-            const bottomPadding = imgH * Math.max(bottomSize, 0.05); // Ensure at least some bottom
-
-            totalW = imgW + borderW * 2;
-            totalH = imgH + borderW + bottomPadding;
-
-            imgX = borderW;
-            imgY = borderW;
-            bottomH = bottomPadding; // For text positioning
-
-        } else if (template === 'floating') {
-            // Floating: Image sits in center of large canvas with shadow
-            // borderSize controls the canvas "padding" around the image
-
-            const padding = Math.max(imgW * 0.1, imgW * borderSize * 2);
-
-            totalW = imgW + padding * 2;
-            totalH = imgH + padding * 2;
-
-            imgX = padding;
-            imgY = padding;
-
-        } else if (template === 'polaroid') {
-            // Polaroid: Thicker borders, very large chin
-            const pBorder = imgW * 0.06;
-            const pBottom = imgH * 0.25;
-
-            totalW = imgW + pBorder * 2;
-            totalH = imgH + pBorder + pBottom;
-
-            imgX = pBorder;
-            imgY = pBorder;
-            bottomH = pBottom;
-
-        } else if (template === 'magazine') {
-            // Magazine: Image on top, large white area below with editorial typography
-            // Minimal side borders
-            const mBorder = imgW * 0.03;
-            const mBottom = imgH * 0.3;
-
-            totalW = imgW + mBorder * 2;
-            totalH = imgH + mBorder + mBottom;
-
-            imgX = mBorder;
-            imgY = mBorder;
-            bottomH = mBottom;
-
-        } else if (template === 'film') {
-            // Film Strip: Black bars on top/bottom with sprocket holes
-            const fBar = imgH * 0.15;
-
-            totalW = imgW;
-            totalH = imgH + fBar * 2;
-
-            imgX = 0;
-            imgY = fBar;
-            bottomH = fBar;
-        } else if (template === 'round') {
-            const diameter = Math.min(imgW, imgH);
-            const pad = Math.max(diameter * 0.15, imgW * borderSize);
-
-            // Base Dimensions (Square)
-            let finalW = diameter + pad * 2;
-            let finalH = diameter + pad * 2;
-
-            // Apply Aspect Ratio as Canvas Padding for Round
-            if (aspectRatio !== 'original') {
-                let targetRatio = 1;
-                switch (aspectRatio) {
-                    case '1:1': targetRatio = 1; break;
-                    case '4:3': targetRatio = 4 / 3; break;
-                    case '3:4': targetRatio = 3 / 4; break;
-                    case '16:9': targetRatio = 16 / 9; break;
-                    case '9:16': targetRatio = 9 / 16; break;
-                    case '3:2': targetRatio = 3 / 2; break;
-                    case '2:3': targetRatio = 2 / 3; break;
-                    case '21:9': targetRatio = 21 / 9; break;
-                }
-
-                const currentRatio = finalW / finalH; // Always 1 initially
-                if (targetRatio > currentRatio) {
-                    finalW = finalH * targetRatio;
-                } else {
-                    finalH = finalW / targetRatio;
-                }
-            }
-
-            totalW = finalW;
-            totalH = finalH;
-
-            // Center the Round Content (Circle) in the Canvas
-            imgX = (totalW - diameter) / 2;
-            imgY = (totalH - diameter) / 2;
-
-            bottomH = 0;
-            borderW = pad;
-            roundDiameter = diameter;
-            roundPad = pad;
-        }
-
-        const scale = Math.min(stageWidth / totalW, stageHeight / totalH);
-
-        return { totalW, totalH, imgX, imgY, imgW, imgH, scale, bottomH, borderW, roundPad, roundDiameter };
-    }, [konvaImage, template, borderSize, bottomSize, stageWidth, stageHeight, aspectRatio]);
 
     // Handle param changes
     const updateParam = (key: keyof ExifData, value: string) => {
@@ -485,24 +549,45 @@ const PhotoFrame: React.FC = () => {
                         <div className="p-4 space-y-6">
                             {/* Aspect Ratio Selector */}
                             {template !== 'round' && (
-                                <div className="space-y-3">
-                                    <Label>图片比例</Label>
-                                    <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
-                                        <SelectTrigger className="w-full bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
-                                            <span className="truncate">{aspectRatio === 'original' ? '原始比例' : aspectRatio}</span>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="original">原始比例</SelectItem>
-                                            <SelectItem value="1:1">1:1 (正方形)</SelectItem>
-                                            <SelectItem value="4:3">4:3 (横向)</SelectItem>
-                                            <SelectItem value="3:4">3:4 (纵向)</SelectItem>
-                                            <SelectItem value="3:2">3:2 (标准)</SelectItem>
-                                            <SelectItem value="2:3">2:3 (标准)</SelectItem>
-                                            <SelectItem value="16:9">16:9 (电影)</SelectItem>
-                                            <SelectItem value="9:16">9:16 (快拍)</SelectItem>
-                                            <SelectItem value="21:9">21:9 (宽屏)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                <div className="space-y-4">
+                                    <div className="space-y-3">
+                                        <Label>图片比例 (裁剪)</Label>
+                                        <Select value={imageAspectRatio} onValueChange={(v) => setImageAspectRatio(v as AspectRatio)}>
+                                            <SelectTrigger className="w-full bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+                                                <span className="truncate">{imageAspectRatio === 'original' ? '原始比例' : imageAspectRatio}</span>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="original">原始比例</SelectItem>
+                                                <SelectItem value="1:1">1:1 (正方形)</SelectItem>
+                                                <SelectItem value="4:3">4:3 (横向)</SelectItem>
+                                                <SelectItem value="3:4">3:4 (纵向)</SelectItem>
+                                                <SelectItem value="3:2">3:2 (标准)</SelectItem>
+                                                <SelectItem value="2:3">2:3 (标准)</SelectItem>
+                                                <SelectItem value="16:9">16:9 (电影)</SelectItem>
+                                                <SelectItem value="9:16">9:16 (快拍)</SelectItem>
+                                                <SelectItem value="21:9">21:9 (宽屏)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <Label>画框比例 (输出)</Label>
+                                        <Select value={frameAspectRatio} onValueChange={(v) => setFrameAspectRatio(v as AspectRatio)}>
+                                            <SelectTrigger className="w-full bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+                                                <span className="truncate">{frameAspectRatio === 'original' ? '自动 (适应内容)' : frameAspectRatio}</span>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="original">自动 (适应内容)</SelectItem>
+                                                <SelectItem value="1:1">1:1 (正方形)</SelectItem>
+                                                <SelectItem value="4:3">4:3 (横向)</SelectItem>
+                                                <SelectItem value="3:4">3:4 (纵向)</SelectItem>
+                                                <SelectItem value="3:2">3:2 (标准)</SelectItem>
+                                                <SelectItem value="2:3">2:3 (标准)</SelectItem>
+                                                <SelectItem value="16:9">16:9 (电影)</SelectItem>
+                                                <SelectItem value="9:16">9:16 (快拍)</SelectItem>
+                                                <SelectItem value="21:9">21:9 (宽屏)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                 </div>
                             )}
 
@@ -540,6 +625,7 @@ const PhotoFrame: React.FC = () => {
                                         { id: 'round', name: '圆形', icon: Aperture },
                                         { id: 'film', name: '电影胶卷', icon: Film },
                                         { id: 'floating', name: '悬浮', icon: BoxSelect },
+                                        { id: 'blur', name: '模糊', icon: Layers },
                                         { id: 'polaroid', name: '拍立得', icon: Camera },
                                         { id: 'magazine', name: '杂志', icon: Newspaper },
                                     ].map(t => (
@@ -629,37 +715,55 @@ const PhotoFrame: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {template === 'floating' && (
+                                {(template === 'floating' || template === 'blur') && (
                                     <div className="space-y-4 border-t border-white/10 pt-4 mt-4">
-                                        <Label className="text-xs font-semibold text-gray-400">悬浮样式设置</Label>
+                                        <Label className="text-xs font-semibold text-gray-400">
+                                            {template === 'blur' ? '模糊样式设置' : '悬浮样式设置'}
+                                        </Label>
 
-                                        {/* Zen Backgrounds */}
-                                        <div className="space-y-2">
-                                            <Label className="text-xs">禅意背景</Label>
-                                            <div className="grid grid-cols-5 gap-2">
-                                                {ZEN_BACKGROUNDS.map((bg) => (
-                                                    <button
-                                                        key={bg.name}
-                                                        onClick={() => {
-                                                            setBackgroundImage(bg.url);
-                                                            if (bg.url === null) setBorderColor('#ffffff');
-                                                        }}
-                                                        className={`w-full aspect-square rounded-md overflow-hidden border transition-all ${
-                                                            backgroundImage === bg.url ? 'border-blue-500 ring-2 ring-blue-500/50' : 'border-white/10 hover:border-white/30'
-                                                        }`}
-                                                        title={bg.name}
-                                                    >
-                                                        {bg.url ? (
-                                                            <img src={bg.url} className="w-full h-full object-cover" alt={bg.name} />
-                                                        ) : (
-                                                            <div className="w-full h-full bg-white flex items-center justify-center">
-                                                                <span className="text-[10px] text-black">无</span>
-                                                            </div>
-                                                        )}
-                                                    </button>
-                                                ))}
+                                        {/* Blur Level - Only for Blur */}
+                                        {template === 'blur' && (
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between">
+                                                    <Label className="text-xs">模糊程度</Label>
+                                                    <span className="text-xs text-muted-foreground">{blurLevel}</span>
+                                                </div>
+                                                <Slider
+                                                    value={[blurLevel]} max={200} step={1}
+                                                    onValueChange={(v) => setBlurLevel(v[0])}
+                                                />
                                             </div>
-                                        </div>
+                                        )}
+
+                                        {/* Zen Backgrounds - Only for Floating */}
+                                        {template === 'floating' && (
+                                            <div className="space-y-2">
+                                                <Label className="text-xs">禅意背景</Label>
+                                                <div className="grid grid-cols-5 gap-2">
+                                                    {ZEN_BACKGROUNDS.map((bg) => (
+                                                        <button
+                                                            key={bg.name}
+                                                            onClick={() => {
+                                                                setBackgroundImage(bg.url);
+                                                                if (bg.url === null) setBorderColor('#ffffff');
+                                                            }}
+                                                            className={`w-full aspect-square rounded-md overflow-hidden border transition-all ${
+                                                                backgroundImage === bg.url ? 'border-blue-500 ring-2 ring-blue-500/50' : 'border-white/10 hover:border-white/30'
+                                                            }`}
+                                                            title={bg.name}
+                                                        >
+                                                            {bg.url ? (
+                                                                <img src={bg.url} className="w-full h-full object-cover" alt={bg.name} />
+                                                            ) : (
+                                                                <div className="w-full h-full bg-white flex items-center justify-center">
+                                                                    <span className="text-[10px] text-black">无</span>
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         <div className="flex items-center justify-between">
                                             <Label className="text-xs">内边框颜色</Label>
@@ -709,6 +813,106 @@ const PhotoFrame: React.FC = () => {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Signature Settings */}
+                                <div className="space-y-4 border-t border-white/10 pt-4 mt-4">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs font-semibold text-gray-400">签名 / 水印</Label>
+                                        <Switch checked={signatureEnabled} onCheckedChange={setSignatureEnabled} />
+                                    </div>
+
+                                    {signatureEnabled && (
+                                        <div className="space-y-4">
+                                            <Tabs value={signatureType} onValueChange={(v) => setSignatureType(v as 'text' | 'image')} className="w-full">
+                                                <TabsList className="grid w-full grid-cols-2 h-8">
+                                                    <TabsTrigger value="text" className="text-xs">文字</TabsTrigger>
+                                                    <TabsTrigger value="image" className="text-xs">图片</TabsTrigger>
+                                                </TabsList>
+
+                                                <TabsContent value="text" className="space-y-3 mt-3">
+                                                    <Input
+                                                        value={signatureText}
+                                                        onChange={(e) => setSignatureText(e.target.value)}
+                                                        placeholder="输入签名内容"
+                                                        className="h-8 text-xs"
+                                                    />
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-xs">颜色</Label>
+                                                        <div className="flex gap-2 items-center">
+                                                             <Select value={signatureFont} onValueChange={setSignatureFont}>
+                                                                <SelectTrigger className="h-6 w-24 text-[10px]">
+                                                                    <SelectValue placeholder="字体" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value='SignPainter, "Brush Script MT", cursive'>手写体</SelectItem>
+                                                                    <SelectItem value='Inter, sans-serif'>黑体</SelectItem>
+                                                                    <SelectItem value='"Times New Roman", serif'>宋体</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <input
+                                                                type="color"
+                                                                value={signatureColor}
+                                                                onChange={(e) => setSignatureColor(e.target.value)}
+                                                                className="w-6 h-6 rounded-full overflow-hidden border-0 p-0"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </TabsContent>
+
+                                                <TabsContent value="image" className="space-y-3 mt-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Button variant="outline" size="sm" className="w-full h-8 text-xs relative overflow-hidden">
+                                                            <Upload className="w-3 h-3 mr-2" />
+                                                            {signatureImage ? '更换图片' : '上传图片'}
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                onChange={handleSignatureUpload}
+                                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                            />
+                                                        </Button>
+                                                        {signatureImage && (
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400" onClick={() => setSignatureImage(null)}>
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </TabsContent>
+                                            </Tabs>
+
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between">
+                                                    <Label className="text-xs">大小</Label>
+                                                    <span className="text-xs text-muted-foreground">{Math.round(signatureSize * 100)}%</span>
+                                                </div>
+                                                <Slider value={[signatureSize * 100]} min={10} max={200} step={5} onValueChange={(v) => setSignatureSize(v[0] / 100)} />
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between">
+                                                    <Label className="text-xs">不透明度</Label>
+                                                    <span className="text-xs text-muted-foreground">{Math.round(signatureOpacity * 100)}%</span>
+                                                </div>
+                                                <Slider value={[signatureOpacity * 100]} max={100} step={5} onValueChange={(v) => setSignatureOpacity(v[0] / 100)} />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="text-xs">位置</Label>
+                                                <Select value={signaturePosition} onValueChange={(v) => setSignaturePosition(v as any)}>
+                                                    <SelectTrigger className="h-8 text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="bottom-right">右下角</SelectItem>
+                                                        <SelectItem value="bottom-left">左下角</SelectItem>
+                                                        <SelectItem value="bottom-center">底部居中</SelectItem>
+                                                        <SelectItem value="center">正中间</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div className="flex items-center justify-between">
                                     <Label>文字颜色</Label>
@@ -762,8 +966,40 @@ const PhotoFrame: React.FC = () => {
                                         }
                                     />
 
+                                    {/* Blur Background Layer */}
+                                    {template === 'blur' && konvaImage && (
+                                        <Group>
+                                            <KonvaImage
+                                                image={konvaImage}
+                                                x={0}
+                                                y={0}
+                                                width={layout.totalW}
+                                                height={layout.totalH}
+                                                crop={(() => {
+                                                    const imageRatio = konvaImage.width / konvaImage.height;
+                                                    const containerRatio = layout.totalW / layout.totalH;
+
+                                                    let cropX = 0, cropY = 0, cropW = konvaImage.width, cropH = konvaImage.height;
+
+                                                    if (containerRatio > imageRatio) {
+                                                        cropH = konvaImage.width / containerRatio;
+                                                        cropY = (konvaImage.height - cropH) / 2;
+                                                    } else {
+                                                        cropW = konvaImage.height * containerRatio;
+                                                        cropX = (konvaImage.width - cropW) / 2;
+                                                    }
+
+                                                    return { x: cropX, y: cropY, width: cropW, height: cropH };
+                                                })()}
+                                                filters={[Konva.Filters.Blur]}
+                                                blurRadius={(konvaImage.width * blurLevel) / 10000}
+                                            />
+                                            <Rect width={layout.totalW} height={layout.totalH} fill="black" opacity={0.2} />
+                                        </Group>
+                                    )}
+
                                     {/* Shadow for Floating */}
-                                    {template === 'floating' && floatingShadow && (
+                                    {(template === 'floating' || template === 'blur') && floatingShadow && (
                                         <Rect
                                             x={layout.imgX}
                                             y={layout.imgY}
@@ -929,8 +1165,8 @@ const PhotoFrame: React.FC = () => {
                                                         setImgParams({ scale: newScale, ...newPos });
                                                     }}
                                                     // Add stroke/border properties for non-Round templates
-                                                    stroke={!isRound && template === 'floating' ? floatingBorderColor : undefined}
-                                                    strokeWidth={!isRound && template === 'floating' ? layout.imgW * 0.01 : 0}
+                                                    stroke={!isRound && (template === 'floating' || template === 'blur') ? floatingBorderColor : undefined}
+                                                    strokeWidth={!isRound && (template === 'floating' || template === 'blur') ? layout.imgW * 0.01 : 0}
                                                     cornerRadius={!isRound && template === 'film' ? layout.imgW * 0.005 : 0}
                                                 />
                                                 {/* Round Template Ring (Overlay) */}
@@ -1262,6 +1498,174 @@ const PhotoFrame: React.FC = () => {
                                                         letterSpacing={1}
                                                     />
                                                 </Group>
+                                            )}
+                                        </Group>
+                                    )}
+
+                                    {/* Signature / Watermark Overlay */}
+                                    {signatureEnabled && (
+                                        <Group>
+                                            {signatureType === 'text' && signatureText && (
+                                                <Text
+                                                    text={signatureText}
+                                                    fontFamily={signatureFont}
+                                                    fill={signatureColor}
+                                                    opacity={signatureOpacity}
+                                                    {...(() => {
+                                                        const padding = layout.totalW * 0.03;
+                                                        // Base font size relative to shorter side to be consistent
+                                                        const baseSize = Math.min(layout.totalW, layout.totalH);
+                                                        const fontSize = baseSize * 0.05 * signatureSize;
+
+                                                        // Adjust Y for Gallery bottom area if needed
+                                                        // For Gallery, bottom area starts at layout.totalH - layout.bottomH
+                                                        // If we want it in the white area, we target that.
+                                                        // If we want it on image, that's different.
+                                                        // "Signature" usually implies bottom of the whole frame.
+
+                                                        let yPos = layout.totalH - padding - fontSize;
+
+                                                        // If Gallery and bottom-*, maybe center vertically in the bottom strip?
+                                                        if (template === 'gallery' && signaturePosition.startsWith('bottom')) {
+                                                            yPos = layout.totalH - (layout.bottomH / 2) - (fontSize / 2);
+                                                        }
+
+                                                        const commonProps = {
+                                                            fontSize,
+                                                            width: layout.totalW - 2 * padding,
+                                                            y: yPos,
+                                                            x: padding
+                                                        };
+
+                                                        if (signaturePosition === 'bottom-right') {
+                                                            return { ...commonProps, align: 'right' };
+                                                        } else if (signaturePosition === 'bottom-left') {
+                                                            return { ...commonProps, align: 'left' };
+                                                        } else if (signaturePosition === 'bottom-center') {
+                                                            return { ...commonProps, align: 'center' };
+                                                        } else if (signaturePosition === 'center') {
+                                                            return {
+                                                                ...commonProps,
+                                                                y: (layout.totalH - fontSize) / 2,
+                                                                align: 'center'
+                                                            };
+                                                        }
+                                                        return commonProps;
+                                                    })()}
+                                                />
+                                            )}
+                                            {signatureType === 'image' && sigImageObj && (
+                                                <KonvaImage
+                                                    image={sigImageObj}
+                                                    opacity={signatureOpacity}
+                                                    {...(() => {
+                                                        const aspect = sigImageObj.width / sigImageObj.height;
+                                                        const baseSize = Math.min(layout.totalW, layout.totalH);
+                                                        const h = baseSize * 0.1 * signatureSize;
+                                                        const w = h * aspect;
+                                                        const padding = layout.totalW * 0.03;
+
+                                                        let x = 0;
+                                                        let y = layout.totalH - h - padding;
+
+                                                        if (template === 'gallery' && signaturePosition.startsWith('bottom')) {
+                                                            y = layout.totalH - (layout.bottomH / 2) - (h / 2);
+                                                        } else if (signaturePosition === 'center') {
+                                                            y = (layout.totalH - h) / 2;
+                                                        }
+
+                                                        if (signaturePosition === 'bottom-right') {
+                                                            x = layout.totalW - w - padding;
+                                                        } else if (signaturePosition === 'bottom-left') {
+                                                            x = padding;
+                                                        } else if (signaturePosition === 'bottom-center' || signaturePosition === 'center') {
+                                                            x = (layout.totalW - w) / 2;
+                                                        }
+
+                                                        return { x, y, width: w, height: h };
+                                                    })()}
+                                                />
+                                            )}
+                                        </Group>
+                                    )}
+
+                                    {/* Signature / Watermark Overlay */}
+                                    {signatureEnabled && (
+                                        <Group>
+                                            {signatureType === 'text' && signatureText && (
+                                                <Text
+                                                    text={signatureText}
+                                                    fontFamily={signatureFont}
+                                                    fill={signatureColor}
+                                                    opacity={signatureOpacity}
+                                                    {...(() => {
+                                                        const padding = layout.totalW * 0.03;
+                                                        // Base font size relative to shorter side to be consistent
+                                                        const baseSize = Math.min(layout.totalW, layout.totalH);
+                                                        const fontSize = baseSize * 0.05 * signatureSize;
+
+                                                        let yPos = layout.totalH - padding - fontSize;
+
+                                                        // Smart positioning for Gallery
+                                                        if (template === 'gallery' && signaturePosition.startsWith('bottom')) {
+                                                            yPos = layout.totalH - (layout.bottomH / 2) - (fontSize / 2);
+                                                        }
+
+                                                        const commonProps = {
+                                                            fontSize,
+                                                            width: layout.totalW - 2 * padding,
+                                                            y: yPos,
+                                                            x: padding
+                                                        };
+
+                                                        if (signaturePosition === 'bottom-right') {
+                                                            return { ...commonProps, align: 'right' };
+                                                        } else if (signaturePosition === 'bottom-left') {
+                                                            return { ...commonProps, align: 'left' };
+                                                        } else if (signaturePosition === 'bottom-center') {
+                                                            return { ...commonProps, align: 'center' };
+                                                        } else if (signaturePosition === 'center') {
+                                                            return {
+                                                                ...commonProps,
+                                                                y: (layout.totalH - fontSize) / 2,
+                                                                align: 'center'
+                                                            };
+                                                        }
+                                                        return commonProps;
+                                                    })()}
+                                                />
+                                            )}
+                                            {signatureType === 'image' && sigImageObj && (
+                                                <KonvaImage
+                                                    image={sigImageObj}
+                                                    opacity={signatureOpacity}
+                                                    {...(() => {
+                                                        const aspect = sigImageObj.width / sigImageObj.height;
+                                                        const baseSize = Math.min(layout.totalW, layout.totalH);
+                                                        const h = baseSize * 0.1 * signatureSize;
+                                                        const w = h * aspect;
+                                                        const padding = layout.totalW * 0.03;
+
+                                                        let x = 0;
+                                                        let y = layout.totalH - h - padding;
+
+                                                        if (template === 'gallery' && signaturePosition.startsWith('bottom')) {
+                                                            y = layout.totalH - (layout.bottomH / 2) - (h / 2);
+                                                        } else if (signaturePosition === 'center') {
+                                                            y = (layout.totalH - h) / 2;
+                                                        }
+
+                                                        if (signaturePosition === 'bottom-right') {
+                                                            x = layout.totalW - w - padding;
+                                                        } else if (signaturePosition === 'bottom-left') {
+                                                            x = padding;
+                                                        } else if (signaturePosition === 'bottom-center' || signaturePosition === 'center') {
+                                                            x = (layout.totalW - w) / 2;
+                                                        }
+
+                                                        return { x, y, width: w, height: h };
+                                                    })()}
+                                                />
                                             )}
                                         </Group>
                                     )}
