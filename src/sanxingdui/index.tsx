@@ -27,6 +27,7 @@ const descriptions: Record<string, string> = {
   '青铜纵目面具': "The gigantic Bronze Mask with Protruding Eyes (Cancong) is the most iconic artifact. The exaggerated cylindrical eyes and large ears suggest a deity or ancestor with supernatural sensory powers—clairvoyance and clairaudience—capable of seeing and hearing across worlds."
 };
 
+
 const generateDescription = async (model: ModelFile): Promise<string> => {
   // Simulating API latency
   await new Promise(resolve => setTimeout(resolve, 1000));
@@ -44,7 +45,7 @@ const generateDescription = async (model: ModelFile): Promise<string> => {
   return prompts[Math.floor(Math.random() * prompts.length)];
 };
 
-export default function Sanxingdui(): React.FC {
+const Sanxingdui: React.FC = () => {
   const [models, setModels] = useState<ModelFile[]>([
     { name: 'Bronze Head with Gold Mask', url: maskGoldUrl, originalName: '戴金面罩青铜人头像' },
     { name: 'Bronze Standing Figure', url: figureUrl, originalName: '青铜大力人像' },
@@ -305,3 +306,5 @@ export default function Sanxingdui(): React.FC {
     </div>
   );
 };
+
+export default Sanxingdui;

@@ -1,5 +1,7 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react';
-import { Canvas, useFrame, extend } from '@react-three/fiber';
+import { Canvas as CanvasSource, useFrame, extend } from '@react-three/fiber';
+
+const Canvas = CanvasSource as unknown as React.FC<any>;
 import { shaderMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
