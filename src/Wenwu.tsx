@@ -17,7 +17,6 @@ import {
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
@@ -261,9 +260,32 @@ const Wenwu: React.FC = () => {
     const [selectedEra, setSelectedEra] = useState<string>("all");
     const viewMode = "grid";
 
+    const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
+    const [isArtifactPanelOpen, setIsArtifactPanelOpen] = useState(false);
+
+    const openArtifactPanel = (artifact: Artifact) => {
+        setActiveArtifact(artifact);
+        if (isArtifactPanelOpen) return;
+        setIsArtifactPanelOpen(false);
+        if (typeof window !== "undefined" && "requestAnimationFrame" in window) {
+            window.requestAnimationFrame(() => setIsArtifactPanelOpen(true));
+        } else {
+            setIsArtifactPanelOpen(true);
+        }
+    };
+
+    const closeArtifactPanel = () => {
+        setIsArtifactPanelOpen(false);
+        if (typeof window !== "undefined" && "setTimeout" in window) {
+            window.setTimeout(() => setActiveArtifact(null), 260);
+        } else {
+            setActiveArtifact(null);
+        }
+    };
+
     // 统一样式：玻璃卡片与标题
     const glassCard = "rounded-2xl bg-gradient-to-b from-white/25 to-white/10 dark:from-slate-900/25 dark:to-slate-900/10 backdrop-blur-2xl border border-white/30 dark:border-slate-700/30 ring-1 ring-white/20 dark:ring-slate-700/20 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.4)]";
-    const sectionHeading = "text-sm md:text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2";
+    const sectionHeading = "text-sm md:text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 leading-snug";
     // 新增：弹窗内部的柔和面板样式（用于图片/信息/描述分区）
     const panelCard = "rounded-2xl bg-white/55 dark:bg-slate-900/55 backdrop-blur-xl border border-white/50 dark:border-slate-700/50 ring-1 ring-white/30 dark:ring-slate-700/30 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15)]";
 
@@ -324,7 +346,7 @@ const Wenwu: React.FC = () => {
         山西: ["山西博物院", "山西古建筑博物馆", "北齐壁画博物馆"],
         广东: ["西汉南越王博物馆"],
         江西: ["江西省博物馆"],
-        安徽: ["安徽博物院", "安徽省文物考古研究所", "马鞍山市博物馆"],
+        安徽: ["安徽博物院", "马鞍山朱然家族墓地博物馆"],
     };
 
     const normalizeProvince = (name: string) =>
@@ -840,7 +862,9 @@ const Wenwu: React.FC = () => {
             陕历博: "陕西历史博物馆",
             山西博物馆: "山西博物院",
             河南省博物馆: "河南博物院",
-            浙博: "浙江省博物馆",
+            浙博: "浙江省博物馆之江馆区",
+            浙江省博物馆: "浙江省博物馆之江馆区",
+            浙江博物馆: "浙江省博物馆之江馆区",
             天博: "天津博物馆",
         };
         if (aliases[q]) return aliases[q];
@@ -955,42 +979,68 @@ const Wenwu: React.FC = () => {
 
     // 预置常见博物馆坐标，减少 API 调用，大幅提升加载性能
     const PRESET_LOCATIONS: Record<string, [number, number]> = {
-        故宫博物院: [116.397026, 39.918058],
-        中国国家博物馆: [116.403406, 39.905075],
-        上海博物馆: [121.474699, 31.228778],
-        南京博物院: [118.821526, 32.042354],
+        故宫博物院: [116.397029,39.917839],
+        中国国家博物馆: [116.401304,39.905374],
+        中国国家图书馆: [116.323321,39.94394],
+        中国考古博物馆: [116.398955,39.998782],
+        二里头夏都博物馆: [112.694607,34.681688],
+        上海博物馆: [121.538745,31.219913],
+        南京博物院: [118.825064,32.040802],
         陕西历史博物馆: [108.959727, 34.222281],
-        河南博物院: [113.663221, 34.784457],
-        浙江省博物馆: [120.146502, 30.254199], // 孤山馆区
-        湖北省博物馆: [114.362402, 30.563198],
-        湖南省博物馆: [112.991463, 28.215475],
-        天津博物馆: [117.214397, 39.082675],
-        首都博物馆: [116.339958, 39.906774],
-        山西博物院: [112.531931, 37.869944],
-        四川博物院: [104.030938, 30.659864],
-        重庆中国三峡博物馆: [106.551875, 29.564386],
-        安徽博物院: [117.232649, 31.815952],
-        甘肃省博物馆: [103.768076, 36.068656],
-        辽宁省博物馆: [123.461219, 41.693729],
-        秦始皇帝陵博物院: [109.278551, 34.384759],
-        三星堆博物馆: [104.207856, 30.993968],
-        金沙遗址博物馆: [104.011848, 30.682394],
-        广东省博物馆: [113.325455, 23.118278],
-        江西省博物馆: [115.883312, 28.679387],
-        云南省博物馆: [102.718338, 24.946835],
-        福建博物院: [119.282125, 26.092699],
-        贵州省博物馆: [106.645835, 26.647133],
-        海南省博物馆: [110.368224, 20.019504],
-        内蒙古博物院: [111.718608, 40.843268],
-        广西民族博物馆: [108.390754, 22.779707],
-        西藏博物馆: [91.106262, 29.652897],
-        宁夏博物馆: [106.235461, 38.494632],
-        新疆维吾尔自治区博物馆: [87.587737, 43.807708],
-        青海省博物馆: [101.765253, 36.632229],
-        黑龙江省博物馆: [126.642556, 45.756956],
-        吉林省博物院: [125.406878, 43.794565],
-        苏州博物馆: [120.625196, 31.323743],
-        扬州博物馆: [119.396884, 32.393614],
+        西安博物院: [108.94171,34.238526],
+        西安碑林博物馆: [108.95286,34.254497],
+        宝鸡青铜器博物院: [107.195212,34.347405],
+        宝鸡周原博物院: [107.870863,34.481352],
+        淳化县文博馆: [108.581261,34.801335],
+        河南博物院: [113.672097,34.788263],
+        湖北省博物馆: [114.365446,30.561506],
+        湖南省博物馆: [112.993499,28.211876],
+        岳麓书院: [112.940805,28.180397],
+        天津博物馆: [117.211801,39.08505],
+        首都博物馆: [116.342067,39.906412],
+        山西博物院: [112.531258,37.865449],
+        山西古建筑博物馆: [112.572355,37.861769],
+        太原北齐壁画博物馆: [112.618292,37.836948],
+        山东博物馆: [117.095731,36.658157],
+        淄博博物馆: [118.038234,36.80401],
+        四川博物院: [104.034127,30.660792],
+        重庆中国三峡博物馆: [106.550513,29.562014],
+        安徽博物院: [117.221282,31.806843],
+        安徽省文物考古研究所: [117.194858,31.784603],
+        马鞍山朱然家族墓地博物馆: [118.494657,31.668645],
+        甘肃省博物馆: [103.774625,36.066606],
+        敦煌研究院: [103.848169,36.061884],
+        辽宁省博物馆: [123.460464,41.678023],
+        秦始皇帝陵博物院: [109.282057,34.386299],
+        三星堆博物馆: [104.218621,31.001439],
+        金沙遗址博物馆: [104.012634,30.681709],
+        广东省博物馆: [113.326346,23.114743],
+        江西省博物馆: [115.881823,28.7059],
+        云南省博物馆: [102.753517,24.949455],
+        福建博物院: [119.287602,26.094102],
+        贵州省博物馆: [106.642467,26.647605],
+        海南省博物馆: [110.379056,20.015267],
+        内蒙古博物院: [111.76568,40.841694],
+        广西壮族自治区博物馆: [108.335166,22.812451],
+        西藏博物馆: [91.098894,29.648382],
+        宁夏博物馆: [106.235128,38.484801],
+        宁夏文物考古研究所: [106.268659,38.463743],
+        新疆维吾尔自治区博物馆: [87.584246,43.819603],
+        青海省博物馆: [101.756012,36.630221],
+        青海省文物考古研究所: [101.80448,36.617754],
+        黑龙江省博物馆: [126.640934,45.757569],
+        吉林省博物院: [125.432521,43.768588],
+        苏州博物馆: [120.627856,31.322948],
+        扬州博物馆: [119.372029,32.39148],
+        南京市博物馆: [118.77532,32.034344],
+        南京大学: [118.779562,32.055153],
+        临安博物馆: [119.730415,30.22562],
+        浙江省博物馆: [120.101745,30.159662],
+        杭州博物馆: [120.166525,30.239091],
+        河北博物院: [114.522656,38.040616],
+        河北省文物研究所: [114.545049,38.03637],
+        定州博物馆: [115.005413,38.510105],
+        西汉南越王博物馆: [113.261015,23.137823],
     };
 
     const scorePoi = (poi: any, query: string, cityHint?: string) => {
@@ -1346,6 +1396,64 @@ const Wenwu: React.FC = () => {
             mapInstance.setZoomAndCenter(5, [116.397428, 39.90923]);
         }
     };
+
+    const focusMuseumForArtifact = async (artifact: Artifact) => {
+        if (!mapInstance || !window.AMap) return;
+
+        const museums = extractMuseumNames(artifact.collectionLocation);
+        const museum = museums[0] || artifact.collectionLocation;
+        if (!museum) return;
+
+        const coordinate = await geocodeLocation(museum);
+        if (!coordinate) return;
+
+        mapInstance.setZoomAndCenter(14, [coordinate.lng, coordinate.lat]);
+
+        const museumArtifacts = filteredArtifacts.filter((a) =>
+            a.collectionLocation.includes(museum)
+        );
+        const allMuseumArtifacts = artifacts.filter((a) =>
+            a.collectionLocation.includes(museum)
+        );
+
+        const html = `
+            <div class="info-window">
+              <div class="info-header">
+                <span class="info-icon">🏛️</span>
+                <h4 class="info-title">${museum}</h4>
+              </div>
+              <div class="info-stats">
+                <span class="chip">馆藏总数 ${allMuseumArtifacts.length}</span>
+              </div>
+              <div class="artifact-list">
+                ${museumArtifacts
+                    .map((a) => `<div class="artifact-item">${a.name}</div>`)
+                    .join("")}
+              </div>
+            </div>
+        `;
+
+        try {
+            infoWindowRef.current?.close();
+        } catch {}
+
+        if (!infoWindowRef.current) {
+            infoWindowRef.current = new window.AMap.InfoWindow({
+                isCustom: true,
+                offset: new window.AMap.Pixel(0, -12),
+                autoMove: true,
+                closeWhenClickMap: true,
+            });
+        }
+
+        infoWindowRef.current.setContent(html);
+        infoWindowRef.current.open(mapInstance, [coordinate.lng, coordinate.lat]);
+    };
+
+    useEffect(() => {
+        if (!activeArtifact || !isArtifactPanelOpen) return;
+        focusMuseumForArtifact(activeArtifact);
+    }, [activeArtifact, isArtifactPanelOpen, mapInstance]);
 
     // 监听筛选变化，更新地图
     useEffect(() => {
@@ -1718,6 +1826,140 @@ const Wenwu: React.FC = () => {
             <main className="max-w-[1800px] mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* 中间栏 -> 左栏：内容 (7 Columns) */}
                 <div className="lg:col-span-7 space-y-4">
+                    {activeArtifact && (
+                        <div
+                            className={`fixed left-6 top-24 z-50 h-[calc(100vh-7.5rem)] w-[560px] max-w-[92vw] rounded-3xl bg-gradient-to-b from-white/35 to-white/20 dark:from-slate-900/80 dark:to-slate-950/80 backdrop-blur-2xl border border-white/40 dark:border-slate-700/40 ring-1 ring-white/30 dark:ring-slate-700/30 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.22)] overflow-hidden flex flex-col transform-gpu transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                                isArtifactPanelOpen
+                                    ? "translate-x-0 opacity-100"
+                                    : "-translate-x-10 opacity-0 pointer-events-none"
+                            }`}
+                        >
+                            <div className="px-8 pt-7 pb-3 border-b border-white/10 dark:border-slate-700/20 relative">
+                                <button
+                                    type="button"
+                                    onClick={closeArtifactPanel}
+                                    className="absolute right-3 top-3 h-10 w-10 rounded-full bg-black/30 text-white hover:bg-black/50 flex items-center justify-center"
+                                    aria-label="关闭"
+                                >
+                                    <X className="h-6 w-6" />
+                                </button>
+
+                                <div className="text-2xl md:text-[26px] font-serif tracking-tight text-slate-800 dark:text-slate-100 pr-10">
+                                    {activeArtifact.name}
+                                </div>
+                                <div className="flex gap-2 mt-2">
+                                    <Badge
+                                        variant="outline"
+                                        className="rounded-full px-3 py-1 font-normal bg-white/90 dark:bg-slate-800/90 border border-white/60 dark:border-slate-600/60 text-slate-700 dark:text-slate-300 shadow-sm"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            {getEraIcon(activeArtifact.era) && (
+                                                <img
+                                                    src={getEraIcon(activeArtifact.era) as string}
+                                                    alt={activeArtifact.era}
+                                                    className="w-5 h-5 rounded-sm"
+                                                />
+                                            )}
+                                            <span>{activeArtifact.era}</span>
+                                        </span>
+                                    </Badge>
+                                    <Badge
+                                        variant="secondary"
+                                        className="rounded-full px-3 py-1 bg-white/90 dark:bg-slate-800/90 border border-white/60 dark:border-slate-600/60 text-slate-700 dark:text-slate-300 font-normal shadow-sm"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            {wenwuTypeIcons[activeArtifact.type] && (
+                                                <img
+                                                    src={wenwuTypeIcons[activeArtifact.type]}
+                                                    alt={activeArtifact.type}
+                                                    className="w-5 h-5 rounded-sm"
+                                                />
+                                            )}
+                                            <span>{activeArtifact.type}</span>
+                                        </span>
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            <ScrollArea className="flex-1 px-8">
+                                <div className="space-y-8 pt-4 pb-6">
+                                    {activeArtifact.image &&
+                                        artifactImages[
+                                            activeArtifact.image
+                                                .split("/")
+                                                .pop() || ""
+                                        ] && (
+                                            <div className={`${panelCard} p-4`}>
+                                                <div className="w-full h-[280px] md:h-[340px] overflow-hidden rounded-xl bg-slate-50/60 dark:bg-slate-800/60">
+                                                    <img
+                                                        src={
+                                                            artifactImages[
+                                                                activeArtifact.image
+                                                                    .split("/")
+                                                                    .pop() || ""
+                                                            ]
+                                                        }
+                                                        alt={activeArtifact.name}
+                                                        className="w-full h-full object-contain"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                    <div
+                                        className={`${panelCard} p-6 grid grid-cols-1 gap-y-7`}
+                                    >
+                                        <div className="space-y-2">
+                                            <span className={sectionHeading}>
+                                                <MapPin className="w-4 h-4 md:w-5 md:h-5 text-rose-500" />
+                                                出土地点
+                                            </span>
+                                            <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
+                                                {activeArtifact.excavationLocation}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <span className={sectionHeading}>
+                                                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-violet-500" />
+                                                出土时间
+                                            </span>
+                                            <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
+                                                {activeArtifact.excavationTime}
+                                            </p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <span className={sectionHeading}>
+                                                <Landmark className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
+                                                馆藏地点
+                                            </span>
+                                            <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
+                                                {activeArtifact.collectionLocation}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-sm md:text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                            <FileText className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />
+                                            文物描述
+                                        </h4>
+                                        <div className={`${panelCard} p-6 mt-3`}>
+                                            <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
+                                                <MarkdownContent
+                                                    content={
+                                                        activeArtifact.detail &&
+                                                        activeArtifact.detail.trim()
+                                                            ? activeArtifact.detail
+                                                            : activeArtifact.desc
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </ScrollArea>
+                        </div>
+                    )}
                     {/* 移动端筛选折叠器 (Visible on mobile only) */}
                     <div className="lg:hidden mb-4">
                         <Dialog>
@@ -1918,15 +2160,15 @@ const Wenwu: React.FC = () => {
                             </div>
                         ) : (
                             filteredArtifacts.map((artifact) => (
-                                <Dialog key={artifact.id}>
-                                    <DialogTrigger asChild>
-                                        <div
-                                            className="
+                                <div
+                                    key={artifact.id}
+                                    onClick={() => openArtifactPanel(artifact)}
+                                    className="
                                             group cursor-pointer bg-white dark:bg-slate-900 rounded-2xl transition-all duration-300
                                             border border-slate-100 dark:border-slate-800 hover:border-violet-100 dark:hover:border-violet-900
                                             hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]
                                         "
-                                        >
+                                >
                                             <div
                                                 className="p-5"
                                             >
@@ -1990,102 +2232,6 @@ const Wenwu: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                    </DialogTrigger>
-                                    <DialogContent className="w-[720px] max-w-[92vw] max-h-[85vh] rounded-3xl bg-gradient-to-b from-white/35 to-white/20 dark:from-slate-900/80 dark:to-slate-950/80 backdrop-blur-2xl border border-white/40 dark:border-slate-700/40 ring-1 ring-white/30 dark:ring-slate-700/30 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.22)] overflow-hidden">
-                                        <DialogHeader className="px-8 pb-5 border-b border-white/10 dark:border-slate-700/20">
-                                            <DialogTitle className="text-2xl md:text-[26px] font-serif tracking-tight text-slate-800 dark:text-slate-100">
-                                                {artifact.name}
-                                            </DialogTitle>
-                                            <div className="flex gap-2 mt-2">
-                                                <Badge
-                                                    variant="outline"
-                                                    className="rounded-full px-3 py-1 font-normal bg-white/90 dark:bg-slate-800/90 border border-white/60 dark:border-slate-600/60 text-slate-700 dark:text-slate-300 shadow-sm"
-                                                >
-                                                    <span className="flex items-center gap-2">
-                                                                {getEraIcon(artifact.era) && (
-                                                                    <img
-                                                                        src={getEraIcon(artifact.era) as string}
-                                                                        alt={artifact.era}
-                                                                        className="w-5 h-5 rounded-sm"
-                                                                    />
-                                                                )}
-                                                                <span>{artifact.era}</span>
-                                                            </span>
-                                                        </Badge>
-                                                <Badge
-                                                    variant="secondary"
-                                                    className="rounded-full px-3 py-1 bg-white/90 dark:bg-slate-800/90 border border-white/60 dark:border-slate-600/60 text-slate-700 dark:text-slate-300 font-normal shadow-sm"
-                                                >
-                                                    <span className="flex items-center gap-2">
-                                                        {wenwuTypeIcons[artifact.type] && (
-                                                            <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-5 h-5 rounded-sm" />
-                                                        )}
-                                                        <span>{artifact.type}</span>
-                                                    </span>
-                                                </Badge>
-                                            </div>
-                                        </DialogHeader>
-                                        <ScrollArea className="max-h-[70vh] px-8">
-                                            <div className="space-y-8 py-6">
-                                                {artifact.image && artifactImages[artifact.image.split("/").pop() || ""] && (
-                                                    <div className={`${panelCard} p-4`}>
-                                                        <div className="w-full h-[280px] md:h-[380px] overflow-hidden rounded-xl bg-slate-50/60 dark:bg-slate-800/60">
-                                                            <img
-                                                                src={artifactImages[artifact.image.split("/").pop() || ""]}
-                                                                alt={artifact.name}
-                                                                className="w-full h-full object-contain"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                <div className={`${panelCard} p-6 grid grid-cols-1 md:grid-cols-2 gap-6`}>
-                                                    <div className="space-y-1">
-                                                        <span className={sectionHeading}>
-                                                            <MapPin className="w-4 h-4 md:w-5 md:h-5 text-rose-500" /> 出土地点
-                                                        </span>
-                                                        <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
-                                                            {artifact.excavationLocation}
-                                                        </p>
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <span className={sectionHeading}>
-                                                            <Calendar className="w-4 h-4 md:w-5 md:h-5 text-violet-500" /> 出土时间
-                                                        </span>
-                                                        <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
-                                                            {artifact.excavationTime}
-                                                        </p>
-                                                    </div>
-                                                    <div className="md:col-span-2 space-y-1">
-                                                        <span className={sectionHeading}>
-                                                            <Landmark className="w-4 h-4 md:w-5 md:h-5 text-blue-500" /> 馆藏地点
-                                                        </span>
-                                                        <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
-                                                            {artifact.collectionLocation}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <h4 className="text-sm md:text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                                                        <FileText className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />
-                                                        文物描述
-                                                    </h4>
-                                                    <div className={`${panelCard} p-6`}>
-                                                        <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
-                                                            <MarkdownContent
-                                                                content={
-                                                                    artifact.detail && artifact.detail.trim()
-                                                                        ? artifact.detail
-                                                                        : artifact.desc
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </ScrollArea>
-                                    </DialogContent>
-                                </Dialog>
                             ))
                         )}
                     </div>
