@@ -865,6 +865,7 @@ const Wenwu: React.FC = () => {
             浙博: "浙江省博物馆之江馆区",
             浙江省博物馆: "浙江省博物馆之江馆区",
             浙江博物馆: "浙江省博物馆之江馆区",
+            敦煌研究院: "敦煌研究院",
             天博: "天津博物馆",
         };
         if (aliases[q]) return aliases[q];
@@ -1125,7 +1126,7 @@ const Wenwu: React.FC = () => {
         });
     };
 
-    // 地理编码函数（先 预设 -> 缓存 -> POI 检索 -> Geocoder）
+    // 地理编码函数（仅使用预设坐标；不做 POI/Geocoder 搜索推测）
     const geocodeLocation = async (
         address: string
     ): Promise<LocationCoordinate | null> => {
@@ -1133,73 +1134,25 @@ const Wenwu: React.FC = () => {
         const normalized = normalizeMuseumQuery(address);
         const cacheKey = `${normalized}__${cityHint || "全国"}`;
 
-        // 0) 优先检查预设坐标（秒开）
-        if (PRESET_LOCATIONS[normalized]) {
-            const [lng, lat] = PRESET_LOCATIONS[normalized];
-            const coordinate: LocationCoordinate = {
-                lng,
-                lat,
-                address: normalized,
-                artifacts: [],
-            };
-            // 同时也写入缓存，保持逻辑一致
-            if (!locationCache.has(cacheKey)) {
-                setLocationCache((prev) => {
-                    const next = new Map(prev);
-                    next.set(cacheKey, coordinate);
-                    return next;
-                });
-            }
-            return coordinate;
-        }
+        if (!PRESET_LOCATIONS[normalized]) return null;
 
-        // 检查缓存（加入城市维度，避免同名异地混淆）
-        if (locationCache.has(cacheKey)) {
-            return locationCache.get(cacheKey)!;
-        }
+        const [lng, lat] = PRESET_LOCATIONS[normalized];
+        const coordinate: LocationCoordinate = {
+            lng,
+            lat,
+            address: normalized,
+            artifacts: [],
+        };
 
-        // 1) 先用 POI 搜索获取更精确的博物馆坐标
-        const poiResult = await placeSearchByName(address);
-        if (poiResult) {
+        if (!locationCache.has(cacheKey)) {
             setLocationCache((prev) => {
                 const next = new Map(prev);
-                next.set(cacheKey, poiResult);
+                next.set(cacheKey, coordinate);
                 return next;
             });
-            return poiResult;
         }
 
-        // 2) 回退到 Geocoder（带 cityHint 收敛范围）
-        return new Promise((resolve) => {
-            if (!window.AMap) {
-                resolve(null);
-                return;
-            }
-            const geocoder = new window.AMap.Geocoder({
-                city: cityHint || "全国",
-            });
-
-            geocoder.getLocation(normalized, (status: string, result: any) => {
-                if (status === "complete" && result?.geocodes?.length > 0) {
-                    const location = result.geocodes[0].location;
-                    const coordinate: LocationCoordinate = {
-                        lng: location.lng,
-                        lat: location.lat,
-                        address: address,
-                        artifacts: [],
-                    };
-
-                    setLocationCache((prev) => {
-                        const next = new Map(prev);
-                        next.set(cacheKey, coordinate);
-                        return next;
-                    });
-                    resolve(coordinate);
-                } else {
-                    resolve(null);
-                }
-            });
-        });
+        return coordinate;
     };
 
     // 更新地图标记 - 只显示当前筛选结果中的博物馆地点
@@ -1636,7 +1589,7 @@ const Wenwu: React.FC = () => {
     return (
         <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] text-slate-600 dark:text-slate-400 font-sans selection:bg-violet-200 dark:selection:bg-violet-900 selection:text-violet-900 dark:selection:text-violet-100">
             {/* 顶部导航栏 */}
-            <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-slate-200/50 dark:border-slate-800/50 supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-900/60">
+            <header className="fixed top-0 z-40 w-full backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-slate-200/50 dark:border-slate-800/50 supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-900/60">
                 <div className="max-w-[1800px] mx-auto px-4 h-auto lg:h-20 py-3 lg:py-0 flex flex-col lg:flex-row items-center justify-between gap-4">
                     <div className="flex items-center justify-between w-full lg:w-auto">
                         <div className="flex items-center gap-2 flex-shrink-0">
