@@ -37,6 +37,7 @@ import ChristmasTreeHand from "./ChristmasTreeHand";
 import PhotoFrame from "./PhotoFrame";
 import Gallery from "./Gallery";
 import Sanxingdui from "./sanxingdui";
+import ArtifactAI from "./ArtifactAI";
 import { Toaster } from "sonner";
 
 
@@ -96,6 +97,13 @@ const routeItems = [
         url: "/stitch",
         component: <ImageStitching />,
         icon: "material-symbols:photo-library-outline",
+    },
+    {
+        label: "文物百科",
+        id: "artifact-ai",
+        url: "/artifact-ai",
+        component: <ArtifactAI />,
+        icon: "lucide:book-open",
     },
     {
         label: "餐厅搜索",
