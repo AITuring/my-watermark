@@ -30,6 +30,7 @@ import {
     Landmark,
     X,
     FileText,
+    ExternalLink,
 } from "lucide-react";
 
 // 文物数据类型定义
@@ -274,6 +275,16 @@ const Wenwu: React.FC = () => {
         }
     };
 
+    // 暴露给全局，供地图 InfoWindow 点击调用
+    useEffect(() => {
+        (window as any).openArtifact = (id: number) => {
+            const artifact = artifacts.find((a) => a.id === id);
+            if (artifact) {
+                openArtifactPanel(artifact);
+            }
+        };
+    }, [artifacts]);
+
     const closeArtifactPanel = () => {
         setIsArtifactPanelOpen(false);
         if (typeof window !== "undefined" && "setTimeout" in window) {
@@ -282,12 +293,6 @@ const Wenwu: React.FC = () => {
             setActiveArtifact(null);
         }
     };
-
-    // 统一样式：玻璃卡片与标题
-    const glassCard = "rounded-2xl bg-gradient-to-b from-white/25 to-white/10 dark:from-slate-900/25 dark:to-slate-900/10 backdrop-blur-2xl border border-white/30 dark:border-slate-700/30 ring-1 ring-white/20 dark:ring-slate-700/20 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.4)]";
-    const sectionHeading = "text-sm md:text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 leading-snug";
-    // 新增：弹窗内部的柔和面板样式（用于图片/信息/描述分区）
-    const panelCard = "rounded-2xl bg-white/55 dark:bg-slate-900/55 backdrop-blur-xl border border-white/50 dark:border-slate-700/50 ring-1 ring-white/30 dark:ring-slate-700/30 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15)]";
 
     // 地图相关状态
     const [mapInstance, setMapInstance] = useState<any>(null);
@@ -1243,7 +1248,7 @@ const Wenwu: React.FC = () => {
                             ${museumArtifacts
                                 .map(
                                     (artifact) =>
-                                        `<div class="artifact-item">${artifact.name}</div>`
+                                        `<div class="artifact-item" onclick="window.openArtifact(${artifact.id})" style="cursor: pointer;" title="点击查看详情">${artifact.name}</div>`
                                 )
                                 .join("")}
                           </div>
@@ -1380,7 +1385,7 @@ const Wenwu: React.FC = () => {
               </div>
               <div class="artifact-list">
                 ${museumArtifacts
-                    .map((a) => `<div class="artifact-item">${a.name}</div>`)
+                    .map((a) => `<div class="artifact-item" onclick="window.openArtifact(${a.id})" style="cursor: pointer;" title="点击查看详情">${a.name}</div>`)
                     .join("")}
               </div>
             </div>
@@ -1584,54 +1589,45 @@ const Wenwu: React.FC = () => {
         );
     };
 
-    console.log(types,eras);
-
     return (
-        <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] text-slate-600 dark:text-slate-400 font-sans selection:bg-violet-200 dark:selection:bg-violet-900 selection:text-violet-900 dark:selection:text-violet-100">
-            {/* 顶部导航栏 */}
-            <header className="fixed top-0 z-40 w-full backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-slate-200/50 dark:border-slate-800/50 supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-900/60">
-                <div className="max-w-[1800px] mx-auto px-4 h-auto lg:h-20 py-3 lg:py-0 flex flex-col lg:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center justify-between w-full lg:w-auto">
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                            <div className="w-8 h-8 overflow-hidden ">
-                                <img
-                                    src={historyIcon}
-                                    alt="Icon"
-                                    className="w-full h-full object-cover"
-                                />
-                            </div>
-                            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-400 font-serif tracking-tight whitespace-nowrap">
-                                禁止出境展览文物
-                            </h1>
+        <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f19] text-slate-600 dark:text-slate-400 font-sans selection:bg-violet-200 dark:selection:bg-violet-900/30">
+            {/* 顶部导航栏 - 更加极简 */}
+            <header className="fixed top-0 z-40 w-full backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/50 dark:border-slate-800/50">
+                <div className="max-w-[1800px] mx-auto px-4 h-16 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden shadow-sm">
+                            <img
+                                src={historyIcon}
+                                alt="Icon"
+                                className="w-full h-full object-cover"
+                            />
                         </div>
-
+                        <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 font-serif tracking-tight">
+                            禁止出境展览文物
+                        </h1>
                     </div>
 
-                    {/* 居中搜索框 + 筛选 (Desktop: Row, Mobile: Search only) */}
-                    <div className="flex-1 w-full lg:w-auto flex flex-col lg:flex-row items-center justify-center gap-3">
-                        <div className="w-full lg:w-64 relative group">
+                    {/* 居中搜索框 + 筛选 */}
+                    <div className="flex-1 max-w-4xl flex items-center justify-end lg:justify-center gap-3">
+                        <div className="w-full max-w-xs relative group hidden md:block">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search className="h-4 w-4 text-slate-400 group-focus-within:text-violet-500 transition-colors" />
+                                <Search className="h-4 w-4 text-slate-400 group-focus-within:text-slate-600 dark:group-focus-within:text-slate-300 transition-colors" />
                             </div>
                             <input
                                 type="text"
-                                className="block w-full pl-10 pr-3 py-2 border-none rounded-full leading-5 bg-slate-100/80 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:bg-white dark:focus:bg-slate-900 transition-all duration-300 shadow-inner hover:bg-slate-100 dark:hover:bg-slate-800"
+                                className="block w-full pl-9 pr-3 py-1.5 text-sm border-none rounded-full bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300 dark:focus:ring-slate-700 transition-all"
                                 placeholder="搜索文物、年代、地点..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
 
-                        {/* Desktop Filters */}
+                        {/* Desktop Filters - 极简风格 */}
                         <div className="hidden lg:flex items-center gap-2">
-                            <div className="relative">
-                                <Select
-                                    value={selectedBatch}
-                                    onValueChange={setSelectedBatch}
-                                >
-                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 shadow-sm hover:bg-white dark:hover:bg-slate-800 text-xs pr-16 dark:text-slate-200">
-                                        <SelectValue placeholder="批次" />
-                                    </SelectTrigger>
+                            <Select value={selectedBatch} onValueChange={setSelectedBatch}>
+                                <SelectTrigger className="w-[110px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
+                                    <SelectValue placeholder="批次" />
+                                </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">
                                             全部批次
@@ -1642,28 +1638,12 @@ const Wenwu: React.FC = () => {
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
-                                </Select>
-                                {selectedBatch !== "all" && (
-                                    <div
-                                        className="absolute right-10 top-1/2 -translate-y-1/2 cursor-pointer p-1 hover:bg-slate-200 rounded-full z-10"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedBatch("all");
-                                        }}
-                                    >
-                                        <X className="w-3 h-3 text-slate-400" />
-                                    </div>
-                                )}
-                            </div>
+                            </Select>
 
-                            <div className="relative">
-                                <Select
-                                    value={selectedType}
-                                    onValueChange={setSelectedType}
-                                >
-                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 shadow-sm hover:bg-white dark:hover:bg-slate-800 text-xs pr-16 dark:text-slate-200">
-                                        <SelectValue placeholder="类别" />
-                                    </SelectTrigger>
+                            <Select value={selectedType} onValueChange={setSelectedType}>
+                                <SelectTrigger className="w-[110px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
+                                    <SelectValue placeholder="类别" />
+                                </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">
                                             全部类别
@@ -1679,28 +1659,12 @@ const Wenwu: React.FC = () => {
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
-                                </Select>
-                                {selectedType !== "all" && (
-                                    <div
-                                        className="absolute right-10 top-1/2 -translate-y-1/2 cursor-pointer p-1 hover:bg-slate-200 rounded-full z-10"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedType("all");
-                                        }}
-                                    >
-                                        <X className="w-3 h-3 text-slate-400" />
-                                    </div>
-                                )}
-                            </div>
+                            </Select>
 
-                            <div className="relative">
-                                <Select
-                                    value={selectedEra}
-                                    onValueChange={setSelectedEra}
-                                >
-                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 shadow-sm hover:bg-white dark:hover:bg-slate-800 text-xs pr-16 dark:text-slate-200">
-                                        <SelectValue placeholder="时代" />
-                                    </SelectTrigger>
+                            <Select value={selectedEra} onValueChange={setSelectedEra}>
+                                <SelectTrigger className="w-[110px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
+                                    <SelectValue placeholder="时代" />
+                                </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">
                                             全部时代
@@ -1716,28 +1680,12 @@ const Wenwu: React.FC = () => {
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
-                                </Select>
-                                {selectedEra !== "all" && (
-                                    <div
-                                        className="absolute right-10 top-1/2 -translate-y-1/2 cursor-pointer p-1 hover:bg-slate-200 rounded-full z-10"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedEra("all");
-                                        }}
-                                    >
-                                        <X className="w-3 h-3 text-slate-400" />
-                                    </div>
-                                )}
-                            </div>
+                            </Select>
 
-                            <div className="relative">
-                                <Select
-                                    value={selectedCollection}
-                                    onValueChange={setSelectedCollection}
-                                >
-                                    <SelectTrigger className="w-[150px] h-9 rounded-full border-slate-200/60 dark:border-slate-700/60 bg-slate-50/50 dark:bg-slate-800/50 shadow-sm hover:bg-white dark:hover:bg-slate-800 text-xs pr-16 dark:text-slate-200">
-                                        <SelectValue placeholder="馆藏" />
-                                    </SelectTrigger>
+                            <Select value={selectedCollection} onValueChange={setSelectedCollection}>
+                                <SelectTrigger className="w-[110px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
+                                    <SelectValue placeholder="馆藏" />
+                                </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">
                                             全部馆藏
@@ -1748,89 +1696,68 @@ const Wenwu: React.FC = () => {
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
-                                </Select>
-                                {selectedCollection !== "all" && (
-                                    <div
-                                        className="absolute right-10 top-1/2 -translate-y-1/2 cursor-pointer p-1 hover:bg-slate-200 rounded-full z-10"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedCollection("all");
-                                        }}
-                                    >
-                                        <X className="w-3 h-3 text-slate-400" />
-                                    </div>
-                                )}
-                            </div>
+                            </Select>
 
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={resetFilters}
-                                className="h-8 w-8 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800"
-                                title="重置"
-                            >
-                                <X className="w-3.5 h-3.5" />
-                            </Button>
+                            {(selectedBatch !== "all" || selectedType !== "all" || selectedEra !== "all" || selectedCollection !== "all") && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={resetFilters}
+                                    className="h-8 px-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                                >
+                                    重置
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>
             </header>
 
-            <main className="max-w-[1800px] mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <main className="max-w-[1800px] mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 pt-24">
                 {/* 中间栏 -> 左栏：内容 (7 Columns) */}
                 <div className="lg:col-span-7 space-y-4">
                     {activeArtifact && (
                         <div
-                            className={`fixed left-6 top-24 z-50 h-[calc(100vh-7.5rem)] w-[560px] max-w-[92vw] rounded-3xl bg-gradient-to-b from-white/35 to-white/20 dark:from-slate-900/80 dark:to-slate-950/80 backdrop-blur-2xl border border-white/40 dark:border-slate-700/40 ring-1 ring-white/30 dark:ring-slate-700/30 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.22)] overflow-hidden flex flex-col transform-gpu transition-[transform,opacity] duration-300 ease-out will-change-transform ${
+                            className={`fixed left-6 top-24 z-50 h-[calc(100vh-7.5rem)] w-[560px] max-w-[92vw] rounded-2xl bg-white/90 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/50 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col transform-gpu transition-[transform,opacity] duration-300 ease-out will-change-transform ${
                                 isArtifactPanelOpen
                                     ? "translate-x-0 opacity-100"
                                     : "-translate-x-10 opacity-0 pointer-events-none"
                             }`}
                         >
-                            <div className="px-8 pt-7 pb-3 border-b border-white/10 dark:border-slate-700/20 relative">
+                            <div className="px-8 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800 relative">
                                 <button
                                     type="button"
                                     onClick={closeArtifactPanel}
-                                    className="absolute right-3 top-3 h-10 w-10 rounded-full bg-black/30 text-white hover:bg-black/50 flex items-center justify-center"
+                                    className="absolute right-4 top-4 h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 transition-colors flex items-center justify-center"
                                     aria-label="关闭"
                                 >
-                                    <X className="h-6 w-6" />
+                                    <X className="h-4 w-4" />
                                 </button>
 
-                                <div className="text-2xl md:text-[26px] font-serif tracking-tight text-slate-800 dark:text-slate-100 pr-10">
+                                <div className="text-xl md:text-2xl font-bold font-serif text-slate-800 dark:text-slate-100 pr-10">
                                     {activeArtifact.name}
                                 </div>
-                                <div className="flex gap-2 mt-2">
-                                    <Badge
-                                        variant="outline"
-                                        className="rounded-full px-3 py-1 font-normal bg-white/90 dark:bg-slate-800/90 border border-white/60 dark:border-slate-600/60 text-slate-700 dark:text-slate-300 shadow-sm"
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            {getEraIcon(activeArtifact.era) && (
-                                                <img
-                                                    src={getEraIcon(activeArtifact.era) as string}
-                                                    alt={activeArtifact.era}
-                                                    className="w-5 h-5 rounded-sm"
-                                                />
-                                            )}
-                                            <span>{activeArtifact.era}</span>
-                                        </span>
-                                    </Badge>
-                                    <Badge
-                                        variant="secondary"
-                                        className="rounded-full px-3 py-1 bg-white/90 dark:bg-slate-800/90 border border-white/60 dark:border-slate-600/60 text-slate-700 dark:text-slate-300 font-normal shadow-sm"
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            {wenwuTypeIcons[activeArtifact.type] && (
-                                                <img
-                                                    src={wenwuTypeIcons[activeArtifact.type]}
-                                                    alt={activeArtifact.type}
-                                                    className="w-5 h-5 rounded-sm"
-                                                />
-                                            )}
-                                            <span>{activeArtifact.type}</span>
-                                        </span>
-                                    </Badge>
+                                <div className="flex gap-2 mt-3">
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                                        {getEraIcon(activeArtifact.era) && (
+                                            <img
+                                                src={getEraIcon(activeArtifact.era) as string}
+                                                alt={activeArtifact.era}
+                                                className="w-3.5 h-3.5 object-contain opacity-70"
+                                            />
+                                        )}
+                                        {activeArtifact.era}
+                                    </span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                                        {wenwuTypeIcons[activeArtifact.type] && (
+                                            <img
+                                                src={wenwuTypeIcons[activeArtifact.type]}
+                                                alt={activeArtifact.type}
+                                                className="w-3.5 h-3.5 rounded-sm opacity-70"
+                                            />
+                                        )}
+                                        {activeArtifact.type}
+                                    </span>
                                 </div>
                             </div>
 
@@ -1842,71 +1769,70 @@ const Wenwu: React.FC = () => {
                                                 .split("/")
                                                 .pop() || ""
                                         ] && (
-                                            <div className={`${panelCard} p-4`}>
-                                                <div className="w-full h-[280px] md:h-[340px] overflow-hidden rounded-xl bg-slate-50/60 dark:bg-slate-800/60">
-                                                    <img
-                                                        src={
-                                                            artifactImages[
-                                                                activeArtifact.image
-                                                                    .split("/")
-                                                                    .pop() || ""
-                                                            ]
-                                                        }
-                                                        alt={activeArtifact.name}
-                                                        className="w-full h-full object-contain"
-                                                    />
-                                                </div>
+                                            <div className="w-full h-[280px] md:h-[340px] overflow-hidden rounded-xl bg-slate-50/60 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                                                <img
+                                                    src={
+                                                        artifactImages[
+                                                            activeArtifact.image
+                                                                .split("/")
+                                                                .pop() || ""
+                                                        ]
+                                                    }
+                                                    alt={activeArtifact.name}
+                                                    className="w-full h-full object-contain"
+                                                />
                                             </div>
                                         )}
 
-                                    <div
-                                        className={`${panelCard} p-6 grid grid-cols-1 gap-y-7`}
-                                    >
-                                        <div className="space-y-2">
-                                            <span className={sectionHeading}>
-                                                <MapPin className="w-4 h-4 md:w-5 md:h-5 text-rose-500" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-1">
+                                            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                                                <MapPin className="w-3.5 h-3.5" />
                                                 出土地点
                                             </span>
-                                            <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
+                                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 pl-5">
                                                 {activeArtifact.excavationLocation}
                                             </p>
                                         </div>
-                                        <div className="space-y-2">
-                                            <span className={sectionHeading}>
-                                                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-violet-500" />
+                                        <div className="space-y-1">
+                                            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                                                <Calendar className="w-3.5 h-3.5" />
                                                 出土时间
                                             </span>
-                                            <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
+                                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 pl-5">
                                                 {activeArtifact.excavationTime}
                                             </p>
                                         </div>
-                                        <div className="space-y-2">
-                                            <span className={sectionHeading}>
-                                                <Landmark className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
+                                        <div className="space-y-1 md:col-span-2">
+                                            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                                                <Landmark className="w-3.5 h-3.5" />
                                                 馆藏地点
                                             </span>
-                                            <p className="text-sm md:text-base font-medium text-slate-800 dark:text-slate-200">
+                                            <p
+                                                className="text-sm font-medium text-slate-700 dark:text-slate-300 pl-5 cursor-pointer hover:text-violet-600 dark:hover:text-violet-400 transition-colors flex items-center gap-2 group/loc"
+                                                onClick={() => focusMuseumForArtifact(activeArtifact)}
+                                                title="在地图上查看"
+                                            >
                                                 {activeArtifact.collectionLocation}
+                                                <ExternalLink className="w-3 h-3 opacity-0 group-hover/loc:opacity-100 transition-opacity" />
                                             </p>
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <h4 className="text-sm md:text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                                            <FileText className="w-4 h-4 md:w-5 md:h-5 text-amber-500" />
+                                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                                        <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+                                            <FileText className="w-4 h-4 text-slate-400" />
                                             文物描述
                                         </h4>
-                                        <div className={`${panelCard} p-6 mt-3`}>
-                                            <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
-                                                <MarkdownContent
-                                                    content={
-                                                        activeArtifact.detail &&
-                                                        activeArtifact.detail.trim()
-                                                            ? activeArtifact.detail
-                                                            : activeArtifact.desc
-                                                    }
-                                                />
-                                            </div>
+                                        <div className="prose prose-sm prose-slate dark:prose-invert max-w-none text-slate-600 dark:text-slate-400">
+                                            <MarkdownContent
+                                                content={
+                                                    activeArtifact.detail &&
+                                                    activeArtifact.detail.trim()
+                                                        ? activeArtifact.detail
+                                                        : activeArtifact.desc
+                                                }
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -2117,55 +2043,46 @@ const Wenwu: React.FC = () => {
                                     key={artifact.id}
                                     onClick={() => openArtifactPanel(artifact)}
                                     className="
-                                            group cursor-pointer bg-white dark:bg-slate-900 rounded-2xl transition-all duration-300
-                                            border border-slate-100 dark:border-slate-800 hover:border-violet-100 dark:hover:border-violet-900
-                                            hover:-translate-y-1 hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]
+                                            group cursor-pointer bg-white dark:bg-slate-900 rounded-xl transition-all duration-300
+                                            border border-slate-100 dark:border-slate-800 hover:border-violet-200 dark:hover:border-slate-700
+                                            hover:shadow-lg hover:-translate-y-0.5
                                         "
                                 >
-                                            <div
-                                                className="p-5"
-                                            >
-                                                <div className="flex justify-between items-start mb-3">
-                                                    <div className="flex gap-2">
-                                                        <span
-                                                            className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-                                                        >
-                                                            {artifact.batch}
-                                                        </span>
-                                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1">
-                                                            {wenwuTypeIcons[artifact.type] && (
-                                                                <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-5 h-5 rounded-sm" />
-                                                            )}
-                                                            {artifact.type}
-                                                        </span>
-                                                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium flex items-center gap-1">
-                                                            {getEraIcon(artifact.era) && (
-                                                                <img
-                                                                    src={getEraIcon(artifact.era) as string}
-                                                                    alt={artifact.era}
-                                                                    className="w-4 h-4 object-contain "
-                                                                />
-                                                            )}
-                                                            {artifact.era}
-                                                        </span>
+                                    <div className="p-4 flex flex-col h-full">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex gap-2">
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                                                    {wenwuTypeIcons[artifact.type] && (
+                                                        <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-3.5 h-3.5 rounded-sm opacity-70" />
+                                                    )}
+                                                    {artifact.type}
+                                                </span>
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                                                    {getEraIcon(artifact.era) && (
+                                                        <img
+                                                            src={getEraIcon(artifact.era) as string}
+                                                            alt={artifact.era}
+                                                            className="w-3.5 h-3.5 object-contain opacity-70"
+                                                        />
+                                                    )}
+                                                    {artifact.era}
+                                                </span>
+                                            </div>
+                                        </div>
 
-                                                    </div>
-                                                </div>
+                                        <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-1.5 font-serif group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors line-clamp-1">
+                                            <HighlightText
+                                                text={artifact.name}
+                                                highlight={searchTerm}
+                                            />
+                                        </h3>
 
-                                                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2 font-serif group-hover:text-violet-700 dark:group-hover:text-violet-400 transition-colors line-clamp-1">
-                                                    <HighlightText
-                                                        text={artifact.name}
-                                                        highlight={searchTerm}
-                                                    />
-                                                </h3>
+                                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-500 font-medium mb-3">
+                                            <Landmark className="w-3 h-3 shrink-0 opacity-70" />
+                                            <span className="truncate">{artifact.collectionLocation}</span>
+                                        </div>
 
-                                                    <div className="flex items-center gap-2 text-[10px] text-slate-700 dark:text-slate-400 font-medium mb-2">
-                                                        <Landmark className="w-3 h-3 shrink-0" />
-                                                        <span className="truncate leading-[16px]">{artifact.collectionLocation}</span>
-                                                    </div>
-
-
-                                                <div className="text-xs text-slate-500 dark:text-slate-500 mb-4 line-clamp-2 leading-relaxed">
+                                        <div className="text-xs text-slate-400 dark:text-slate-500 line-clamp-2 leading-relaxed mt-auto">
                                                     {searchTerm ? (
                                                         <HighlightText
                                                             text={artifact.desc}
@@ -2194,14 +2111,7 @@ const Wenwu: React.FC = () => {
                 {/* 右侧栏：地图 (5 Columns) */}
                 <div className="lg:col-span-5 mt-6 lg:mt-0">
                     <div className="lg:sticky lg:top-24">
-                        <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800 overflow-hidden h-[500px] lg:h-[calc(100vh-8rem)] lg:min-h-[500px] relative group">
-                            {/* 地图标题浮层 */}
-                            <div className="absolute top-4 left-4 z-10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm border border-slate-100/50 dark:border-slate-700/50">
-                                <h3 className="font-bold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-2">
-                                    <MapPin className="w-4 h-4 text-violet-500" />
-                                    博物馆分布
-                                </h3>
-                            </div>
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-800 overflow-hidden h-[500px] lg:h-[calc(100vh-8rem)] lg:min-h-[500px] relative group">
 
                             {isLoadingMap ? (
                                 <div className="w-full h-full flex items-center justify-center bg-slate-50 dark:bg-slate-900">
