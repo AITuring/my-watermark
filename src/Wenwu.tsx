@@ -1007,7 +1007,7 @@ const Wenwu: React.FC = () => {
         山西博物院: [112.531258,37.865449],
         山西古建筑博物馆: [112.572355,37.861769],
         太原北齐壁画博物馆: [112.618292,37.836948],
-        山东博物馆: [117.095731,36.658157],
+        山东省博物馆: [117.095731,36.658157],
         淄博博物馆: [118.038234,36.80401],
         四川博物院: [104.034127,30.660792],
         重庆中国三峡博物馆: [106.550513,29.562014],
@@ -1590,11 +1590,19 @@ const Wenwu: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f19] text-slate-600 dark:text-slate-400 font-sans selection:bg-violet-200 dark:selection:bg-violet-900/30">
+        <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] text-slate-600 dark:text-slate-400 font-sans selection:bg-indigo-100 dark:selection:bg-indigo-900/30">
+            {/* Background Texture - Subtle Grain */}
+            <div className="fixed inset-0 pointer-events-none opacity-[0.015] dark:opacity-[0.03] mix-blend-multiply dark:mix-blend-overlay"
+                style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
+                }}
+            />
+
             {/* 顶部导航栏 - 更加极简 */}
-            <header className="fixed top-0 z-40 w-full backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/50 dark:border-slate-800/50">
-                <div className="max-w-[1800px] mx-auto px-4 h-16 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
+            <header className="fixed top-0 z-40 w-full">
+                <div className="w-full backdrop-blur-md bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/50 dark:border-slate-800/50">
+                    <div className="max-w-[1800px] mx-auto px-4 h-16 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-lg overflow-hidden shadow-sm">
                             <img
                                 src={historyIcon}
@@ -1609,23 +1617,26 @@ const Wenwu: React.FC = () => {
 
                     {/* 居中搜索框 + 筛选 */}
                     <div className="flex-1 max-w-4xl flex items-center justify-end lg:justify-center gap-3">
-                        <div className="w-full max-w-xs relative group hidden md:block">
+                        <div className="w-full max-w-[260px] relative group hidden md:block">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <Search className="h-4 w-4 text-slate-400 group-focus-within:text-slate-600 dark:group-focus-within:text-slate-300 transition-colors" />
                             </div>
                             <input
                                 type="text"
-                                className="block w-full pl-9 pr-3 py-1.5 text-sm border-none rounded-full bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300 dark:focus:ring-slate-700 transition-all"
-                                placeholder="搜索文物、年代、地点..."
+                                className="block w-full pl-9 pr-3 py-1.5 text-sm border-none rounded-full bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 dark:focus:ring-indigo-500/50 transition-all shadow-sm"
+                                placeholder="搜索..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
 
                         {/* Desktop Filters - 极简风格 */}
-                        <div className="hidden lg:flex items-center gap-2">
+                        <div className="hidden lg:flex items-center gap-4">
+                            <span className="text-xs text-slate-400 mr-4 font-medium whitespace-nowrap">
+                                {filteredArtifacts.length} 个结果
+                            </span>
                             <Select value={selectedBatch} onValueChange={setSelectedBatch}>
-                                <SelectTrigger className="w-[110px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
+                                <SelectTrigger className="w-[120px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
                                     <SelectValue placeholder="批次" />
                                 </SelectTrigger>
                                     <SelectContent>
@@ -1641,7 +1652,7 @@ const Wenwu: React.FC = () => {
                             </Select>
 
                             <Select value={selectedType} onValueChange={setSelectedType}>
-                                <SelectTrigger className="w-[110px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
+                                <SelectTrigger className="w-[120px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
                                     <SelectValue placeholder="类别" />
                                 </SelectTrigger>
                                     <SelectContent>
@@ -1662,7 +1673,7 @@ const Wenwu: React.FC = () => {
                             </Select>
 
                             <Select value={selectedEra} onValueChange={setSelectedEra}>
-                                <SelectTrigger className="w-[110px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
+                                <SelectTrigger className="w-[120px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
                                     <SelectValue placeholder="时代" />
                                 </SelectTrigger>
                                     <SelectContent>
@@ -1683,7 +1694,7 @@ const Wenwu: React.FC = () => {
                             </Select>
 
                             <Select value={selectedCollection} onValueChange={setSelectedCollection}>
-                                <SelectTrigger className="w-[110px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
+                                <SelectTrigger className="w-[120px] h-8 rounded-full border-0 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 focus:ring-0">
                                     <SelectValue placeholder="馆藏" />
                                 </SelectTrigger>
                                     <SelectContent>
@@ -1711,11 +1722,12 @@ const Wenwu: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            </div>
             </header>
 
-            <main className="max-w-[1800px] mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 pt-24">
+            <main className="max-w-[1800px] mx-auto p-4 pt-32 lg:px-6 lg:pb-6 lg:pt-24 grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* 中间栏 -> 左栏：内容 (7 Columns) */}
-                <div className="lg:col-span-7 space-y-4">
+                <div className="lg:col-span-7">
                     {activeArtifact && (
                         <div
                             className={`fixed left-6 top-24 z-50 h-[calc(100vh-7.5rem)] w-[560px] max-w-[92vw] rounded-2xl bg-white/90 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/50 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col transform-gpu transition-[transform,opacity] duration-300 ease-out will-change-transform ${
@@ -1737,23 +1749,23 @@ const Wenwu: React.FC = () => {
                                 <div className="text-xl md:text-2xl font-bold font-serif text-slate-800 dark:text-slate-100 pr-10">
                                     {activeArtifact.name}
                                 </div>
-                                <div className="flex gap-2 mt-3">
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                                <div className="flex gap-3 mt-4">
+                                    <span className={`text-sm px-3 py-1 rounded-full font-medium flex items-center gap-2 border border-slate-100 dark:border-slate-700/50 ${getEraColor(activeArtifact.era)} bg-opacity-10 text-opacity-90`}>
                                         {getEraIcon(activeArtifact.era) && (
                                             <img
                                                 src={getEraIcon(activeArtifact.era) as string}
                                                 alt={activeArtifact.era}
-                                                className="w-3.5 h-3.5 object-contain opacity-70"
+                                                className="w-5 h-5 object-contain"
                                             />
                                         )}
                                         {activeArtifact.era}
                                     </span>
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                                    <span className={`text-sm px-3 py-1 rounded-full font-medium flex items-center gap-2 border border-slate-100 dark:border-slate-700/50 ${getTypeColor(activeArtifact.type)} bg-opacity-10 text-opacity-90`}>
                                         {wenwuTypeIcons[activeArtifact.type] && (
                                             <img
                                                 src={wenwuTypeIcons[activeArtifact.type]}
                                                 alt={activeArtifact.type}
-                                                className="w-3.5 h-3.5 rounded-sm opacity-70"
+                                                className="w-5 h-5 rounded-sm"
                                             />
                                         )}
                                         {activeArtifact.type}
@@ -1840,12 +1852,12 @@ const Wenwu: React.FC = () => {
                         </div>
                     )}
                     {/* 移动端筛选折叠器 (Visible on mobile only) */}
-                    <div className="lg:hidden mb-4">
+                    <div className="lg:hidden flex items-center gap-3 mb-4">
                         <Dialog>
                             <DialogTrigger asChild>
                                 <Button
                                     variant="outline"
-                                    className="w-full rounded-xl border-slate-200 shadow-sm"
+                                    className="flex-1 rounded-xl border-slate-200 shadow-sm"
                                 >
                                     <Filter className="w-4 h-4 mr-2" /> 筛选条件
                                 </Button>
@@ -1988,14 +2000,13 @@ const Wenwu: React.FC = () => {
                                 </div>
                             </DialogContent>
                         </Dialog>
-                    </div>
-
-                    {/* 视图切换与状态 */}
-                    <div className="flex items-center px-1">
-                        <div className="text-sm text-slate-500">
-                            共 {filteredArtifacts.length} 个结果
+                        <div className="text-sm text-slate-500 font-medium whitespace-nowrap">
+                            共 {filteredArtifacts.length} 个
                         </div>
                     </div>
+
+                    {/* 视图切换与状态 - 已移至 Header */}
+                    <div className="hidden"></div>
 
                     {/* 文物列表 */}
                     <div
@@ -2043,26 +2054,29 @@ const Wenwu: React.FC = () => {
                                     key={artifact.id}
                                     onClick={() => openArtifactPanel(artifact)}
                                     className="
-                                            group cursor-pointer bg-white dark:bg-slate-900 rounded-xl transition-all duration-300
-                                            border border-slate-100 dark:border-slate-800 hover:border-violet-200 dark:hover:border-slate-700
-                                            hover:shadow-lg hover:-translate-y-0.5
+                                            group cursor-pointer bg-white dark:bg-slate-900 rounded-xl transition-all duration-300 ease-out
+                                            border border-slate-200/60 dark:border-slate-800
+                                            hover:border-indigo-300 dark:hover:border-indigo-700
+                                            hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:hover:shadow-none
+                                            hover:-translate-y-1 relative overflow-hidden
                                         "
                                 >
-                                    <div className="p-4 flex flex-col h-full">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex gap-2">
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                    <div className="p-5 flex flex-col h-full">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex gap-2.5">
+                                                <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5 border border-slate-100 dark:border-slate-700/50 ${getTypeColor(artifact.type)} bg-opacity-10 text-opacity-90 transition-all hover:bg-opacity-20`}>
                                                     {wenwuTypeIcons[artifact.type] && (
-                                                        <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-3.5 h-3.5 rounded-sm opacity-70" />
+                                                        <img src={wenwuTypeIcons[artifact.type]} alt={artifact.type} className="w-5 h-5 rounded-sm object-contain" />
                                                     )}
                                                     {artifact.type}
                                                 </span>
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                                                <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5 border border-slate-100 dark:border-slate-700/50 ${getEraColor(artifact.era)} bg-opacity-10 text-opacity-90 transition-all hover:bg-opacity-20`}>
                                                     {getEraIcon(artifact.era) && (
                                                         <img
                                                             src={getEraIcon(artifact.era) as string}
                                                             alt={artifact.era}
-                                                            className="w-3.5 h-3.5 object-contain opacity-70"
+                                                            className="w-5 h-5 object-contain"
                                                         />
                                                     )}
                                                     {artifact.era}
@@ -2070,19 +2084,19 @@ const Wenwu: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-1.5 font-serif group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors line-clamp-1">
+                                        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2 font-serif group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1 tracking-tight">
                                             <HighlightText
                                                 text={artifact.name}
                                                 highlight={searchTerm}
                                             />
                                         </h3>
 
-                                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-500 font-medium mb-3">
-                                            <Landmark className="w-3 h-3 shrink-0 opacity-70" />
-                                            <span className="truncate">{artifact.collectionLocation}</span>
+                                        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-500 font-medium mb-4">
+                                            <Landmark className="w-3.5 h-3.5 shrink-0 opacity-60 text-indigo-400" />
+                                            <span className="truncate tracking-wide">{artifact.collectionLocation}</span>
                                         </div>
 
-                                        <div className="text-xs text-slate-400 dark:text-slate-500 line-clamp-2 leading-relaxed mt-auto">
+                                        <div className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed mt-auto font-light group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">
                                                     {searchTerm ? (
                                                         <HighlightText
                                                             text={artifact.desc}
