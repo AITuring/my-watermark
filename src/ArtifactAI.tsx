@@ -52,6 +52,8 @@ import {
     Download,
     Check,
     X,
+    Columns,
+    Maximize2,
 } from "lucide-react";
 
 interface ArtifactAIProps {}
@@ -118,10 +120,10 @@ const MarkdownLink = ({ href, children, title }: any) => {
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[#8b4513] hover:text-[#5d4037] hover:underline underline-offset-4 inline-flex items-center gap-0.5 transition-colors"
+                        className="text-[#8b4513] hover:text-[#5d4037] hover:underline underline-offset-4 break-all transition-colors"
                     >
                         {children}
-                        <ExternalLink className="w-3 h-3 opacity-50" />
+                        <ExternalLink className="w-3 h-3 opacity-50 inline ml-0.5" />
                     </a>
                 </HoverCardTrigger>
                 <HoverCardContent className="w-[400px] p-0 overflow-hidden bg-white border-stone-200 shadow-xl" side="top" align="start">
@@ -157,13 +159,28 @@ const MarkdownLink = ({ href, children, title }: any) => {
 };
 
 const ArtifactAI: React.FC<ArtifactAIProps> = () => {
+    // Qwen States
     const [apiKey, setApiKey] = useState(
         import.meta.env.VITE_DASHSCOPE_API_KEY || ""
     );
-    const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<string>("");
     const [thought, setThought] = useState<string>("");
     const [isThoughtOpen, setIsThoughtOpen] = useState(true);
+
+    // Doubao States
+    const [doubaoApiKey, setDoubaoApiKey] = useState(
+        import.meta.env.VITE_DOUBAO_API_KEY || ""
+    );
+    const [doubaoModel, setDoubaoModel] = useState(
+        import.meta.env.VITE_DOUBAO_MODEL || ""
+    );
+    const [doubaoResult, setDoubaoResult] = useState<string>("");
+    const [doubaoThought, setDoubaoThought] = useState<string>("");
+    const [isDoubaoThoughtOpen, setIsDoubaoThoughtOpen] = useState(true);
+
+    // Global States
+    const [loading, setLoading] = useState(false);
+    const [compareMode, setCompareMode] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     // Form states
@@ -173,38 +190,154 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
     const [isExporting, setIsExporting] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [showPreview, setShowPreview] = useState(false);
+    const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
+    const [exportContent, setExportContent] = useState("");
 
     // Auto-scroll ref
     const scrollRef = useRef<HTMLDivElement>(null);
     const exportRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (loading || result) {
+        if ((loading || result || doubaoResult) && autoScrollEnabled) {
             scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
         }
-    }, [thought, result, loading]);
+    }, [thought, result, doubaoThought, doubaoResult, loading, autoScrollEnabled]);
 
-    const handleSearch = async () => {
-        if (!apiKey) {
-            toast.error("请输入 Qwen API Key");
-            return;
+    const performStream = async (
+        messages: any[],
+        apiKey: string,
+        baseURL: string,
+        model: string,
+        onThought: (t: string) => void,
+        onResult: (r: string) => void,
+        onThoughtOpen: (o: boolean) => void
+    ) => {
+        try {
+            const client = new OpenAI({
+                apiKey: apiKey,
+                baseURL: baseURL,
+                dangerouslyAllowBrowser: true,
+            });
+
+            const stream = await client.chat.completions.create({
+                model: model,
+                messages: messages,
+                stream: true,
+            });
+
+            let fullContent = "";
+            let fullReasoning = "";
+            let hasCollapsedThought = false;
+
+            for await (const chunk of stream) {
+                const delta = chunk.choices[0]?.delta;
+                const content = delta?.content || "";
+                const reasoning = (delta as any)?.reasoning_content || "";
+
+                // Update native reasoning
+                if (reasoning) {
+                    fullReasoning += reasoning;
+                }
+
+                // Update content
+                if (content) {
+                    fullContent += content;
+                }
+
+                // Process thoughts from tags
+                let thoughtFromTags = "";
+                const thinkStart = fullContent.indexOf("<think>");
+                const thinkEnd = fullContent.indexOf("</think>");
+
+                let cleanResult = fullContent;
+
+                if (thinkStart !== -1) {
+                    if (thinkEnd !== -1) {
+                        // Thought block complete
+                        thoughtFromTags = fullContent.substring(thinkStart + 7, thinkEnd);
+                        // Remove the thought block from result
+                        cleanResult = fullContent.substring(0, thinkStart) + fullContent.substring(thinkEnd + 8);
+                    } else {
+                        // Thought block in progress
+                        thoughtFromTags = fullContent.substring(thinkStart + 7);
+                        // Hide the thought block from result
+                        cleanResult = fullContent.substring(0, thinkStart);
+                    }
+                }
+
+                // Combine thoughts: Native + Tags
+                // If both exist, we join them. Usually only one exists.
+                const combinedThought = [fullReasoning, thoughtFromTags].filter(Boolean).join("\n\n");
+
+                if (combinedThought) {
+                    onThought(combinedThought);
+                }
+
+                // Update Result
+                onResult(cleanResult);
+
+                // Auto-collapse logic
+                // Collapse if we have some real result content (ignoring whitespace)
+                if (cleanResult.trim().length > 0 && !hasCollapsedThought) {
+                    onThoughtOpen(false);
+                    hasCollapsedThought = true;
+                }
+            }
+        } catch (error: any) {
+            console.error("API Error:", error);
+            toast.error(`调用失败 (${model}): ${error.message}`);
+            onResult(`\n\n**API Error**: ${error.message}`);
         }
+    };
+
+    const handleSearch = async (target?: 'qwen' | 'doubao' | any) => {
         if (!rawInput.trim()) {
             toast.error("请输入文物描述信息");
             return;
         }
 
+        const specificTarget = (typeof target === 'string') ? target : undefined;
+
+        let runQwen = true;
+        let runDoubao = compareMode;
+
+        if (specificTarget === 'qwen') {
+            runQwen = true;
+            runDoubao = false;
+        } else if (specificTarget === 'doubao') {
+            runQwen = false;
+            runDoubao = true;
+        } else {
+             // Default behavior (search button or enter key)
+             runQwen = !compareMode || compareMode;
+             runDoubao = compareMode;
+        }
+
+        if (runQwen && !apiKey) {
+            toast.error("请先配置 Qwen API Key");
+            return;
+        }
+        if (runDoubao && (!doubaoApiKey || !doubaoModel)) {
+            toast.error("请先配置 Doubao API Key 和 Model Endpoint");
+            return;
+        }
+
         setLoading(true);
-        setResult("");
-        setThought("");
         setHasSearched(true);
-        setIsThoughtOpen(true);
 
-        try {
-            const prompt = `你是一位严谨的**考古学家**和**博物馆资深研究员**。请根据用户提供的文物描述信息，识别该文物，并撰写一份**学术性强、数据准确、有理有据**的百科综述。
+        // Reset States
+        if (runQwen) {
+            setResult("");
+            setThought("");
+            setIsThoughtOpen(true);
+        }
+        if (runDoubao) {
+            setDoubaoResult("");
+            setDoubaoThought("");
+            setIsDoubaoThoughtOpen(true);
+        }
 
-**用户提供的描述信息**：
-${rawInput}
+        const systemPrompt = `你是一位严谨的**考古学家**和**博物馆资深研究员**。请根据用户提供的文物描述信息，识别该文物，并撰写一份**学术性强、数据准确、有理有据**的百科综述。
 
 **思维链（Chain of Thought）要求**：
 请在正式回答之前，先进行深度的逻辑推理和资料检索分析。
@@ -257,74 +390,59 @@ ${rawInput}
 2. 赵丰：《宋代书画用纸研究》，《文物》2021年第3期 [DOI:10.13619...](http://...)
 ---`;
 
-            const client = new OpenAI({
-                apiKey: apiKey,
-                baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                dangerouslyAllowBrowser: true,
-            });
+        const messages = [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: rawInput }
+        ];
 
-            const stream = await client.chat.completions.create({
-                model: "qwen-plus-2025-12-01",
-                messages: [
-                    {
-                        role: "user",
-                        content: prompt,
-                    },
-                ],
-                stream: true,
-            });
+        try {
+            const promises = [];
 
-            let fullContent = "";
-            let hasCollapsedThought = false;
-
-            for await (const chunk of stream) {
-                const content = chunk.choices[0]?.delta?.content || "";
-                fullContent += content;
-
-                // 实时解析 <think> 标签
-                const thinkStart = fullContent.indexOf("<think>");
-                const thinkEnd = fullContent.indexOf("</think>");
-
-                if (thinkStart !== -1) {
-                    if (thinkEnd !== -1) {
-                        // 思考已结束，显示完整的思考过程和后续的正文
-                        setThought(fullContent.substring(thinkStart + 7, thinkEnd));
-                        const newResult = fullContent.substring(thinkEnd + 8);
-                        setResult(newResult);
-
-                        // 当正文开始出现时，自动折叠思维链（仅执行一次）
-                        if (newResult.trim().length > 0 && !hasCollapsedThought) {
-                            setIsThoughtOpen(false);
-                            hasCollapsedThought = true;
-                        }
-                    } else {
-                        // 思考进行中，只显示思考过程
-                        setThought(fullContent.substring(thinkStart + 7));
-                        setResult("");
-                    }
-                } else {
-                    // 没有发现思考标签（异常情况或尚未生成），暂视为正文
-                    setResult(fullContent);
-                }
+            if (runQwen) {
+                promises.push(
+                    performStream(
+                        messages,
+                        apiKey,
+                        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                        "qwen-plus-2025-12-01",
+                        setThought,
+                        setResult,
+                        setIsThoughtOpen
+                    )
+                );
             }
-        } catch (error: any) {
-            console.error("API Error:", error);
-            toast.error(`查询失败: ${error.message}`);
+
+            if (runDoubao) {
+                promises.push(
+                    performStream(
+                        messages,
+                        doubaoApiKey,
+                        "https://ark.cn-beijing.volces.com/api/v3",
+                        doubaoModel,
+                        setDoubaoThought,
+                        setDoubaoResult,
+                        setIsDoubaoThoughtOpen
+                    )
+                );
+            }
+
+            await Promise.all(promises);
         } finally {
             setLoading(false);
         }
     };
 
 
-    const handleCopy = () => {
-        if (!result) return;
-        navigator.clipboard.writeText(result);
+    const handleCopy = (text: string) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text);
         setCopySuccess(true);
         toast.success("内容已复制");
         setTimeout(() => setCopySuccess(false), 2000);
     };
 
-    const handleShare = async () => {
+    const handleShare = async (content: string) => {
+        setExportContent(content);
         if (!exportRef.current) return;
         setIsExporting(true);
         try {
@@ -402,7 +520,7 @@ ${rawInput}
     // Components for Export (No Links, Simplified)
     const exportComponents = {
         ...components,
-        a: ({ children }: any) => <span className="text-[#8b4513] font-medium">{children}</span>, // Remove link functionality, keep text
+        a: ({ children }: any) => <span className="text-[#8b4513] font-medium break-all">{children}</span>, // Remove link functionality, keep text
         // Optimize headings for print/image
         h1: ({ node, ...props }: any) => (
             <h1 className="text-3xl font-serif font-bold text-[#5d4037] mt-8 mb-6 border-b-2 border-[#8b4513]/20 pb-4" {...props} />
@@ -458,7 +576,7 @@ ${rawInput}
                         </div>
                         <div className="p-6 space-y-6 flex-1">
                             <div className="space-y-2">
-                                <Label htmlFor="sidebar-apikey" className="text-stone-600">API Key 设置</Label>
+                                <Label htmlFor="sidebar-apikey" className="text-stone-600">Qwen API Key</Label>
                                 <Input
                                     id="sidebar-apikey"
                                     type="password"
@@ -472,9 +590,33 @@ ${rawInput}
                                 </p>
                             </div>
 
+                            <div className="space-y-2 pt-4 border-t border-stone-100">
+                                <Label htmlFor="sidebar-doubao-apikey" className="text-stone-600">Doubao API Key (对比用)</Label>
+                                <Input
+                                    id="sidebar-doubao-apikey"
+                                    type="password"
+                                    placeholder="sk-..."
+                                    value={doubaoApiKey}
+                                    onChange={(e) => setDoubaoApiKey(e.target.value)}
+                                    className="bg-white border-stone-200 focus-visible:ring-stone-400 focus-visible:border-stone-400"
+                                />
+                                <Label htmlFor="sidebar-doubao-model" className="text-stone-600 text-xs mt-2 block">Doubao Model ID</Label>
+                                <Input
+                                    id="sidebar-doubao-model"
+                                    type="text"
+                                    placeholder="ep-..."
+                                    value={doubaoModel}
+                                    onChange={(e) => setDoubaoModel(e.target.value)}
+                                    className="bg-white border-stone-200 focus-visible:ring-stone-400 focus-visible:border-stone-400 text-xs"
+                                />
+                                <p className="text-xs text-stone-400">
+                                    Doubao (Volcengine) Endpoint ID
+                                </p>
+                            </div>
+
                             <div className="pt-4 border-t border-dashed border-stone-200">
                                 <p className="text-xs text-center text-stone-400">
-                                    由 Qwen-Plus 提供支持
+                                    Qwen-Plus & Doubao
                                 </p>
                             </div>
                         </div>
@@ -483,8 +625,17 @@ ${rawInput}
             )}
 
             {/* 主要内容区域 - 聊天流 */}
-            <div className="flex-1 overflow-y-auto p-4 pb-32 custom-scrollbar bg-[#FAFAF9]">
-                <div className="max-w-3xl mx-auto space-y-8">
+            <div
+                className="flex-1 overflow-y-auto p-4 pb-32 custom-scrollbar bg-[#FAFAF9]"
+                onScroll={(e) => {
+                    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+                    // If user scrolls up (not at bottom), disable auto-scroll
+                    // If user scrolls to bottom, re-enable auto-scroll
+                    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+                    setAutoScrollEnabled(isAtBottom);
+                }}
+            >
+                <div className={`mx-auto space-y-8 ${compareMode ? 'max-w-[1600px] w-full px-4' : 'max-w-3xl'}`}>
                     {/* 初始状态 - 仅在未搜索时显示 */}
                     {!hasSearched && (
                         <div className="text-center py-32 space-y-6 animate-in fade-in duration-500">
@@ -502,107 +653,233 @@ ${rawInput}
                         </div>
                     )}
 
-                    {/* 思维链区域 - Minimal Accordion */}
-                    {(thought || loading) && (
-                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                             <div className="bg-white rounded-lg overflow-hidden border border-stone-200 shadow-sm transition-all duration-300">
-                                <div
-                                    className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-stone-50 transition-colors select-none"
-                                    onClick={() => setIsThoughtOpen(!isThoughtOpen)}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        {!result && loading ? (
-                                            <>
-                                                <Loader2 className="w-3.5 h-3.5 text-stone-500 animate-spin" />
-                                                <span className="text-sm text-stone-500 font-medium">深度考证中...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <BrainCircuit className="w-3.5 h-3.5 text-stone-400" />
-                                                <span className="text-sm text-stone-500">考证思路</span>
-                                            </>
-                                        )}
-                                    </div>
-                                    <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-300 ${isThoughtOpen ? 'rotate-180' : ''}`} />
+                    <div className={compareMode ? "grid grid-cols-2 gap-6 items-start" : ""}>
+                        {/* Column 1: Qwen (Always visible) */}
+                        <div className="flex flex-col gap-6 min-w-0">
+                             {compareMode && hasSearched && (
+                                <div className="flex items-center gap-2 pb-2 border-b border-stone-200">
+                                    <Badge variant="outline" className="bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/20">
+                                        Qwen-Plus
+                                    </Badge>
                                 </div>
+                            )}
 
-                                <div
-                                    className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${
-                                        isThoughtOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                                    }`}
-                                >
-                                    <div className="overflow-hidden">
-                                        <div className="px-5 pb-5 pt-1">
-                                            <div className="text-sm text-stone-500 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-stone-200 font-mono bg-stone-50/50 p-3 rounded-r">
-                                                {thought}
-                                                {!result && loading && (
-                                                    <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-stone-400 animate-pulse rounded-sm"></span>
+                            {/* Qwen Thought Process */}
+                            {(thought || loading) && (
+                                <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                     <div className="bg-white rounded-lg overflow-hidden border border-stone-200 shadow-sm transition-all duration-300">
+                                        <div
+                                            className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-stone-50 transition-colors select-none"
+                                            onClick={() => setIsThoughtOpen(!isThoughtOpen)}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                {!result && loading ? (
+                                                    <>
+                                                        <Loader2 className="w-3.5 h-3.5 text-stone-500 animate-spin" />
+                                                        <span className="text-sm text-stone-500 font-medium">深度考证中...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <BrainCircuit className="w-3.5 h-3.5 text-stone-400" />
+                                                        <span className="text-sm text-stone-500">考证思路 (Qwen)</span>
+                                                    </>
                                                 )}
+                                            </div>
+                                            <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-300 ${isThoughtOpen ? 'rotate-180' : ''}`} />
+                                        </div>
+
+                                        <div
+                                            className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${
+                                                isThoughtOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                                            }`}
+                                        >
+                                            <div className="overflow-hidden">
+                                                <div className="px-5 pb-5 pt-1">
+                                                    <div className="text-sm text-stone-500 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-stone-200 font-mono bg-stone-50/50 p-3 rounded-r">
+                                                        {thought}
+                                                        {!result && loading && (
+                                                            <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-stone-400 animate-pulse rounded-sm"></span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    )}
+                            )}
 
-                    {/* 结果展示区域 */}
-                    {result && (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                            <article className="bg-white p-8 md:p-12 rounded-lg shadow-sm border border-stone-100">
-                                <ReactMarkdown
-                                    remarkPlugins={[remarkGfm]}
-                                    rehypePlugins={[rehypeHighlight]}
-                                    components={components}
-                                >
-                                    {result}
-                                </ReactMarkdown>
+                            {/* Qwen Result */}
+                            {result && (
+                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                    <article className="bg-white p-8 md:p-12 rounded-lg shadow-sm border border-stone-100">
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            rehypePlugins={[rehypeHighlight]}
+                                            components={components}
+                                        >
+                                            {result}
+                                        </ReactMarkdown>
 
-                                <div className="mt-12 pt-6 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-300">
-                                    <Sparkles className="w-4 h-4" />
-                                    <span className="text-xs font-serif">Artifact AI Intelligent Encyclopedia</span>
-                                </div>
-                            </article>
+                                        <div className="mt-12 pt-6 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-300">
+                                            <Sparkles className="w-4 h-4" />
+                                            <span className="text-xs font-serif">Artifact AI Intelligent Encyclopedia</span>
+                                        </div>
+                                    </article>
 
-                            {/* 操作按钮组 */}
-                            {!loading && (
-                                <div className="flex items-center justify-end gap-2 mt-4">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleCopy}
-                                        className="text-stone-600 hover:text-stone-900 border-stone-200"
-                                    >
-                                        {copySuccess ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
-                                        复制
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleSearch}
-                                        className="text-stone-600 hover:text-stone-900 border-stone-200"
-                                    >
-                                        <RotateCcw className="w-4 h-4 mr-1" />
-                                        重试
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleShare}
-                                        disabled={isExporting}
-                                        className="text-stone-600 hover:text-stone-900 border-stone-200"
-                                    >
-                                        {isExporting ? (
-                                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                                        ) : (
-                                            <Share2 className="w-4 h-4 mr-1" />
-                                        )}
-                                        分享
-                                    </Button>
+                                    {/* 操作按钮组 */}
+                                    {!loading && result && (
+                                        <div className="flex items-center justify-end gap-2 mt-4">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleCopy(result)}
+                                                className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                            >
+                                                {copySuccess ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                                                复制
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleSearch('qwen')}
+                                                className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                            >
+                                                <RotateCcw className="w-4 h-4 mr-1" />
+                                                重试
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleShare(result)}
+                                                disabled={isExporting}
+                                                className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                            >
+                                                {isExporting ? (
+                                                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                                ) : (
+                                                    <Share2 className="w-4 h-4 mr-1" />
+                                                )}
+                                                分享
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
-                    )}
+
+                        {/* Column 2: Doubao (Only in Compare Mode) */}
+                        {compareMode && hasSearched && (
+                            <div className="flex flex-col gap-6 min-w-0">
+                                <div className="flex items-center gap-2 pb-2 border-b border-stone-200">
+                                    <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
+                                        Doubao (豆包)
+                                    </Badge>
+                                </div>
+
+                                {/* Doubao Thought Process */}
+                                {(doubaoThought || loading) && (
+                                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                         <div className="bg-white rounded-lg overflow-hidden border border-blue-100 shadow-sm transition-all duration-300">
+                                            <div
+                                                className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors select-none"
+                                                onClick={() => setIsDoubaoThoughtOpen(!isDoubaoThoughtOpen)}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    {!doubaoResult && loading ? (
+                                                        <>
+                                                            <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+                                                            <span className="text-sm text-blue-500 font-medium">深度考证中...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <BrainCircuit className="w-3.5 h-3.5 text-blue-400" />
+                                                            <span className="text-sm text-blue-500">考证思路 (Doubao)</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <ChevronDown className={`w-3.5 h-3.5 text-blue-400 transition-transform duration-300 ${isDoubaoThoughtOpen ? 'rotate-180' : ''}`} />
+                                            </div>
+
+                                            <div
+                                                className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${
+                                                    isDoubaoThoughtOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                                                }`}
+                                            >
+                                                <div className="overflow-hidden">
+                                                    <div className="px-5 pb-5 pt-1">
+                                                        <div className="text-sm text-stone-500 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-blue-100 font-mono bg-blue-50/30 p-3 rounded-r">
+                                                            {doubaoThought}
+                                                            {!doubaoResult && loading && (
+                                                                <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-blue-400 animate-pulse rounded-sm"></span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Doubao Result */}
+                                {doubaoResult && (
+                                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                        <article className="bg-white p-8 md:p-12 rounded-lg shadow-sm border border-stone-100">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                rehypePlugins={[rehypeHighlight]}
+                                                components={components}
+                                            >
+                                                {doubaoResult}
+                                            </ReactMarkdown>
+
+                                            <div className="mt-12 pt-6 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-300">
+                                                <Sparkles className="w-4 h-4" />
+                                                <span className="text-xs font-serif">Artifact AI Intelligent Encyclopedia</span>
+                                            </div>
+                                        </article>
+
+                                        {/* 操作按钮组 (Doubao) */}
+                                        {!loading && doubaoResult && (
+                                            <div className="flex items-center justify-end gap-2 mt-4">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleCopy(doubaoResult)}
+                                                    className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                                >
+                                                    {copySuccess ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                                                    复制
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleSearch('doubao')}
+                                                    className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                                >
+                                                    <RotateCcw className="w-4 h-4 mr-1" />
+                                                    重试
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleShare(doubaoResult)}
+                                                    disabled={isExporting}
+                                                    className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                                >
+                                                    {isExporting ? (
+                                                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                                    ) : (
+                                                        <Share2 className="w-4 h-4 mr-1" />
+                                                    )}
+                                                    分享
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
                     {/* 滚动锚点 */}
                     <div ref={scrollRef} className="h-4" />
@@ -638,7 +915,7 @@ ${rawInput}
                             remarkPlugins={[remarkGfm]}
                             components={exportComponents}
                         >
-                            {result}
+                            {exportContent || result}
                         </ReactMarkdown>
                     </div>
 
@@ -659,7 +936,20 @@ ${rawInput}
 
             {/* 底部输入框区域 */}
             <div className="flex-none bg-[#FAFAF9] pb-6 pt-2">
-                <div className="max-w-3xl mx-auto px-4">
+                <div className={`mx-auto px-4 space-y-2 transition-all duration-300 ${compareMode ? 'max-w-[1600px]' : 'max-w-3xl'}`}>
+                    <div className="flex items-center justify-end">
+                         <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCompareMode(!compareMode)}
+                            className={`text-xs gap-1.5 h-7 ${compareMode ? 'bg-stone-200 text-stone-700' : 'text-stone-400 hover:text-stone-600'}`}
+                            title="开启对比模式 (Qwen vs Doubao)"
+                        >
+                            {compareMode ? <Columns className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                            {compareMode ? "对比模式" : "单模型"}
+                        </Button>
+                    </div>
+
                     <div className="relative bg-white rounded-lg border border-stone-200 focus-within:ring-1 focus-within:ring-stone-400 focus-within:border-stone-400 transition-all shadow-sm hover:shadow-md hover:border-stone-300">
                         <Textarea
                             id="rawInput"
