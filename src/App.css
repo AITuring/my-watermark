@@ -13,16 +13,16 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.2);
+    background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(212, 175, 55, 0.4); /* Gold */
+    background: rgba(120, 113, 108, 0.3); /* Stone-500 with opacity */
     border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(212, 175, 55, 0.7); /* Gold Hover */
+    background: rgba(120, 113, 108, 0.5); /* Stone-500 hover */
 }
 
 .App {

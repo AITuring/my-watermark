@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import OpenAI from "openai";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github.css";
+import html2canvas from "html2canvas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,18 @@ import {
     CardTitle,
     CardDescription,
 } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import {
+    HoverCard,
+    HoverCardContent,
+    HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
 import {
     Tooltip,
@@ -33,38 +46,113 @@ import {
     Send,
     Sparkles,
     Settings,
+    RotateCcw,
+    Copy,
+    Share2,
+    Download,
+    Check,
     X,
 } from "lucide-react";
 
 interface ArtifactAIProps {}
 
 const MarkdownLink = ({ href, children, title }: any) => {
-    return (
-        <TooltipProvider>
-            <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
+    // Helper to get text content
+    const getText = (node: any): string => {
+        if (typeof node === 'string') return node;
+        if (Array.isArray(node)) return node.map(getText).join('');
+        if (node?.props?.children) return getText(node.props.children);
+        return '';
+    };
+
+    const text = getText(children);
+    const isShort = text.length < 15 || /^\[?\d+\]?$/.test(text) || text.includes('链接') || text.includes('来源') || text.includes('PDF');
+
+    // Preview content component
+    const PreviewContent = () => (
+        <div className="flex flex-col gap-2 w-full h-full">
+            <div className="flex items-center gap-2 p-2 border-b border-stone-100 bg-stone-50">
+                 <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center border border-stone-200 shrink-0">
+                    <img
+                        src={`https://www.google.com/s2/favicons?domain=${href}&sz=64`}
+                        alt="favicon"
+                        className="w-3 h-3 opacity-70"
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                    />
+                 </div>
+                 <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-xs font-medium text-stone-700 truncate">{new URL(href).hostname}</span>
+                 </div>
+            </div>
+
+            <div className="relative w-full h-[200px] bg-white">
+                <iframe
+                    src={href}
+                    className="w-full h-full border-0"
+                    title="Link Preview"
+                    sandbox="allow-scripts allow-same-origin"
+                    loading="lazy"
+                    onLoad={(e) => {
+                        // Hide loading state if needed
+                    }}
+                />
+                {/* Overlay to catch clicks and prevent navigation inside iframe */}
+                <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute inset-0 bg-transparent"
+                    title="点击打开链接"
+                />
+            </div>
+        </div>
+    );
+
+    if (!isShort) {
+        return (
+            <HoverCard openDelay={200}>
+                <HoverCardTrigger asChild>
                     <a
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center mx-1 align-baseline no-underline"
+                        className="text-[#8b4513] hover:text-[#5d4037] hover:underline underline-offset-4 inline-flex items-center gap-0.5 transition-colors"
                     >
-                        <Badge
-                            variant="secondary"
-                            className="h-5 px-2 py-0 text-[10px] hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer gap-1 whitespace-nowrap"
-                        >
-                            {children}
-                            <ExternalLink className="w-2 h-2" />
-                        </Badge>
+                        {children}
+                        <ExternalLink className="w-3 h-3 opacity-50" />
                     </a>
-                </TooltipTrigger>
-                {title && (
-                    <TooltipContent>
-                        <p className="max-w-xs text-xs break-words">{title}</p>
-                    </TooltipContent>
-                )}
-            </Tooltip>
-        </TooltipProvider>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-[400px] p-0 overflow-hidden bg-white border-stone-200 shadow-xl" side="top" align="start">
+                    <PreviewContent />
+                </HoverCardContent>
+            </HoverCard>
+        );
+    }
+
+    return (
+        <HoverCard openDelay={200}>
+            <HoverCardTrigger asChild>
+                <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center mx-1 align-baseline no-underline"
+                >
+                    <Badge
+                        variant="secondary"
+                        className="h-5 px-2 py-0 text-[10px] bg-stone-100 text-stone-600 hover:bg-[#8b4513] hover:text-white transition-colors cursor-pointer gap-1 whitespace-nowrap border border-stone-200"
+                    >
+                        {children}
+                        <ExternalLink className="w-2 h-2" />
+                    </Badge>
+                </a>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-[400px] p-0 overflow-hidden bg-white border-stone-200 shadow-xl" side="top" align="start">
+                <PreviewContent />
+            </HoverCardContent>
+        </HoverCard>
     );
 };
 
@@ -81,6 +169,20 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
     // Form states
     const [rawInput, setRawInput] = useState("");
     const [hasSearched, setHasSearched] = useState(false);
+    const [copySuccess, setCopySuccess] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [showPreview, setShowPreview] = useState(false);
+
+    // Auto-scroll ref
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const exportRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (loading || result) {
+            scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        }
+    }, [thought, result, loading]);
 
     const handleSearch = async () => {
         if (!apiKey) {
@@ -113,37 +215,46 @@ ${rawInput}
 **请务必将你的思考过程包裹在 \`<think>\` 和 \`</think>\` 标签中。**
 
 **撰写要求**：
-1.  **真实性第一**：所有关键信息（名称、时代、尺寸、出土时间/地点、馆藏地）必须基于真实存在的考古报告、博物馆官方资料或学术文献。**严禁编造数据**。如果某项信息在学术界有争议或不详，请明确标注“不详”或“存疑”。
-2.  **来源标注**：在文中提及关键事实（如具体尺寸、特定考证观点）时，请尽可能附带来源链接。
+1.  **真实性第一**：所有关键信息（名称、时代、尺寸、出土时间/地点、馆藏地）必须基于真实存在的考古报告、博物馆官方资料或学术文献。**严禁编造数据**。
+2.  **引用标注（CRITICAL）**：在文中提及关键数据（特别是**尺寸、重量、年代**）或特定学术观点时，**必须**使用 Markdown 链接格式标注来源脚注。
+    *   **链接质量控制**：
+        *   **首选**：博物馆官网、政府文化机构网站（.gov/.org）、学术数据库（如 CNKI, JSTOR DOI链接）、知名百科（维基/百度百科作为次选）。
+        *   **严禁**：死链、个人博客、不可访问的内网链接、临时链接。
+        *   **校验**：请尽量确保提供的 URL 是 HTTPS 协议且长期有效的。
+    *   **格式**：\`[1](URL)\` 或 \`[据上海博物馆官网](URL)\`。
+    *   **错误示例**：\`[1]\` (无链接)，\`(据官网)\` (无链接)。
+    *   **正确示例**：\`纵27.1厘米[1](https://www.shanghaimuseum.net/...)\`。
 3.  **参考文献**：文末必须列出参考资料，并提供在线访问链接。
 
 **输出格式**：
 请严格按照以下 Markdown 格式输出（在 </think> 之后）：
-**特别注意链接格式**：请使用 \`[来源名称](URL "详细标题或说明")\` 的格式。例如：\`[苏州博物馆](http://... "苏州博物馆官网藏品介绍")\`。
 
 ---
 ### 1. 基本信息
 - **名称**：[标准文物名称]
 - **时代**：[准确时代]
-- **出土**：[详细出土信息，包括时间、地点、墓葬编号等]
+- **出土**：[详细出土信息]
 - **馆藏**：[现藏博物馆]
-- **尺寸**：[长宽高、重等数据]
+- **尺寸**：[详细数据，如：纵27.1厘米，横36.6厘米] [1](URL)
 
 ### 2. 外观与形制
-详细描述文物的形制特征、纹饰图案、材质工艺。请使用专业的考古术语（如“剔地阳纹”、“浅浮雕”等）。
+详细描述文物的形制特征、纹饰图案、材质工艺。
 
 ### 3. 出土与流传
-详细叙述文物的出土经过（考古发掘背景）或流传历史。
+详细叙述文物的出土经过或流传历史。
 
 ### 4. 功能与用途
-分析该文物在当时社会生活、礼仪制度或宗教信仰中的具体功能和文化意义。
+分析该文物的功能和文化意义。
 
 ### 5. 学术综述
-总结该文物的历史价值、艺术价值及在考古学上的地位。
+总结历史价值与艺术价值。
 
 ### 6. 参考文献
 请列出真实可靠的参考资料（如博物馆官网页面、考古简报、学术论文链接）。
-- [文献标题或来源名称](URL "悬浮提示内容")
+格式要求：**完整引文信息** + **[链接/来源](URL)**
+示例：
+1. 上海博物馆官网：黄庭坚《小子相帖》 [官网链接](http://...)
+2. 赵丰：《宋代书画用纸研究》，《文物》2021年第3期 [DOI:10.13619...](http://...)
 ---`;
 
             const client = new OpenAI({
@@ -164,6 +275,7 @@ ${rawInput}
             });
 
             let fullContent = "";
+            let hasCollapsedThought = false;
 
             for await (const chunk of stream) {
                 const content = chunk.choices[0]?.delta?.content || "";
@@ -177,7 +289,14 @@ ${rawInput}
                     if (thinkEnd !== -1) {
                         // 思考已结束，显示完整的思考过程和后续的正文
                         setThought(fullContent.substring(thinkStart + 7, thinkEnd));
-                        setResult(fullContent.substring(thinkEnd + 8));
+                        const newResult = fullContent.substring(thinkEnd + 8);
+                        setResult(newResult);
+
+                        // 当正文开始出现时，自动折叠思维链（仅执行一次）
+                        if (newResult.trim().length > 0 && !hasCollapsedThought) {
+                            setIsThoughtOpen(false);
+                            hasCollapsedThought = true;
+                        }
                     } else {
                         // 思考进行中，只显示思考过程
                         setThought(fullContent.substring(thinkStart + 7));
@@ -196,19 +315,125 @@ ${rawInput}
         }
     };
 
+
+    const handleCopy = () => {
+        if (!result) return;
+        navigator.clipboard.writeText(result);
+        setCopySuccess(true);
+        toast.success("内容已复制");
+        setTimeout(() => setCopySuccess(false), 2000);
+    };
+
+    const handleShare = async () => {
+        if (!exportRef.current) return;
+        setIsExporting(true);
+        try {
+            // Wait for images to load if any (though we mostly have text)
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
+            const canvas = await html2canvas(exportRef.current, {
+                useCORS: true,
+                scale: 3, // Higher scale for better quality
+                backgroundColor: "#Fdfbf5",
+                logging: false,
+                onclone: (clonedDoc) => {
+                    // Optional: adjustments to cloned document before screenshot
+                    const element = clonedDoc.querySelector('.export-container') as HTMLElement;
+                    if (element) {
+                        element.style.display = 'block';
+                    }
+                }
+            });
+
+            const url = canvas.toDataURL("image/png");
+            setPreviewUrl(url);
+            setShowPreview(true);
+            toast.success("花笺生成成功");
+        } catch (error) {
+            console.error("Export failed:", error);
+            toast.error("生成图片失败，请重试");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleDownloadImage = () => {
+        if (!previewUrl) return;
+        const link = document.createElement("a");
+        link.download = `ArtifactAI_${new Date().getTime()}.png`;
+        link.href = previewUrl;
+        link.click();
+        setShowPreview(false);
+        toast.success("图片已开始下载");
+    };
+
+    // Custom Markdown Components for better typography
+    const components = {
+        a: MarkdownLink,
+        h1: ({ node, ...props }: any) => (
+            <h1 className="text-2xl font-serif font-bold text-stone-900 mt-8 mb-4 border-b border-stone-200 pb-2" {...props} />
+        ),
+        h2: ({ node, ...props }: any) => (
+            <h2 className="text-xl font-serif font-bold text-stone-800 mt-8 mb-4 flex items-center gap-2" {...props}>
+                <span className="w-1 h-5 bg-stone-600 rounded-full inline-block" />
+                {props.children}
+            </h2>
+        ),
+        h3: ({ node, ...props }: any) => (
+            <h3 className="text-lg font-serif font-semibold text-stone-700 mt-6 mb-3" {...props} />
+        ),
+        p: ({ node, ...props }: any) => (
+            <p className="text-stone-600 leading-relaxed mb-4 text-justify" {...props} />
+        ),
+        ul: ({ node, ...props }: any) => (
+            <ul className="list-disc list-outside ml-5 space-y-1 text-stone-600 mb-4" {...props} />
+        ),
+        ol: ({ node, ...props }: any) => (
+            <ol className="list-decimal list-outside ml-5 space-y-1 text-stone-600 mb-4" {...props} />
+        ),
+        blockquote: ({ node, ...props }: any) => (
+            <blockquote className="border-l-4 border-stone-300 pl-4 py-1 my-4 text-stone-500 italic bg-stone-50 rounded-r" {...props} />
+        ),
+        strong: ({ node, ...props }: any) => (
+            <strong className="font-semibold text-stone-900" {...props} />
+        ),
+    };
+
+    // Components for Export (No Links, Simplified)
+    const exportComponents = {
+        ...components,
+        a: ({ children }: any) => <span className="text-[#8b4513] font-medium">{children}</span>, // Remove link functionality, keep text
+        // Optimize headings for print/image
+        h1: ({ node, ...props }: any) => (
+            <h1 className="text-3xl font-serif font-bold text-[#5d4037] mt-8 mb-6 border-b-2 border-[#8b4513]/20 pb-4" {...props} />
+        ),
+        h2: ({ node, ...props }: any) => (
+            <h2 className="text-2xl font-serif font-bold text-[#5d4037] mt-10 mb-5 flex items-center gap-3" {...props}>
+                <span className="w-1.5 h-6 bg-[#8b4513] rounded-sm inline-block opacity-80" />
+                {props.children}
+            </h2>
+        ),
+        p: ({ node, ...props }: any) => (
+            <p className="text-[#5d4037] leading-[2] mb-6 text-justify text-lg" {...props} />
+        ),
+        li: ({ node, ...props }: any) => (
+             <li className="text-[#5d4037] leading-[1.8] text-lg mb-2" {...props} />
+        ),
+    };
+
     return (
-        <div className="flex flex-col h-screen bg-background text-foreground relative">
-            {/* 顶部标题栏 - Minimal */}
-            <div className="flex-none p-4 bg-background/95 backdrop-blur z-10 sticky top-0 flex items-center justify-between">
+        <div className="fixed inset-0 flex flex-col bg-[#FAFAF9] text-stone-800 z-40 font-sans">
+            {/* 顶部标题栏 - Minimal & Elegant */}
+            <div className="flex-none p-4 bg-[#FAFAF9]/95 backdrop-blur z-10 sticky top-0 flex items-center justify-between border-b border-stone-100">
                 <div className="w-10" />
-                <h1 className="text-lg font-medium text-center text-foreground/80">
+                <h1 className="text-lg font-serif font-medium text-center text-stone-700 tracking-wide">
                     文物智能百科
                 </h1>
                 <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setIsSettingsOpen(true)}
-                    className="w-10 h-10 hover:bg-muted transition-colors text-muted-foreground"
+                    className="w-10 h-10 hover:bg-stone-100 transition-colors text-stone-500"
                 >
                     <Settings className="w-5 h-5" />
                 </Button>
@@ -218,37 +443,37 @@ ${rawInput}
             {isSettingsOpen && (
                 <>
                     <div
-                        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in duration-300"
+                        className="fixed inset-0 bg-stone-900/20 backdrop-blur-sm z-40 animate-in fade-in duration-300"
                         onClick={() => setIsSettingsOpen(false)}
                     />
-                    <div className="fixed inset-y-0 right-0 w-80 bg-background border-l shadow-2xl z-50 animate-in slide-in-from-right duration-300 flex flex-col">
-                        <div className="p-4 border-b flex items-center justify-between">
-                            <h2 className="font-bold text-lg flex items-center gap-2">
-                                <Settings className="w-4 h-4 text-[#D4AF37]" />
+                    <div className="fixed inset-y-0 right-0 w-80 bg-[#FAFAF9] border-l border-stone-200 shadow-2xl z-50 animate-in slide-in-from-right duration-300 flex flex-col">
+                        <div className="p-4 border-b border-stone-100 flex items-center justify-between">
+                            <h2 className="font-serif font-bold text-lg flex items-center gap-2 text-stone-700">
+                                <Settings className="w-4 h-4" />
                                 设置
                             </h2>
-                            <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(false)}>
+                            <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(false)} className="hover:bg-stone-100 text-stone-500">
                                 <X className="w-4 h-4" />
                             </Button>
                         </div>
                         <div className="p-6 space-y-6 flex-1">
                             <div className="space-y-2">
-                                <Label htmlFor="sidebar-apikey">API Key 设置</Label>
+                                <Label htmlFor="sidebar-apikey" className="text-stone-600">API Key 设置</Label>
                                 <Input
                                     id="sidebar-apikey"
                                     type="password"
                                     placeholder="sk-..."
                                     value={apiKey}
                                     onChange={(e) => setApiKey(e.target.value)}
-                                    className="bg-muted/50 border-muted-foreground/20 focus-visible:ring-[#D4AF37]"
+                                    className="bg-white border-stone-200 focus-visible:ring-stone-400 focus-visible:border-stone-400"
                                 />
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-stone-400">
                                     请使用兼容 OpenAI 格式的 API Key (如 DashScope)
                                 </p>
                             </div>
 
-                            <div className="pt-4 border-t border-dashed">
-                                <p className="text-xs text-center text-muted-foreground">
+                            <div className="pt-4 border-t border-dashed border-stone-200">
+                                <p className="text-xs text-center text-stone-400">
                                     由 Qwen-Plus 提供支持
                                 </p>
                             </div>
@@ -258,85 +483,188 @@ ${rawInput}
             )}
 
             {/* 主要内容区域 - 聊天流 */}
-            <div className="flex-1 overflow-y-auto p-4 pb-32 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto p-4 pb-32 custom-scrollbar bg-[#FAFAF9]">
                 <div className="max-w-3xl mx-auto space-y-8">
                     {/* 初始状态 - 仅在未搜索时显示 */}
                     {!hasSearched && (
-                        <div className="text-center py-32 space-y-4 animate-in fade-in duration-500">
-                             <div className="w-16 h-16 bg-muted/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <Sparkles className="w-8 h-8 text-[#D4AF37]" />
+                        <div className="text-center py-32 space-y-6 animate-in fade-in duration-500">
+                             <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-6 border border-stone-200">
+                                <BookOpen className="w-8 h-8 text-stone-400" />
                             </div>
-                            <h2 className="text-xl font-medium text-foreground/90">
-                                有什么可以帮您？
-                            </h2>
+                            <div className="space-y-2">
+                                <h2 className="text-2xl font-serif font-medium text-stone-700">
+                                    探索历史的纹理
+                                </h2>
+                                <p className="text-stone-400 text-sm max-w-xs mx-auto">
+                                    输入文物信息，获取专业的学术综述与考证
+                                </p>
+                            </div>
                         </div>
                     )}
 
                     {/* 思维链区域 - Minimal Accordion */}
                     {(thought || loading) && (
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                             <div className="bg-muted/30 rounded-lg overflow-hidden border border-border/50">
+                             <div className="bg-white rounded-lg overflow-hidden border border-stone-200 shadow-sm transition-all duration-300">
                                 <div
-                                    className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors select-none"
+                                    className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-stone-50 transition-colors select-none"
                                     onClick={() => setIsThoughtOpen(!isThoughtOpen)}
                                 >
                                     <div className="flex items-center gap-2">
                                         {!result && loading ? (
                                             <>
-                                                <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
-                                                <span className="text-sm text-muted-foreground">深度思考中...</span>
+                                                <Loader2 className="w-3.5 h-3.5 text-stone-500 animate-spin" />
+                                                <span className="text-sm text-stone-500 font-medium">深度考证中...</span>
                                             </>
                                         ) : (
                                             <>
-                                                <BrainCircuit className="w-3.5 h-3.5 text-muted-foreground" />
-                                                <span className="text-sm text-muted-foreground">已完成思考</span>
+                                                <BrainCircuit className="w-3.5 h-3.5 text-stone-400" />
+                                                <span className="text-sm text-stone-500">考证思路</span>
                                             </>
                                         )}
                                     </div>
-                                    <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground/70 transition-transform duration-200 ${isThoughtOpen ? 'rotate-180' : ''}`} />
+                                    <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-300 ${isThoughtOpen ? 'rotate-180' : ''}`} />
                                 </div>
 
-                                {isThoughtOpen && thought && (
-                                    <div className="px-4 pb-4 pt-1 animate-in slide-in-from-top-1 duration-200">
-                                        <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap pl-5 border-l-2 border-[#D4AF37]/20">
-                                            {thought}
-                                            {!result && loading && (
-                                                <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-[#D4AF37] animate-pulse rounded-sm"></span>
-                                            )}
+                                <div
+                                    className={`grid transition-[grid-template-rows] duration-500 ease-in-out ${
+                                        isThoughtOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                                    }`}
+                                >
+                                    <div className="overflow-hidden">
+                                        <div className="px-5 pb-5 pt-1">
+                                            <div className="text-sm text-stone-500 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-stone-200 font-mono bg-stone-50/50 p-3 rounded-r">
+                                                {thought}
+                                                {!result && loading && (
+                                                    <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-stone-400 animate-pulse rounded-sm"></span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                )}
+                                </div>
                             </div>
                         </div>
                     )}
 
                     {/* 结果展示区域 */}
                     {result && (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <article className="prose prose-stone dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:font-medium prose-headings:text-foreground/90">
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                            <article className="bg-white p-8 md:p-12 rounded-lg shadow-sm border border-stone-100">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm]}
                                     rehypePlugins={[rehypeHighlight]}
-                                    components={{
-                                        a: MarkdownLink,
-                                    }}
+                                    components={components}
                                 >
                                     {result}
                                 </ReactMarkdown>
+
+                                <div className="mt-12 pt-6 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-300">
+                                    <Sparkles className="w-4 h-4" />
+                                    <span className="text-xs font-serif">Artifact AI Intelligent Encyclopedia</span>
+                                </div>
                             </article>
+
+                            {/* 操作按钮组 */}
+                            {!loading && (
+                                <div className="flex items-center justify-end gap-2 mt-4">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleCopy}
+                                        className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                    >
+                                        {copySuccess ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                                        复制
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleSearch}
+                                        className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                    >
+                                        <RotateCcw className="w-4 h-4 mr-1" />
+                                        重试
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleShare}
+                                        disabled={isExporting}
+                                        className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                    >
+                                        {isExporting ? (
+                                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                        ) : (
+                                            <Share2 className="w-4 h-4 mr-1" />
+                                        )}
+                                        分享
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
+
+                    {/* 滚动锚点 */}
+                    <div ref={scrollRef} className="h-4" />
+                </div>
+            </div>
+
+            {/* 隐藏的导出容器 - 花笺样式 */}
+            <div className="absolute top-0 left-[-9999px]">
+                <div
+                    ref={exportRef}
+                    className="export-container w-[1000px] bg-[#Fdfbf5] p-20 text-stone-800 font-serif relative overflow-hidden"
+                    style={{
+                        backgroundImage: 'radial-gradient(#e6e2d8 1px, transparent 1px)',
+                        backgroundSize: '20px 20px'
+                    }}
+                >
+                    {/* 装饰边框 */}
+                    <div className="absolute inset-6 border-4 border-double border-[#8b4513]/30 pointer-events-none" />
+                    <div className="absolute inset-8 border border-[#8b4513]/10 pointer-events-none" />
+
+                    {/* 头部装饰 */}
+                    <div className="flex flex-col items-center justify-center mb-12 border-b-2 border-[#8b4513]/20 pb-8 mx-10">
+                        <div className="w-16 h-16 border-2 border-[#8b4513] rounded-full flex items-center justify-center mb-5">
+                            <span className="font-serif font-bold text-[#8b4513] text-2xl">文</span>
+                        </div>
+                        <h1 className="text-5xl font-bold text-[#5d4037] tracking-[0.3em] mb-2">文物智能百科</h1>
+                        <p className="text-[#8b4513]/60 text-lg uppercase tracking-[0.4em]">Artifact Intelligence</p>
+                    </div>
+
+                    {/* 正文内容 - 使用专用渲染组件 */}
+                    <div className="prose prose-stone max-w-none">
+                         <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={exportComponents}
+                        >
+                            {result}
+                        </ReactMarkdown>
+                    </div>
+
+                    {/* 底部落款 */}
+                    <div className="mt-20 pt-10 border-t border-[#8b4513]/20 flex justify-between items-end mx-10">
+                        <div className="flex flex-col gap-2">
+                             <span className="text-[#8b4513]/40 text-sm tracking-wider font-medium">GENERATED BY ARTIFACT AI</span>
+                             <span className="text-[#8b4513]/40 text-sm font-mono">{new Date().toLocaleDateString()}</span>
+                        </div>
+                        <div className="w-24 h-24 border-2 border-[#8b4513]/30 opacity-60 rounded-sm flex items-center justify-center bg-[#8b4513]/5">
+                             <div className="w-20 h-20 border border-[#8b4513]/30 flex items-center justify-center">
+                                <span className="writing-vertical text-lg text-[#8b4513] font-bold tracking-widest">格物致知</span>
+                             </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {/* 底部输入框区域 */}
-            <div className="flex-none bg-background pb-6 pt-2">
+            <div className="flex-none bg-[#FAFAF9] pb-6 pt-2">
                 <div className="max-w-3xl mx-auto px-4">
-                    <div className="relative bg-muted/30 rounded-3xl border border-input/50 focus-within:ring-1 focus-within:ring-[#D4AF37]/50 focus-within:border-[#D4AF37]/50 transition-all shadow-sm">
+                    <div className="relative bg-white rounded-lg border border-stone-200 focus-within:ring-1 focus-within:ring-stone-400 focus-within:border-stone-400 transition-all shadow-sm hover:shadow-md hover:border-stone-300">
                         <Textarea
                             id="rawInput"
-                            placeholder="输入文物信息..."
-                            className="min-h-[52px] max-h-[200px] border-0 bg-transparent resize-none focus-visible:ring-0 p-3.5 pr-12 shadow-none custom-scrollbar text-base"
+                            placeholder="输入文物信息，例如：线刻人物石屏风..."
+                            className="min-h-[60px] max-h-[200px] border-0 bg-transparent resize-none focus-visible:ring-0 p-4 pr-14 shadow-none custom-scrollbar text-base text-stone-700 placeholder:text-stone-300"
                             value={rawInput}
                             onChange={(e) => setRawInput(e.target.value)}
                             onKeyDown={(e) => {
@@ -350,7 +678,7 @@ ${rawInput}
                             onClick={handleSearch}
                             disabled={loading || !rawInput.trim()}
                             size="icon"
-                            className="absolute right-2 bottom-2 h-8 w-8 rounded-full bg-[#D4AF37] hover:bg-[#D4AF37]/90 text-white shadow-sm transition-all disabled:opacity-50"
+                            className="absolute right-3 bottom-3 h-9 w-9 rounded-md bg-stone-800 hover:bg-stone-700 text-stone-50 shadow-sm transition-all disabled:opacity-50 disabled:bg-stone-200"
                         >
                             {loading ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -359,13 +687,43 @@ ${rawInput}
                             )}
                         </Button>
                     </div>
-                    <div className="text-center mt-2">
-                        <p className="text-[10px] text-muted-foreground/50">
-                            内容由 AI 生成，请以官方资料为准
-                        </p>
-                    </div>
                 </div>
             </div>
+
+             {/* Preview Dialog */}
+             <Dialog open={showPreview} onOpenChange={setShowPreview}>
+                <DialogContent className="max-w-4xl w-[90vw] h-[90vh] flex flex-col p-0 gap-0 bg-[#FAFAF9] border-stone-200">
+                    <DialogHeader className="p-4 border-b border-stone-100 bg-white flex-none">
+                        <DialogTitle className="font-serif text-stone-800 flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                            花笺预览
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-auto p-8 bg-stone-100 flex items-center justify-center custom-scrollbar">
+                        {previewUrl && (
+                            <div className="shadow-2xl border-4 border-white">
+                                <img
+                                    src={previewUrl}
+                                    alt="Generated Artifact Card"
+                                    className="max-w-full h-auto object-contain"
+                                    style={{ maxHeight: 'calc(90vh - 150px)' }}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="p-4 border-t border-stone-100 bg-white flex-none flex-row justify-end gap-2">
+                        <Button variant="outline" onClick={() => setShowPreview(false)} className="border-stone-200 text-stone-600">
+                            关闭
+                        </Button>
+                        <Button onClick={handleDownloadImage} className="bg-[#8b4513] hover:bg-[#5d4037] text-white gap-2">
+                            <Download className="w-4 h-4" />
+                            下载保存
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
