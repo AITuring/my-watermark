@@ -349,7 +349,8 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
 
 **撰写要求**：
 1.  **真实性第一**：所有关键信息（名称、时代、尺寸、出土时间/地点、馆藏地）必须基于真实存在的考古报告、博物馆官方资料或学术文献。**严禁编造数据**。
-2.  **引用标注（CRITICAL）**：在文中提及关键数据（特别是**尺寸、重量、年代**）或特定学术观点时，**必须**使用 Markdown 链接格式标注来源脚注。
+2.  **文笔生动**：在保持学术严谨的同时，使用**优美、生动、富有画面感**的语言描述文物特征和历史背景，使其具有博物馆展览级别的可读性。
+3.  **引用标注（CRITICAL）**：在文中提及关键数据（特别是**尺寸、重量、年代**）或特定学术观点时，**必须**使用 Markdown 链接格式标注来源脚注。
     *   **链接质量控制**：
         *   **首选**：博物馆官网、政府文化机构网站（.gov/.org）、学术数据库（如 CNKI, JSTOR DOI链接）、知名百科（维基/百度百科作为次选）。
         *   **严禁**：死链、个人博客、不可访问的内网链接、临时链接。
@@ -371,10 +372,10 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
 - **尺寸**：[详细数据，如：纵27.1厘米，横36.6厘米] [1](URL)
 
 ### 2. 外观与形制
-详细描述文物的形制特征、纹饰图案、材质工艺。
+请用**细腻的笔触**详细描述文物的形制特征、纹饰图案、材质工艺。关注细节，如光泽、质感、色彩变化等。
 
 ### 3. 出土与流传
-详细叙述文物的出土经过或流传历史。
+像讲故事一样叙述文物的出土经过或流传历史，还原历史现场。
 
 ### 4. 功能与用途
 分析该文物的功能和文化意义。
@@ -388,6 +389,13 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
 示例：
 1. 上海博物馆官网：黄庭坚《小子相帖》 [官网链接](http://...)
 2. 赵丰：《宋代书画用纸研究》，《文物》2021年第3期 [DOI:10.13619...](http://...)
+
+### 7. 推荐标题
+请基于文内容，生成 3-8 个富有吸引力、文化韵味或学术深度的标题（每个标题 20 字以内）。
+格式：
+- [标题1]
+- [标题2]
+- [标题3]
 ---`;
 
         const messages = [
@@ -501,13 +509,13 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
             <h3 className="text-lg font-serif font-semibold text-stone-700 mt-6 mb-3" {...props} />
         ),
         p: ({ node, ...props }: any) => (
-            <p className="text-stone-600 leading-relaxed mb-4 text-justify" {...props} />
+            <p className="text-stone-600 leading-relaxed mb-4 text-justify break-words" {...props} />
         ),
         ul: ({ node, ...props }: any) => (
-            <ul className="list-disc list-outside ml-5 space-y-1 text-stone-600 mb-4" {...props} />
+            <ul className="list-disc list-outside ml-5 space-y-1 text-stone-600 mb-4 break-words" {...props} />
         ),
         ol: ({ node, ...props }: any) => (
-            <ol className="list-decimal list-outside ml-5 space-y-1 text-stone-600 mb-4" {...props} />
+            <ol className="list-decimal list-outside ml-5 space-y-1 text-stone-600 mb-4 break-words" {...props} />
         ),
         blockquote: ({ node, ...props }: any) => (
             <blockquote className="border-l-4 border-stone-300 pl-4 py-1 my-4 text-stone-500 italic bg-stone-50 rounded-r" {...props} />
@@ -537,6 +545,26 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
         li: ({ node, ...props }: any) => (
              <li className="text-[#5d4037] leading-[1.8] text-lg mb-2" {...props} />
         ),
+    };
+
+    // Helper to extract content and titles
+    const extractContentAndTitles = (markdown: string) => {
+        const titleSectionIndex = markdown.indexOf("### 7. 推荐标题");
+        if (titleSectionIndex === -1) {
+            return { content: markdown, titles: [] };
+        }
+
+        const content = markdown.substring(0, titleSectionIndex).trim();
+        const titlesRaw = markdown.substring(titleSectionIndex);
+
+        // Extract titles using regex to find list items
+        const titles = titlesRaw
+            .split('\n')
+            .filter(line => line.trim().startsWith('-') || line.trim().startsWith('*'))
+            .map(line => line.replace(/^[\-\*]\s*/, '').replace(/^\[|\]$/g, '').trim()) // Remove bullet and brackets
+            .filter(line => line.length > 0);
+
+        return { content, titles };
     };
 
     return (
@@ -709,62 +737,91 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                             )}
 
                             {/* Qwen Result */}
-                            {result && (
-                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                    <article className="bg-white p-8 md:p-12 rounded-lg shadow-sm border border-stone-100">
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm]}
-                                            rehypePlugins={[rehypeHighlight]}
-                                            components={components}
-                                        >
-                                            {result}
-                                        </ReactMarkdown>
+                            {result && (() => {
+                                const { content, titles } = extractContentAndTitles(result);
+                                return (
+                                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-4">
+                                        <article className="bg-white p-8 md:p-12 rounded-lg shadow-sm border border-stone-100">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                rehypePlugins={[rehypeHighlight]}
+                                                components={components}
+                                            >
+                                                {content}
+                                            </ReactMarkdown>
 
-                                        <div className="mt-12 pt-6 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-300">
-                                            <Sparkles className="w-4 h-4" />
-                                            <span className="text-xs font-serif">Artifact AI Intelligent Encyclopedia</span>
-                                        </div>
-                                    </article>
+                                            <div className="mt-12 pt-6 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-300">
+                                                <Sparkles className="w-4 h-4" />
+                                                <span className="text-xs font-serif">Artifact AI Intelligent Encyclopedia</span>
+                                            </div>
+                                        </article>
 
-                                    {/* 操作按钮组 */}
-                                    {!loading && result && (
-                                        <div className="flex items-center justify-end gap-2 mt-4">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleCopy(result)}
-                                                className="text-stone-600 hover:text-stone-900 border-stone-200"
-                                            >
-                                                {copySuccess ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
-                                                复制
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleSearch('qwen')}
-                                                className="text-stone-600 hover:text-stone-900 border-stone-200"
-                                            >
-                                                <RotateCcw className="w-4 h-4 mr-1" />
-                                                重试
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handleShare(result)}
-                                                disabled={isExporting}
-                                                className="text-stone-600 hover:text-stone-900 border-stone-200"
-                                            >
-                                                {isExporting ? (
-                                                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                                                ) : (
-                                                    <Share2 className="w-4 h-4 mr-1" />
-                                                )}
-                                                分享
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                        {/* Titles Card */}
+                                        {titles.length > 0 && (
+                                            <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-100">
+                                                <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                    <Sparkles className="w-4 h-4" />
+                                                    推荐标题
+                                                </h3>
+                                                <div className="grid grid-cols-1 gap-3">
+                                                    {titles.map((title, idx) => (
+                                                        <div key={idx} className="flex items-center justify-between p-3 bg-stone-50 rounded border border-stone-100 group hover:border-stone-300 transition-colors">
+                                                            <span className="font-serif text-stone-700 font-medium">{title}</span>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleCopy(title)}
+                                                                className="h-8 w-8 text-stone-400 hover:text-stone-600 hover:bg-stone-200"
+                                                                title="复制标题"
+                                                            >
+                                                                <Copy className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 操作按钮组 */}
+                                        {!loading && (
+                                            <div className="flex items-center justify-end gap-2 mt-4">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleCopy(content)}
+                                                    className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                                >
+                                                    {copySuccess ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                                                    复制正文
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleSearch('qwen')}
+                                                    className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                                >
+                                                    <RotateCcw className="w-4 h-4 mr-1" />
+                                                    重试
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleShare(content)}
+                                                    disabled={isExporting}
+                                                    className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                                >
+                                                    {isExporting ? (
+                                                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                                    ) : (
+                                                        <Share2 className="w-4 h-4 mr-1" />
+                                                    )}
+                                                    分享
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* Column 2: Doubao (Only in Compare Mode) */}
@@ -821,62 +878,91 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                 )}
 
                                 {/* Doubao Result */}
-                                {doubaoResult && (
-                                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                                        <article className="bg-white p-8 md:p-12 rounded-lg shadow-sm border border-stone-100">
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
-                                                rehypePlugins={[rehypeHighlight]}
-                                                components={components}
-                                            >
-                                                {doubaoResult}
-                                            </ReactMarkdown>
+                                {doubaoResult && (() => {
+                                    const { content, titles } = extractContentAndTitles(doubaoResult);
+                                    return (
+                                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-4">
+                                            <article className="bg-white p-8 md:p-12 rounded-lg shadow-sm border border-stone-100">
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    rehypePlugins={[rehypeHighlight]}
+                                                    components={components}
+                                                >
+                                                    {content}
+                                                </ReactMarkdown>
 
-                                            <div className="mt-12 pt-6 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-300">
-                                                <Sparkles className="w-4 h-4" />
-                                                <span className="text-xs font-serif">Artifact AI Intelligent Encyclopedia</span>
-                                            </div>
-                                        </article>
+                                                <div className="mt-12 pt-6 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-300">
+                                                    <Sparkles className="w-4 h-4" />
+                                                    <span className="text-xs font-serif">Artifact AI Intelligent Encyclopedia</span>
+                                                </div>
+                                            </article>
 
-                                        {/* 操作按钮组 (Doubao) */}
-                                        {!loading && doubaoResult && (
-                                            <div className="flex items-center justify-end gap-2 mt-4">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleCopy(doubaoResult)}
-                                                    className="text-stone-600 hover:text-stone-900 border-stone-200"
-                                                >
-                                                    {copySuccess ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
-                                                    复制
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleSearch('doubao')}
-                                                    className="text-stone-600 hover:text-stone-900 border-stone-200"
-                                                >
-                                                    <RotateCcw className="w-4 h-4 mr-1" />
-                                                    重试
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => handleShare(doubaoResult)}
-                                                    disabled={isExporting}
-                                                    className="text-stone-600 hover:text-stone-900 border-stone-200"
-                                                >
-                                                    {isExporting ? (
-                                                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                                                    ) : (
-                                                        <Share2 className="w-4 h-4 mr-1" />
-                                                    )}
-                                                    分享
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                            {/* Titles Card */}
+                                            {titles.length > 0 && (
+                                                <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-100">
+                                                    <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                                        <Sparkles className="w-4 h-4" />
+                                                        推荐标题
+                                                    </h3>
+                                                    <div className="grid grid-cols-1 gap-3">
+                                                        {titles.map((title, idx) => (
+                                                            <div key={idx} className="flex items-center justify-between p-3 bg-stone-50 rounded border border-stone-100 group hover:border-stone-300 transition-colors">
+                                                                <span className="font-serif text-stone-700 font-medium">{title}</span>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleCopy(title)}
+                                                                    className="h-8 w-8 text-stone-400 hover:text-stone-600 hover:bg-stone-200"
+                                                                    title="复制标题"
+                                                                >
+                                                                    <Copy className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* 操作按钮组 (Doubao) */}
+                                            {!loading && (
+                                                <div className="flex items-center justify-end gap-2 mt-4">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleCopy(content)}
+                                                        className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                                    >
+                                                        {copySuccess ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                                                        复制正文
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleSearch('doubao')}
+                                                        className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                                    >
+                                                        <RotateCcw className="w-4 h-4 mr-1" />
+                                                        重试
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleShare(content)}
+                                                        disabled={isExporting}
+                                                        className="text-stone-600 hover:text-stone-900 border-stone-200"
+                                                    >
+                                                        {isExporting ? (
+                                                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                                        ) : (
+                                                            <Share2 className="w-4 h-4 mr-1" />
+                                                        )}
+                                                        分享
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         )}
                     </div>
