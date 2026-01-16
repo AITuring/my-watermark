@@ -7,6 +7,9 @@ module.exports = {
 	],
 	theme: {
 		extend: {
+			fontFamily: {
+				serif: ['"Noto Serif SC"', '"Source Han Serif SC"', '"Songti SC"', '"SimSun"', '"Times New Roman"', 'Times', 'serif'],
+			},
 			colors: {
 				foreground: 'hsl(var(--foreground))',
 				headground: '#2A1261',
@@ -100,6 +103,14 @@ module.exports = {
 						"background-position": "0% 100%",
 					},
 				},
+                "float": {
+                    "0%, 100%": { transform: "translateY(0)" },
+                    "50%": { transform: "translateY(-10px)" },
+                },
+                "breathe": {
+                    "0%, 100%": { transform: "scale(1)", opacity: "0.8" },
+                    "50%": { transform: "scale(1.05)", opacity: "1" },
+                },
 			},
 			animation: {
 				'marquee-horizontal': 'marquee-x var(--duration) infinite linear',
@@ -107,6 +118,8 @@ module.exports = {
 				"gradient-x": "gradient-x 15s ease infinite",
 				"gradient-y": "gradient-y 15s ease infinite",
 				"gradient-xy": "gradient-xy 15s ease infinite",
+                "float": "float 6s ease-in-out infinite",
+                "breathe": "breathe 4s ease-in-out infinite",
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

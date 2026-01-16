@@ -54,6 +54,7 @@ import {
     X,
     Columns,
     Maximize2,
+    ArrowUp,
 } from "lucide-react";
 
 interface ArtifactAIProps {}
@@ -178,9 +179,15 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
     const [doubaoThought, setDoubaoThought] = useState<string>("");
     const [isDoubaoThoughtOpen, setIsDoubaoThoughtOpen] = useState(true);
 
+    // Tavily Search State
+    const [tavilyApiKey, setTavilyApiKey] = useState(
+        import.meta.env.VITE_TAVILY_API_KEY || ""
+    );
+
     // Global States
     const [loading, setLoading] = useState(false);
     const [compareMode, setCompareMode] = useState(false);
+    const [singleModel, setSingleModel] = useState<'qwen' | 'doubao'>('qwen');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     // Form states
@@ -210,7 +217,8 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
         model: string,
         onThought: (t: string) => void,
         onResult: (r: string) => void,
-        onThoughtOpen: (o: boolean) => void
+        onThoughtOpen: (o: boolean) => void,
+        onError?: (error: any) => void
     ) => {
         try {
             const client = new OpenAI({
@@ -223,6 +231,7 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                 model: model,
                 messages: messages,
                 stream: true,
+                temperature: 0, // Zero temperature for strict RAG adherence
             });
 
             let fullContent = "";
@@ -285,8 +294,32 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
             }
         } catch (error: any) {
             console.error("API Error:", error);
+            if (onError) onError(error);
             toast.error(`调用失败 (${model}): ${error.message}`);
             onResult(`\n\n**API Error**: ${error.message}`);
+        }
+    };
+
+    const searchWeb = async (query: string, apiKey: string) => {
+        try {
+            const response = await fetch("https://api.tavily.com/search", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    api_key: apiKey,
+                    query: query,
+                    search_depth: "advanced",
+                    include_answer: true,
+                    max_results: 5,
+                }),
+            });
+            const data = await response.json();
+            return data.results || [];
+        } catch (error) {
+            console.error("Search failed:", error);
+            return [];
         }
     };
 
@@ -309,8 +342,13 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
             runDoubao = true;
         } else {
              // Default behavior (search button or enter key)
-             runQwen = !compareMode || compareMode;
-             runDoubao = compareMode;
+             if (compareMode) {
+                 runQwen = true;
+                 runDoubao = true;
+             } else {
+                 runQwen = singleModel === 'qwen';
+                 runDoubao = singleModel === 'doubao';
+             }
         }
 
         if (runQwen && !apiKey) {
@@ -337,7 +375,22 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
             setIsDoubaoThoughtOpen(true);
         }
 
-        const systemPrompt = `你是一位严谨的**考古学家**和**博物馆资深研究员**。请根据用户提供的文物描述信息，识别该文物，并撰写一份**学术性强、数据准确、有理有据**的百科综述。
+        // 1. Web Search Step (RAG)
+        let searchContext = "";
+        if (tavilyApiKey) {
+            // Notify user we are searching (optional, could use a specific state)
+            // toast.info("正在检索互联网信息...");
+            const searchResults = await searchWeb(rawInput, tavilyApiKey);
+
+            if (searchResults && searchResults.length > 0) {
+                searchContext = searchResults.map((doc: any, index: number) =>
+                    `来源ID [${index + 1}]:\n标题: ${doc.title}\nURL: ${doc.url}\n摘要: ${doc.content}`
+                ).join("\n\n");
+            }
+        }
+
+        // 2. Construct Grounded Prompt
+        let systemPrompt = `你是一位严谨的**考古学家**和**博物馆资深研究员**。请根据用户提供的文物描述信息，识别该文物，并撰写一份**学术性强、数据准确、有理有据**的百科综述。
 
 **思维链（Chain of Thought）要求**：
 请在正式回答之前，先进行深度的逻辑推理和资料检索分析。
@@ -398,6 +451,13 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
 - [标题3]
 ---`;
 
+        // 3. Inject Search Context (Grounding)
+        if (searchContext) {
+            systemPrompt += `\n\n### 【关键】互联网搜索结果 (Grounding Context)：\n请基于以下最新的搜索结果来回答问题。如果搜索结果包含确切的文物信息，请优先采用并引用。\n\n${searchContext}\n\n### RAG 特别指令：\n1. **绝对依据**：你的回答应主要基于上述【搜索结果】和你的专业考古知识。如果搜索结果提供了确切的尺寸、出土时间等数据，请直接引用并标注来源ID。\n2. **引用映射**：如果你使用了来源ID [1] 的信息，请尝试在文中以 \`[1](URL)\` 的形式标注（如果 URL 可用）。`;
+        } else if (tavilyApiKey) {
+             systemPrompt += `\n\n### 注意：\n本次尝试了互联网搜索但未找到直接相关结果。请基于你内部的专业知识库进行回答，但务必保持严谨，不确定的数据请说明或不写。`;
+        }
+
         const messages = [
             { role: "system", content: systemPrompt },
             { role: "user", content: rawInput }
@@ -415,7 +475,14 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                         "qwen-plus-2025-12-01",
                         setThought,
                         setResult,
-                        setIsThoughtOpen
+                        setIsThoughtOpen,
+                        (error) => {
+                            if (compareMode && (error.message?.includes("Input data may contain inappropriate content") || error.message?.includes("inappropriate"))) {
+                                setCompareMode(false);
+                                setSingleModel('doubao');
+                                toast.warning("Qwen 内容受限，自动切换至 Doubao");
+                            }
+                        }
                     )
                 );
             }
@@ -429,7 +496,14 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                         doubaoModel,
                         setDoubaoThought,
                         setDoubaoResult,
-                        setIsDoubaoThoughtOpen
+                        setIsDoubaoThoughtOpen,
+                        (error) => {
+                            if (compareMode && (error.message?.includes("Input data may contain inappropriate content") || error.message?.includes("inappropriate"))) {
+                                setCompareMode(false);
+                                setSingleModel('qwen');
+                                toast.warning("Doubao 内容受限，自动切换至 Qwen");
+                            }
+                        }
                     )
                 );
             }
@@ -459,7 +533,7 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
 
             const canvas = await html2canvas(exportRef.current, {
                 useCORS: true,
-                scale: 3, // Higher scale for better quality
+                scale: 4, // Higher scale for better quality
                 backgroundColor: "#Fdfbf5",
                 logging: false,
                 onclone: (clonedDoc) => {
@@ -497,28 +571,28 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
     const components = {
         a: MarkdownLink,
         h1: ({ node, ...props }: any) => (
-            <h1 className="text-2xl font-serif font-bold text-stone-900 mt-8 mb-4 border-b border-stone-200 pb-2" {...props} />
+            <h1 className="text-2xl font-serif font-bold text-stone-900 mt-8 mb-4 border-b border-stone-200 pb-2 lining-nums" {...props} />
         ),
         h2: ({ node, ...props }: any) => (
-            <h2 className="text-xl font-serif font-bold text-stone-800 mt-8 mb-4 flex items-center gap-2" {...props}>
+            <h2 className="text-xl font-serif font-bold text-stone-800 mt-8 mb-4 flex items-center gap-2 lining-nums" {...props}>
                 <span className="w-1 h-5 bg-stone-600 rounded-full inline-block" />
                 {props.children}
             </h2>
         ),
         h3: ({ node, ...props }: any) => (
-            <h3 className="text-lg font-serif font-semibold text-stone-700 mt-6 mb-3" {...props} />
+            <h3 className="text-lg font-serif font-semibold text-stone-700 mt-6 mb-3 lining-nums" {...props} />
         ),
         p: ({ node, ...props }: any) => (
-            <p className="text-stone-600 leading-relaxed mb-4 text-justify break-words" {...props} />
+            <p className="text-stone-600 leading-relaxed mb-4 text-justify break-words lining-nums" {...props} />
         ),
         ul: ({ node, ...props }: any) => (
-            <ul className="list-disc list-outside ml-5 space-y-1 text-stone-600 mb-4 break-words" {...props} />
+            <ul className="list-disc list-outside ml-5 space-y-1 text-stone-600 mb-4 break-words lining-nums" {...props} />
         ),
         ol: ({ node, ...props }: any) => (
-            <ol className="list-decimal list-outside ml-5 space-y-1 text-stone-600 mb-4 break-words" {...props} />
+            <ol className="list-decimal list-outside ml-5 space-y-1 text-stone-600 mb-4 break-words lining-nums" {...props} />
         ),
         blockquote: ({ node, ...props }: any) => (
-            <blockquote className="border-l-4 border-stone-300 pl-4 py-1 my-4 text-stone-500 italic bg-stone-50 rounded-r" {...props} />
+            <blockquote className="border-l-4 border-stone-300 pl-4 py-1 my-4 text-stone-500 italic bg-stone-50 rounded-r lining-nums" {...props} />
         ),
         strong: ({ node, ...props }: any) => (
             <strong className="font-semibold text-stone-900" {...props} />
@@ -528,22 +602,22 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
     // Components for Export (No Links, Simplified)
     const exportComponents = {
         ...components,
-        a: ({ children }: any) => <span className="text-[#8b4513] font-medium break-all">{children}</span>, // Remove link functionality, keep text
+        a: ({ children }: any) => <span className="text-[#8b4513] font-medium break-all lining-nums">{children}</span>, // Remove link functionality, keep text
         // Optimize headings for print/image
         h1: ({ node, ...props }: any) => (
-            <h1 className="text-3xl font-serif font-bold text-[#5d4037] mt-8 mb-6 border-b-2 border-[#8b4513]/20 pb-4" {...props} />
+            <h1 className="text-3xl font-serif font-bold text-[#5d4037] mt-8 mb-6 border-b-2 border-[#8b4513]/20 pb-4 lining-nums" {...props} />
         ),
         h2: ({ node, ...props }: any) => (
-            <h2 className="text-2xl font-serif font-bold text-[#5d4037] mt-10 mb-5 flex items-center gap-3" {...props}>
+            <h2 className="text-2xl font-serif font-bold text-[#5d4037] mt-10 mb-5 flex items-center gap-3 lining-nums" {...props}>
                 <span className="w-1.5 h-6 bg-[#8b4513] rounded-sm inline-block opacity-80" />
                 {props.children}
             </h2>
         ),
         p: ({ node, ...props }: any) => (
-            <p className="text-[#5d4037] leading-[2] mb-6 text-justify text-lg" {...props} />
+            <p className="text-[#5d4037] leading-[2] mb-6 text-justify text-lg lining-nums" {...props} />
         ),
         li: ({ node, ...props }: any) => (
-             <li className="text-[#5d4037] leading-[1.8] text-lg mb-2" {...props} />
+             <li className="text-[#5d4037] leading-[1.8] text-lg mb-2 lining-nums" {...props} />
         ),
     };
 
@@ -573,7 +647,7 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
             <div className="flex-none p-4 bg-[#FAFAF9]/95 backdrop-blur z-10 sticky top-0 flex items-center justify-between border-b border-stone-100">
                 <div className="w-10" />
                 <h1 className="text-lg font-serif font-medium text-center text-stone-700 tracking-wide">
-                    文物智能百科
+                    格物 <span className="text-stone-400 text-xs ml-1 font-sans font-normal">Artifact AI</span>
                 </h1>
                 <Button
                     variant="ghost"
@@ -615,6 +689,21 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                 />
                                 <p className="text-xs text-stone-400">
                                     请使用兼容 OpenAI 格式的 API Key (如 DashScope)
+                                </p>
+                            </div>
+
+                            <div className="space-y-2 pt-4 border-t border-stone-100">
+                                <Label htmlFor="sidebar-tavily-apikey" className="text-stone-600">Tavily Search API Key (RAG)</Label>
+                                <Input
+                                    id="sidebar-tavily-apikey"
+                                    type="password"
+                                    placeholder="tvly-..."
+                                    value={tavilyApiKey}
+                                    onChange={(e) => setTavilyApiKey(e.target.value)}
+                                    className="bg-white border-stone-200 focus-visible:ring-stone-400 focus-visible:border-stone-400"
+                                />
+                                <p className="text-xs text-stone-400">
+                                    配置后将自动开启联网搜索增强 (Search-RAG)
                                 </p>
                             </div>
 
@@ -666,15 +755,24 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                 <div className={`mx-auto space-y-8 ${compareMode ? 'max-w-[1600px] w-full px-4' : 'max-w-3xl'}`}>
                     {/* 初始状态 - 仅在未搜索时显示 */}
                     {!hasSearched && (
-                        <div className="text-center py-32 space-y-6 animate-in fade-in duration-500">
-                             <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-6 border border-stone-200">
-                                <BookOpen className="w-8 h-8 text-stone-400" />
+                        <div className="text-center py-32 space-y-8">
+                             <div className="relative group w-24 h-24 mx-auto mb-8 animate-in zoom-in-50 fade-in duration-1000 ease-out">
+                                <div className="absolute inset-0 bg-stone-100 rounded-full blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-1000 animate-pulse"></div>
+                                <div className="relative w-full h-full bg-white rounded-full flex items-center justify-center border border-stone-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] animate-float">
+                                    <BookOpen className="w-10 h-10 text-stone-700 opacity-80 animate-breathe" />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <h2 className="text-2xl font-serif font-medium text-stone-700">
-                                    探索历史的纹理
+
+                            <div className="space-y-4">
+                                <h2 className="text-3xl font-serif font-bold text-stone-800 tracking-wider animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200 fill-mode-backwards">
+                                    格物致知 · 探寻历史
                                 </h2>
-                                <p className="text-stone-400 text-sm max-w-xs mx-auto">
+                                <div className="flex items-center justify-center gap-2 text-stone-400 text-sm animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300 fill-mode-backwards">
+                                    <span className="w-8 h-[1px] bg-stone-300"></span>
+                                    <span className="font-serif tracking-widest uppercase text-xs">Investigate Things to Extend Knowledge</span>
+                                    <span className="w-8 h-[1px] bg-stone-300"></span>
+                                </div>
+                                <p className="text-stone-500 text-sm max-w-md mx-auto leading-relaxed pt-2 font-light animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500 fill-mode-backwards">
                                     输入文物信息，获取专业的学术综述与考证
                                 </p>
                             </div>
@@ -682,7 +780,8 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                     )}
 
                     <div className={compareMode ? "grid grid-cols-2 gap-6 items-start" : ""}>
-                        {/* Column 1: Qwen (Always visible) */}
+                        {/* Column 1: Qwen */}
+                        {(compareMode || singleModel === 'qwen') && (
                         <div className="flex flex-col gap-6 min-w-0">
                              {compareMode && hasSearched && (
                                 <div className="flex items-center gap-2 pb-2 border-b border-stone-200">
@@ -695,7 +794,7 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                             {/* Qwen Thought Process */}
                             {(thought || loading) && (
                                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                     <div className="bg-white rounded-lg overflow-hidden border border-stone-200 shadow-sm transition-all duration-300">
+                                     <div className="bg-white rounded-lg overflow-hidden border border-stone-200 shadow-sm transition-all duration-300 group">
                                         <div
                                             className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-stone-50 transition-colors select-none"
                                             onClick={() => setIsThoughtOpen(!isThoughtOpen)}
@@ -703,17 +802,17 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                             <div className="flex items-center gap-2">
                                                 {!result && loading ? (
                                                     <>
-                                                        <Loader2 className="w-3.5 h-3.5 text-stone-500 animate-spin" />
-                                                        <span className="text-sm text-stone-500 font-medium">深度考证中...</span>
+                                                        <Loader2 className="w-3.5 h-3.5 text-stone-400 animate-spin" />
+                                                        <span className="text-xs text-stone-400 font-medium tracking-wider uppercase">Searching & Reasoning...</span>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <BrainCircuit className="w-3.5 h-3.5 text-stone-400" />
-                                                        <span className="text-sm text-stone-500">考证思路 (Qwen)</span>
+                                                        <span className="text-xs text-stone-500 font-medium tracking-wide">考证思路 · Qwen</span>
                                                     </>
                                                 )}
                                             </div>
-                                            <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-300 ${isThoughtOpen ? 'rotate-180' : ''}`} />
+                                            <ChevronDown className={`w-3.5 h-3.5 text-stone-300 group-hover:text-stone-500 transition-transform duration-300 ${isThoughtOpen ? 'rotate-180' : ''}`} />
                                         </div>
 
                                         <div
@@ -723,7 +822,7 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                         >
                                             <div className="overflow-hidden">
                                                 <div className="px-5 pb-5 pt-1">
-                                                    <div className="text-sm text-stone-500 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-stone-200 font-mono bg-stone-50/50 p-3 rounded-r">
+                                                    <div className="text-sm text-stone-600 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-stone-200 font-serif bg-stone-50/50 p-4 rounded-r-md shadow-inner">
                                                         {thought}
                                                         {!result && loading && (
                                                             <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-stone-400 animate-pulse rounded-sm"></span>
@@ -741,7 +840,7 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                 const { content, titles } = extractContentAndTitles(result);
                                 return (
                                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-4">
-                                        <article className="bg-white p-8 md:p-12 rounded-lg shadow-sm border border-stone-100">
+                                        <article className="bg-white p-10 md:p-12 rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-stone-100">
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm]}
                                                 rehypePlugins={[rehypeHighlight]}
@@ -750,28 +849,29 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                                 {content}
                                             </ReactMarkdown>
 
-                                            <div className="mt-12 pt-6 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-300">
-                                                <Sparkles className="w-4 h-4" />
-                                                <span className="text-xs font-serif">Artifact AI Intelligent Encyclopedia</span>
+                                            <div className="mt-16 pt-8 border-t border-stone-100 flex items-center justify-center gap-3 text-stone-300">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
+                                                <span className="text-[10px] tracking-[0.2em] font-serif uppercase text-stone-400">Gewu · Artifact Intelligence</span>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
                                             </div>
                                         </article>
 
                                         {/* Titles Card */}
                                         {titles.length > 0 && (
-                                            <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-100">
-                                                <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                                    <Sparkles className="w-4 h-4" />
+                                            <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
+                                                <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4 flex items-center gap-2 font-serif">
+                                                    <Sparkles className="w-3.5 h-3.5" />
                                                     推荐标题
                                                 </h3>
                                                 <div className="grid grid-cols-1 gap-3">
                                                     {titles.map((title, idx) => (
-                                                        <div key={idx} className="flex items-center justify-between p-3 bg-stone-50 rounded border border-stone-100 group hover:border-stone-300 transition-colors">
-                                                            <span className="font-serif text-stone-700 font-medium">{title}</span>
+                                                        <div key={idx} className="flex items-center justify-between p-3.5 bg-stone-50/50 rounded-lg border border-stone-100 group hover:border-stone-300 hover:bg-white transition-all duration-300">
+                                                            <span className="font-serif text-stone-700 font-medium tracking-wide">{title}</span>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
                                                                 onClick={() => handleCopy(title)}
-                                                                className="h-8 w-8 text-stone-400 hover:text-stone-600 hover:bg-stone-200"
+                                                                className="h-8 w-8 text-stone-300 hover:text-stone-600 hover:bg-stone-100 rounded-md"
                                                                 title="复制标题"
                                                             >
                                                                 <Copy className="w-3.5 h-3.5" />
@@ -823,38 +923,41 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                 );
                             })()}
                         </div>
+                        )}
 
-                        {/* Column 2: Doubao (Only in Compare Mode) */}
-                        {compareMode && hasSearched && (
+                        {/* Column 2: Doubao */}
+                        {(compareMode || singleModel === 'doubao') && (
                             <div className="flex flex-col gap-6 min-w-0">
-                                <div className="flex items-center gap-2 pb-2 border-b border-stone-200">
-                                    <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
+                                {(compareMode || singleModel === 'doubao') && hasSearched && (
+                                <div className="flex items-center gap-2 pb-2 border-b border-[#9d2933]/20">
+                                    <Badge variant="outline" className="bg-[#9d2933]/5 text-[#9d2933] border-[#9d2933]/20 font-serif tracking-wide">
                                         Doubao (豆包)
                                     </Badge>
                                 </div>
+                                )}
 
                                 {/* Doubao Thought Process */}
                                 {(doubaoThought || loading) && (
                                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                         <div className="bg-white rounded-lg overflow-hidden border border-blue-100 shadow-sm transition-all duration-300">
+                                         <div className="bg-white rounded-lg overflow-hidden border border-[#9d2933]/20 shadow-sm transition-all duration-300 group">
                                             <div
-                                                className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors select-none"
+                                                className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[#9d2933]/5 transition-colors select-none"
                                                 onClick={() => setIsDoubaoThoughtOpen(!isDoubaoThoughtOpen)}
                                             >
                                                 <div className="flex items-center gap-2">
                                                     {!doubaoResult && loading ? (
                                                         <>
-                                                            <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
-                                                            <span className="text-sm text-blue-500 font-medium">深度考证中...</span>
+                                                            <Loader2 className="w-3.5 h-3.5 text-[#9d2933]/60 animate-spin" />
+                                                            <span className="text-xs text-[#9d2933]/60 font-medium tracking-wider uppercase">Reasoning...</span>
                                                         </>
                                                     ) : (
                                                         <>
-                                                            <BrainCircuit className="w-3.5 h-3.5 text-blue-400" />
-                                                            <span className="text-sm text-blue-500">考证思路 (Doubao)</span>
+                                                            <BrainCircuit className="w-3.5 h-3.5 text-[#9d2933]/40" />
+                                                            <span className="text-xs text-[#9d2933]/80 font-medium tracking-wide">考证思路 · Doubao</span>
                                                         </>
                                                     )}
                                                 </div>
-                                                <ChevronDown className={`w-3.5 h-3.5 text-blue-400 transition-transform duration-300 ${isDoubaoThoughtOpen ? 'rotate-180' : ''}`} />
+                                                <ChevronDown className={`w-3.5 h-3.5 text-[#9d2933]/30 group-hover:text-[#9d2933]/60 transition-transform duration-300 ${isDoubaoThoughtOpen ? 'rotate-180' : ''}`} />
                                             </div>
 
                                             <div
@@ -864,10 +967,10 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                             >
                                                 <div className="overflow-hidden">
                                                     <div className="px-5 pb-5 pt-1">
-                                                        <div className="text-sm text-stone-500 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-blue-100 font-mono bg-blue-50/30 p-3 rounded-r">
+                                                        <div className="text-sm text-stone-600 leading-relaxed whitespace-pre-wrap pl-4 border-l-2 border-[#9d2933]/20 font-serif bg-[#9d2933]/5 p-4 rounded-r-md shadow-inner">
                                                             {doubaoThought}
                                                             {!doubaoResult && loading && (
-                                                                <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-blue-400 animate-pulse rounded-sm"></span>
+                                                                <span className="inline-block w-1.5 h-3.5 ml-1 align-middle bg-[#9d2933]/40 animate-pulse rounded-sm"></span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -882,46 +985,47 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                     const { content, titles } = extractContentAndTitles(doubaoResult);
                                     return (
                                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-4">
-                                            <article className="bg-white p-8 md:p-12 rounded-lg shadow-sm border border-stone-100">
-                                                <ReactMarkdown
-                                                    remarkPlugins={[remarkGfm]}
-                                                    rehypePlugins={[rehypeHighlight]}
-                                                    components={components}
-                                                >
-                                                    {content}
-                                                </ReactMarkdown>
+                                        <article className="bg-white p-10 md:p-12 rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-stone-100">
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                rehypePlugins={[rehypeHighlight]}
+                                                components={components}
+                                            >
+                                                {content}
+                                            </ReactMarkdown>
 
-                                                <div className="mt-12 pt-6 border-t border-stone-100 flex items-center justify-center gap-2 text-stone-300">
-                                                    <Sparkles className="w-4 h-4" />
-                                                    <span className="text-xs font-serif">Artifact AI Intelligent Encyclopedia</span>
-                                                </div>
-                                            </article>
+                                            <div className="mt-16 pt-8 border-t border-stone-100 flex items-center justify-center gap-3 text-stone-300">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
+                                                <span className="text-[10px] tracking-[0.2em] font-serif uppercase text-stone-400">Gewu · Artifact Intelligence</span>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
+                                            </div>
+                                        </article>
 
-                                            {/* Titles Card */}
-                                            {titles.length > 0 && (
-                                                <div className="bg-white p-6 rounded-lg shadow-sm border border-stone-100">
-                                                    <h3 className="text-sm font-bold text-stone-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                                                        <Sparkles className="w-4 h-4" />
-                                                        推荐标题
-                                                    </h3>
-                                                    <div className="grid grid-cols-1 gap-3">
-                                                        {titles.map((title, idx) => (
-                                                            <div key={idx} className="flex items-center justify-between p-3 bg-stone-50 rounded border border-stone-100 group hover:border-stone-300 transition-colors">
-                                                                <span className="font-serif text-stone-700 font-medium">{title}</span>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleCopy(title)}
-                                                                    className="h-8 w-8 text-stone-400 hover:text-stone-600 hover:bg-stone-200"
-                                                                    title="复制标题"
-                                                                >
-                                                                    <Copy className="w-3.5 h-3.5" />
-                                                                </Button>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                        {/* Titles Card */}
+                                        {titles.length > 0 && (
+                                            <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
+                                                <h3 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4 flex items-center gap-2 font-serif">
+                                                    <Sparkles className="w-3.5 h-3.5" />
+                                                    推荐标题
+                                                </h3>
+                                                <div className="grid grid-cols-1 gap-3">
+                                                    {titles.map((title, idx) => (
+                                                        <div key={idx} className="flex items-center justify-between p-3.5 bg-stone-50/50 rounded-lg border border-stone-100 group hover:border-stone-300 hover:bg-white transition-all duration-300">
+                                                            <span className="font-serif text-stone-700 font-medium tracking-wide">{title}</span>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleCopy(title)}
+                                                                className="h-8 w-8 text-stone-300 hover:text-stone-600 hover:bg-stone-100 rounded-md"
+                                                                title="复制标题"
+                                                            >
+                                                                <Copy className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            )}
+                                            </div>
+                                        )}
 
                                             {/* 操作按钮组 (Doubao) */}
                                             {!loading && (
@@ -976,7 +1080,7 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
             <div className="absolute top-0 left-[-9999px]">
                 <div
                     ref={exportRef}
-                    className="export-container w-[1000px] bg-[#Fdfbf5] p-20 text-stone-800 font-serif relative overflow-hidden"
+                    className="export-container w-[1200px] bg-[#Fdfbf5] p-20 text-stone-800 font-serif relative overflow-hidden"
                     style={{
                         backgroundImage: 'radial-gradient(#e6e2d8 1px, transparent 1px)',
                         backgroundSize: '20px 20px'
@@ -989,10 +1093,10 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                     {/* 头部装饰 */}
                     <div className="flex flex-col items-center justify-center mb-12 border-b-2 border-[#8b4513]/20 pb-8 mx-10">
                         <div className="w-16 h-16 border-2 border-[#8b4513] rounded-full flex items-center justify-center mb-5">
-                            <span className="font-serif font-bold text-[#8b4513] text-2xl">文</span>
+                            <span className="font-serif font-bold text-[#8b4513] text-2xl">格</span>
                         </div>
-                        <h1 className="text-5xl font-bold text-[#5d4037] tracking-[0.3em] mb-2">文物智能百科</h1>
-                        <p className="text-[#8b4513]/60 text-lg uppercase tracking-[0.4em]">Artifact Intelligence</p>
+                        <h1 className="text-5xl font-bold text-[#5d4037] tracking-[0.3em] mb-2">格物</h1>
+                        <p className="text-[#8b4513]/60 text-lg uppercase tracking-[0.4em]">Gewu · Artifact Intelligence</p>
                     </div>
 
                     {/* 正文内容 - 使用专用渲染组件 */}
@@ -1006,14 +1110,19 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                     </div>
 
                     {/* 底部落款 */}
-                    <div className="mt-20 pt-10 border-t border-[#8b4513]/20 flex justify-between items-end mx-10">
+                    <div className="mt-20 pt-10 border-t border-[#8b4513]/20 flex justify-between items-center mx-10">
                         <div className="flex flex-col gap-2">
-                             <span className="text-[#8b4513]/40 text-sm tracking-wider font-medium">GENERATED BY ARTIFACT AI</span>
+                             <span className="text-[#8b4513]/40 text-sm tracking-wider font-medium">GENERATED BY GEWU AI</span>
                              <span className="text-[#8b4513]/40 text-sm font-mono">{new Date().toLocaleDateString()}</span>
                         </div>
-                        <div className="w-24 h-24 border-2 border-[#8b4513]/30 opacity-60 rounded-sm flex items-center justify-center bg-[#8b4513]/5">
-                             <div className="w-20 h-20 border border-[#8b4513]/30 flex items-center justify-center">
-                                <span className="writing-vertical text-lg text-[#8b4513] font-bold tracking-widest">格物致知</span>
+                        {/* 隶书印章 (Lishu Seal) - Solid Red Block */}
+                        <div className="w-24 h-24 bg-[#b91c1c] rounded-md shadow-sm flex items-center justify-center opacity-90">
+                             <div className="border border-white/20 w-[88px] h-[88px] rounded-[4px] p-2 grid grid-cols-2 grid-rows-2 gap-1">
+                                {/* Traditional Layout: Right Col (格物), Left Col (致知) -> Visually: Row 1 (致 格), Row 2 (知 物) */}
+                                <div className="flex items-center justify-center text-white text-3xl font-bold leading-none" style={{ fontFamily: '"LiSu", "STLiti", "KaiTi", serif' }}>致</div>
+                                <div className="flex items-center justify-center text-white text-3xl font-bold leading-none" style={{ fontFamily: '"LiSu", "STLiti", "KaiTi", serif' }}>格</div>
+                                <div className="flex items-center justify-center text-white text-3xl font-bold leading-none" style={{ fontFamily: '"LiSu", "STLiti", "KaiTi", serif' }}>知</div>
+                                <div className="flex items-center justify-center text-white text-3xl font-bold leading-none" style={{ fontFamily: '"LiSu", "STLiti", "KaiTi", serif' }}>物</div>
                              </div>
                         </div>
                     </div>
@@ -1021,26 +1130,47 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
             </div>
 
             {/* 底部输入框区域 */}
-            <div className="flex-none bg-[#FAFAF9] pb-6 pt-2">
-                <div className={`mx-auto px-4 space-y-2 transition-all duration-300 ${compareMode ? 'max-w-[1600px]' : 'max-w-3xl'}`}>
-                    <div className="flex items-center justify-end">
+            <div className="flex-none bg-[#FAFAF9] pb-8 pt-4 border-t border-stone-100">
+                <div className={`mx-auto px-6 space-y-3 transition-all duration-300 ${compareMode ? 'max-w-[1600px]' : 'max-w-3xl'}`}>
+                    <div className="flex items-center justify-end gap-3">
+                         {!compareMode && (
+                             <div className="flex items-center bg-stone-100/50 rounded-md p-0.5 border border-stone-200">
+                                 <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={() => setSingleModel('qwen')}
+                                     className={`h-7 text-xs px-3 rounded-sm transition-all font-serif ${singleModel === 'qwen' ? 'bg-white shadow-sm text-stone-800 font-bold border border-stone-100' : 'text-stone-400 hover:text-stone-600'}`}
+                                 >
+                                     通义 Qwen
+                                 </Button>
+                                 <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={() => setSingleModel('doubao')}
+                                     className={`h-7 text-xs px-3 rounded-sm transition-all font-serif ${singleModel === 'doubao' ? 'bg-white shadow-sm text-[#9d2933] font-bold border border-[#9d2933]/10' : 'text-stone-400 hover:text-stone-600'}`}
+                                 >
+                                     豆包 Doubao
+                                 </Button>
+                             </div>
+                         )}
+
                          <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setCompareMode(!compareMode)}
-                            className={`text-xs gap-1.5 h-7 ${compareMode ? 'bg-stone-200 text-stone-700' : 'text-stone-400 hover:text-stone-600'}`}
-                            title="开启对比模式 (Qwen vs Doubao)"
+                            className={`text-xs gap-1.5 h-7 rounded-sm font-serif tracking-wide ${compareMode ? 'bg-stone-200 text-stone-800 font-medium' : 'text-stone-400 hover:text-stone-600 hover:bg-stone-100'}`}
+                            title="开启对比模式"
                         >
                             {compareMode ? <Columns className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                            {compareMode ? "对比模式" : "单模型"}
+                            {compareMode ? "对比视图" : "单视图"}
                         </Button>
                     </div>
 
-                    <div className="relative bg-white rounded-lg border border-stone-200 focus-within:ring-1 focus-within:ring-stone-400 focus-within:border-stone-400 transition-all shadow-sm hover:shadow-md hover:border-stone-300">
+                    <div className="relative bg-white rounded-xl border border-stone-200 focus-within:ring-1 focus-within:ring-stone-400 focus-within:border-stone-400 transition-all shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.04)] hover:border-stone-300">
                         <Textarea
                             id="rawInput"
-                            placeholder="输入文物信息，例如：线刻人物石屏风..."
-                            className="min-h-[60px] max-h-[200px] border-0 bg-transparent resize-none focus-visible:ring-0 p-4 pr-14 shadow-none custom-scrollbar text-base text-stone-700 placeholder:text-stone-300"
+                            placeholder="描述文物特征、铭文或历史背景..."
+                            className="min-h-[60px] max-h-[200px] border-0 bg-transparent resize-none focus-visible:ring-0 p-5 pr-16 shadow-none custom-scrollbar text-base text-stone-700 placeholder:text-stone-300 font-serif leading-relaxed"
                             value={rawInput}
                             onChange={(e) => setRawInput(e.target.value)}
                             onKeyDown={(e) => {
@@ -1054,12 +1184,12 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                             onClick={handleSearch}
                             disabled={loading || !rawInput.trim()}
                             size="icon"
-                            className="absolute right-3 bottom-3 h-9 w-9 rounded-md bg-stone-800 hover:bg-stone-700 text-stone-50 shadow-sm transition-all disabled:opacity-50 disabled:bg-stone-200"
+                            className="absolute right-3 bottom-3 h-10 w-10 rounded-lg bg-stone-800 hover:bg-stone-700 text-[#FAFAF9] shadow-sm transition-all disabled:opacity-30 disabled:bg-stone-200 flex items-center justify-center group"
                         >
                             {loading ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                                <Send className="h-4 w-4" />
+                                <ArrowUp className="h-5 w-5 group-hover:-translate-y-0.5 transition-transform" />
                             )}
                         </Button>
                     </div>
