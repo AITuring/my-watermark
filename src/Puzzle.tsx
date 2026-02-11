@@ -47,6 +47,10 @@ import JSZip from "jszip";
 import "./puzzle.css";
 import ImagePreview from "./ImagePreview";
 import ThreeLanding from "@/components/ThreeLanding";
+import React from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 
 interface AspectRatio {
@@ -248,7 +252,7 @@ function SortablePhotoFrame(
     );
 }
 
-const Puzzle = () => {
+const OldPuzzle = () => {
     const galleryRef = useRef(null);
     const [files, setFiles] = useState([]);
     const [images, setImages] = useState<ImgProp[]>([]);
@@ -1152,4 +1156,53 @@ const Puzzle = () => {
     );
 };
 
-export default Puzzle;
+// export default Puzzle;
+
+const getRandomColor = () => {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+};
+
+export default function Puzzle() {
+  // PLACEHOLDER_STATE
+  const [wallColor, setWallColor] = useState("#e0e0e0");
+  const [frameColor, setFrameColor] = useState("#8B4513");
+  const [frameThickness, setFrameThickness] = useState([30]);
+  const [frameDepth, setFrameDepth] = useState([15]);
+  const [hasMat, setHasMat] = useState(true);
+  const [matColor, setMatColor] = useState("#ffffff");
+  const [matSize, setMatSize] = useState([40]);
+  const [image, setImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setWallColor(getRandomColor());
+  }, []);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const randomizeWall = () => setWallColor(getRandomColor());
+  const triggerFileUpload = () => fileInputRef.current?.click();
+
+  const thickness = frameThickness[0];
+  const depth = frameDepth[0];
+  const mat = matSize[0];
+
+  return (
+    // PLACEHOLDER_RENDER
+    <div className="flex items-center justify-center h-screen">Loading Gallery...</div>
+  );
+}

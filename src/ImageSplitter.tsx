@@ -13,6 +13,60 @@ interface SplitImage {
   fileName: string;
 }
 
+// --- Helper: Core Calculation Logic ---
+const calculateSlices = (
+  orientation: 'vertical' | 'horizontal',
+  naturalWidth: number,
+  naturalHeight: number,
+  mode: 'ratio' | 'count',
+  ratioW: number,
+  ratioH: number,
+  countInput: number,
+  overlapPercent: number
+) => {
+  const axisSize = orientation === 'vertical' ? naturalWidth : naturalHeight;
+  const fixedOtherSize = orientation === 'vertical' ? naturalHeight : naturalWidth;
+  const ov = Math.min(Math.max(overlapPercent, 0), 90) / 100;
+
+  let tileSize: number;
+  let numSlices: number;
+  let step: number;
+
+  if (mode === 'ratio') {
+    // Protect against 0 or invalid inputs
+    const rW = Math.max(0.1, ratioW);
+    const rH = Math.max(0.1, ratioH);
+
+    tileSize = orientation === 'vertical'
+      ? Math.floor(fixedOtherSize * (rW / rH))
+      : Math.floor(fixedOtherSize * (rH / rW));
+
+    // If calculated tile is larger than the image itself, return 1 slice
+    if (tileSize >= axisSize) {
+      return { numSlices: 1, tileSize: axisSize, step: 0 };
+    }
+
+    const maxStep = Math.floor(tileSize * (1 - ov));
+    // Ensure step is at least 1px to avoid infinite slices
+    const safeStep = Math.max(1, maxStep);
+
+    numSlices = Math.ceil((axisSize - tileSize) / safeStep) + 1;
+    step = (axisSize - tileSize) / (numSlices - 1);
+  } else {
+    numSlices = Math.max(1, Math.floor(countInput));
+    if (numSlices === 1) {
+      tileSize = axisSize;
+      step = 0;
+    } else {
+      const denom = (numSlices - 1) * (1 - ov) + 1;
+      tileSize = axisSize / denom;
+      step = tileSize * (1 - ov);
+    }
+  }
+
+  return { numSlices, tileSize: Math.round(tileSize), step };
+};
+
 const ImageSplitter: React.FC = () => {
   // --- State Management ---
   const [sourceImage, setSourceImage] = useState<HTMLImageElement | null>(null);
@@ -37,6 +91,28 @@ const ImageSplitter: React.FC = () => {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const [previewInfo, setPreviewInfo] = useState<{ vCount: number, vSize: string, hCount: number, hSize: string } | null>(null);
+
+  // --- 实时计算预览信息 ---
+  React.useEffect(() => {
+    if (!sourceImage) {
+      setPreviewInfo(null);
+      return;
+    }
+    const { naturalWidth, naturalHeight } = sourceImage;
+
+    const v = calculateSlices('vertical', naturalWidth, naturalHeight, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent);
+    const h = calculateSlices('horizontal', naturalWidth, naturalHeight, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent);
+
+    setPreviewInfo({
+      vCount: v.numSlices,
+      vSize: `${v.tileSize}x${naturalHeight}`,
+      hCount: h.numSlices,
+      hSize: `${naturalWidth}x${h.tileSize}`
+    });
+
+  }, [sourceImage, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent]);
 
   // --- 1. 处理图片上传 ---
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -63,43 +139,25 @@ const ImageSplitter: React.FC = () => {
 
     const { naturalWidth, naturalHeight } = sourceImage;
 
-    const ov = Math.min(Math.max(overlapPercent, 0), 90) / 100;
+    // 使用统一的计算逻辑
+    const { numSlices, tileSize, step } = calculateSlices(
+      orientation,
+      naturalWidth,
+      naturalHeight,
+      hvMode,
+      hvRatioW,
+      hvRatioH,
+      hvCount,
+      overlapPercent
+    );
 
     const axisSize = orientation === 'vertical' ? naturalWidth : naturalHeight;
     const fixedOtherSize = orientation === 'vertical' ? naturalHeight : naturalWidth;
 
-    let tileSize: number;
-    let numSlices: number;
-    let step: number;
-
-    if (hvMode === 'ratio') {
-      tileSize = orientation === 'vertical'
-        ? Math.floor(fixedOtherSize * (hvRatioW / hvRatioH))
-        : Math.floor(fixedOtherSize * (hvRatioH / hvRatioW));
-      if (tileSize > axisSize) tileSize = axisSize;
-      if (tileSize <= 0) {
-        alert('切片尺寸过小');
+    if (tileSize <= 0) {
+        alert('切片尺寸计算错误');
         setIsProcessing(false);
         return;
-      }
-      if (tileSize === axisSize) {
-        numSlices = 1;
-        step = 0;
-      } else {
-        const maxStep = Math.floor(tileSize * (1 - ov));
-        numSlices = Math.ceil((axisSize - tileSize) / Math.max(1, maxStep)) + 1;
-        step = (axisSize - tileSize) / (numSlices - 1);
-      }
-    } else {
-      numSlices = Math.max(1, Math.floor(hvCount));
-      if (numSlices === 1) {
-        tileSize = axisSize;
-        step = 0;
-      } else {
-        const denom = (numSlices - 1) * (1 - ov) + 1;
-        tileSize = axisSize / denom;
-        step = tileSize * (1 - ov);
-      }
     }
 
     const newImages: SplitImage[] = [];
@@ -271,13 +329,37 @@ const ImageSplitter: React.FC = () => {
                 <span className="text-xs text-slate-500">重叠比例 (%)</span>
                 <input type="number" value={overlapPercent} min={0} max={90} onChange={(e) => setOverlapPercent(Number(e.target.value))} className="w-24 h-9 rounded-md border border-input px-3 text-sm" />
               </div>
-              <div className="flex gap-3">
-                <Button onClick={handleVerticalSplit} disabled={!sourceImage || isProcessing} className="h-9">
-                  {isProcessing ? '生成中...' : '竖直切割'}
-                </Button>
-                <Button onClick={handleHorizontalSplit} disabled={!sourceImage || isProcessing} variant="outline" className="h-9">
-                  {isProcessing ? '生成中...' : '水平切割'}
-                </Button>
+              <div className="flex gap-3 items-start">
+                <div className="flex flex-col gap-1">
+                  <Button
+                    onClick={handleVerticalSplit}
+                    disabled={!sourceImage || isProcessing}
+                    className={`h-9 ${sourceImage && sourceImage.naturalWidth > sourceImage.naturalHeight * 1.5 ? 'ring-2 ring-offset-1 ring-blue-500' : ''}`}
+                  >
+                    {isProcessing ? '生成中...' : '纵向分列 (切宽度)'}
+                  </Button>
+                  {previewInfo && (
+                    <span className="text-[10px] text-slate-500 text-center">
+                      预计 {previewInfo.vCount} 张 ({previewInfo.vSize})
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <Button
+                    onClick={handleHorizontalSplit}
+                    disabled={!sourceImage || isProcessing}
+                    variant="outline"
+                    className={`h-9 ${sourceImage && sourceImage.naturalHeight > sourceImage.naturalWidth * 1.5 ? 'ring-2 ring-offset-1 ring-blue-500' : ''}`}
+                  >
+                    {isProcessing ? '生成中...' : '横向分行 (切高度)'}
+                  </Button>
+                  {previewInfo && (
+                    <span className="text-[10px] text-slate-500 text-center">
+                      预计 {previewInfo.hCount} 张 ({previewInfo.hSize})
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -345,7 +427,7 @@ const ImageSplitter: React.FC = () => {
             <DialogTitle>生成图预览</DialogTitle>
             <DialogDescription>{previewIndex !== null ? generatedImages[previewIndex]?.fileName : ''}</DialogDescription>
           </DialogHeader>
-          {previewIndex !== null && (
+          {previewIndex !== null && generatedImages[previewIndex] && (
             <div className="space-y-4">
               <div className="rounded-lg overflow-hidden border">
                 <img src={generatedImages[previewIndex].url} alt={generatedImages[previewIndex].fileName} className="max-h-[70vh] w-auto mx-auto" />
