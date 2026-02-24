@@ -1,16 +1,18 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 import numpy as np
 import cv2
 import io
 from PIL import Image
 import base64
 import uvicorn
-from typing import List
+from typing import List, Optional
 import gc
 import sys
 import traceback
 import math
+from dataclasses import asdict
 
 app = FastAPI()
 
@@ -1299,6 +1301,82 @@ def advanced_multi_image_stitch(images):
         print(f"多图拼接失败: {e}")
         traceback.print_exc()
         return None
+
+# ─── Museum API Endpoints ────────────────────────────────
+
+from museum_scraper import (
+    search_all_chinese_museums,
+    MUSEUM_SEARCHERS,
+    MUSEUM_NAMES,
+    proxy_image,
+    ArtifactResult,
+    SearchResult,
+)
+
+
+@app.get("/api/museum/search")
+async def museum_search(
+    keyword: str = Query(..., min_length=1, description="搜索关键词"),
+    museums: Optional[str] = Query(None, description="博物馆ID列表，逗号分隔"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=50),
+):
+    """搜索中国各大博物馆藏品"""
+    museum_ids = museums.split(",") if museums else None
+    results = await search_all_chinese_museums(keyword, museum_ids, page, size)
+
+    response = {}
+    for mid, sr in results.items():
+        response[mid] = {
+            "museum_id": sr.museum_id,
+            "museum_name": sr.museum_name,
+            "total": sr.total,
+            "page": sr.page,
+            "page_size": sr.page_size,
+            "error": sr.error,
+            "items": [asdict(item) for item in sr.items],
+        }
+    return response
+
+
+@app.get("/api/museum/list")
+async def museum_list():
+    """获取支持的博物馆列表"""
+    return {
+        mid: {
+            "id": mid,
+            "name": name,
+        }
+        for mid, name in MUSEUM_NAMES.items()
+    }
+
+
+@app.get("/api/museum/image-proxy")
+async def museum_image_proxy(
+    url: str = Query(..., description="图片 URL"),
+):
+    """代理获取博物馆图片（绕过 CORS 限制）"""
+    data = await proxy_image(url)
+    if data is None:
+        raise HTTPException(status_code=404, detail="图片获取失败")
+
+    content_type = "image/jpeg"
+    if url.lower().endswith(".png"):
+        content_type = "image/png"
+    elif url.lower().endswith(".webp"):
+        content_type = "image/webp"
+    elif url.lower().endswith(".gif"):
+        content_type = "image/gif"
+
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
+
 
 @app.post("/stitch")
 async def stitch_images(files: List[UploadFile] = File(...)):

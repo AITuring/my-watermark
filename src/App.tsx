@@ -38,6 +38,7 @@ import PhotoFrame from "./PhotoFrame";
 import Gallery from "./Gallery";
 import Sanxingdui from "./sanxingdui";
 import ArtifactAI from "./ArtifactAI";
+import MuseumExplorer from "./MuseumExplorer";
 import { Toaster } from "sonner";
 
 
@@ -194,6 +195,13 @@ const routeItems = [
         url: "/sxd",
         component: <Sanxingdui />,
         icon: "material-symbols:gesture-2",
+    },
+    {
+        label: "博物万象",
+        id: "museum",
+        url: "/museum",
+        component: <MuseumExplorer />,
+        icon: "material-symbols:museum-outline",
     },
 ];
 
