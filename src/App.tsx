@@ -42,6 +42,8 @@ import MuseumExplorer from "./MuseumExplorer";
 import { Toaster } from "sonner";
 
 
+import RawEditor from "./RawEditor";
+
 const routeItems = [
     {
         label: "应用库",
@@ -195,6 +197,13 @@ const routeItems = [
         url: "/sxd",
         component: <Sanxingdui />,
         icon: "material-symbols:gesture-2",
+    },
+    {
+        label: "RAW编辑器",
+        id: "raw-editor",
+        url: "/raw-editor",
+        component: <RawEditor />,
+        icon: "material-symbols:camera-enhance-outline",
     },
     {
         label: "博物万象",
