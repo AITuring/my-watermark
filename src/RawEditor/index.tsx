@@ -4,7 +4,7 @@ import { RawDecoder } from './engine/RawDecoder';
 import { ImagePipeline } from './engine/ImagePipeline';
 import { ControlPanel } from './components/ControlPanel';
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, Download, Undo2, Redo2, Languages } from "lucide-react";
+import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { translations, Language } from './locales';
 
@@ -18,6 +18,15 @@ const RawEditor: React.FC = () => {
   const [lang, setLang] = useState<Language>('zh');
   const [histogram, setHistogram] = useState<{ r: number[]; g: number[]; b: number[] } | undefined>(undefined);
   const [metadata, setMetadata] = useState<RawMetadata | undefined>(undefined);
+
+  // Viewport Transform State
+  // Use refs for hot path (render loop) to avoid React re-render lag
+  const transform = useRef({ zoom: 1, pan: { x: 0, y: 0 } });
+  // UI State for display only (throttled/batched by React)
+  const [uiZoom, setUiZoom] = useState(1);
+
+  const isDragging = useRef(false);
+  const lastMousePos = useRef({ x: 0, y: 0 });
 
   const t = translations[lang];
 
@@ -50,6 +59,30 @@ const RawEditor: React.FC = () => {
       return () => window.removeEventListener('resize', handleResize);
   }, [pipeline]);
 
+  // Handle Wheel Event (Non-passive for prevention)
+  useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const onWheel = (e: WheelEvent) => {
+          e.preventDefault();
+          if (!hasImage || !pipeline) return;
+
+          const zoomSensitivity = 0.001;
+          const currentZoom = transform.current.zoom;
+          const newZoom = Math.min(Math.max(0.1, currentZoom - e.deltaY * zoomSensitivity), 10);
+
+          transform.current.zoom = newZoom;
+          pipeline.updateTransform(newZoom, transform.current.pan);
+
+          // Update UI state (React will batch this, but visual update is instant via pipeline)
+          setUiZoom(newZoom);
+      };
+
+      canvas.addEventListener('wheel', onWheel, { passive: false });
+      return () => canvas.removeEventListener('wheel', onWheel);
+  }, [hasImage, pipeline]);
+
   // Sync State with Pipeline
   useEffect(() => {
     if (pipeline) {
@@ -62,6 +95,58 @@ const RawEditor: React.FC = () => {
     }
   }, [imageState, pipeline]);
 
+  // Handle Pan (Pointer Events)
+  const handlePointerDown = (e: React.PointerEvent) => {
+      if (!hasImage) return;
+      isDragging.current = true;
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
+      if (canvasRef.current) {
+          canvasRef.current.setPointerCapture(e.pointerId);
+          canvasRef.current.style.cursor = 'grabbing';
+      }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+      if (!isDragging.current || !hasImage || !pipeline) return;
+
+      const dx = e.clientX - lastMousePos.current.x;
+      const dy = e.clientY - lastMousePos.current.y;
+
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
+
+      if (containerRef.current) {
+          const { width, height } = containerRef.current.getBoundingClientRect();
+          const currentZoom = transform.current.zoom;
+
+          const newPan = {
+              x: transform.current.pan.x + (dx / width * 2.0) / currentZoom,
+              y: transform.current.pan.y - (dy / height * 2.0) / currentZoom // WebGL Y is up, Screen Y is down
+          };
+
+          transform.current.pan = newPan;
+          pipeline.updateTransform(currentZoom, newPan);
+      }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+      isDragging.current = false;
+      if (canvasRef.current) {
+          canvasRef.current.releasePointerCapture(e.pointerId);
+          canvasRef.current.style.cursor = 'grab';
+      }
+  };
+
+
+
+
+  const resetView = () => {
+      transform.current = { zoom: 1, pan: { x: 0, y: 0 } };
+      setUiZoom(1);
+      if (pipeline) {
+          pipeline.updateTransform(1, { x: 0, y: 0 });
+      }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !pipeline) return;
@@ -72,6 +157,7 @@ const RawEditor: React.FC = () => {
       const rawImage = await decoder.decode(file);
       pipeline.loadImage(rawImage);
       setHasImage(true);
+      resetView(); // Reset view on new image
       setImageState(defaultImageState);
       setHistogram(pipeline.getHistogramData());
       setMetadata(rawImage.metadata);
@@ -109,6 +195,10 @@ const RawEditor: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+                 <Button size="icon" variant="ghost" onClick={resetView} disabled={!hasImage} title="Reset View">
+                    <RotateCcw className="w-4 h-4" />
+                </Button>
+                <div className="w-px h-4 bg-border mx-2" />
                  <Button size="icon" variant="ghost" onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} title="Switch Language">
                     <Languages className="w-4 h-4" />
                 </Button>
@@ -155,8 +245,18 @@ const RawEditor: React.FC = () => {
 
           <canvas
             ref={canvasRef}
-            className={`max-w-full max-h-full shadow-2xl transition-opacity duration-500 ${hasImage ? 'opacity-100' : 'opacity-0'}`}
+            className={`max-w-full max-h-full shadow-2xl transition-opacity duration-500 ${hasImage ? 'opacity-100 cursor-grab' : 'opacity-0'}`}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
           />
+
+          {hasImage && (
+              <div className="absolute bottom-4 left-4 bg-black/50 backdrop-blur text-white text-xs px-2 py-1 rounded border border-white/10 pointer-events-none select-none">
+                  {Math.round(uiZoom * 100)}%
+              </div>
+          )}
         </div>
       </div>
 

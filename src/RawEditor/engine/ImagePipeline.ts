@@ -40,6 +40,8 @@ export class ImagePipeline {
       uniform float shadows;
       uniform float aspectRatio;
       uniform float containerAspectRatio;
+      uniform float zoom;
+      uniform vec2 pan;
 
       varying vec2 vUv;
 
@@ -142,23 +144,32 @@ export class ImagePipeline {
       varying vec2 vUv;
       uniform float aspectRatio;
       uniform float containerAspectRatio;
+      uniform float zoom;
+      uniform vec2 pan;
 
       void main() {
         vUv = vec2(uv.x, 1.0 - uv.y);
 
         vec3 pos = position;
 
-        // Adjust position to maintain aspect ratio (Letterboxing / "Contain" mode)
-        // If container is wider than image (containerAspectRatio > aspectRatio)
-        // We want to limit width, so we scale X by (aspectRatio / containerAspectRatio)
-
+        // 1. Aspect Ratio Correction ("Contain" mode)
+        // This makes the quad match the image aspect ratio inside the container
         if (containerAspectRatio > aspectRatio) {
-            // Container is wider than image: fit height, scale width down
+            // Container wider: fit height
             pos.x *= aspectRatio / containerAspectRatio;
         } else {
-            // Container is taller than image: fit width, scale height down
+            // Container taller: fit width
             pos.y *= containerAspectRatio / aspectRatio;
         }
+
+        // 2. Apply Zoom
+        pos.xy *= zoom;
+
+        // 3. Apply Pan
+        // Pan is in NDC space (-1 to 1).
+        // We add it directly to position.
+        pos.x += pan.x;
+        pos.y += pan.y;
 
         gl_Position = vec4(pos, 1.0);
       }
@@ -177,6 +188,8 @@ export class ImagePipeline {
         shadows: { value: 0.0 },
         aspectRatio: { value: 1.0 },
         containerAspectRatio: { value: 1.0 },
+        zoom: { value: 1.0 },
+        pan: { value: new THREE.Vector2(0, 0) }
       },
       vertexShader,
       fragmentShader,
@@ -213,6 +226,12 @@ export class ImagePipeline {
 
     // Initial render
     this.render();
+  }
+
+  updateTransform(zoom: number, pan: { x: number, y: number }) {
+      this.material.uniforms.zoom.value = zoom;
+      this.material.uniforms.pan.value.set(pan.x, pan.y);
+      this.render();
   }
 
   updateState(state: ImageState) {

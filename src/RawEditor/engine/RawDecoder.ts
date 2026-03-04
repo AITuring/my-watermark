@@ -83,6 +83,8 @@ export class RawDecoder {
                 name: file.name,
                 type: file.type,
                 size: file.size,
+                width: img.width,
+                height: img.height,
                 exif: exifData
             }
           });

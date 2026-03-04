@@ -477,7 +477,7 @@ const App = () => {
                     {/* <ChineseStyleNavbar /> */}
                     <div
                         className="flex flex-col w-screen"
-                        style={{ height: "calc(100vh - 80px)" }}
+                        // style={{ height: "calc(100vh - 80px)" }}
                     >
                         <Routes>
                             {routeItems.map((item) => (

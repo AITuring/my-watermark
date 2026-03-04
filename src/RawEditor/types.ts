@@ -35,6 +35,8 @@ export interface RawMetadata {
   name: string;
   type: string;
   size: number;
+  width: number;
+  height: number;
   exif: {
     make?: string;
     model?: string;

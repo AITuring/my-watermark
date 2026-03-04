@@ -29,39 +29,50 @@ const Histogram: React.FC<{ data: { r: number[]; g: number[]; b: number[] } }> =
         ctx.clearRect(0, 0, w, h);
 
         // Background
-        ctx.fillStyle = '#1e1e1e';
+        ctx.fillStyle = '#09090b';
         ctx.fillRect(0, 0, w, h);
 
-        if (data.r.length === 0) return;
+        if (!data || !data.r || data.r.length === 0) return;
 
         // Draw modes: Additive blending for RGB
         ctx.globalCompositeOperation = 'screen';
 
         const drawChannel = (channel: number[], color: string) => {
+            if (!channel) return;
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.moveTo(0, h);
+
+            // Find max value in this channel to normalize relative to itself or global max?
+            // Usually histograms are normalized to the peak count.
+            // But we already receive normalized data (0..1) from pipeline?
+            // Let's assume input is 0..1.
+            // To make it more visible (log scale), we boost low values.
+
             for (let i = 0; i < 256; i++) {
                 const x = (i / 255) * w;
-                const val = channel[i]; // normalized 0-1
-                const y = h - (val * h * 0.9); // 0.9 scale to avoid clipping
+                // Logarithmic scaling for better visibility
+                // val is 0..1.
+                // log1p(val * 100) / log1p(100) -> maps 0->0, 1->1, but boosts small values
+                const rawVal = channel[i] || 0;
+                const val = Math.log1p(rawVal * 50) / Math.log1p(50);
+
+                const y = h - (val * h * 0.95);
                 ctx.lineTo(x, y);
             }
             ctx.lineTo(w, h);
+            ctx.closePath();
             ctx.fill();
         };
 
-        drawChannel(data.r, 'rgba(255, 0, 0, 0.5)');
-        drawChannel(data.g, 'rgba(0, 255, 0, 0.5)');
-        drawChannel(data.b, 'rgba(0, 0, 255, 0.5)');
-
-        // Draw White (Luminance approximation or just intersection) - simplified as intersection via blend mode
-        // For 'screen' blend mode, overlap becomes white-ish.
+        drawChannel(data.r, '#ef4444');
+        drawChannel(data.g, '#22c55e');
+        drawChannel(data.b, '#3b82f6');
 
         ctx.globalCompositeOperation = 'source-over';
     }, [data]);
 
-    return <canvas ref={canvasRef} width={320} height={120} className="w-full h-32 rounded bg-zinc-900 border border-zinc-800" />;
+    return <canvas ref={canvasRef} width={300} height={100} className="w-full h-32 rounded bg-zinc-950 border border-zinc-800" />;
 };
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lang, histogram, metadata }) => {
@@ -86,40 +97,45 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
         <div className="space-y-6">
           {/* Metadata */}
           {metadata && (
-              <div className="mb-6 space-y-3 bg-zinc-900/50 p-3 rounded-lg border border-zinc-800 text-xs text-muted-foreground">
-                   <div className="flex items-center gap-2">
-                      <Maximize className="w-3 h-3" />
-                      <span>{metadata.width} x {metadata.height}</span>
-                      <span className="ml-auto opacity-70">{formatSize(metadata.size)}</span>
-                  </div>
-                  {metadata.exif.model && (
+              <div className="mb-6 space-y-3 bg-zinc-950 p-4 rounded-xl border border-zinc-800 shadow-sm">
+                   <div className="flex items-center justify-between text-xs font-medium text-zinc-300 border-b border-zinc-800/50 pb-2 mb-2">
                       <div className="flex items-center gap-2">
-                          <Camera className="w-3 h-3" />
+                        <Maximize className="w-3.5 h-3.5 text-zinc-500" />
+                        <span>{metadata.width} x {metadata.height}</span>
+                      </div>
+                      <span className="opacity-70 font-mono">{formatSize(metadata.size)}</span>
+                  </div>
+
+                  {metadata.exif.model && (
+                      <div className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+                          <Camera className="w-4 h-4 text-primary" />
                           <span className="truncate" title={metadata.exif.model}>{metadata.exif.model}</span>
                       </div>
                   )}
-                   {metadata.exif.lens && (
-                      <div className="flex items-center gap-2 pl-5">
-                          <span className="truncate opacity-80" title={metadata.exif.lens}>{metadata.exif.lens}</span>
-                      </div>
+
+                  {metadata.exif.lens && (
+                    <div className="text-xs text-zinc-400 pl-6 truncate" title={metadata.exif.lens}>
+                        {metadata.exif.lens}
+                    </div>
                   )}
-                  <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800/50">
+
+                  <div className="grid grid-cols-3 gap-2 pt-3 mt-1">
                       {metadata.exif.fNumber && (
-                          <div className="flex flex-col items-center gap-1">
-                              <Aperture className="w-3 h-3" />
-                              <span>f/{metadata.exif.fNumber}</span>
+                          <div className="flex flex-col items-center gap-1 bg-zinc-900/50 p-2 rounded border border-zinc-800/50">
+                              <Aperture className="w-3.5 h-3.5 text-zinc-500" />
+                              <span className="text-xs font-mono font-medium text-zinc-300">{metadata.exif.fNumber}</span>
                           </div>
                       )}
                        {metadata.exif.exposureTime && (
-                          <div className="flex flex-col items-center gap-1">
-                              <Timer className="w-3 h-3" />
-                              <span>{metadata.exif.exposureTime}s</span>
+                          <div className="flex flex-col items-center gap-1 bg-zinc-900/50 p-2 rounded border border-zinc-800/50">
+                              <Timer className="w-3.5 h-3.5 text-zinc-500" />
+                              <span className="text-xs font-mono font-medium text-zinc-300">{metadata.exif.exposureTime}s</span>
                           </div>
                       )}
                        {metadata.exif.iso && (
-                          <div className="flex flex-col items-center gap-1">
-                              <Gauge className="w-3 h-3" />
-                              <span>ISO {metadata.exif.iso}</span>
+                          <div className="flex flex-col items-center gap-1 bg-zinc-900/50 p-2 rounded border border-zinc-800/50">
+                              <Gauge className="w-3.5 h-3.5 text-zinc-500" />
+                              <span className="text-xs font-mono font-medium text-zinc-300">ISO {metadata.exif.iso}</span>
                           </div>
                       )}
                   </div>
