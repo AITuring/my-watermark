@@ -38,6 +38,8 @@ export class ImagePipeline {
       uniform float vibrance;
       uniform float highlights;
       uniform float shadows;
+      uniform float aspectRatio;
+      uniform float containerAspectRatio;
 
       varying vec2 vUv;
 
@@ -138,9 +140,27 @@ export class ImagePipeline {
 
     const vertexShader = `
       varying vec2 vUv;
+      uniform float aspectRatio;
+      uniform float containerAspectRatio;
+
       void main() {
         vUv = vec2(uv.x, 1.0 - uv.y);
-        gl_Position = vec4(position, 1.0);
+
+        vec3 pos = position;
+
+        // Adjust position to maintain aspect ratio (Letterboxing / "Contain" mode)
+        // If container is wider than image (containerAspectRatio > aspectRatio)
+        // We want to limit width, so we scale X by (aspectRatio / containerAspectRatio)
+
+        if (containerAspectRatio > aspectRatio) {
+            // Container is wider than image: fit height, scale width down
+            pos.x *= aspectRatio / containerAspectRatio;
+        } else {
+            // Container is taller than image: fit width, scale height down
+            pos.y *= containerAspectRatio / aspectRatio;
+        }
+
+        gl_Position = vec4(pos, 1.0);
       }
     `;
 
@@ -155,6 +175,8 @@ export class ImagePipeline {
         vibrance: { value: 0.0 },
         highlights: { value: 0.0 },
         shadows: { value: 0.0 },
+        aspectRatio: { value: 1.0 },
+        containerAspectRatio: { value: 1.0 },
       },
       vertexShader,
       fragmentShader,
@@ -178,7 +200,7 @@ export class ImagePipeline {
       THREE.RGBAFormat,
       THREE.FloatType
     );
-    this.texture.flipY = true;
+    // this.texture.flipY = true; // Handled in shader now
     this.texture.needsUpdate = true;
 
     // Linear filter for smooth zooming, Nearest for pixel peeping (optional)
@@ -187,6 +209,7 @@ export class ImagePipeline {
     this.texture.generateMipmaps = false;
 
     this.material.uniforms.tDiffuse.value = this.texture;
+    this.material.uniforms.aspectRatio.value = image.width / image.height;
 
     // Initial render
     this.render();
@@ -211,16 +234,102 @@ export class ImagePipeline {
 
   resize(width: number, height: number) {
     this.renderer.setSize(width, height);
+    this.material.uniforms.containerAspectRatio.value = width / height;
     this.render();
   }
+
+  getHistogramData(): { r: number[]; g: number[]; b: number[] } {
+    if (!this.texture) return { r: [], g: [], b: [] };
+
+    // Create a temporary WebGLRenderTarget to read pixels from
+    const width = 256;
+    const height = 256;
+    const renderTarget = new THREE.WebGLRenderTarget(width, height); // Downsample for performance
+
+    // Save current state
+    const currentRenderTarget = this.renderer.getRenderTarget();
+    const currentSize = new THREE.Vector2();
+    this.renderer.getSize(currentSize);
+
+    // Render to target
+    this.renderer.setRenderTarget(renderTarget);
+    this.renderer.render(this.scene, this.camera);
+
+    // Read pixels
+    const pixelCount = width * height;
+    const pixels = new Uint8Array(pixelCount * 4);
+    this.renderer.readRenderTargetPixels(renderTarget, 0, 0, width, height, pixels);
+
+    // Restore state
+    this.renderer.setRenderTarget(currentRenderTarget);
+    // this.renderer.setSize(currentSize.x, currentSize.y); // Restore size just in case
+    renderTarget.dispose();
+
+    // Calculate Histogram
+    const r = new Array(256).fill(0);
+    const g = new Array(256).fill(0);
+    const b = new Array(256).fill(0);
+
+    for (let i = 0; i < pixelCount; i++) {
+        const idx = i * 4;
+        r[pixels[idx]]++;
+        g[pixels[idx + 1]]++;
+        b[pixels[idx + 2]]++;
+    }
+
+    // Normalize (optional, depends on visualization)
+    const max = Math.max(...r, ...g, ...b);
+    return {
+        r: r.map(v => v / max),
+        g: g.map(v => v / max),
+        b: b.map(v => v / max)
+    };
+  }
+
+
 
   render() {
     this.renderer.render(this.scene, this.camera);
   }
 
-  exportImage(): string {
+  exportFullRes(type: 'image/png' | 'image/jpeg' = 'image/png', quality: number = 1.0): string {
+    if (!this.texture) return '';
+
+    // Save current size
+    const currentSize = new THREE.Vector2();
+    this.renderer.getSize(currentSize);
+
+    // Get full image size
+    const width = this.texture.image.width;
+    const height = this.texture.image.height;
+
+    // Check max texture size
+    const maxTextureSize = this.renderer.capabilities.maxTextureSize;
+    if (width > maxTextureSize || height > maxTextureSize) {
+        console.warn(`Image size (${width}x${height}) exceeds WebGL limits (${maxTextureSize}). Export might be downscaled.`);
+        // In a real app, we'd use tiling or CPU fallback here.
+    }
+
+    // Resize renderer to full image size
+    this.renderer.setSize(width, height);
+
+    // Update aspect ratio for full res (should be same as image aspect)
+    // Actually, containerAspectRatio needs to match image aspect to avoid letterboxing on export
+    const originalContainerAspect = this.material.uniforms.containerAspectRatio.value;
+    this.material.uniforms.containerAspectRatio.value = width / height;
+
     this.render();
-    return this.canvas.toDataURL('image/png', 1.0);
+
+    // Get data URL
+    // Note: toDataURL is synchronous and can be slow for large images
+    const dataUrl = this.canvas.toDataURL(type, quality);
+
+    // Restore size
+    this.renderer.setSize(currentSize.x, currentSize.y);
+    this.material.uniforms.containerAspectRatio.value = originalContainerAspect;
+    this.render(); // Re-render at screen size
+
+    return dataUrl;
   }
 
   dispose() {

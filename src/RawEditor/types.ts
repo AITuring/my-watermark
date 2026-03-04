@@ -31,9 +31,25 @@ export const defaultImageState: ImageState = {
   ],
 };
 
+export interface RawMetadata {
+  name: string;
+  type: string;
+  size: number;
+  exif: {
+    make?: string;
+    model?: string;
+    lens?: string;
+    exposureTime?: string;
+    fNumber?: string;
+    iso?: string;
+    dateTime?: string;
+    [key: string]: any;
+  };
+}
+
 export interface RawImage {
   width: number;
   height: number;
   data: Float32Array; // 32-bit float linear RGB, interleaved (R, G, B, A)
-  metadata: any;
+  metadata: RawMetadata;
 }

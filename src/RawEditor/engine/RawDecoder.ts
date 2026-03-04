@@ -1,17 +1,35 @@
 import { RawImage } from '../types';
+import ExifReader from 'exifreader';
 
 export class RawDecoder {
   /**
    * Decodes an image file (RAW or standard) into a 32-bit floating point linear RGB buffer.
    */
   async decode(file: File): Promise<RawImage> {
+    // Extract EXIF data
+    let exifData: any = {};
+    try {
+        const tags = await ExifReader.load(file);
+        exifData = {
+            make: tags['Make']?.description,
+            model: tags['Model']?.description,
+            lens: tags['LensModel']?.description || tags['Lens']?.description,
+            exposureTime: tags['ExposureTime']?.description,
+            fNumber: tags['FNumber']?.description,
+            iso: tags['ISOSpeedRatings']?.description || tags['ISO']?.description,
+            dateTime: tags['DateTimeOriginal']?.description,
+        };
+    } catch (e) {
+        console.warn("Failed to extract EXIF", e);
+    }
+
     // Note: A production implementation would use libraw.wasm or similar to decode RAW files.
     // For this demonstration, we'll implement a fallback that handles standard images
     // and converts them to the linear float32 format expected by our pipeline.
-    
+
     // Check if it's a RAW file by extension (simplified)
     const isRaw = /\.(cr2|nef|arw|dng|orf|rw2)$/i.test(file.name);
-    
+
     if (isRaw) {
         // TODO: Integrate libraw.wasm here.
         // For now, we'll try to use a placeholder or fail gracefully if we can't decode.
@@ -34,13 +52,13 @@ export class RawDecoder {
             reject(new Error('Could not get 2d context'));
             return;
           }
-          
+
           // Draw image to canvas to get pixel data
           ctx.drawImage(img, 0, 0);
           const imageData = ctx.getImageData(0, 0, img.width, img.height);
           const pixelCount = img.width * img.height;
           const data = new Float32Array(pixelCount * 4); // RGBA
-          
+
           // Convert sRGB (8-bit) to Linear RGB (Float32)
           for (let i = 0; i < pixelCount; i++) {
             const idx = i * 4;
@@ -56,16 +74,16 @@ export class RawDecoder {
             data[idx + 2] = Math.pow(b, 2.2);
             data[idx + 3] = a; // Alpha is usually linear
           }
-          
+
           resolve({
             width: img.width,
             height: img.height,
             data: data,
-            metadata: { 
-                name: file.name, 
-                type: file.type, 
+            metadata: {
+                name: file.name,
+                type: file.type,
                 size: file.size,
-                exif: {} // Placeholder for EXIF data
+                exif: exifData
             }
           });
         };

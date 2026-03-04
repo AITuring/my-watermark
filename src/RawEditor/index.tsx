@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ImageState, defaultImageState } from './types';
+import { ImageState, defaultImageState, RawMetadata } from './types';
 import { RawDecoder } from './engine/RawDecoder';
 import { ImagePipeline } from './engine/ImagePipeline';
 import { ControlPanel } from './components/ControlPanel';
@@ -16,6 +16,8 @@ const RawEditor: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasImage, setHasImage] = useState(false);
   const [lang, setLang] = useState<Language>('zh');
+  const [histogram, setHistogram] = useState<{ r: number[]; g: number[]; b: number[] } | undefined>(undefined);
+  const [metadata, setMetadata] = useState<RawMetadata | undefined>(undefined);
 
   const t = translations[lang];
 
@@ -52,6 +54,11 @@ const RawEditor: React.FC = () => {
   useEffect(() => {
     if (pipeline) {
       pipeline.updateState(imageState);
+      // Debounce histogram update slightly to avoid too many reads
+      const timer = setTimeout(() => {
+          setHistogram(pipeline.getHistogramData());
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [imageState, pipeline]);
 
@@ -66,6 +73,8 @@ const RawEditor: React.FC = () => {
       pipeline.loadImage(rawImage);
       setHasImage(true);
       setImageState(defaultImageState);
+      setHistogram(pipeline.getHistogramData());
+      setMetadata(rawImage.metadata);
       toast.success(`${t.loaded} ${file.name}`);
     } catch (error) {
       console.error("Failed to load image:", error);
@@ -78,7 +87,7 @@ const RawEditor: React.FC = () => {
   const handleExport = () => {
     if (!pipeline) return;
     try {
-        const url = pipeline.exportImage();
+        const url = pipeline.exportFullRes(); // Use full resolution export
         const link = document.createElement('a');
         link.download = `edited-image-${Date.now()}.png`;
         link.href = url;
@@ -152,7 +161,7 @@ const RawEditor: React.FC = () => {
       </div>
 
       {/* Right Sidebar */}
-      <ControlPanel state={imageState} onChange={setImageState} lang={lang} />
+      <ControlPanel state={imageState} onChange={setImageState} lang={lang} histogram={histogram} metadata={metadata} />
     </div>
   );
 };
