@@ -16,9 +16,12 @@ export class ImagePipeline {
         canvas,
         preserveDrawingBuffer: true,
         antialias: false,
-        powerPreference: "high-performance"
+        powerPreference: "high-performance",
+        alpha: true
     });
-    this.renderer.autoClear = false;
+    this.renderer.autoClear = true;
+    this.renderer.setClearColor(0x000000, 0); // Transparent clear color
+    this.renderer.setPixelRatio(window.devicePixelRatio); // Handle HiDPI/Retina screens
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -38,6 +41,8 @@ export class ImagePipeline {
       uniform float vibrance;
       uniform float highlights;
       uniform float shadows;
+      uniform float sharpness;
+      uniform vec2 resolution;
       uniform float aspectRatio;
       uniform float containerAspectRatio;
       uniform float zoom;
@@ -123,6 +128,18 @@ export class ImagePipeline {
         vec4 texel = texture2D(tDiffuse, vUv);
         vec3 color = texel.rgb;
 
+        // 0. Sharpening (Laplacian Filter) - Applied before other adjustments
+        if (sharpness > 0.0) {
+            vec2 step = 1.0 / resolution;
+            vec3 neighbor = texture2D(tDiffuse, vUv + vec2(0, step.y)).rgb;
+            neighbor += texture2D(tDiffuse, vUv - vec2(0, step.y)).rgb;
+            neighbor += texture2D(tDiffuse, vUv + vec2(step.x, 0)).rgb;
+            neighbor += texture2D(tDiffuse, vUv - vec2(step.x, 0)).rgb;
+
+            // Boost center pixel contrast against neighbors
+            color = color + sharpness * (4.0 * color - neighbor);
+        }
+
         // 1. White Balance
         color = applyWhiteBalance(color, temperature, tint);
 
@@ -189,7 +206,9 @@ export class ImagePipeline {
         aspectRatio: { value: 1.0 },
         containerAspectRatio: { value: 1.0 },
         zoom: { value: 1.0 },
-        pan: { value: new THREE.Vector2(0, 0) }
+        pan: { value: new THREE.Vector2(0, 0) },
+        sharpness: { value: 0.0 },
+        resolution: { value: new THREE.Vector2(1, 1) }
       },
       vertexShader,
       fragmentShader,
@@ -216,13 +235,18 @@ export class ImagePipeline {
     // this.texture.flipY = true; // Handled in shader now
     this.texture.needsUpdate = true;
 
-    // Linear filter for smooth zooming, Nearest for pixel peeping (optional)
-    this.texture.minFilter = THREE.LinearFilter;
+    // Use LinearMipmapLinearFilter for high quality downscaling (reduces moire)
+    this.texture.minFilter = THREE.LinearMipmapLinearFilter;
     this.texture.magFilter = THREE.LinearFilter;
-    this.texture.generateMipmaps = false;
+    this.texture.generateMipmaps = true;
+
+    // Enable Anisotropy if available
+    const maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    this.texture.anisotropy = maxAnisotropy;
 
     this.material.uniforms.tDiffuse.value = this.texture;
     this.material.uniforms.aspectRatio.value = image.width / image.height;
+    this.material.uniforms.resolution.value.set(image.width, image.height);
 
     // Initial render
     this.render();
@@ -247,6 +271,7 @@ export class ImagePipeline {
     this.material.uniforms.tint.value = state.tint / 100.0;
     this.material.uniforms.saturation.value = state.saturation;
     this.material.uniforms.vibrance.value = state.vibrance;
+    this.material.uniforms.sharpness.value = state.sharpness;
 
     this.render();
   }
@@ -335,7 +360,12 @@ export class ImagePipeline {
     // Update aspect ratio for full res (should be same as image aspect)
     // Actually, containerAspectRatio needs to match image aspect to avoid letterboxing on export
     const originalContainerAspect = this.material.uniforms.containerAspectRatio.value;
+    const originalZoom = this.material.uniforms.zoom.value;
+    const originalPan = this.material.uniforms.pan.value.clone();
+
     this.material.uniforms.containerAspectRatio.value = width / height;
+    this.material.uniforms.zoom.value = 1.0;
+    this.material.uniforms.pan.value.set(0, 0);
 
     this.render();
 
@@ -343,9 +373,12 @@ export class ImagePipeline {
     // Note: toDataURL is synchronous and can be slow for large images
     const dataUrl = this.canvas.toDataURL(type, quality);
 
-    // Restore size
+    // Restore size and state
     this.renderer.setSize(currentSize.x, currentSize.y);
     this.material.uniforms.containerAspectRatio.value = originalContainerAspect;
+    this.material.uniforms.zoom.value = originalZoom;
+    this.material.uniforms.pan.value.copy(originalPan);
+
     this.render(); // Re-render at screen size
 
     return dataUrl;

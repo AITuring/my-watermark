@@ -276,6 +276,20 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
                   onValueChange={([v]) => handleChange('saturation', v)}
                 />
               </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <Label>{t.sharpness}</Label>
+                  <span className="text-muted-foreground">{state.sharpness.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[state.sharpness]}
+                  min={0}
+                  max={2}
+                  step={0.05}
+                  onValueChange={([v]) => handleChange('sharpness', v)}
+                />
+              </div>
             </div>
           </div>
         </div>
