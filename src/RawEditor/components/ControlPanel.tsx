@@ -4,31 +4,35 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { translations, Language } from '../locales';
 
 interface ControlPanelProps {
   state: ImageState;
   onChange: (newState: ImageState) => void;
+  lang: Language;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lang }) => {
+  const t = translations[lang];
+
   const handleChange = (key: keyof ImageState, value: number) => {
     onChange({ ...state, [key]: value });
   };
 
   return (
     <div className="w-80 bg-background border-l h-full flex flex-col">
-      <div className="p-4 border-b font-semibold">Adjustments</div>
+      <div className="p-4 border-b font-semibold">{t.adjustments}</div>
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-6">
-          
+
           {/* Light Section */}
           <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Light</h3>
-            
+            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">{t.light}</h3>
+
             <div className="space-y-3">
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <Label>Exposure</Label>
+                  <Label>{t.exposure}</Label>
                   <span className="text-muted-foreground">{state.exposure.toFixed(2)}</span>
                 </div>
                 <Slider
@@ -42,7 +46,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange }) =
 
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <Label>Contrast</Label>
+                  <Label>{t.contrast}</Label>
                   <span className="text-muted-foreground">{state.contrast.toFixed(2)}</span>
                 </div>
                 <Slider
@@ -56,7 +60,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange }) =
 
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <Label>Highlights</Label>
+                  <Label>{t.highlights}</Label>
                   <span className="text-muted-foreground">{state.highlights.toFixed(2)}</span>
                 </div>
                 <Slider
@@ -70,7 +74,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange }) =
 
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <Label>Shadows</Label>
+                  <Label>{t.shadows}</Label>
                   <span className="text-muted-foreground">{state.shadows.toFixed(2)}</span>
                 </div>
                 <Slider
@@ -88,12 +92,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange }) =
 
           {/* Color Section */}
           <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Color</h3>
-            
+            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">{t.color}</h3>
+
             <div className="space-y-3">
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <Label>Temp</Label>
+                  <Label>{t.temperature}</Label>
                   <span className="text-muted-foreground">{state.temperature.toFixed(0)} K</span>
                 </div>
                 <Slider
@@ -108,7 +112,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange }) =
 
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <Label>Tint</Label>
+                  <Label>{t.tint}</Label>
                   <span className="text-muted-foreground">{state.tint.toFixed(0)}</span>
                 </div>
                 <Slider
@@ -123,7 +127,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange }) =
 
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <Label>Vibrance</Label>
+                  <Label>{t.vibrance}</Label>
                   <span className="text-muted-foreground">{state.vibrance.toFixed(2)}</span>
                 </div>
                 <Slider
@@ -137,7 +141,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange }) =
 
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
-                  <Label>Saturation</Label>
+                  <Label>{t.saturation}</Label>
                   <span className="text-muted-foreground">{state.saturation.toFixed(2)}</span>
                 </div>
                 <Slider

@@ -4,8 +4,9 @@ import { RawDecoder } from './engine/RawDecoder';
 import { ImagePipeline } from './engine/ImagePipeline';
 import { ControlPanel } from './components/ControlPanel';
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, Download, Undo2, Redo2 } from "lucide-react";
+import { Loader2, Upload, Download, Undo2, Redo2, Languages } from "lucide-react";
 import { toast } from "sonner";
+import { translations, Language } from './locales';
 
 const RawEditor: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -14,6 +15,9 @@ const RawEditor: React.FC = () => {
   const [imageState, setImageState] = useState<ImageState>(defaultImageState);
   const [isLoading, setIsLoading] = useState(false);
   const [hasImage, setHasImage] = useState(false);
+  const [lang, setLang] = useState<Language>('zh');
+
+  const t = translations[lang];
 
   // Initialize Pipeline
   useEffect(() => {
@@ -62,10 +66,10 @@ const RawEditor: React.FC = () => {
       pipeline.loadImage(rawImage);
       setHasImage(true);
       setImageState(defaultImageState);
-      toast.success(`Loaded ${file.name}`);
+      toast.success(`${t.loaded} ${file.name}`);
     } catch (error) {
       console.error("Failed to load image:", error);
-      toast.error("Failed to load image");
+      toast.error(t.failedLoad);
     } finally {
       setIsLoading(false);
     }
@@ -79,9 +83,9 @@ const RawEditor: React.FC = () => {
         link.download = `edited-image-${Date.now()}.png`;
         link.href = url;
         link.click();
-        toast.success("Image exported successfully");
+        toast.success(t.exportSuccess);
     } catch (e) {
-        toast.error("Export failed");
+        toast.error(t.exportFail);
     }
   };
 
@@ -92,20 +96,23 @@ const RawEditor: React.FC = () => {
         {/* Toolbar */}
         <div className="h-12 border-b bg-muted/30 flex items-center px-4 justify-between">
             <div className="flex items-center gap-2">
-                <span className="font-bold text-lg tracking-tight">RAW Studio</span>
+                <span className="font-bold text-lg tracking-tight">{t.rawStudio}</span>
             </div>
 
             <div className="flex items-center gap-2">
-                 <Button size="icon" variant="ghost" disabled>
+                 <Button size="icon" variant="ghost" onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} title="Switch Language">
+                    <Languages className="w-4 h-4" />
+                </Button>
+                 <Button size="icon" variant="ghost" disabled title={t.undo}>
                     <Undo2 className="w-4 h-4" />
                 </Button>
-                <Button size="icon" variant="ghost" disabled>
+                <Button size="icon" variant="ghost" disabled title={t.redo}>
                     <Redo2 className="w-4 h-4" />
                 </Button>
                 <div className="w-px h-4 bg-border mx-2" />
                 <Button size="sm" variant="outline" onClick={handleExport} disabled={!hasImage}>
                     <Download className="w-4 h-4 mr-2" />
-                    Export
+                    {t.export}
                 </Button>
             </div>
         </div>
@@ -116,11 +123,11 @@ const RawEditor: React.FC = () => {
             <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-500 z-10">
               <div className="border-2 border-dashed border-zinc-700 rounded-xl p-12 flex flex-col items-center hover:border-zinc-500 transition-colors">
                 <Upload className="w-16 h-16 mb-4 opacity-50" />
-                <h3 className="text-xl font-medium mb-2">No Image Opened</h3>
-                <p className="mb-6 text-sm opacity-70">Support for RAW, JPG, PNG</p>
+                <h3 className="text-xl font-medium mb-2">{t.noImage}</h3>
+                <p className="mb-6 text-sm opacity-70">{t.supportText}</p>
                 <Button asChild variant="secondary">
                   <label className="cursor-pointer">
-                    Open File
+                    {t.openFile}
                     <input type="file" className="hidden" accept="image/*,.dng,.cr2,.nef,.arw" onChange={handleFileChange} />
                   </label>
                 </Button>
@@ -132,7 +139,7 @@ const RawEditor: React.FC = () => {
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
               <div className="flex flex-col items-center">
                   <Loader2 className="w-10 h-10 animate-spin text-primary mb-2" />
-                  <p className="text-white font-medium">Processing...</p>
+                  <p className="text-white font-medium">{t.processing}</p>
               </div>
             </div>
           )}
@@ -145,7 +152,7 @@ const RawEditor: React.FC = () => {
       </div>
 
       {/* Right Sidebar */}
-      <ControlPanel state={imageState} onChange={setImageState} />
+      <ControlPanel state={imageState} onChange={setImageState} lang={lang} />
     </div>
   );
 };
