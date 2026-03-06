@@ -9,6 +9,8 @@ export interface ImageState {
   tint: number;
   saturation: number;
   vibrance: number;
+  clarity: number;
+  dehaze: number;
   sharpness: number;
   curve: { x: number; y: number }[];
 }
@@ -24,6 +26,8 @@ export const defaultImageState: ImageState = {
   tint: 0,
   saturation: 0,
   vibrance: 0,
+  clarity: 0,
+  dehaze: 0,
   sharpness: 0,
   curve: [
     { x: 0, y: 0 },

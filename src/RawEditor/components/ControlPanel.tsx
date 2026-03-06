@@ -381,6 +381,34 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
 
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
+                  <Label>{t.clarity}</Label>
+                  <span className="text-muted-foreground">{state.clarity.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[state.clarity]}
+                  min={-1}
+                  max={1}
+                  step={0.01}
+                  onValueChange={([v]) => handleChange('clarity', v)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <Label>{t.dehaze}</Label>
+                  <span className="text-muted-foreground">{state.dehaze.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[state.dehaze]}
+                  min={-1}
+                  max={1}
+                  step={0.01}
+                  onValueChange={([v]) => handleChange('dehaze', v)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
                   <Label>{t.sharpness}</Label>
                   <span className="text-muted-foreground">{state.sharpness.toFixed(2)}</span>
                 </div>

@@ -51,6 +51,7 @@
 - P0 真 RAW 解码 ：接入 libraw.wasm （前端）或复用你现有 Python/OpenCV 后端做 RAW 解码服务，先把输入质量拉满。
 - P0 参数闭环补齐 ：把 whites/blacks/curve 加到 UI + shader + 状态同步，先让“基础调色”完整可用。
 - P1 历史栈系统 ：实现参数快照栈 + undo/redo + 快捷键，编辑体验会立刻上一个台阶。
+  
 - P1 分屏对比 ：加 Before/After（按住空格预览原图、左右分屏、叠加热区），用户感知提升非常大。
 - P1 高级图像模块 ：增加 clarity(局部对比) / dehaze / denoise / tone curve ，这是“弱处理”变“可用专业工具”的关键。
 - P2 性能优化 ：把直方图和重渲染做节流（ requestAnimationFrame + debounce），导出改 toBlob ，交互会更顺。

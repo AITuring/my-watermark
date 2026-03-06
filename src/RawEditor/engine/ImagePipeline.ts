@@ -39,6 +39,8 @@ export class ImagePipeline {
       uniform float tint;
       uniform float saturation;
       uniform float vibrance;
+      uniform float clarity;
+      uniform float dehaze;
       uniform float highlights;
       uniform float shadows;
       uniform float whites;
@@ -154,22 +156,40 @@ export class ImagePipeline {
         );
       }
 
-      // Saturation & Vibrance
       vec3 applySaturation(vec3 color, float sat, float vib) {
         float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-
-        // Standard Saturation
         vec3 saturated = mix(vec3(luma), color, 1.0 + sat);
-
-        // Vibrance (saturates less saturated colors more)
         float maxComp = max(color.r, max(color.g, color.b));
         float minComp = min(color.r, min(color.g, color.b));
         float satMask = (maxComp - minComp) / (maxComp + 0.001);
-
         vec3 vibranced = mix(vec3(luma), color, 1.0 + vib * (1.0 - satMask));
-
-        // Combine (simplified)
         return mix(saturated, vibranced, 0.5);
+      }
+
+      vec3 applyClarity(vec2 uv, vec3 color, float amount) {
+        if (abs(amount) < 0.001) return color;
+        vec2 step = 1.0 / resolution;
+        vec3 blur = texture2D(tDiffuse, uv + vec2(-step.x, 0.0)).rgb * 0.25;
+        blur += texture2D(tDiffuse, uv + vec2(step.x, 0.0)).rgb * 0.25;
+        blur += texture2D(tDiffuse, uv + vec2(0.0, -step.y)).rgb * 0.25;
+        blur += texture2D(tDiffuse, uv + vec2(0.0, step.y)).rgb * 0.25;
+        vec3 detail = color - blur;
+        float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+        float midMask = smoothstep(0.15, 0.45, luma) * (1.0 - smoothstep(0.55, 0.9, luma));
+        return color + detail * amount * 1.35 * midMask;
+      }
+
+      vec3 applyDehaze(vec3 color, float amount) {
+        if (abs(amount) < 0.001) return color;
+        float minC = min(color.r, min(color.g, color.b));
+        float maxC = max(color.r, max(color.g, color.b));
+        float sat = maxC - minC;
+        float haze = smoothstep(0.03, 0.35, minC) * (1.0 - smoothstep(0.25, 0.9, sat));
+        float k = amount * haze;
+        vec3 neutral = vec3(dot(color, vec3(0.3333)));
+        vec3 outColor = mix(color, color + (color - neutral) * 1.6, max(k, 0.0));
+        outColor = mix(outColor, mix(outColor, neutral, 0.25), max(-k, 0.0));
+        return max(vec3(0.0), outColor);
       }
 
       void main() {
@@ -180,6 +200,8 @@ export class ImagePipeline {
         color = applyTone(color, exposure, contrast, highlights, shadows, whites, blacks);
         color = applyCurve(color, curveCtrl);
         color = applySaturation(color, saturation, vibrance);
+        color = applyClarity(vUv, color, clarity);
+        color = applyDehaze(color, dehaze);
         color = applySharpen(vUv, color, sharpness);
 
         color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
@@ -232,6 +254,8 @@ export class ImagePipeline {
         tint: { value: 0.0 },
         saturation: { value: 0.0 },
         vibrance: { value: 0.0 },
+        clarity: { value: 0.0 },
+        dehaze: { value: 0.0 },
         highlights: { value: 0.0 },
         shadows: { value: 0.0 },
         whites: { value: 0.0 },
@@ -305,6 +329,8 @@ export class ImagePipeline {
     this.material.uniforms.tint.value = state.tint / 100.0;
     this.material.uniforms.saturation.value = state.saturation;
     this.material.uniforms.vibrance.value = state.vibrance;
+    this.material.uniforms.clarity.value = state.clarity;
+    this.material.uniforms.dehaze.value = state.dehaze;
     this.material.uniforms.sharpness.value = state.sharpness;
 
     const c1 = this.sampleCurve(state.curve, 0.25);
