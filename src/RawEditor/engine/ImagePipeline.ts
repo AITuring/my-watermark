@@ -41,6 +41,9 @@ export class ImagePipeline {
       uniform float vibrance;
       uniform float highlights;
       uniform float shadows;
+      uniform float whites;
+      uniform float blacks;
+      uniform vec3 curveCtrl;
       uniform float sharpness;
       uniform vec2 resolution;
       uniform float aspectRatio;
@@ -80,30 +83,48 @@ export class ImagePipeline {
       }
 
       // Tonal Adjustments
-      vec3 applyTone(vec3 color, float exp, float con, float high, float shad) {
-        // Exposure
+      vec3 applyTone(vec3 color, float exp, float con, float high, float shad, float whitePt, float blackPt) {
         color *= pow(2.0, exp);
-
-        // Contrast (S-Curve approximation)
         color = (color - 0.5) * (1.0 + con) + 0.5;
 
-        // Highlights & Shadows (Simplified)
-        // In a real pipeline, we'd use luminance masks
         float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
 
-        // Highlights compression
         if (high != 0.0) {
             float hFactor = smoothstep(0.5, 1.0, luma);
             color = mix(color, color * (1.0 - high * 0.5), hFactor);
         }
 
-        // Shadows boost
         if (shad != 0.0) {
             float sFactor = 1.0 - smoothstep(0.0, 0.5, luma);
             color = mix(color, color * (1.0 + shad * 0.5), sFactor);
         }
 
+        float whiteMask = smoothstep(0.6, 1.0, luma);
+        float blackMask = 1.0 - smoothstep(0.0, 0.4, luma);
+        color += vec3(whitePt * 0.35 * whiteMask);
+        color += vec3(blackPt * 0.35 * blackMask);
+
         return max(vec3(0.0), color);
+      }
+
+      float applyCurveChannel(float v, vec3 c) {
+        float x = clamp(v, 0.0, 1.0);
+        float y1 = clamp(c.x, 0.0, 1.0);
+        float y2 = clamp(c.y, 0.0, 1.0);
+        float y3 = clamp(c.z, 0.0, 1.0);
+
+        if (x < 0.25) return mix(0.0, y1, x / 0.25);
+        if (x < 0.5) return mix(y1, y2, (x - 0.25) / 0.25);
+        if (x < 0.75) return mix(y2, y3, (x - 0.5) / 0.25);
+        return mix(y3, 1.0, (x - 0.75) / 0.25);
+      }
+
+      vec3 applyCurve(vec3 color, vec3 c) {
+        return vec3(
+          applyCurveChannel(color.r, c),
+          applyCurveChannel(color.g, c),
+          applyCurveChannel(color.b, c)
+        );
       }
 
       // Saturation & Vibrance
@@ -143,10 +164,8 @@ export class ImagePipeline {
         // 1. White Balance
         color = applyWhiteBalance(color, temperature, tint);
 
-        // 2. Tonal Mapping
-        color = applyTone(color, exposure, contrast, highlights, shadows);
-
-        // 3. Saturation / Vibrance
+        color = applyTone(color, exposure, contrast, highlights, shadows, whites, blacks);
+        color = applyCurve(color, curveCtrl);
         color = applySaturation(color, saturation, vibrance);
 
         // 4. Output Transform (Linear to sRGB Gamma)
@@ -203,6 +222,9 @@ export class ImagePipeline {
         vibrance: { value: 0.0 },
         highlights: { value: 0.0 },
         shadows: { value: 0.0 },
+        whites: { value: 0.0 },
+        blacks: { value: 0.0 },
+        curveCtrl: { value: new THREE.Vector3(0.25, 0.5, 0.75) },
         aspectRatio: { value: 1.0 },
         containerAspectRatio: { value: 1.0 },
         zoom: { value: 1.0 },
@@ -263,9 +285,9 @@ export class ImagePipeline {
     this.material.uniforms.contrast.value = state.contrast;
     this.material.uniforms.highlights.value = state.highlights;
     this.material.uniforms.shadows.value = state.shadows;
+    this.material.uniforms.whites.value = state.whites;
+    this.material.uniforms.blacks.value = state.blacks;
 
-    // Normalize temperature (assume 2000K to 10000K range mapped to -1 to 1)
-    // 5500K is neutral (0.0)
     this.material.uniforms.temperature.value = (state.temperature - 5500.0) / 4500.0;
 
     this.material.uniforms.tint.value = state.tint / 100.0;
@@ -273,7 +295,28 @@ export class ImagePipeline {
     this.material.uniforms.vibrance.value = state.vibrance;
     this.material.uniforms.sharpness.value = state.sharpness;
 
+    const c1 = this.sampleCurve(state.curve, 0.25);
+    const c2 = this.sampleCurve(state.curve, 0.5);
+    const c3 = this.sampleCurve(state.curve, 0.75);
+    this.material.uniforms.curveCtrl.value.set(c1, c2, c3);
+
     this.render();
+  }
+
+  private sampleCurve(points: { x: number; y: number }[], x: number): number {
+    if (!points || points.length === 0) return x;
+    const sorted = [...points].sort((a, b) => a.x - b.x);
+    if (x <= sorted[0].x) return sorted[0].y;
+    if (x >= sorted[sorted.length - 1].x) return sorted[sorted.length - 1].y;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const p1 = sorted[i];
+      const p2 = sorted[i + 1];
+      if (x >= p1.x && x <= p2.x) {
+        const t = (x - p1.x) / (p2.x - p1.x || 1);
+        return p1.y + (p2.y - p1.y) * t;
+      }
+    }
+    return x;
   }
 
   resize(width: number, height: number) {

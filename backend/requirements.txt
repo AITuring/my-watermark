@@ -6,3 +6,4 @@ opencv-python>=4.7.0.72
 Pillow>=9.5.0
 httpx>=0.27.0
 beautifulsoup4>=4.12.0
+rawpy>=0.22.0

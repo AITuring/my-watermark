@@ -82,6 +82,30 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
     onChange({ ...state, [key]: value });
   };
 
+  const sampleCurve = (x: number) => {
+    const points = state.curve;
+    if (!points || points.length === 0) return x;
+    const sorted = [...points].sort((a, b) => a.x - b.x);
+    if (x <= sorted[0].x) return sorted[0].y;
+    if (x >= sorted[sorted.length - 1].x) return sorted[sorted.length - 1].y;
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const p1 = sorted[i];
+      const p2 = sorted[i + 1];
+      if (x >= p1.x && x <= p2.x) {
+        const t = (x - p1.x) / (p2.x - p1.x || 1);
+        return p1.y + (p2.y - p1.y) * t;
+      }
+    }
+    return x;
+  };
+
+  const handleCurvePointChange = (x: number, delta: number) => {
+    const y = Math.min(1, Math.max(0, x + delta));
+    const base = (state.curve || []).filter((p) => Math.abs(p.x - x) > 0.0001 && p.x > 0 && p.x < 1);
+    const next = [...base, { x, y }, { x: 0, y: 0 }, { x: 1, y: 1 }].sort((a, b) => a.x - b.x);
+    onChange({ ...state, curve: next });
+  };
+
   const formatSize = (bytes: number) => {
       if (bytes === 0) return '0 B';
       const k = 1024;
@@ -207,6 +231,84 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
                   max={1}
                   step={0.01}
                   onValueChange={([v]) => handleChange('shadows', v)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <Label>{t.whites}</Label>
+                  <span className="text-muted-foreground">{state.whites.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[state.whites]}
+                  min={-1}
+                  max={1}
+                  step={0.01}
+                  onValueChange={([v]) => handleChange('whites', v)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <Label>{t.blacks}</Label>
+                  <span className="text-muted-foreground">{state.blacks.toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[state.blacks]}
+                  min={-1}
+                  max={1}
+                  step={0.01}
+                  onValueChange={([v]) => handleChange('blacks', v)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-4">
+            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">{t.curve}</h3>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <Label>{t.curveShadows}</Label>
+                  <span className="text-muted-foreground">{(sampleCurve(0.25) - 0.25).toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[sampleCurve(0.25) - 0.25]}
+                  min={-0.4}
+                  max={0.4}
+                  step={0.01}
+                  onValueChange={([v]) => handleCurvePointChange(0.25, v)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <Label>{t.curveMidtones}</Label>
+                  <span className="text-muted-foreground">{(sampleCurve(0.5) - 0.5).toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[sampleCurve(0.5) - 0.5]}
+                  min={-0.4}
+                  max={0.4}
+                  step={0.01}
+                  onValueChange={([v]) => handleCurvePointChange(0.5, v)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <Label>{t.curveHighlights}</Label>
+                  <span className="text-muted-foreground">{(sampleCurve(0.75) - 0.75).toFixed(2)}</span>
+                </div>
+                <Slider
+                  value={[sampleCurve(0.75) - 0.75]}
+                  min={-0.4}
+                  max={0.4}
+                  step={0.01}
+                  onValueChange={([v]) => handleCurvePointChange(0.75, v)}
                 />
               </div>
             </div>
