@@ -1,4 +1,4 @@
-import{d as A,g as t,r as e,c as n}from"./react-vendor-9a02b0ce.js";import{F as r,u as a}from"./three-vendor-9c4ea322.js";
+import{d as A,g as t,r as e,c as n}from"./react-vendor-9a02b0ce.js";import{F as r,u as a}from"./three-vendor-d240b40b.js";
 /*!
  * html2canvas 1.4.1 <https://html2canvas.hertzen.com>
  * Copyright (c) 2022 Niklas von Hertzen <https://hertzen.com>
