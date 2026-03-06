@@ -1396,15 +1396,38 @@ async def decode_raw(file: UploadFile = File(...)):
     if not contents:
         raise HTTPException(status_code=400, detail="文件为空")
 
+    camera_model = None
     try:
         with rawpy.imread(io.BytesIO(contents)) as raw:
-            rgb16 = raw.postprocess(
-                output_bps=16,
-                no_auto_bright=True,
-                use_camera_wb=True,
-                gamma=(1, 1),
-                user_flip=0,
-            )
+            camera_model = getattr(raw, "camera_model", None)
+            if isinstance(camera_model, bytes):
+                camera_model = camera_model.decode("utf-8", errors="ignore")
+
+            demosaic_algo = getattr(getattr(rawpy, "DemosaicAlgorithm", object), "AHD", None)
+            highlight_mode = getattr(getattr(rawpy, "HighlightMode", object), "Blend", None)
+            fbdd_mode = getattr(getattr(rawpy, "FBDDNoiseReductionMode", object), "Light", None)
+            output_color = getattr(getattr(rawpy, "ColorSpace", object), "sRGB", None)
+
+            postprocess_kwargs = {
+                "output_bps": 16,
+                "use_camera_wb": True,
+                "use_auto_wb": False,
+                "no_auto_bright": False,
+                "auto_bright_thr": 0.01,
+                "bright": 1.0,
+                "gamma": (1, 1),
+                "user_flip": 0,
+            }
+            if demosaic_algo is not None:
+                postprocess_kwargs["demosaic_algorithm"] = demosaic_algo
+            if highlight_mode is not None:
+                postprocess_kwargs["highlight_mode"] = highlight_mode
+            if fbdd_mode is not None:
+                postprocess_kwargs["fbdd_noise_reduction"] = fbdd_mode
+            if output_color is not None:
+                postprocess_kwargs["output_color"] = output_color
+
+            rgb16 = raw.postprocess(**postprocess_kwargs)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"RAW解析失败: {str(e)}")
 
@@ -1434,7 +1457,9 @@ async def decode_raw(file: UploadFile = File(...)):
             "size": len(contents),
             "width": int(rgb16.shape[1]),
             "height": int(rgb16.shape[0]),
-            "exif": {},
+            "exif": {
+                "model": camera_model,
+            },
         },
     }
 

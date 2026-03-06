@@ -30,6 +30,34 @@ const RawEditor: React.FC = () => {
 
   const t = translations[lang];
 
+  const getRawBaselineByModel = (model?: string): Partial<ImageState> => {
+    const m = (model || '').toLowerCase();
+
+    if (m.includes('ilce-7rm5') || m.includes('a7r v') || m.includes('a7rv')) {
+      return {
+        contrast: 0.08,
+        highlights: -0.04,
+        shadows: 0.04,
+        whites: 0.03,
+        blacks: -0.04,
+        vibrance: 0.03,
+        saturation: 0,
+        sharpness: 0.18,
+      };
+    }
+
+    return {
+      contrast: 0.06,
+      highlights: -0.03,
+      shadows: 0.03,
+      whites: 0.02,
+      blacks: -0.03,
+      vibrance: 0.02,
+      saturation: 0,
+      sharpness: 0.15,
+    };
+  };
+
   // Initialize Pipeline
   useEffect(() => {
     if (canvasRef.current && !pipeline) {
@@ -151,14 +179,27 @@ const RawEditor: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file || !pipeline) return;
 
+    const isRawFile = /\.(cr2|cr3|nef|nrw|arw|sr2|srf|dng|raf|orf|rw2|pef|iiq|3fr|srw)$/i.test(file.name);
+
     setIsLoading(true);
     try {
       const decoder = new RawDecoder();
       const rawImage = await decoder.decode(file);
       pipeline.loadImage(rawImage);
       setHasImage(true);
-      resetView(); // Reset view on new image
-      setImageState(defaultImageState);
+      resetView();
+
+      const model = rawImage.metadata?.exif?.model as string | undefined;
+      const useRawBaseline = ((import.meta as any).env?.VITE_RAW_AUTO_BASELINE as string | undefined) === '1';
+      const initialState = isRawFile
+        ? {
+            ...defaultImageState,
+            ...(useRawBaseline ? getRawBaselineByModel(model) : {}),
+          }
+        : defaultImageState;
+
+      setImageState(initialState);
+      pipeline.updateState(initialState);
       setHistogram(pipeline.getHistogramData());
       setMetadata(rawImage.metadata);
       toast.success(`${t.loaded} ${file.name}`);
