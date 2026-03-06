@@ -1,10 +1,17 @@
 import { RawImage } from '../types';
 import ExifReader from 'exifreader';
+import LibRaw from 'libraw-wasm';
 
 export class RawDecoder {
-  /**
-   * Decodes an image file (RAW or standard) into a 32-bit floating point linear RGB buffer.
-   */
+  private static rawEngine: any | null = null;
+
+  private static async getRawEngine() {
+    if (!RawDecoder.rawEngine) {
+      RawDecoder.rawEngine = new LibRaw();
+    }
+    return RawDecoder.rawEngine;
+  }
+
   async decode(file: File): Promise<RawImage> {
     // Extract EXIF data
     let exifData: any = {};
@@ -27,16 +34,10 @@ export class RawDecoder {
     // For this demonstration, we'll implement a fallback that handles standard images
     // and converts them to the linear float32 format expected by our pipeline.
 
-    // Check if it's a RAW file by extension (simplified)
-    const isRaw = /\.(cr2|nef|arw|dng|orf|rw2)$/i.test(file.name);
+    const isRaw = /\.(cr2|cr3|nef|nrw|arw|sr2|srf|dng|raf|orf|rw2|pef|iiq|3fr|srw)$/i.test(file.name);
 
     if (isRaw) {
-        // TODO: Integrate libraw.wasm here.
-        // For now, we'll try to use a placeholder or fail gracefully if we can't decode.
-        // Since we can't easily include the WASM binary in this text-based response,
-        // we will fall back to standard image loading but warn the user.
-        console.warn("RAW decoding requires libraw.wasm. Falling back to browser decoding if possible.");
-        // Many browsers can't decode RAW natively, so this might fail or show a preview.
+      return this.decodeRawWithLibRaw(file, exifData);
     }
 
     return new Promise((resolve, reject) => {
@@ -92,8 +93,86 @@ export class RawDecoder {
         img.onerror = () => reject(new Error("Failed to load image data"));
         img.src = e.target?.result as string;
       };
-      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsDataURL(file);
     });
+  }
+
+  private async decodeRawWithLibRaw(file: File, exifData: any): Promise<RawImage> {
+    const buffer = await file.arrayBuffer();
+    const raw = await RawDecoder.getRawEngine();
+
+    await raw.open(new Uint8Array(buffer), {
+      outputBps: 16,
+      outputColor: 1,
+      noAutoBright: true,
+      useCameraWb: true,
+      useAutoWb: false,
+      userQual: 11,
+      highlight: 2,
+      fbddNoiserd: 1
+    });
+
+    const [meta, decoded] = await Promise.all([
+      raw.metadata(false),
+      raw.imageData()
+    ]);
+
+    const width = decoded?.width ?? decoded?.sizes?.width ?? meta?.sizes?.width;
+    const height = decoded?.height ?? decoded?.sizes?.height ?? meta?.sizes?.height;
+
+    if (!width || !height) {
+      throw new Error('libraw-wasm decode succeeded but width/height missing');
+    }
+
+    const source = decoded?.data ?? decoded?.pixels ?? decoded;
+    if (!source) {
+      throw new Error('libraw-wasm decode succeeded but pixel buffer missing');
+    }
+
+    const channels = decoded?.channels ?? decoded?.components ?? 3;
+    const typed = source instanceof Uint16Array || source instanceof Uint8Array
+      ? source
+      : source?.buffer
+        ? new Uint8Array(source.buffer)
+        : new Uint8Array(source);
+
+    const is16Bit = typed instanceof Uint16Array || decoded?.outputBps === 16 || decoded?.bitsPerSample === 16 || typed.BYTES_PER_ELEMENT === 2;
+    const max = is16Bit ? 65535 : 255;
+    const pixelCount = width * height;
+    const data = new Float32Array(pixelCount * 4);
+
+    for (let i = 0; i < pixelCount; i++) {
+      const src = i * channels;
+      const dst = i * 4;
+
+      const r = (typed[src] ?? 0) / max;
+      const g = (typed[src + 1] ?? r) / max;
+      const b = (typed[src + 2] ?? g) / max;
+
+      data[dst] = Math.pow(Math.min(Math.max(r, 0), 1), 2.2);
+      data[dst + 1] = Math.pow(Math.min(Math.max(g, 0), 1), 2.2);
+      data[dst + 2] = Math.pow(Math.min(Math.max(b, 0), 1), 2.2);
+      data[dst + 3] = 1;
+    }
+
+    await raw.close?.();
+
+    return {
+      width,
+      height,
+      data,
+      metadata: {
+        name: file.name,
+        type: file.type || 'image/x-raw',
+        size: file.size,
+        width,
+        height,
+        exif: {
+          ...exifData,
+          ...meta
+        }
+      }
+    };
   }
 }

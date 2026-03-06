@@ -227,7 +227,7 @@ const RawEditor: React.FC = () => {
                 <Button asChild variant="secondary">
                   <label className="cursor-pointer">
                     {t.openFile}
-                    <input type="file" className="hidden" accept="image/*,.dng,.cr2,.nef,.arw" onChange={handleFileChange} />
+                    <input type="file" className="hidden" accept="image/*,.dng,.cr2,.cr3,.nef,.nrw,.arw,.sr2,.srf,.raf,.orf,.rw2,.pef,.iiq,.3fr,.srw" onChange={handleFileChange} />
                   </label>
                 </Button>
               </div>

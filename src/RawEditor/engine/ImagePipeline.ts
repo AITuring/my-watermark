@@ -342,6 +342,7 @@ export class ImagePipeline {
     // Save current size
     const currentSize = new THREE.Vector2();
     this.renderer.getSize(currentSize);
+    const currentPixelRatio = this.renderer.getPixelRatio();
 
     // Get full image size
     const width = this.texture.image.width;
@@ -355,15 +356,19 @@ export class ImagePipeline {
     }
 
     // Resize renderer to full image size
+    // IMPORTANT: Set pixel ratio to 1.0 for export to ensure 1:1 pixel mapping
+    // Otherwise, on Retina screens, a 4000px image becomes 8000px canvas, potentially crashing or glitching.
+    this.renderer.setPixelRatio(1.0);
     this.renderer.setSize(width, height);
 
     // Update aspect ratio for full res (should be same as image aspect)
     // Actually, containerAspectRatio needs to match image aspect to avoid letterboxing on export
     const originalContainerAspect = this.material.uniforms.containerAspectRatio.value;
-    const originalZoom = this.material.uniforms.zoom.value;
-    const originalPan = this.material.uniforms.pan.value.clone();
+    const savedZoom = this.material.uniforms.zoom.value;
+    const savedPan = this.material.uniforms.pan.value.clone();
 
     this.material.uniforms.containerAspectRatio.value = width / height;
+    // FORCE reset for export to ensure full image is captured without borders/cropping
     this.material.uniforms.zoom.value = 1.0;
     this.material.uniforms.pan.value.set(0, 0);
 
@@ -374,10 +379,11 @@ export class ImagePipeline {
     const dataUrl = this.canvas.toDataURL(type, quality);
 
     // Restore size and state
+    this.renderer.setPixelRatio(currentPixelRatio);
     this.renderer.setSize(currentSize.x, currentSize.y);
     this.material.uniforms.containerAspectRatio.value = originalContainerAspect;
-    this.material.uniforms.zoom.value = originalZoom;
-    this.material.uniforms.pan.value.copy(originalPan);
+    this.material.uniforms.zoom.value = savedZoom;
+    this.material.uniforms.pan.value.copy(savedPan);
 
     this.render(); // Re-render at screen size
 

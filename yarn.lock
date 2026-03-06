@@ -4334,6 +4334,11 @@ levn@^0.4.1:
     prelude-ls "^1.2.1"
     type-check "~0.4.0"
 
+libraw-wasm@^1.1.2:
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/libraw-wasm/-/libraw-wasm-1.1.2.tgz#8814ba2715359645e21cf631aeec95679165f9bc"
+  integrity sha512-lOVdqbzCkvsLtMoTz41Pc3alQptWHCyD71jGBTnQmoNK5CTVayXGqtTSBntLil7YaO3h/yESx7e9jMskMtnOEQ==
+
 lie@^3.0.2, lie@~3.3.0:
   version "3.3.0"
   resolved "https://registry.yarnpkg.com/lie/-/lie-3.3.0.tgz#dcf82dee545f46074daf200c7c1c5a08e0f40f6a"
