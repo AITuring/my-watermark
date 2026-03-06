@@ -82,29 +82,56 @@ export class ImagePipeline {
         return color * wb;
       }
 
-      // Tonal Adjustments
       vec3 applyTone(vec3 color, float exp, float con, float high, float shad, float whitePt, float blackPt) {
         color *= pow(2.0, exp);
-        color = (color - 0.5) * (1.0 + con) + 0.5;
 
         float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+        float shadowMask = 1.0 - smoothstep(0.08, 0.58, luma);
+        float highlightMask = smoothstep(0.42, 0.95, luma);
 
-        if (high != 0.0) {
-            float hFactor = smoothstep(0.5, 1.0, luma);
-            color = mix(color, color * (1.0 - high * 0.5), hFactor);
+        if (shad > 0.0) {
+          vec3 lifted = color + (pow(max(color, vec3(0.0)), vec3(0.75)) - color) * (0.9 * shad);
+          color = mix(color, lifted, shadowMask);
+        } else if (shad < 0.0) {
+          vec3 deepened = color * (1.0 + shad * shadowMask * 0.75);
+          color = mix(color, deepened, shadowMask);
         }
 
-        if (shad != 0.0) {
-            float sFactor = 1.0 - smoothstep(0.0, 0.5, luma);
-            color = mix(color, color * (1.0 + shad * 0.5), sFactor);
+        if (high > 0.0) {
+          vec3 compressed = color / (1.0 + color * (0.55 + 1.25 * high));
+          color = mix(color, compressed, highlightMask);
+        } else if (high < 0.0) {
+          vec3 expanded = color * (1.0 - high * 0.35);
+          color = mix(color, expanded, highlightMask);
         }
 
-        float whiteMask = smoothstep(0.6, 1.0, luma);
-        float blackMask = 1.0 - smoothstep(0.0, 0.4, luma);
-        color += vec3(whitePt * 0.35 * whiteMask);
-        color += vec3(blackPt * 0.35 * blackMask);
+        float pivot = 0.18;
+        color = (color - pivot) * (1.0 + con * 1.15) + pivot;
+
+        float whiteGain = 1.0 + whitePt * 0.35;
+        float blackLift = blackPt * 0.08;
+        color = (color + vec3(blackLift)) * whiteGain;
 
         return max(vec3(0.0), color);
+      }
+
+      vec3 applySharpen(vec2 uv, vec3 color, float amount) {
+        if (amount <= 0.0) return color;
+
+        vec2 step = 1.0 / resolution;
+        vec3 b = texture2D(tDiffuse, uv + vec2(-step.x, -step.y)).rgb * 0.0625;
+        b += texture2D(tDiffuse, uv + vec2(0.0, -step.y)).rgb * 0.125;
+        b += texture2D(tDiffuse, uv + vec2(step.x, -step.y)).rgb * 0.0625;
+        b += texture2D(tDiffuse, uv + vec2(-step.x, 0.0)).rgb * 0.125;
+        b += texture2D(tDiffuse, uv).rgb * 0.25;
+        b += texture2D(tDiffuse, uv + vec2(step.x, 0.0)).rgb * 0.125;
+        b += texture2D(tDiffuse, uv + vec2(-step.x, step.y)).rgb * 0.0625;
+        b += texture2D(tDiffuse, uv + vec2(0.0, step.y)).rgb * 0.125;
+        b += texture2D(tDiffuse, uv + vec2(step.x, step.y)).rgb * 0.0625;
+
+        vec3 detail = color - b;
+        float edge = smoothstep(0.01, 0.08, abs(dot(detail, vec3(0.2126, 0.7152, 0.0722))));
+        return color + detail * amount * (0.55 + 1.15 * edge);
       }
 
       float applyCurveChannel(float v, vec3 c) {
@@ -149,28 +176,13 @@ export class ImagePipeline {
         vec4 texel = texture2D(tDiffuse, vUv);
         vec3 color = texel.rgb;
 
-        // 0. Sharpening (Laplacian Filter) - Applied before other adjustments
-        if (sharpness > 0.0) {
-            vec2 step = 1.0 / resolution;
-            vec3 neighbor = texture2D(tDiffuse, vUv + vec2(0, step.y)).rgb;
-            neighbor += texture2D(tDiffuse, vUv - vec2(0, step.y)).rgb;
-            neighbor += texture2D(tDiffuse, vUv + vec2(step.x, 0)).rgb;
-            neighbor += texture2D(tDiffuse, vUv - vec2(step.x, 0)).rgb;
-
-            // Boost center pixel contrast against neighbors
-            color = color + sharpness * (4.0 * color - neighbor);
-        }
-
-        // 1. White Balance
         color = applyWhiteBalance(color, temperature, tint);
-
         color = applyTone(color, exposure, contrast, highlights, shadows, whites, blacks);
         color = applyCurve(color, curveCtrl);
         color = applySaturation(color, saturation, vibrance);
+        color = applySharpen(vUv, color, sharpness);
 
-        // 4. Output Transform (Linear to sRGB Gamma)
-        // Gamma 2.2 approximation
-        color = pow(color, vec3(1.0/2.2));
+        color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
 
         gl_FragColor = vec4(color, texel.a);
       }

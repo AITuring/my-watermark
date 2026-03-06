@@ -39,3 +39,24 @@
 - [ ] 迁移到小程序
 
 
+# RAW编辑
+关键短板
+- 目前 RAW 解码还是“占位方案”，并不是真正的 RAW 管线，这会直接限制画质上限（动态范围、细节、白平衡空间）( RawDecoder.ts )
+- whites / blacks / curve 已定义但没进入处理闭环，属于“有参数无效果” ( types.ts , ImagePipeline.updateState )
+- 高光/阴影、锐化算法是简化版，细节恢复能力有限 ( ImagePipeline.ts , ImagePipeline.ts )
+- Undo/Redo 按钮存在但未启用，编辑体验偏“脆弱” ( index.tsx )
+- 导出用 toDataURL ，大图时性能和内存压力偏大 ( ImagePipeline.ts )
+优先级最高的 6 个增强点
+
+- P0 真 RAW 解码 ：接入 libraw.wasm （前端）或复用你现有 Python/OpenCV 后端做 RAW 解码服务，先把输入质量拉满。
+- P0 参数闭环补齐 ：把 whites/blacks/curve 加到 UI + shader + 状态同步，先让“基础调色”完整可用。
+- P1 历史栈系统 ：实现参数快照栈 + undo/redo + 快捷键，编辑体验会立刻上一个台阶。
+- P1 分屏对比 ：加 Before/After（按住空格预览原图、左右分屏、叠加热区），用户感知提升非常大。
+- P1 高级图像模块 ：增加 clarity(局部对比) / dehaze / denoise / tone curve ，这是“弱处理”变“可用专业工具”的关键。
+- P2 性能优化 ：把直方图和重渲染做节流（ requestAnimationFrame + debounce），导出改 toBlob ，交互会更顺。
+界面升级建议（不重做设计也能明显变好）
+
+- 顶栏补“项目级动作”：重置、快照、对比、导出预设。
+- 右侧面板做“可折叠分组 + 搜索参数 + 双击归零 + 数字输入”。
+- 增加参数预设（人像、风光、夜景、胶片），降低学习成本。
+- 关键区域加可视反馈：曝光裁切警告、白平衡拾色器、缩放比例与渲染状态。
