@@ -27,6 +27,9 @@ const RawEditor: React.FC = () => {
 
   const isDragging = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
+  const historyRef = useRef<ImageState[]>([{ ...defaultImageState, curve: defaultImageState.curve.map(p => ({ ...p })) }]);
+  const redoRef = useRef<ImageState[]>([]);
+  const lastCommitTimeRef = useRef(0);
 
   const t = translations[lang];
 
@@ -56,6 +59,86 @@ const RawEditor: React.FC = () => {
       saturation: 0,
       sharpness: 0.15,
     };
+  };
+
+  const cloneState = (state: ImageState): ImageState => ({
+    ...state,
+    curve: state.curve.map((p) => ({ ...p })),
+  });
+
+  const isSameState = (a: ImageState, b: ImageState): boolean => {
+    if (
+      a.exposure !== b.exposure ||
+      a.contrast !== b.contrast ||
+      a.highlights !== b.highlights ||
+      a.shadows !== b.shadows ||
+      a.whites !== b.whites ||
+      a.blacks !== b.blacks ||
+      a.temperature !== b.temperature ||
+      a.tint !== b.tint ||
+      a.saturation !== b.saturation ||
+      a.vibrance !== b.vibrance ||
+      a.clarity !== b.clarity ||
+      a.dehaze !== b.dehaze ||
+      a.sharpness !== b.sharpness ||
+      a.curve.length !== b.curve.length
+    ) return false;
+
+    for (let i = 0; i < a.curve.length; i++) {
+      if (a.curve[i].x !== b.curve[i].x || a.curve[i].y !== b.curve[i].y) return false;
+    }
+    return true;
+  };
+
+  const pushHistory = (nextState: ImageState) => {
+    const now = performance.now();
+    const history = historyRef.current;
+    const last = history[history.length - 1];
+
+    if (last && isSameState(last, nextState)) return;
+
+    if (history.length > 1 && now - lastCommitTimeRef.current < 140) {
+      history[history.length - 1] = cloneState(nextState);
+    } else {
+      history.push(cloneState(nextState));
+      if (history.length > 200) {
+        history.shift();
+      }
+    }
+
+    redoRef.current = [];
+    lastCommitTimeRef.current = now;
+  };
+
+  const applyState = (nextState: ImageState, trackHistory = true) => {
+    setImageState(nextState);
+    if (trackHistory) {
+      pushHistory(nextState);
+    }
+  };
+
+  const handleUndo = () => {
+    const history = historyRef.current;
+    if (!hasImage || history.length <= 1) return;
+
+    const current = history.pop();
+    if (current) {
+      redoRef.current.push(cloneState(current));
+    }
+
+    const prev = history[history.length - 1];
+    if (prev) {
+      applyState(cloneState(prev), false);
+    }
+  };
+
+  const handleRedo = () => {
+    if (!hasImage || redoRef.current.length === 0) return;
+    const next = redoRef.current.pop();
+    if (!next) return;
+
+    historyRef.current.push(cloneState(next));
+    applyState(cloneState(next), false);
   };
 
   // Initialize Pipeline
@@ -110,6 +193,29 @@ const RawEditor: React.FC = () => {
       canvas.addEventListener('wheel', onWheel, { passive: false });
       return () => canvas.removeEventListener('wheel', onWheel);
   }, [hasImage, pipeline]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || !hasImage) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if (key === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [hasImage, imageState]);
 
   // Sync State with Pipeline
   useEffect(() => {
@@ -198,8 +304,11 @@ const RawEditor: React.FC = () => {
           }
         : defaultImageState;
 
-      setImageState(initialState);
+      applyState(initialState, false);
       pipeline.updateState(initialState);
+      historyRef.current = [cloneState(initialState)];
+      redoRef.current = [];
+      lastCommitTimeRef.current = performance.now();
       setHistogram(pipeline.getHistogramData());
       setMetadata(rawImage.metadata);
       toast.success(`${t.loaded} ${file.name}`);
@@ -243,10 +352,10 @@ const RawEditor: React.FC = () => {
                  <Button size="icon" variant="ghost" onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} title="Switch Language">
                     <Languages className="w-4 h-4" />
                 </Button>
-                 <Button size="icon" variant="ghost" disabled title={t.undo}>
+                 <Button size="icon" variant="ghost" onClick={handleUndo} disabled={!hasImage || historyRef.current.length <= 1} title={`${t.undo} (⌘/Ctrl+Z)`}>
                     <Undo2 className="w-4 h-4" />
                 </Button>
-                <Button size="icon" variant="ghost" disabled title={t.redo}>
+                <Button size="icon" variant="ghost" onClick={handleRedo} disabled={!hasImage || redoRef.current.length === 0} title={`${t.redo} (⇧⌘/Ctrl+Z)`}>
                     <Redo2 className="w-4 h-4" />
                 </Button>
                 <div className="w-px h-4 bg-border mx-2" />
@@ -302,7 +411,7 @@ const RawEditor: React.FC = () => {
       </div>
 
       {/* Right Sidebar */}
-      <ControlPanel state={imageState} onChange={setImageState} lang={lang} histogram={histogram} metadata={metadata} />
+      <ControlPanel state={imageState} onChange={applyState} lang={lang} histogram={histogram} metadata={metadata} />
     </div>
   );
 };
