@@ -4,7 +4,8 @@ import { RawDecoder } from './engine/RawDecoder';
 import { ImagePipeline } from './engine/ImagePipeline';
 import { ControlPanel } from './components/ControlPanel';
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw, Keyboard } from "lucide-react";
 import { toast } from "sonner";
 import { translations, Language } from './locales';
 
@@ -26,9 +27,15 @@ const RawEditor: React.FC = () => {
   const [uiPan, setUiPan] = useState({ x: 0, y: 0 });
   const [imageAspect, setImageAspect] = useState(1);
   const [minimapSrc, setMinimapSrc] = useState<string | null>(null);
+  const [compareMode, setCompareMode] = useState<'off' | 'split'>('off');
+  const [splitX, setSplitX] = useState(0.5);
+  const [showHeatOverlay, setShowHeatOverlay] = useState(false);
+  const [isSpacePreviewing, setIsSpacePreviewing] = useState(false);
+  const [hotkeyTipOpen, setHotkeyTipOpen] = useState(false);
 
   const isDragging = useRef(false);
   const isMinimapDragging = useRef(false);
+  const isSplitDragging = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
   const lastDragTs = useRef(0);
   const panVelocity = useRef({ x: 0, y: 0 });
@@ -42,6 +49,7 @@ const RawEditor: React.FC = () => {
   const MIN_ZOOM = 1;
   const MAX_ZOOM = 12;
   const WHEEL_SENSITIVITY = 0.001;
+  const SPLIT_X_STORAGE_KEY = 'raw-editor-split-x';
 
   const stopInertia = useCallback(() => {
     if (inertiaRaf.current !== null) {
@@ -295,6 +303,23 @@ const RawEditor: React.FC = () => {
   }, [stopInertia]);
 
   useEffect(() => {
+    const saved = window.localStorage.getItem(SPLIT_X_STORAGE_KEY);
+    if (!saved) return;
+    const parsed = Number(saved);
+    if (!Number.isFinite(parsed)) return;
+    setSplitX(Math.min(Math.max(parsed, 0), 1));
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(SPLIT_X_STORAGE_KEY, String(splitX));
+  }, [splitX]);
+
+  useEffect(() => {
+    if (!pipeline || !hasImage) return;
+    pipeline.setCompareOptions(isSpacePreviewing ? 'before' : compareMode, splitX, showHeatOverlay);
+  }, [pipeline, hasImage, compareMode, splitX, showHeatOverlay, isSpacePreviewing]);
+
+  useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
@@ -314,10 +339,29 @@ const RawEditor: React.FC = () => {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && hasImage) {
+        e.preventDefault();
+        setIsSpacePreviewing(true);
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      if (hasImage && !e.metaKey && !e.ctrlKey) {
+        if (key === 'b') {
+          e.preventDefault();
+          setCompareMode((m) => (m === 'split' ? 'off' : 'split'));
+          return;
+        }
+        if (key === 'h') {
+          e.preventDefault();
+          setShowHeatOverlay((v) => !v);
+          return;
+        }
+      }
+
       const mod = e.metaKey || e.ctrlKey;
       if (!mod || !hasImage) return;
 
-      const key = e.key.toLowerCase();
       if (key === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
@@ -331,8 +375,25 @@ const RawEditor: React.FC = () => {
       }
     };
 
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsSpacePreviewing(false);
+      }
+    };
+
+    const onWindowBlur = () => {
+      setIsSpacePreviewing(false);
+    };
+
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onWindowBlur);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onWindowBlur);
+    };
   }, [hasImage, imageState]);
 
   // Sync State with Pipeline
@@ -464,6 +525,13 @@ const RawEditor: React.FC = () => {
       });
   };
 
+  const updateSplitFromClientX = (clientX: number) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const next = (clientX - rect.left) / Math.max(rect.width, 1);
+      setSplitX(Math.min(Math.max(next, 0), 1));
+  };
+
   const resetView = () => {
       commitTransform(1, { x: 0, y: 0 });
   };
@@ -543,6 +611,41 @@ const RawEditor: React.FC = () => {
                 <Button size="icon" variant="ghost" onClick={resetView} disabled={!hasImage} title="Reset View">
                     <RotateCcw className="w-4 h-4" />
                 </Button>
+                <Button
+                  size="sm"
+                  variant={compareMode === 'split' ? 'default' : 'ghost'}
+                  className={compareMode === 'split' ? 'shadow-sm' : ''}
+                  onClick={() => setCompareMode((m) => (m === 'split' ? 'off' : 'split'))}
+                  disabled={!hasImage}
+                >
+                  Before/After
+                </Button>
+                <Button
+                  size="sm"
+                  variant={showHeatOverlay ? 'default' : 'ghost'}
+                  className={showHeatOverlay ? 'shadow-sm' : ''}
+                  onClick={() => setShowHeatOverlay((v) => !v)}
+                  disabled={!hasImage}
+                >
+                  热区
+                </Button>
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip open={hotkeyTipOpen} onOpenChange={setHotkeyTipOpen}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setHotkeyTipOpen((v) => !v)}
+                        title="快捷键"
+                      >
+                        <Keyboard className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="end" className="max-w-xs text-xs leading-relaxed whitespace-pre-line">
+                      {'空格：按住预览原图\nB：切换 Before/After 分屏\nH：切换热区叠加\n双击分屏手柄：回中\n⌘/Ctrl+Z：撤销\n⇧⌘/Ctrl+Z：重做'}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <div className="w-px h-4 bg-border mx-2" />
                  <Button size="icon" variant="ghost" onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} title="Switch Language">
                     <Languages className="w-4 h-4" />
@@ -596,6 +699,37 @@ const RawEditor: React.FC = () => {
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
           />
+
+          {hasImage && compareMode === 'split' && !isSpacePreviewing && (
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-4 left-4 text-[11px] px-2 py-1 rounded bg-black/55 text-white border border-white/20 tracking-wide">Before · 原图</div>
+              <div className="absolute top-4 right-4 text-[11px] px-2 py-1 rounded bg-black/55 text-white border border-white/20 tracking-wide">After · 修改后</div>
+              <div className="absolute top-0 bottom-0 w-px bg-white/80" style={{ left: `${splitX * 100}%` }} />
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-14 rounded-full border border-white/80 bg-black/50 pointer-events-auto cursor-ew-resize"
+                style={{ left: `${splitX * 100}%` }}
+                onPointerDown={(e) => {
+                  isSplitDragging.current = true;
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  updateSplitFromClientX(e.clientX);
+                }}
+                onPointerMove={(e) => {
+                  if (!isSplitDragging.current) return;
+                  updateSplitFromClientX(e.clientX);
+                }}
+                onPointerUp={(e) => {
+                  isSplitDragging.current = false;
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+                }}
+                onPointerCancel={() => {
+                  isSplitDragging.current = false;
+                }}
+                onDoubleClick={() => {
+                  setSplitX(0.5);
+                }}
+              />
+            </div>
+          )}
 
           {hasImage && minimap && (
               <div

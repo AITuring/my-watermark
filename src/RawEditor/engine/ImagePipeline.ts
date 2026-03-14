@@ -52,6 +52,9 @@ export class ImagePipeline {
       uniform float containerAspectRatio;
       uniform float zoom;
       uniform vec2 pan;
+      uniform float compareMode;
+      uniform float splitX;
+      uniform float heatOverlay;
 
       varying vec2 vUv;
 
@@ -204,9 +207,28 @@ export class ImagePipeline {
         color = applyDehaze(color, dehaze);
         color = applySharpen(vUv, color, sharpness);
 
-        color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
+        vec3 edited = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
+        vec3 original = pow(max(texel.rgb, vec3(0.0)), vec3(1.0 / 2.2));
+        vec3 outColor = edited;
 
-        gl_FragColor = vec4(color, texel.a);
+        if (compareMode > 1.5) {
+          outColor = vUv.x < splitX ? original : edited;
+        } else if (compareMode > 0.5) {
+          outColor = original;
+        }
+
+        if (heatOverlay > 0.5) {
+          vec3 delta = edited - original;
+          float lumaDelta = abs(dot(delta, vec3(0.2126, 0.7152, 0.0722)));
+          vec3 chromaDeltaVec = delta - vec3(dot(delta, vec3(0.2126, 0.7152, 0.0722)));
+          float chromaDelta = length(chromaDeltaVec);
+          float score = max(chromaDelta * 2.1, lumaDelta * 0.6);
+          float d = smoothstep(0.10, 0.42, score);
+          vec3 heatColor = mix(vec3(0.0, 0.20, 1.0), vec3(1.0, 0.15, 0.0), d);
+          outColor = mix(outColor, heatColor, d * 0.38);
+        }
+
+        gl_FragColor = vec4(outColor, texel.a);
       }
     `;
 
@@ -265,6 +287,9 @@ export class ImagePipeline {
         containerAspectRatio: { value: 1.0 },
         zoom: { value: 1.0 },
         pan: { value: new THREE.Vector2(0, 0) },
+        compareMode: { value: 0.0 },
+        splitX: { value: 0.5 },
+        heatOverlay: { value: 0.0 },
         sharpness: { value: 0.0 },
         resolution: { value: new THREE.Vector2(1, 1) }
       },
@@ -314,6 +339,13 @@ export class ImagePipeline {
       this.material.uniforms.zoom.value = zoom;
       this.material.uniforms.pan.value.set(pan.x, pan.y);
       this.render();
+  }
+
+  setCompareOptions(mode: 'off' | 'before' | 'split', splitX: number, heatOverlay: boolean) {
+    this.material.uniforms.compareMode.value = mode === 'before' ? 1.0 : mode === 'split' ? 2.0 : 0.0;
+    this.material.uniforms.splitX.value = Math.min(Math.max(splitX, 0), 1);
+    this.material.uniforms.heatOverlay.value = heatOverlay ? 1.0 : 0.0;
+    this.render();
   }
 
   updateState(state: ImageState) {
@@ -366,6 +398,11 @@ export class ImagePipeline {
   getHistogramData(): { r: number[]; g: number[]; b: number[] } {
     if (!this.texture) return { r: [], g: [], b: [] };
 
+    const savedCompareMode = this.material.uniforms.compareMode.value;
+    const savedHeatOverlay = this.material.uniforms.heatOverlay.value;
+    this.material.uniforms.compareMode.value = 0;
+    this.material.uniforms.heatOverlay.value = 0;
+
     // Create a temporary WebGLRenderTarget to read pixels from
     const width = 256;
     const height = 256;
@@ -404,11 +441,15 @@ export class ImagePipeline {
 
     // Normalize (optional, depends on visualization)
     const max = Math.max(...r, ...g, ...b);
-    return {
+    const result = {
         r: r.map(v => v / max),
         g: g.map(v => v / max),
         b: b.map(v => v / max)
     };
+    this.material.uniforms.compareMode.value = savedCompareMode;
+    this.material.uniforms.heatOverlay.value = savedHeatOverlay;
+    this.render();
+    return result;
   }
 
 
@@ -419,6 +460,11 @@ export class ImagePipeline {
 
   exportMinimapPreview(maxWidth: number = 320, maxHeight: number = 200): string | null {
     if (!this.texture) return null;
+
+    const savedCompareMode = this.material.uniforms.compareMode.value;
+    const savedHeatOverlay = this.material.uniforms.heatOverlay.value;
+    this.material.uniforms.compareMode.value = 0;
+    this.material.uniforms.heatOverlay.value = 0;
 
     const currentSize = new THREE.Vector2();
     this.renderer.getSize(currentSize);
@@ -447,6 +493,8 @@ export class ImagePipeline {
     this.material.uniforms.containerAspectRatio.value = originalContainerAspect;
     this.material.uniforms.zoom.value = savedZoom;
     this.material.uniforms.pan.value.copy(savedPan);
+    this.material.uniforms.compareMode.value = savedCompareMode;
+    this.material.uniforms.heatOverlay.value = savedHeatOverlay;
     this.render();
 
     return dataUrl;
@@ -454,6 +502,11 @@ export class ImagePipeline {
 
   exportFullRes(type: 'image/png' | 'image/jpeg' = 'image/png', quality: number = 1.0): string {
     if (!this.texture) return '';
+
+    const savedCompareMode = this.material.uniforms.compareMode.value;
+    const savedHeatOverlay = this.material.uniforms.heatOverlay.value;
+    this.material.uniforms.compareMode.value = 0;
+    this.material.uniforms.heatOverlay.value = 0;
 
     // Save current size
     const currentSize = new THREE.Vector2();
@@ -500,6 +553,8 @@ export class ImagePipeline {
     this.material.uniforms.containerAspectRatio.value = originalContainerAspect;
     this.material.uniforms.zoom.value = savedZoom;
     this.material.uniforms.pan.value.copy(savedPan);
+    this.material.uniforms.compareMode.value = savedCompareMode;
+    this.material.uniforms.heatOverlay.value = savedHeatOverlay;
 
     this.render(); // Re-render at screen size
 
