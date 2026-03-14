@@ -33,10 +33,15 @@ const RawEditor: React.FC = () => {
   const [isSpacePreviewing, setIsSpacePreviewing] = useState(false);
   const [hotkeyTipOpen, setHotkeyTipOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<'adjust' | 'hand' | 'crop' | 'mask' | 'picker'>('adjust');
+  const [cropRect, setCropRect] = useState({ x0: 0, y0: 0, x1: 1, y1: 1 });
+  const [cropEnabled, setCropEnabled] = useState(false);
 
   const isDragging = useRef(false);
   const isMinimapDragging = useRef(false);
   const isSplitDragging = useRef(false);
+  const cropDragMode = useRef<'none' | 'move' | 'nw' | 'ne' | 'sw' | 'se'>('none');
+  const cropDragAnchor = useRef<{ x: number; y: number } | null>(null);
+  const spacePressedRef = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
   const lastDragTs = useRef(0);
   const panVelocity = useRef({ x: 0, y: 0 });
@@ -161,6 +166,40 @@ const RawEditor: React.FC = () => {
     };
     commitTransform(z1, nextPan);
   }, [hasImage, pipeline, getContainScale, commitTransform]);
+
+  const clientToUv = useCallback((clientX: number, clientY: number) => {
+    if (!containerRef.current) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = 1 - ((clientY - rect.top) / rect.height) * 2;
+    const { sx, sy } = getContainScale();
+    const z = transform.current.zoom;
+    const px = (ndcX - transform.current.pan.x) / (sx * z);
+    const py = (ndcY - transform.current.pan.y) / (sy * z);
+    return {
+      x: Math.min(Math.max((px + 1) / 2, 0), 1),
+      y: Math.min(Math.max((py + 1) / 2, 0), 1),
+    };
+  }, [getContainScale]);
+
+  const uvToPercent = useCallback((uvX: number, uvY: number) => {
+    const { sx, sy } = getContainScale();
+    const z = transform.current.zoom;
+    const px = uvX * 2 - 1;
+    const py = uvY * 2 - 1;
+    const ndcX = px * sx * z + transform.current.pan.x;
+    const ndcY = py * sy * z + transform.current.pan.y;
+    return {
+      left: ((ndcX + 1) * 0.5) * 100,
+      top: ((1 - ndcY) * 0.5) * 100,
+    };
+  }, [getContainScale]);
+
+  const commitCrop = useCallback((enabled: boolean, rect = cropRect) => {
+    if (!pipeline) return;
+    pipeline.setCropRect(enabled, rect);
+    setCropEnabled(enabled);
+  }, [pipeline, cropRect]);
 
   const getRawBaselineByModel = (model?: string): Partial<ImageState> => {
     const m = (model || '').toLowerCase();
@@ -321,12 +360,17 @@ const RawEditor: React.FC = () => {
   }, [pipeline, hasImage, compareMode, splitX, showHeatOverlay, isSpacePreviewing]);
 
   useEffect(() => {
+    if (!pipeline || !hasImage) return;
+    commitCrop(cropEnabled, cropRect);
+  }, [pipeline, hasImage, cropEnabled, cropRect, commitCrop]);
+
+  useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
       const onWheel = (e: WheelEvent) => {
           e.preventDefault();
-          if (!hasImage || !pipeline) return;
+          if (!hasImage || !pipeline || activeTool === 'crop') return;
           const modeScale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 160 : 1;
           const normalizedDelta = e.deltaY * modeScale;
           const fineTune = e.shiftKey ? 0.38 : 1;
@@ -336,13 +380,14 @@ const RawEditor: React.FC = () => {
 
       canvas.addEventListener('wheel', onWheel, { passive: false });
       return () => canvas.removeEventListener('wheel', onWheel);
-  }, [hasImage, pipeline, applyZoomAtPoint]);
+  }, [hasImage, pipeline, applyZoomAtPoint, activeTool]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && hasImage) {
         e.preventDefault();
         setIsSpacePreviewing(true);
+        spacePressedRef.current = true;
         return;
       }
 
@@ -380,11 +425,13 @@ const RawEditor: React.FC = () => {
       if (e.code === 'Space') {
         e.preventDefault();
         setIsSpacePreviewing(false);
+        spacePressedRef.current = false;
       }
     };
 
     const onWindowBlur = () => {
       setIsSpacePreviewing(false);
+      spacePressedRef.current = false;
     };
 
     window.addEventListener('keydown', onKeyDown);
@@ -425,9 +472,24 @@ const RawEditor: React.FC = () => {
     };
   }, [imageState, pipeline, hasImage]);
 
-  // Handle Pan (Pointer Events)
+  // Handle Pan / Crop (Pointer Events)
   const handlePointerDown = (e: React.PointerEvent) => {
       if (!hasImage) return;
+
+      if (activeTool === 'crop') {
+        const uv = clientToUv(e.clientX, e.clientY);
+        if (uv) {
+          cropDragMode.current = 'se';
+          cropDragAnchor.current = uv;
+          setCropRect({ x0: uv.x, y0: uv.y, x1: uv.x, y1: uv.y });
+        }
+        if (canvasRef.current) canvasRef.current.setPointerCapture(e.pointerId);
+        return;
+      }
+
+      const canPan = activeTool === 'hand' || spacePressedRef.current;
+      if (!canPan) return;
+
       stopInertia();
       panVelocity.current = { x: 0, y: 0 };
       isDragging.current = true;
@@ -440,6 +502,14 @@ const RawEditor: React.FC = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+      if (activeTool === 'crop' && cropDragMode.current !== 'none') {
+        const uv = clientToUv(e.clientX, e.clientY);
+        if (uv && cropDragAnchor.current) {
+          setCropRect({ x0: cropDragAnchor.current.x, y0: cropDragAnchor.current.y, x1: uv.x, y1: uv.y });
+        }
+        return;
+      }
+
       if (!isDragging.current || !hasImage || !pipeline || !containerRef.current) return;
 
       const now = performance.now();
@@ -468,6 +538,13 @@ const RawEditor: React.FC = () => {
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+      if (activeTool === 'crop') {
+        cropDragMode.current = 'none';
+        cropDragAnchor.current = null;
+        if (canvasRef.current) canvasRef.current.releasePointerCapture(e.pointerId);
+        return;
+      }
+
       if (!isDragging.current) return;
       isDragging.current = false;
       if (Math.hypot(panVelocity.current.x, panVelocity.current.y) > 0.25) {
@@ -475,7 +552,7 @@ const RawEditor: React.FC = () => {
       }
       if (canvasRef.current) {
           canvasRef.current.releasePointerCapture(e.pointerId);
-          canvasRef.current.style.cursor = 'grab';
+          canvasRef.current.style.cursor = activeTool === 'hand' ? 'grab' : 'default';
       }
   };
 
@@ -533,6 +610,33 @@ const RawEditor: React.FC = () => {
       setSplitX(Math.min(Math.max(next, 0), 1));
   };
 
+  const cropBox = useMemo(() => {
+    const a = uvToPercent(cropRect.x0, cropRect.y0);
+    const b = uvToPercent(cropRect.x1, cropRect.y1);
+    return {
+      left: Math.min(a.left, b.left),
+      top: Math.min(a.top, b.top),
+      width: Math.max(Math.abs(a.left - b.left), 0.5),
+      height: Math.max(Math.abs(a.top - b.top), 0.5),
+    };
+  }, [cropRect, uiZoom, uiPan, uvToPercent]);
+
+  const applyCropSelection = () => {
+    const w = Math.abs(cropRect.x1 - cropRect.x0);
+    const h = Math.abs(cropRect.y1 - cropRect.y0);
+    if (w < 0.01 || h < 0.01) {
+      toast.error('裁剪区域过小');
+      return;
+    }
+    setCropEnabled(true);
+    setActiveTool('adjust');
+  };
+
+  const resetCrop = () => {
+    setCropRect({ x0: 0, y0: 0, x1: 1, y1: 1 });
+    setCropEnabled(false);
+  };
+
   const resetView = () => {
       commitTransform(1, { x: 0, y: 0 });
   };
@@ -550,6 +654,8 @@ const RawEditor: React.FC = () => {
       pipeline.loadImage(rawImage);
       setImageAspect(rawImage.width / Math.max(rawImage.height, 1));
       setMinimapSrc(createMinimapDataUrl(rawImage.data, rawImage.width, rawImage.height));
+      setCropRect({ x0: 0, y0: 0, x1: 1, y1: 1 });
+      setCropEnabled(false);
       setHasImage(true);
       resetView();
 
@@ -578,13 +684,46 @@ const RawEditor: React.FC = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!pipeline) return;
     try {
-        const url = pipeline.exportFullRes(); // Use full resolution export
+        let url = '';
+        if (cropEnabled) {
+          pipeline.setCropRect(false, cropRect);
+          url = pipeline.exportFullRes();
+          pipeline.setCropRect(true, cropRect);
+        } else {
+          url = pipeline.exportFullRes();
+        }
+
+        let finalUrl = url;
+        if (cropEnabled && metadata) {
+          const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const el = new Image();
+            el.onload = () => resolve(el);
+            el.onerror = () => reject(new Error('crop image load failed'));
+            el.src = url;
+          });
+          const x0 = Math.min(cropRect.x0, cropRect.x1);
+          const y0 = Math.min(cropRect.y0, cropRect.y1);
+          const x1 = Math.max(cropRect.x0, cropRect.x1);
+          const y1 = Math.max(cropRect.y0, cropRect.y1);
+          const sx = Math.round(x0 * metadata.width);
+          const sy = Math.round(y0 * metadata.height);
+          const sw = Math.max(1, Math.round((x1 - x0) * metadata.width));
+          const sh = Math.max(1, Math.round((y1 - y0) * metadata.height));
+          const c = document.createElement('canvas');
+          c.width = sw;
+          c.height = sh;
+          const ctx = c.getContext('2d');
+          if (!ctx) throw new Error('canvas context missing');
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+          finalUrl = c.toDataURL('image/png', 1);
+        }
+
         const link = document.createElement('a');
         link.download = `edited-image-${Date.now()}.png`;
-        link.href = url;
+        link.href = finalUrl;
         link.click();
         toast.success(t.exportSuccess);
     } catch (e) {
@@ -631,6 +770,12 @@ const RawEditor: React.FC = () => {
                 >
                   热区
                 </Button>
+                {activeTool === 'crop' && hasImage && (
+                  <>
+                    <Button size="sm" variant="default" onClick={applyCropSelection}>应用裁剪</Button>
+                    <Button size="sm" variant="ghost" onClick={resetCrop}>重置裁剪</Button>
+                  </>
+                )}
                 <TooltipProvider delayDuration={0}>
                   <Tooltip open={hotkeyTipOpen} onOpenChange={setHotkeyTipOpen}>
                     <TooltipTrigger asChild>
@@ -695,12 +840,22 @@ const RawEditor: React.FC = () => {
 
           <canvas
             ref={canvasRef}
-            className={`max-w-full max-h-full shadow-2xl transition-opacity duration-500 ${hasImage ? 'opacity-100 cursor-grab' : 'opacity-0'}`}
+            className={`max-w-full max-h-full shadow-2xl transition-opacity duration-500 ${hasImage ? 'opacity-100' : 'opacity-0'} ${activeTool === 'hand' ? 'cursor-grab' : activeTool === 'crop' ? 'cursor-crosshair' : 'cursor-default'}`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
           />
+
+          {hasImage && activeTool === 'crop' && (
+            <div className="absolute inset-0 pointer-events-none z-20">
+              <div className="absolute inset-0 bg-black/35" />
+              <div
+                className="absolute border border-white/90 bg-transparent pointer-events-auto"
+                style={{ left: `${cropBox.left}%`, top: `${cropBox.top}%`, width: `${cropBox.width}%`, height: `${cropBox.height}%` }}
+              />
+            </div>
+          )}
 
           {hasImage && compareMode === 'split' && !isSpacePreviewing && (
             <div className="absolute inset-0 pointer-events-none">

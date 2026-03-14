@@ -1,11 +1,11 @@
 import React from 'react';
-import { ImageState, RawMetadata } from '../types';
+import { ImageState, RawMetadata, defaultImageState } from '../types';
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { translations, Language } from '../locales';
-import { Camera, Aperture, Timer, Gauge, Maximize } from "lucide-react";
+import { Camera, Aperture, Timer, Gauge, Maximize, ChevronDown, RotateCcw } from "lucide-react";
 
 interface ControlPanelProps {
   state: ImageState;
@@ -77,6 +77,9 @@ const Histogram: React.FC<{ data: { r: number[]; g: number[]; b: number[] } }> =
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lang, histogram, metadata }) => {
   const t = translations[lang];
+  const [openLight, setOpenLight] = React.useState(true);
+  const [openColor, setOpenColor] = React.useState(true);
+  const [openDetail, setOpenDetail] = React.useState(true);
 
   const handleChange = (key: keyof ImageState, value: number) => {
     onChange({ ...state, [key]: value });
@@ -104,6 +107,18 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
     const base = (state.curve || []).filter((p) => Math.abs(p.x - x) > 0.0001 && p.x > 0 && p.x < 1);
     const next = [...base, { x, y }, { x: 0, y: 0 }, { x: 1, y: 1 }].sort((a, b) => a.x - b.x);
     onChange({ ...state, curve: next });
+  };
+
+  const resetGroup = (group: 'light' | 'color' | 'detail') => {
+    if (group === 'light') {
+      onChange({ ...state, exposure: defaultImageState.exposure, contrast: defaultImageState.contrast, highlights: defaultImageState.highlights, shadows: defaultImageState.shadows, whites: defaultImageState.whites, blacks: defaultImageState.blacks });
+      return;
+    }
+    if (group === 'color') {
+      onChange({ ...state, temperature: defaultImageState.temperature, tint: defaultImageState.tint, vibrance: defaultImageState.vibrance, saturation: defaultImageState.saturation });
+      return;
+    }
+    onChange({ ...state, clarity: defaultImageState.clarity, dehaze: defaultImageState.dehaze, sharpness: defaultImageState.sharpness });
   };
 
   const formatSize = (bytes: number) => {
@@ -174,10 +189,16 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
           )}
 
           {/* Light Section */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-xs text-zinc-400 uppercase tracking-wider">{t.light}</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <button className="flex items-center gap-1.5 text-xs text-zinc-300 uppercase tracking-wider" onClick={() => setOpenLight(v => !v)}>
+                <ChevronDown className={`w-3 h-3 transition-transform ${openLight ? 'rotate-0' : '-rotate-90'}`} />
+                {t.light}
+              </button>
+              <button className="text-zinc-400 hover:text-zinc-200" onClick={() => resetGroup('light')}><RotateCcw className="w-3.5 h-3.5" /></button>
+            </div>
 
-            <div className="space-y-3">
+            {openLight && <div className="space-y-3">
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
                   <Label>{t.exposure}</Label>
@@ -261,7 +282,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
                   onValueChange={([v]) => handleChange('blacks', v)}
                 />
               </div>
-            </div>
+            </div>}
           </div>
 
           <Separator />
@@ -317,10 +338,16 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
           <Separator />
 
           {/* Color Section */}
-          <div className="space-y-4">
-            <h3 className="font-medium text-xs text-zinc-400 uppercase tracking-wider">{t.color}</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <button className="flex items-center gap-1.5 text-xs text-zinc-300 uppercase tracking-wider" onClick={() => setOpenColor(v => !v)}>
+                <ChevronDown className={`w-3 h-3 transition-transform ${openColor ? 'rotate-0' : '-rotate-90'}`} />
+                {t.color}
+              </button>
+              <button className="text-zinc-400 hover:text-zinc-200" onClick={() => resetGroup('color')}><RotateCcw className="w-3.5 h-3.5" /></button>
+            </div>
 
-            <div className="space-y-3">
+            {openColor && <div className="space-y-3">
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
                   <Label>{t.temperature}</Label>
@@ -379,6 +406,22 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
                 />
               </div>
 
+            </div>}
+          </div>
+
+          <Separator />
+
+          {/* Detail Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <button className="flex items-center gap-1.5 text-xs text-zinc-300 uppercase tracking-wider" onClick={() => setOpenDetail(v => !v)}>
+                <ChevronDown className={`w-3 h-3 transition-transform ${openDetail ? 'rotate-0' : '-rotate-90'}`} />
+                细节
+              </button>
+              <button className="text-zinc-400 hover:text-zinc-200" onClick={() => resetGroup('detail')}><RotateCcw className="w-3.5 h-3.5" /></button>
+            </div>
+
+            {openDetail && <div className="space-y-3">
               <div className="space-y-1">
                 <div className="flex justify-between text-xs">
                   <Label>{t.clarity}</Label>
@@ -420,7 +463,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
                   onValueChange={([v]) => handleChange('sharpness', v)}
                 />
               </div>
-            </div>
+            </div>}
           </div>
         </div>
       </ScrollArea>

@@ -55,6 +55,8 @@ export class ImagePipeline {
       uniform float compareMode;
       uniform float splitX;
       uniform float heatOverlay;
+      uniform float cropEnabled;
+      uniform vec4 cropRect;
 
       varying vec2 vUv;
 
@@ -196,16 +198,24 @@ export class ImagePipeline {
       }
 
       void main() {
-        vec4 texel = texture2D(tDiffuse, vUv);
+        vec2 sampleUv = vUv;
+        if (cropEnabled > 0.5) {
+          sampleUv = vec2(
+            mix(cropRect.x, cropRect.z, vUv.x),
+            mix(cropRect.y, cropRect.w, vUv.y)
+          );
+        }
+
+        vec4 texel = texture2D(tDiffuse, sampleUv);
         vec3 color = texel.rgb;
 
         color = applyWhiteBalance(color, temperature, tint);
         color = applyTone(color, exposure, contrast, highlights, shadows, whites, blacks);
         color = applyCurve(color, curveCtrl);
         color = applySaturation(color, saturation, vibrance);
-        color = applyClarity(vUv, color, clarity);
+        color = applyClarity(sampleUv, color, clarity);
         color = applyDehaze(color, dehaze);
-        color = applySharpen(vUv, color, sharpness);
+        color = applySharpen(sampleUv, color, sharpness);
 
         vec3 edited = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
         vec3 original = pow(max(texel.rgb, vec3(0.0)), vec3(1.0 / 2.2));
@@ -290,6 +300,8 @@ export class ImagePipeline {
         compareMode: { value: 0.0 },
         splitX: { value: 0.5 },
         heatOverlay: { value: 0.0 },
+        cropEnabled: { value: 0.0 },
+        cropRect: { value: new THREE.Vector4(0, 0, 1, 1) },
         sharpness: { value: 0.0 },
         resolution: { value: new THREE.Vector2(1, 1) }
       },
@@ -345,6 +357,16 @@ export class ImagePipeline {
     this.material.uniforms.compareMode.value = mode === 'before' ? 1.0 : mode === 'split' ? 2.0 : 0.0;
     this.material.uniforms.splitX.value = Math.min(Math.max(splitX, 0), 1);
     this.material.uniforms.heatOverlay.value = heatOverlay ? 1.0 : 0.0;
+    this.render();
+  }
+
+  setCropRect(enabled: boolean, rect: { x0: number; y0: number; x1: number; y1: number }) {
+    const x0 = Math.min(Math.max(Math.min(rect.x0, rect.x1), 0), 1);
+    const y0 = Math.min(Math.max(Math.min(rect.y0, rect.y1), 0), 1);
+    const x1 = Math.min(Math.max(Math.max(rect.x0, rect.x1), 0), 1);
+    const y1 = Math.min(Math.max(Math.max(rect.y0, rect.y1), 0), 1);
+    this.material.uniforms.cropEnabled.value = enabled ? 1.0 : 0.0;
+    this.material.uniforms.cropRect.value.set(x0, y0, x1, y1);
     this.render();
   }
 
