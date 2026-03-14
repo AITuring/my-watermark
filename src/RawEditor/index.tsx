@@ -4,6 +4,7 @@ import { RawDecoder } from './engine/RawDecoder';
 import { ImagePipeline } from './engine/ImagePipeline';
 import { ControlPanel } from './components/ControlPanel';
 import { CropWorkspace, CropRect } from './components/CropWorkspace';
+import { useHistoryManager } from './components/HistoryManager';
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw, Keyboard, Hand, Crop, SlidersHorizontal, Wand2, Pipette } from "lucide-react";
@@ -60,7 +61,7 @@ const RawEditor: React.FC = () => {
     cropFlipY: boolean;
   };
 
-  const historyRef = useRef<EditorSnapshot[]>([{
+  const initialSnapshot: EditorSnapshot = {
     image: { ...defaultImageState, curve: defaultImageState.curve.map(p => ({ ...p })) },
     cropRect: { x0: 0, y0: 0, x1: 1, y1: 1 },
     cropEnabled: false,
@@ -68,9 +69,7 @@ const RawEditor: React.FC = () => {
     cropQuarterTurns: 0,
     cropFlipX: false,
     cropFlipY: false,
-  }]);
-  const redoRef = useRef<EditorSnapshot[]>([]);
-  const lastCommitTimeRef = useRef(0);
+  };
 
   const t = translations[lang];
   const MIN_ZOOM = 1;
@@ -295,23 +294,22 @@ const RawEditor: React.FC = () => {
     a.cropFlipX === b.cropFlipX && a.cropFlipY === b.cropFlipY
   );
 
-  const pushHistory = (next: EditorSnapshot) => {
-    const now = performance.now();
-    const history = historyRef.current;
-    const last = history[history.length - 1];
-    if (last && isSameSnapshot(last, next)) return;
+  const {
+    push: pushHistory,
+    undo: undoHistory,
+    redo: redoHistory,
+    reset: resetHistory,
+    canUndo,
+    canRedo,
+  } = useHistoryManager<EditorSnapshot>({
+    storageKey: 'raw-editor-history-stack-v1',
+    mergeWindowMs: 140,
+    initial: initialSnapshot,
+    clone: cloneSnapshot,
+    equals: isSameSnapshot,
+  });
 
-    if (history.length > 1 && now - lastCommitTimeRef.current < 140) {
-      history[history.length - 1] = cloneSnapshot(next);
-    } else {
-      history.push(cloneSnapshot(next));
-      if (history.length > 200) history.shift();
-    }
-    redoRef.current = [];
-    lastCommitTimeRef.current = now;
-  };
-
-  const applySnapshot = (snap: EditorSnapshot, trackHistory = false) => {
+  const applySnapshot = (snap: EditorSnapshot) => {
     setImageState(cloneState(snap.image));
     setCropRect({ ...snap.cropRect });
     setCropEnabled(snap.cropEnabled);
@@ -319,7 +317,6 @@ const RawEditor: React.FC = () => {
     setCropQuarterTurns(snap.cropQuarterTurns);
     setCropFlipX(snap.cropFlipX);
     setCropFlipY(snap.cropFlipY);
-    if (trackHistory) pushHistory(snap);
   };
 
   const applyState = (nextState: ImageState, trackHistory = true) => {
@@ -328,20 +325,15 @@ const RawEditor: React.FC = () => {
   };
 
   const handleUndo = () => {
-    const history = historyRef.current;
-    if (!hasImage || history.length <= 1) return;
-    const current = history.pop();
-    if (current) redoRef.current.push(cloneSnapshot(current));
-    const prev = history[history.length - 1];
-    if (prev) applySnapshot(prev, false);
+    if (!hasImage) return;
+    const prev = undoHistory();
+    if (prev) applySnapshot(prev);
   };
 
   const handleRedo = () => {
-    if (!hasImage || redoRef.current.length === 0) return;
-    const next = redoRef.current.pop();
-    if (!next) return;
-    historyRef.current.push(cloneSnapshot(next));
-    applySnapshot(next, false);
+    if (!hasImage) return;
+    const next = redoHistory();
+    if (next) applySnapshot(next);
   };
 
   // Initialize Pipeline
@@ -628,8 +620,37 @@ const RawEditor: React.FC = () => {
       return;
     }
     setCropEnabled(true);
-    pushHistory(makeSnapshot(imageState, { cropEnabled: true }));
+    pushHistory(makeSnapshot(imageState, { cropEnabled: true }), false);
     setActiveTool('adjust');
+  };
+
+  const handleCropStraightenChange = (v: number) => {
+    setCropStraighten(v);
+    pushHistory(makeSnapshot(imageState, { cropStraighten: v }), false);
+  };
+
+  const handleCropRotateCW = () => {
+    const next = (cropQuarterTurns + 1) % 4;
+    setCropQuarterTurns(next);
+    pushHistory(makeSnapshot(imageState, { cropQuarterTurns: next }), false);
+  };
+
+  const handleCropRotateCCW = () => {
+    const next = (cropQuarterTurns + 3) % 4;
+    setCropQuarterTurns(next);
+    pushHistory(makeSnapshot(imageState, { cropQuarterTurns: next }), false);
+  };
+
+  const handleCropFlipH = () => {
+    const next = !cropFlipX;
+    setCropFlipX(next);
+    pushHistory(makeSnapshot(imageState, { cropFlipX: next }), false);
+  };
+
+  const handleCropFlipV = () => {
+    const next = !cropFlipY;
+    setCropFlipY(next);
+    pushHistory(makeSnapshot(imageState, { cropFlipY: next }), false);
   };
 
   const resetCrop = () => {
@@ -691,16 +712,14 @@ const RawEditor: React.FC = () => {
 
       applyState(initialState, false);
       pipeline.updateState(initialState);
-      historyRef.current = [makeSnapshot(initialState, {
+      resetHistory(makeSnapshot(initialState, {
         cropRect: { x0: 0, y0: 0, x1: 1, y1: 1 },
         cropEnabled: false,
         cropStraighten: 0,
         cropQuarterTurns: 0,
         cropFlipX: false,
         cropFlipY: false,
-      })];
-      redoRef.current = [];
-      lastCommitTimeRef.current = performance.now();
+      }));
       setHistogram(pipeline.getHistogramData());
       setMetadata(rawImage.metadata);
       toast.success(`${t.loaded} ${file.name}`);
@@ -820,10 +839,10 @@ const RawEditor: React.FC = () => {
                  <Button size="icon" variant="ghost" onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} title="Switch Language">
                     <Languages className="w-4 h-4" />
                 </Button>
-                 <Button size="icon" variant="ghost" onClick={handleUndo} disabled={!hasImage || historyRef.current.length <= 1} title={`${t.undo} (⌘/Ctrl+Z)`}>
+                 <Button size="icon" variant="ghost" onClick={handleUndo} disabled={!hasImage || !canUndo} title={`${t.undo} (⌘/Ctrl+Z)`}>
                     <Undo2 className="w-4 h-4" />
                 </Button>
-                <Button size="icon" variant="ghost" onClick={handleRedo} disabled={!hasImage || redoRef.current.length === 0} title={`${t.redo} (⇧⌘/Ctrl+Z)`}>
+                <Button size="icon" variant="ghost" onClick={handleRedo} disabled={!hasImage || !canRedo} title={`${t.redo} (⇧⌘/Ctrl+Z)`}>
                     <Redo2 className="w-4 h-4" />
                 </Button>
                 <div className="w-px h-4 bg-border mx-2" />
@@ -876,11 +895,11 @@ const RawEditor: React.FC = () => {
             cropRect={cropRect}
             cropEnabled={cropEnabled}
             straighten={cropStraighten}
-            onStraightenChange={setCropStraighten}
-            onRotateCW={() => setCropQuarterTurns((v) => (v + 1) % 4)}
-            onRotateCCW={() => setCropQuarterTurns((v) => (v + 3) % 4)}
-            onFlipH={() => setCropFlipX((v) => !v)}
-            onFlipV={() => setCropFlipY((v) => !v)}
+            onStraightenChange={handleCropStraightenChange}
+            onRotateCW={handleCropRotateCW}
+            onRotateCCW={handleCropRotateCCW}
+            onFlipH={handleCropFlipH}
+            onFlipV={handleCropFlipV}
             onCropRectChange={setCropRect}
             onApply={applyCropSelection}
             onReset={resetCrop}
