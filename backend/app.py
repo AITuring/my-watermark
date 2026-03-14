@@ -1405,17 +1405,20 @@ async def decode_raw(file: UploadFile = File(...)):
 
             demosaic_algo = getattr(getattr(rawpy, "DemosaicAlgorithm", object), "AHD", None)
             highlight_mode = getattr(getattr(rawpy, "HighlightMode", object), "Blend", None)
-            fbdd_mode = getattr(getattr(rawpy, "FBDDNoiseReductionMode", object), "Light", None)
+            fbdd_mode = getattr(getattr(rawpy, "FBDDNoiseReductionMode", object), "Full", None)
+            if fbdd_mode is None:
+                fbdd_mode = getattr(getattr(rawpy, "FBDDNoiseReductionMode", object), "Light", None)
             output_color = getattr(getattr(rawpy, "ColorSpace", object), "sRGB", None)
 
             postprocess_kwargs = {
                 "output_bps": 16,
                 "use_camera_wb": True,
                 "use_auto_wb": False,
-                "no_auto_bright": False,
-                "auto_bright_thr": 0.01,
-                "bright": 1.0,
-                "gamma": (1, 1),
+                "no_auto_bright": True,
+                "auto_bright_thr": 0.005,
+                "bright": 1.28,
+                "gamma": (2.222, 4.5),
+                "median_filter_passes": 1,
                 "user_flip": 0,
             }
             if demosaic_algo is not None:

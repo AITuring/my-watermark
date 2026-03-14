@@ -183,15 +183,17 @@ export class RawDecoder {
     const pixelCount = width * height;
     const data = new Float32Array(pixelCount * 4);
 
+    const toLinear = (v: number) => Math.pow(Math.min(Math.max(v, 0), 1), 2.2);
+
     const bins = 1024;
     const hist = new Uint32Array(bins);
     const sampleStep = Math.max(1, Math.floor(pixelCount / 120000));
 
     for (let i = 0; i < pixelCount; i += sampleStep) {
       const src = i * channels;
-      const r = (typed[src] ?? 0) / max;
-      const g = (typed[src + 1] ?? r) / max;
-      const b = (typed[src + 2] ?? g) / max;
+      const r = toLinear((typed[src] ?? 0) / max);
+      const g = toLinear((typed[src + 1] ?? (typed[src] ?? 0)) / max);
+      const b = toLinear((typed[src + 2] ?? (typed[src + 1] ?? typed[src] ?? 0)) / max);
       const luma = Math.min(Math.max(0.2126 * r + 0.7152 * g + 0.0722 * b, 0), 1);
       hist[Math.min(bins - 1, Math.floor(luma * (bins - 1)))]++;
     }
@@ -209,17 +211,17 @@ export class RawDecoder {
 
     const medianLuma = Math.max(findPercentile(0.5), 1e-4);
     const p95Luma = Math.max(findPercentile(0.95), 1e-4);
-    const targetMedian = 0.32;
+    const targetMedian = 0.36;
     const gainByMedian = targetMedian / medianLuma;
-    const gainByHighlight = 0.98 / p95Luma;
-    const gain = Math.min(Math.max(1.0, gainByMedian), gainByHighlight, 3.2);
+    const gainByHighlight = 0.995 / p95Luma;
+    const gain = Math.min(Math.max(1.15, gainByMedian), gainByHighlight, 4.6);
 
     for (let i = 0; i < pixelCount; i++) {
       const src = i * channels;
       const dst = i * 4;
-      const r = Math.min(Math.max(((typed[src] ?? 0) / max) * gain, 0), 1);
-      const g = Math.min(Math.max(((typed[src + 1] ?? typed[src] ?? 0) / max) * gain, 0), 1);
-      const b = Math.min(Math.max(((typed[src + 2] ?? typed[src + 1] ?? typed[src] ?? 0) / max) * gain, 0), 1);
+      const r = Math.min(Math.max(toLinear((typed[src] ?? 0) / max) * gain, 0), 1);
+      const g = Math.min(Math.max(toLinear((typed[src + 1] ?? typed[src] ?? 0) / max) * gain, 0), 1);
+      const b = Math.min(Math.max(toLinear((typed[src + 2] ?? typed[src + 1] ?? typed[src] ?? 0) / max) * gain, 0), 1);
       data[dst] = r;
       data[dst + 1] = g;
       data[dst + 2] = b;
