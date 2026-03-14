@@ -5,7 +5,7 @@ import { ImagePipeline } from './engine/ImagePipeline';
 import { ControlPanel } from './components/ControlPanel';
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw, Keyboard } from "lucide-react";
+import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw, Keyboard, Hand, Crop, SlidersHorizontal, Wand2, Pipette } from "lucide-react";
 import { toast } from "sonner";
 import { translations, Language } from './locales';
 
@@ -32,6 +32,7 @@ const RawEditor: React.FC = () => {
   const [showHeatOverlay, setShowHeatOverlay] = useState(false);
   const [isSpacePreviewing, setIsSpacePreviewing] = useState(false);
   const [hotkeyTipOpen, setHotkeyTipOpen] = useState(false);
+  const [activeTool, setActiveTool] = useState<'adjust' | 'hand' | 'crop' | 'mask' | 'picker'>('adjust');
 
   const isDragging = useRef(false);
   const isMinimapDragging = useRef(false);
@@ -592,13 +593,14 @@ const RawEditor: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans">
+    <div className="flex h-screen bg-[#2b2b2b] text-zinc-200 overflow-hidden font-sans">
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col h-full">
         {/* Toolbar */}
-        <div className="h-12 border-b bg-muted/30 flex items-center px-4 justify-between">
-            <div className="flex items-center gap-2">
-                <span className="font-bold text-lg tracking-tight">{t.rawStudio}</span>
+        <div className="h-11 border-b border-zinc-700 bg-[#3a3a3a] flex items-center px-4 justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+                <span className="font-semibold tracking-tight text-sm">{t.rawStudio}</span>
+                {metadata?.name && <span className="text-xs text-zinc-400 truncate max-w-[260px]">{metadata.name}</span>}
             </div>
 
             <div className="flex items-center gap-2">
@@ -665,7 +667,7 @@ const RawEditor: React.FC = () => {
         </div>
 
         {/* Canvas Area */}
-        <div ref={containerRef} className="flex-1 relative bg-[#1e1e1e] overflow-hidden flex items-center justify-center">
+        <div ref={containerRef} className="flex-1 relative bg-[#1f1f1f] overflow-hidden flex items-center justify-center">
           {!hasImage && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-500 z-10">
               <div className="border-2 border-dashed border-zinc-700 rounded-xl p-12 flex flex-col items-center hover:border-zinc-500 transition-colors">
@@ -766,8 +768,22 @@ const RawEditor: React.FC = () => {
           )}
 
           {hasImage && (
-              <div className="absolute bottom-4 right-4 bg-black/50 backdrop-blur text-white text-xs px-2 py-1 rounded border border-white/10 pointer-events-none select-none">
-                  {Math.round(uiZoom * 100)}%
+            <div className="absolute top-1/2 right-3 -translate-y-1/2 flex flex-col gap-1.5 z-20">
+              <Button size="icon" variant={activeTool === 'adjust' ? 'default' : 'ghost'} className="h-8 w-8 bg-[#3a3a3a] hover:bg-[#4a4a4a]" onClick={() => setActiveTool('adjust')}><SlidersHorizontal className="w-4 h-4" /></Button>
+              <Button size="icon" variant={activeTool === 'hand' ? 'default' : 'ghost'} className="h-8 w-8 bg-[#3a3a3a] hover:bg-[#4a4a4a]" onClick={() => setActiveTool('hand')}><Hand className="w-4 h-4" /></Button>
+              <Button size="icon" variant={activeTool === 'crop' ? 'default' : 'ghost'} className="h-8 w-8 bg-[#3a3a3a] hover:bg-[#4a4a4a]" onClick={() => setActiveTool('crop')}><Crop className="w-4 h-4" /></Button>
+              <Button size="icon" variant={activeTool === 'mask' ? 'default' : 'ghost'} className="h-8 w-8 bg-[#3a3a3a] hover:bg-[#4a4a4a]" onClick={() => setActiveTool('mask')}><Wand2 className="w-4 h-4" /></Button>
+              <Button size="icon" variant={activeTool === 'picker' ? 'default' : 'ghost'} className="h-8 w-8 bg-[#3a3a3a] hover:bg-[#4a4a4a]" onClick={() => setActiveTool('picker')}><Pipette className="w-4 h-4" /></Button>
+            </div>
+          )}
+
+          {hasImage && (
+              <div className="absolute bottom-0 inset-x-0 h-9 bg-[#343434] border-t border-zinc-700 flex items-center justify-between px-3 text-xs text-zinc-300">
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={resetView}>适应</Button>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => commitTransform(2, transform.current.pan)}>1:1</Button>
+                  </div>
+                  <div>{Math.round(uiZoom * 100)}%</div>
               </div>
           )}
         </div>

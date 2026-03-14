@@ -115,13 +115,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
   };
 
   return (
-    <div className="w-80 bg-background border-l h-full flex flex-col">
-      <div className="p-4 border-b font-semibold">{t.adjustments}</div>
-      <ScrollArea className="flex-1 p-4">
+    <div className="w-[360px] bg-[#3a3a3a] border-l border-zinc-700 h-full flex flex-col text-zinc-200">
+      <div className="h-11 px-4 border-b border-zinc-700 font-medium text-sm flex items-center">{t.adjustments}</div>
+      <ScrollArea className="flex-1 p-3">
         <div className="space-y-6">
           {/* Metadata */}
           {metadata && (
-              <div className="mb-6 space-y-3 bg-zinc-950 p-4 rounded-xl border border-zinc-800 shadow-sm">
+              <div className="mb-4 space-y-3 bg-[#2f2f2f] p-3 rounded-md border border-zinc-700">
                    <div className="flex items-center justify-between text-xs font-medium text-zinc-300 border-b border-zinc-800/50 pb-2 mb-2">
                       <div className="flex items-center gap-2">
                         <Maximize className="w-3.5 h-3.5 text-zinc-500" />
@@ -168,14 +168,14 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
 
           {/* Histogram */}
           {histogram && (
-              <div className="mb-4">
+              <div className="mb-3">
                   <Histogram data={histogram} />
               </div>
           )}
 
           {/* Light Section */}
           <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">{t.light}</h3>
+            <h3 className="font-medium text-xs text-zinc-400 uppercase tracking-wider">{t.light}</h3>
 
             <div className="space-y-3">
               <div className="space-y-1">
@@ -267,7 +267,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
           <Separator />
 
           <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">{t.curve}</h3>
+            <h3 className="font-medium text-xs text-zinc-400 uppercase tracking-wider">{t.curve}</h3>
 
             <div className="space-y-3">
               <div className="space-y-1">
@@ -318,7 +318,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
 
           {/* Color Section */}
           <div className="space-y-4">
-            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">{t.color}</h3>
+            <h3 className="font-medium text-xs text-zinc-400 uppercase tracking-wider">{t.color}</h3>
 
             <div className="space-y-3">
               <div className="space-y-1">
