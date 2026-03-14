@@ -417,6 +417,41 @@ export class ImagePipeline {
     this.renderer.render(this.scene, this.camera);
   }
 
+  exportMinimapPreview(maxWidth: number = 320, maxHeight: number = 200): string | null {
+    if (!this.texture) return null;
+
+    const currentSize = new THREE.Vector2();
+    this.renderer.getSize(currentSize);
+    const currentPixelRatio = this.renderer.getPixelRatio();
+    const originalContainerAspect = this.material.uniforms.containerAspectRatio.value;
+    const savedZoom = this.material.uniforms.zoom.value;
+    const savedPan = this.material.uniforms.pan.value.clone();
+
+    const imageWidth = this.texture.image.width;
+    const imageHeight = this.texture.image.height;
+    const scale = Math.min(maxWidth / imageWidth, maxHeight / imageHeight, 1);
+    const width = Math.max(1, Math.round(imageWidth * scale));
+    const height = Math.max(1, Math.round(imageHeight * scale));
+
+    this.renderer.setPixelRatio(1);
+    this.renderer.setSize(width, height, false);
+    this.material.uniforms.containerAspectRatio.value = imageWidth / imageHeight;
+    this.material.uniforms.zoom.value = 1;
+    this.material.uniforms.pan.value.set(0, 0);
+
+    this.render();
+    const dataUrl = this.canvas.toDataURL('image/jpeg', 0.78);
+
+    this.renderer.setPixelRatio(currentPixelRatio);
+    this.renderer.setSize(currentSize.x, currentSize.y, false);
+    this.material.uniforms.containerAspectRatio.value = originalContainerAspect;
+    this.material.uniforms.zoom.value = savedZoom;
+    this.material.uniforms.pan.value.copy(savedPan);
+    this.render();
+
+    return dataUrl;
+  }
+
   exportFullRes(type: 'image/png' | 'image/jpeg' = 'image/png', quality: number = 1.0): string {
     if (!this.texture) return '';
 

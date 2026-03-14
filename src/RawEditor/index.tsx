@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ImageState, defaultImageState, RawMetadata } from './types';
 import { RawDecoder } from './engine/RawDecoder';
 import { ImagePipeline } from './engine/ImagePipeline';
@@ -22,16 +22,136 @@ const RawEditor: React.FC = () => {
   // Viewport Transform State
   // Use refs for hot path (render loop) to avoid React re-render lag
   const transform = useRef({ zoom: 1, pan: { x: 0, y: 0 } });
-  // UI State for display only (throttled/batched by React)
   const [uiZoom, setUiZoom] = useState(1);
+  const [uiPan, setUiPan] = useState({ x: 0, y: 0 });
+  const [imageAspect, setImageAspect] = useState(1);
+  const [minimapSrc, setMinimapSrc] = useState<string | null>(null);
 
   const isDragging = useRef(false);
+  const isMinimapDragging = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
+  const lastDragTs = useRef(0);
+  const panVelocity = useRef({ x: 0, y: 0 });
+  const inertiaRaf = useRef<number | null>(null);
+  const minimapRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<ImageState[]>([{ ...defaultImageState, curve: defaultImageState.curve.map(p => ({ ...p })) }]);
   const redoRef = useRef<ImageState[]>([]);
   const lastCommitTimeRef = useRef(0);
 
   const t = translations[lang];
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 12;
+  const WHEEL_SENSITIVITY = 0.001;
+
+  const stopInertia = useCallback(() => {
+    if (inertiaRaf.current !== null) {
+      cancelAnimationFrame(inertiaRaf.current);
+      inertiaRaf.current = null;
+    }
+  }, []);
+
+  const createMinimapDataUrl = useCallback((rawData: Float32Array, srcW: number, srcH: number) => {
+    const maxEdge = 256;
+    const scale = Math.min(1, maxEdge / Math.max(srcW, srcH));
+    const w = Math.max(1, Math.round(srcW * scale));
+    const h = Math.max(1, Math.round(srcH * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    const imageData = ctx.createImageData(w, h);
+    const out = imageData.data;
+    for (let y = 0; y < h; y++) {
+      const sy = Math.min(srcH - 1, Math.floor((y / h) * srcH));
+      for (let x = 0; x < w; x++) {
+        const sx = Math.min(srcW - 1, Math.floor((x / w) * srcW));
+        const si = (sy * srcW + sx) * 4;
+        const di = (y * w + x) * 4;
+        const r = Math.pow(Math.max(0, Math.min(1, rawData[si])), 1 / 2.2);
+        const g = Math.pow(Math.max(0, Math.min(1, rawData[si + 1])), 1 / 2.2);
+        const b = Math.pow(Math.max(0, Math.min(1, rawData[si + 2])), 1 / 2.2);
+        out[di] = Math.round(r * 255);
+        out[di + 1] = Math.round(g * 255);
+        out[di + 2] = Math.round(b * 255);
+        out[di + 3] = 255;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL('image/jpeg', 0.82);
+  }, []);
+
+  const getContainScale = useCallback(() => {
+    if (!containerRef.current || !imageAspect) return { sx: 1, sy: 1 };
+    const rect = containerRef.current.getBoundingClientRect();
+    const containerAspect = rect.width / Math.max(rect.height, 1);
+    if (containerAspect > imageAspect) {
+      return { sx: imageAspect / containerAspect, sy: 1 };
+    }
+    return { sx: 1, sy: containerAspect / imageAspect };
+  }, [imageAspect]);
+
+  const clampPan = useCallback((pan: { x: number; y: number }, zoom: number) => {
+    const { sx, sy } = getContainScale();
+    const limitX = Math.max(0, sx * zoom - 1);
+    const limitY = Math.max(0, sy * zoom - 1);
+    return {
+      x: Math.min(Math.max(pan.x, -limitX), limitX),
+      y: Math.min(Math.max(pan.y, -limitY), limitY),
+    };
+  }, [getContainScale]);
+
+  const commitTransform = useCallback((zoom: number, pan: { x: number; y: number }) => {
+    if (!pipeline) return;
+    const clampedZoom = Math.min(Math.max(zoom, MIN_ZOOM), MAX_ZOOM);
+    const clampedPan = clampPan(pan, clampedZoom);
+    transform.current = { zoom: clampedZoom, pan: clampedPan };
+    pipeline.updateTransform(clampedZoom, clampedPan);
+    setUiZoom(clampedZoom);
+    setUiPan(clampedPan);
+  }, [pipeline, clampPan]);
+
+  const startInertia = useCallback(() => {
+    stopInertia();
+    let prev = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.032, Math.max(0.001, (now - prev) / 1000));
+      prev = now;
+      const decay = Math.pow(0.08, dt);
+      panVelocity.current.x *= decay;
+      panVelocity.current.y *= decay;
+      const speed = Math.hypot(panVelocity.current.x, panVelocity.current.y);
+      if (speed < 0.02) {
+        stopInertia();
+        return;
+      }
+      const nextPan = {
+        x: transform.current.pan.x + panVelocity.current.x * dt,
+        y: transform.current.pan.y + panVelocity.current.y * dt,
+      };
+      commitTransform(transform.current.zoom, nextPan);
+      inertiaRaf.current = requestAnimationFrame(tick);
+    };
+    inertiaRaf.current = requestAnimationFrame(tick);
+  }, [commitTransform, stopInertia]);
+
+  const applyZoomAtPoint = useCallback((clientX: number, clientY: number, targetZoom: number) => {
+    if (!hasImage || !containerRef.current || !pipeline) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = 1 - ((clientY - rect.top) / rect.height) * 2;
+    const { sx, sy } = getContainScale();
+    const z0 = transform.current.zoom;
+    const z1 = Math.min(Math.max(targetZoom, MIN_ZOOM), MAX_ZOOM);
+    const pan0 = transform.current.pan;
+    const worldX = (ndcX - pan0.x) / (sx * z0);
+    const worldY = (ndcY - pan0.y) / (sy * z0);
+    const nextPan = {
+      x: ndcX - worldX * sx * z1,
+      y: ndcY - worldY * sy * z1,
+    };
+    commitTransform(z1, nextPan);
+  }, [hasImage, pipeline, getContainScale, commitTransform]);
 
   const getRawBaselineByModel = (model?: string): Partial<ImageState> => {
     const m = (model || '').toLowerCase();
@@ -159,18 +279,21 @@ const RawEditor: React.FC = () => {
     }
   }, [canvasRef, pipeline]);
 
-  // Handle Window Resize
   useEffect(() => {
       const handleResize = () => {
           if (containerRef.current && pipeline) {
               pipeline.resize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+              commitTransform(transform.current.zoom, transform.current.pan);
           }
       };
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
-  }, [pipeline]);
+  }, [pipeline, commitTransform]);
 
-  // Handle Wheel Event (Non-passive for prevention)
+  useEffect(() => {
+    return () => stopInertia();
+  }, [stopInertia]);
+
   useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -178,21 +301,16 @@ const RawEditor: React.FC = () => {
       const onWheel = (e: WheelEvent) => {
           e.preventDefault();
           if (!hasImage || !pipeline) return;
-
-          const zoomSensitivity = 0.001;
-          const currentZoom = transform.current.zoom;
-          const newZoom = Math.min(Math.max(0.1, currentZoom - e.deltaY * zoomSensitivity), 10);
-
-          transform.current.zoom = newZoom;
-          pipeline.updateTransform(newZoom, transform.current.pan);
-
-          // Update UI state (React will batch this, but visual update is instant via pipeline)
-          setUiZoom(newZoom);
+          const modeScale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 160 : 1;
+          const normalizedDelta = e.deltaY * modeScale;
+          const fineTune = e.shiftKey ? 0.38 : 1;
+          const factor = Math.exp(-normalizedDelta * WHEEL_SENSITIVITY * fineTune);
+          applyZoomAtPoint(e.clientX, e.clientY, transform.current.zoom * factor);
       };
 
       canvas.addEventListener('wheel', onWheel, { passive: false });
       return () => canvas.removeEventListener('wheel', onWheel);
-  }, [hasImage, pipeline]);
+  }, [hasImage, pipeline, applyZoomAtPoint]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -219,21 +337,40 @@ const RawEditor: React.FC = () => {
 
   // Sync State with Pipeline
   useEffect(() => {
-    if (pipeline) {
-      pipeline.updateState(imageState);
-      // Debounce histogram update slightly to avoid too many reads
-      const timer = setTimeout(() => {
-          setHistogram(pipeline.getHistogramData());
-      }, 50);
-      return () => clearTimeout(timer);
+    if (!pipeline) return;
+
+    pipeline.updateState(imageState);
+
+    const histogramTimer = window.setTimeout(() => {
+      setHistogram(pipeline.getHistogramData());
+    }, 50);
+
+    let minimapTimer: number | undefined;
+    if (hasImage) {
+      minimapTimer = window.setTimeout(() => {
+        const preview = pipeline.exportMinimapPreview(320, 200);
+        if (preview) {
+          setMinimapSrc(preview);
+        }
+      }, 90);
     }
-  }, [imageState, pipeline]);
+
+    return () => {
+      window.clearTimeout(histogramTimer);
+      if (minimapTimer !== undefined) {
+        window.clearTimeout(minimapTimer);
+      }
+    };
+  }, [imageState, pipeline, hasImage]);
 
   // Handle Pan (Pointer Events)
   const handlePointerDown = (e: React.PointerEvent) => {
       if (!hasImage) return;
+      stopInertia();
+      panVelocity.current = { x: 0, y: 0 };
       isDragging.current = true;
       lastMousePos.current = { x: e.clientX, y: e.clientY };
+      lastDragTs.current = performance.now();
       if (canvasRef.current) {
           canvasRef.current.setPointerCapture(e.pointerId);
           canvasRef.current.style.cursor = 'grabbing';
@@ -241,29 +378,39 @@ const RawEditor: React.FC = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-      if (!isDragging.current || !hasImage || !pipeline) return;
+      if (!isDragging.current || !hasImage || !pipeline || !containerRef.current) return;
+
+      const now = performance.now();
+      const dt = Math.max(0.001, (now - lastDragTs.current) / 1000);
+      lastDragTs.current = now;
 
       const dx = e.clientX - lastMousePos.current.x;
       const dy = e.clientY - lastMousePos.current.y;
-
       lastMousePos.current = { x: e.clientX, y: e.clientY };
 
-      if (containerRef.current) {
-          const { width, height } = containerRef.current.getBoundingClientRect();
-          const currentZoom = transform.current.zoom;
+      const { width, height } = containerRef.current.getBoundingClientRect();
+      const currentZoom = transform.current.zoom;
+      const deltaPan = {
+          x: (dx / width * 2.0) / currentZoom,
+          y: -(dy / height * 2.0) / currentZoom
+      };
+      panVelocity.current = {
+          x: deltaPan.x / dt,
+          y: deltaPan.y / dt,
+      };
 
-          const newPan = {
-              x: transform.current.pan.x + (dx / width * 2.0) / currentZoom,
-              y: transform.current.pan.y - (dy / height * 2.0) / currentZoom // WebGL Y is up, Screen Y is down
-          };
-
-          transform.current.pan = newPan;
-          pipeline.updateTransform(currentZoom, newPan);
-      }
+      commitTransform(currentZoom, {
+          x: transform.current.pan.x + deltaPan.x,
+          y: transform.current.pan.y + deltaPan.y,
+      });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+      if (!isDragging.current) return;
       isDragging.current = false;
+      if (Math.hypot(panVelocity.current.x, panVelocity.current.y) > 0.25) {
+          startInertia();
+      }
       if (canvasRef.current) {
           canvasRef.current.releasePointerCapture(e.pointerId);
           canvasRef.current.style.cursor = 'grab';
@@ -273,12 +420,52 @@ const RawEditor: React.FC = () => {
 
 
 
-  const resetView = () => {
-      transform.current = { zoom: 1, pan: { x: 0, y: 0 } };
-      setUiZoom(1);
-      if (pipeline) {
-          pipeline.updateTransform(1, { x: 0, y: 0 });
+  const zoomAtCenter = (factor: number) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      applyZoomAtPoint(rect.left + rect.width / 2, rect.top + rect.height / 2, transform.current.zoom * factor);
+  };
+
+  const minimap = useMemo(() => {
+      if (!hasImage || !imageAspect) return null;
+      const width = 168;
+      const height = 112;
+      let imageW = width;
+      let imageH = width / imageAspect;
+      if (imageH > height) {
+          imageH = height;
+          imageW = height * imageAspect;
       }
+      const offsetX = (width - imageW) / 2;
+      const offsetY = (height - imageH) / 2;
+      const { sx, sy } = getContainScale();
+      const z = uiZoom;
+      const centerX = Math.min(Math.max(0.5 - uiPan.x / (2 * sx * z), 0), 1);
+      const centerY = Math.min(Math.max(0.5 + uiPan.y / (2 * sy * z), 0), 1);
+      const viewW = Math.max(8, imageW / z);
+      const viewH = Math.max(8, imageH / z);
+      const viewportX = Math.min(offsetX + imageW - viewW, Math.max(offsetX, offsetX + centerX * imageW - viewW / 2));
+      const viewportY = Math.min(offsetY + imageH - viewH, Math.max(offsetY, offsetY + centerY * imageH - viewH / 2));
+      return { width, height, imageW, imageH, offsetX, offsetY, viewportX, viewportY, viewW, viewH };
+  }, [hasImage, imageAspect, uiZoom, uiPan, getContainScale]);
+
+  const updatePanFromMinimap = (clientX: number, clientY: number) => {
+      if (!minimap || !minimapRef.current) return;
+      const rect = minimapRef.current.getBoundingClientRect();
+      const localX = clientX - rect.left - minimap.offsetX;
+      const localY = clientY - rect.top - minimap.offsetY;
+      const nx = Math.min(Math.max(localX / minimap.imageW, 0), 1);
+      const ny = Math.min(Math.max(localY / minimap.imageH, 0), 1);
+      const { sx, sy } = getContainScale();
+      const z = transform.current.zoom;
+      commitTransform(z, {
+        x: (0.5 - nx) * 2 * sx * z,
+        y: (ny - 0.5) * 2 * sy * z,
+      });
+  };
+
+  const resetView = () => {
+      commitTransform(1, { x: 0, y: 0 });
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,6 +479,8 @@ const RawEditor: React.FC = () => {
       const decoder = new RawDecoder();
       const rawImage = await decoder.decode(file);
       pipeline.loadImage(rawImage);
+      setImageAspect(rawImage.width / Math.max(rawImage.height, 1));
+      setMinimapSrc(createMinimapDataUrl(rawImage.data, rawImage.width, rawImage.height));
       setHasImage(true);
       resetView();
 
@@ -345,7 +534,13 @@ const RawEditor: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
-                 <Button size="icon" variant="ghost" onClick={resetView} disabled={!hasImage} title="Reset View">
+                 <Button size="icon" variant="ghost" onClick={() => zoomAtCenter(1.2)} disabled={!hasImage} title="Zoom In">
+                    <ZoomIn className="w-4 h-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => zoomAtCenter(1 / 1.2)} disabled={!hasImage} title="Zoom Out">
+                    <ZoomOut className="w-4 h-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={resetView} disabled={!hasImage} title="Reset View">
                     <RotateCcw className="w-4 h-4" />
                 </Button>
                 <div className="w-px h-4 bg-border mx-2" />
@@ -402,8 +597,42 @@ const RawEditor: React.FC = () => {
             onPointerLeave={handlePointerUp}
           />
 
+          {hasImage && minimap && (
+              <div
+                ref={minimapRef}
+                className="absolute bottom-4 left-4 bg-black/55 backdrop-blur rounded-md border border-white/20 shadow-lg p-1.5 select-none touch-none"
+                onPointerDown={(e) => {
+                  stopInertia();
+                  isMinimapDragging.current = true;
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  updatePanFromMinimap(e.clientX, e.clientY);
+                }}
+                onPointerMove={(e) => {
+                  if (!isMinimapDragging.current) return;
+                  updatePanFromMinimap(e.clientX, e.clientY);
+                }}
+                onPointerUp={(e) => {
+                  isMinimapDragging.current = false;
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+                }}
+                onPointerCancel={() => {
+                  isMinimapDragging.current = false;
+                }}
+              >
+                <div className="relative" style={{ width: minimap.width, height: minimap.height }}>
+                  <div className="absolute rounded-sm bg-zinc-900 overflow-hidden" style={{ left: minimap.offsetX, top: minimap.offsetY, width: minimap.imageW, height: minimap.imageH }}>
+                    {minimapSrc && <img src={minimapSrc} alt="minimap" className="w-full h-full object-cover pointer-events-none" draggable={false} />}
+                  </div>
+                  <div
+                    className="absolute border border-white/90 rounded-sm bg-white/10"
+                    style={{ left: minimap.viewportX, top: minimap.viewportY, width: minimap.viewW, height: minimap.viewH }}
+                  />
+                </div>
+              </div>
+          )}
+
           {hasImage && (
-              <div className="absolute bottom-4 left-4 bg-black/50 backdrop-blur text-white text-xs px-2 py-1 rounded border border-white/10 pointer-events-none select-none">
+              <div className="absolute bottom-4 right-4 bg-black/50 backdrop-blur text-white text-xs px-2 py-1 rounded border border-white/10 pointer-events-none select-none">
                   {Math.round(uiZoom * 100)}%
               </div>
           )}
