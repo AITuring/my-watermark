@@ -3,6 +3,7 @@ import { ImageState, defaultImageState, RawMetadata } from './types';
 import { RawDecoder } from './engine/RawDecoder';
 import { ImagePipeline } from './engine/ImagePipeline';
 import { ControlPanel } from './components/ControlPanel';
+import { CropWorkspace, CropRect } from './components/CropWorkspace';
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw, Keyboard, Hand, Crop, SlidersHorizontal, Wand2, Pipette } from "lucide-react";
@@ -33,22 +34,42 @@ const RawEditor: React.FC = () => {
   const [isSpacePreviewing, setIsSpacePreviewing] = useState(false);
   const [hotkeyTipOpen, setHotkeyTipOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<'adjust' | 'hand' | 'crop' | 'mask' | 'picker'>('adjust');
-  const [cropRect, setCropRect] = useState({ x0: 0, y0: 0, x1: 1, y1: 1 });
+  const [cropRect, setCropRect] = useState<CropRect>({ x0: 0, y0: 0, x1: 1, y1: 1 });
   const [cropEnabled, setCropEnabled] = useState(false);
+  const [cropStraighten, setCropStraighten] = useState(0);
+  const [cropQuarterTurns, setCropQuarterTurns] = useState(0);
+  const [cropFlipX, setCropFlipX] = useState(false);
+  const [cropFlipY, setCropFlipY] = useState(false);
 
   const isDragging = useRef(false);
   const isMinimapDragging = useRef(false);
   const isSplitDragging = useRef(false);
-  const cropDragMode = useRef<'none' | 'move' | 'nw' | 'ne' | 'sw' | 'se'>('none');
-  const cropDragAnchor = useRef<{ x: number; y: number } | null>(null);
   const spacePressedRef = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
   const lastDragTs = useRef(0);
   const panVelocity = useRef({ x: 0, y: 0 });
   const inertiaRaf = useRef<number | null>(null);
   const minimapRef = useRef<HTMLDivElement>(null);
-  const historyRef = useRef<ImageState[]>([{ ...defaultImageState, curve: defaultImageState.curve.map(p => ({ ...p })) }]);
-  const redoRef = useRef<ImageState[]>([]);
+  type EditorSnapshot = {
+    image: ImageState;
+    cropRect: CropRect;
+    cropEnabled: boolean;
+    cropStraighten: number;
+    cropQuarterTurns: number;
+    cropFlipX: boolean;
+    cropFlipY: boolean;
+  };
+
+  const historyRef = useRef<EditorSnapshot[]>([{
+    image: { ...defaultImageState, curve: defaultImageState.curve.map(p => ({ ...p })) },
+    cropRect: { x0: 0, y0: 0, x1: 1, y1: 1 },
+    cropEnabled: false,
+    cropStraighten: 0,
+    cropQuarterTurns: 0,
+    cropFlipX: false,
+    cropFlipY: false,
+  }]);
+  const redoRef = useRef<EditorSnapshot[]>([]);
   const lastCommitTimeRef = useRef(0);
 
   const t = translations[lang];
@@ -234,79 +255,93 @@ const RawEditor: React.FC = () => {
     curve: state.curve.map((p) => ({ ...p })),
   });
 
+  const cloneSnapshot = (snap: EditorSnapshot): EditorSnapshot => ({
+    image: cloneState(snap.image),
+    cropRect: { ...snap.cropRect },
+    cropEnabled: snap.cropEnabled,
+    cropStraighten: snap.cropStraighten,
+    cropQuarterTurns: snap.cropQuarterTurns,
+    cropFlipX: snap.cropFlipX,
+    cropFlipY: snap.cropFlipY,
+  });
+
+  const makeSnapshot = (image: ImageState, overrides?: Partial<EditorSnapshot>): EditorSnapshot => ({
+    image: cloneState(overrides?.image ?? image),
+    cropRect: { ...(overrides?.cropRect ?? cropRect) },
+    cropEnabled: overrides?.cropEnabled ?? cropEnabled,
+    cropStraighten: overrides?.cropStraighten ?? cropStraighten,
+    cropQuarterTurns: overrides?.cropQuarterTurns ?? cropQuarterTurns,
+    cropFlipX: overrides?.cropFlipX ?? cropFlipX,
+    cropFlipY: overrides?.cropFlipY ?? cropFlipY,
+  });
+
   const isSameState = (a: ImageState, b: ImageState): boolean => {
     if (
-      a.exposure !== b.exposure ||
-      a.contrast !== b.contrast ||
-      a.highlights !== b.highlights ||
-      a.shadows !== b.shadows ||
-      a.whites !== b.whites ||
-      a.blacks !== b.blacks ||
-      a.temperature !== b.temperature ||
-      a.tint !== b.tint ||
-      a.saturation !== b.saturation ||
-      a.vibrance !== b.vibrance ||
-      a.clarity !== b.clarity ||
-      a.dehaze !== b.dehaze ||
-      a.sharpness !== b.sharpness ||
-      a.curve.length !== b.curve.length
+      a.exposure !== b.exposure || a.contrast !== b.contrast || a.highlights !== b.highlights || a.shadows !== b.shadows ||
+      a.whites !== b.whites || a.blacks !== b.blacks || a.temperature !== b.temperature || a.tint !== b.tint ||
+      a.saturation !== b.saturation || a.vibrance !== b.vibrance || a.clarity !== b.clarity || a.dehaze !== b.dehaze ||
+      a.sharpness !== b.sharpness || a.curve.length !== b.curve.length
     ) return false;
-
     for (let i = 0; i < a.curve.length; i++) {
       if (a.curve[i].x !== b.curve[i].x || a.curve[i].y !== b.curve[i].y) return false;
     }
     return true;
   };
 
-  const pushHistory = (nextState: ImageState) => {
+  const isSameSnapshot = (a: EditorSnapshot, b: EditorSnapshot): boolean => (
+    isSameState(a.image, b.image) &&
+    a.cropRect.x0 === b.cropRect.x0 && a.cropRect.y0 === b.cropRect.y0 && a.cropRect.x1 === b.cropRect.x1 && a.cropRect.y1 === b.cropRect.y1 &&
+    a.cropEnabled === b.cropEnabled && a.cropStraighten === b.cropStraighten && a.cropQuarterTurns === b.cropQuarterTurns &&
+    a.cropFlipX === b.cropFlipX && a.cropFlipY === b.cropFlipY
+  );
+
+  const pushHistory = (next: EditorSnapshot) => {
     const now = performance.now();
     const history = historyRef.current;
     const last = history[history.length - 1];
-
-    if (last && isSameState(last, nextState)) return;
+    if (last && isSameSnapshot(last, next)) return;
 
     if (history.length > 1 && now - lastCommitTimeRef.current < 140) {
-      history[history.length - 1] = cloneState(nextState);
+      history[history.length - 1] = cloneSnapshot(next);
     } else {
-      history.push(cloneState(nextState));
-      if (history.length > 200) {
-        history.shift();
-      }
+      history.push(cloneSnapshot(next));
+      if (history.length > 200) history.shift();
     }
-
     redoRef.current = [];
     lastCommitTimeRef.current = now;
   };
 
+  const applySnapshot = (snap: EditorSnapshot, trackHistory = false) => {
+    setImageState(cloneState(snap.image));
+    setCropRect({ ...snap.cropRect });
+    setCropEnabled(snap.cropEnabled);
+    setCropStraighten(snap.cropStraighten);
+    setCropQuarterTurns(snap.cropQuarterTurns);
+    setCropFlipX(snap.cropFlipX);
+    setCropFlipY(snap.cropFlipY);
+    if (trackHistory) pushHistory(snap);
+  };
+
   const applyState = (nextState: ImageState, trackHistory = true) => {
     setImageState(nextState);
-    if (trackHistory) {
-      pushHistory(nextState);
-    }
+    if (trackHistory) pushHistory(makeSnapshot(nextState));
   };
 
   const handleUndo = () => {
     const history = historyRef.current;
     if (!hasImage || history.length <= 1) return;
-
     const current = history.pop();
-    if (current) {
-      redoRef.current.push(cloneState(current));
-    }
-
+    if (current) redoRef.current.push(cloneSnapshot(current));
     const prev = history[history.length - 1];
-    if (prev) {
-      applyState(cloneState(prev), false);
-    }
+    if (prev) applySnapshot(prev, false);
   };
 
   const handleRedo = () => {
     if (!hasImage || redoRef.current.length === 0) return;
     const next = redoRef.current.pop();
     if (!next) return;
-
-    historyRef.current.push(cloneState(next));
-    applyState(cloneState(next), false);
+    historyRef.current.push(cloneSnapshot(next));
+    applySnapshot(next, false);
   };
 
   // Initialize Pipeline
@@ -362,7 +397,9 @@ const RawEditor: React.FC = () => {
   useEffect(() => {
     if (!pipeline || !hasImage) return;
     commitCrop(cropEnabled, cropRect);
-  }, [pipeline, hasImage, cropEnabled, cropRect, commitCrop]);
+    const angle = cropQuarterTurns * 90 + cropStraighten;
+    pipeline.setCropTransform(angle, cropFlipX, cropFlipY);
+  }, [pipeline, hasImage, cropEnabled, cropRect, commitCrop, cropQuarterTurns, cropStraighten, cropFlipX, cropFlipY]);
 
   useEffect(() => {
       const canvas = canvasRef.current;
@@ -472,21 +509,9 @@ const RawEditor: React.FC = () => {
     };
   }, [imageState, pipeline, hasImage]);
 
-  // Handle Pan / Crop (Pointer Events)
+  // Handle Pan (Pointer Events)
   const handlePointerDown = (e: React.PointerEvent) => {
       if (!hasImage) return;
-
-      if (activeTool === 'crop') {
-        const uv = clientToUv(e.clientX, e.clientY);
-        if (uv) {
-          cropDragMode.current = 'se';
-          cropDragAnchor.current = uv;
-          setCropRect({ x0: uv.x, y0: uv.y, x1: uv.x, y1: uv.y });
-        }
-        if (canvasRef.current) canvasRef.current.setPointerCapture(e.pointerId);
-        return;
-      }
-
       const canPan = activeTool === 'hand' || spacePressedRef.current;
       if (!canPan) return;
 
@@ -502,14 +527,6 @@ const RawEditor: React.FC = () => {
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-      if (activeTool === 'crop' && cropDragMode.current !== 'none') {
-        const uv = clientToUv(e.clientX, e.clientY);
-        if (uv && cropDragAnchor.current) {
-          setCropRect({ x0: cropDragAnchor.current.x, y0: cropDragAnchor.current.y, x1: uv.x, y1: uv.y });
-        }
-        return;
-      }
-
       if (!isDragging.current || !hasImage || !pipeline || !containerRef.current) return;
 
       const now = performance.now();
@@ -538,13 +555,6 @@ const RawEditor: React.FC = () => {
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-      if (activeTool === 'crop') {
-        cropDragMode.current = 'none';
-        cropDragAnchor.current = null;
-        if (canvasRef.current) canvasRef.current.releasePointerCapture(e.pointerId);
-        return;
-      }
-
       if (!isDragging.current) return;
       isDragging.current = false;
       if (Math.hypot(panVelocity.current.x, panVelocity.current.y) > 0.25) {
@@ -610,17 +620,6 @@ const RawEditor: React.FC = () => {
       setSplitX(Math.min(Math.max(next, 0), 1));
   };
 
-  const cropBox = useMemo(() => {
-    const a = uvToPercent(cropRect.x0, cropRect.y0);
-    const b = uvToPercent(cropRect.x1, cropRect.y1);
-    return {
-      left: Math.min(a.left, b.left),
-      top: Math.min(a.top, b.top),
-      width: Math.max(Math.abs(a.left - b.left), 0.5),
-      height: Math.max(Math.abs(a.top - b.top), 0.5),
-    };
-  }, [cropRect, uiZoom, uiPan, uvToPercent]);
-
   const applyCropSelection = () => {
     const w = Math.abs(cropRect.x1 - cropRect.x0);
     const h = Math.abs(cropRect.y1 - cropRect.y0);
@@ -629,12 +628,30 @@ const RawEditor: React.FC = () => {
       return;
     }
     setCropEnabled(true);
+    pushHistory(makeSnapshot(imageState, { cropEnabled: true }));
     setActiveTool('adjust');
   };
 
   const resetCrop = () => {
-    setCropRect({ x0: 0, y0: 0, x1: 1, y1: 1 });
+    const nextCropRect = { x0: 0, y0: 0, x1: 1, y1: 1 };
+    setCropRect(nextCropRect);
     setCropEnabled(false);
+    setCropStraighten(0);
+    setCropQuarterTurns(0);
+    setCropFlipX(false);
+    setCropFlipY(false);
+    pushHistory(makeSnapshot(imageState, {
+      cropRect: nextCropRect,
+      cropEnabled: false,
+      cropStraighten: 0,
+      cropQuarterTurns: 0,
+      cropFlipX: false,
+      cropFlipY: false,
+    }));
+  };
+
+  const cancelCropEdit = () => {
+    setActiveTool('adjust');
   };
 
   const resetView = () => {
@@ -656,6 +673,10 @@ const RawEditor: React.FC = () => {
       setMinimapSrc(createMinimapDataUrl(rawImage.data, rawImage.width, rawImage.height));
       setCropRect({ x0: 0, y0: 0, x1: 1, y1: 1 });
       setCropEnabled(false);
+      setCropStraighten(0);
+      setCropQuarterTurns(0);
+      setCropFlipX(false);
+      setCropFlipY(false);
       setHasImage(true);
       resetView();
 
@@ -670,7 +691,14 @@ const RawEditor: React.FC = () => {
 
       applyState(initialState, false);
       pipeline.updateState(initialState);
-      historyRef.current = [cloneState(initialState)];
+      historyRef.current = [makeSnapshot(initialState, {
+        cropRect: { x0: 0, y0: 0, x1: 1, y1: 1 },
+        cropEnabled: false,
+        cropStraighten: 0,
+        cropQuarterTurns: 0,
+        cropFlipX: false,
+        cropFlipY: false,
+      })];
       redoRef.current = [];
       lastCommitTimeRef.current = performance.now();
       setHistogram(pipeline.getHistogramData());
@@ -770,12 +798,7 @@ const RawEditor: React.FC = () => {
                 >
                   热区
                 </Button>
-                {activeTool === 'crop' && hasImage && (
-                  <>
-                    <Button size="sm" variant="default" onClick={applyCropSelection}>应用裁剪</Button>
-                    <Button size="sm" variant="ghost" onClick={resetCrop}>重置裁剪</Button>
-                  </>
-                )}
+
                 <TooltipProvider delayDuration={0}>
                   <Tooltip open={hotkeyTipOpen} onOpenChange={setHotkeyTipOpen}>
                     <TooltipTrigger asChild>
@@ -847,15 +870,24 @@ const RawEditor: React.FC = () => {
             onPointerLeave={handlePointerUp}
           />
 
-          {hasImage && activeTool === 'crop' && (
-            <div className="absolute inset-0 pointer-events-none z-20">
-              <div className="absolute inset-0 bg-black/35" />
-              <div
-                className="absolute border border-white/90 bg-transparent pointer-events-auto"
-                style={{ left: `${cropBox.left}%`, top: `${cropBox.top}%`, width: `${cropBox.width}%`, height: `${cropBox.height}%` }}
-              />
-            </div>
-          )}
+          <CropWorkspace
+            visible={hasImage && activeTool === 'crop'}
+            imageAspect={imageAspect}
+            cropRect={cropRect}
+            cropEnabled={cropEnabled}
+            straighten={cropStraighten}
+            onStraightenChange={setCropStraighten}
+            onRotateCW={() => setCropQuarterTurns((v) => (v + 1) % 4)}
+            onRotateCCW={() => setCropQuarterTurns((v) => (v + 3) % 4)}
+            onFlipH={() => setCropFlipX((v) => !v)}
+            onFlipV={() => setCropFlipY((v) => !v)}
+            onCropRectChange={setCropRect}
+            onApply={applyCropSelection}
+            onReset={resetCrop}
+            onCancel={cancelCropEdit}
+            clientToUv={clientToUv}
+            uvToPercent={uvToPercent}
+          />
 
           {hasImage && compareMode === 'split' && !isSpacePreviewing && (
             <div className="absolute inset-0 pointer-events-none">

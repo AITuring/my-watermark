@@ -57,6 +57,9 @@ export class ImagePipeline {
       uniform float heatOverlay;
       uniform float cropEnabled;
       uniform vec4 cropRect;
+      uniform float cropAngle;
+      uniform float cropFlipX;
+      uniform float cropFlipY;
 
       varying vec2 vUv;
 
@@ -206,6 +209,14 @@ export class ImagePipeline {
           );
         }
 
+        vec2 centered = sampleUv - vec2(0.5);
+        if (cropFlipX > 0.5) centered.x = -centered.x;
+        if (cropFlipY > 0.5) centered.y = -centered.y;
+        float c = cos(cropAngle);
+        float s = sin(cropAngle);
+        centered = mat2(c, -s, s, c) * centered;
+        sampleUv = centered + vec2(0.5);
+
         vec4 texel = texture2D(tDiffuse, sampleUv);
         vec3 color = texel.rgb;
 
@@ -302,6 +313,9 @@ export class ImagePipeline {
         heatOverlay: { value: 0.0 },
         cropEnabled: { value: 0.0 },
         cropRect: { value: new THREE.Vector4(0, 0, 1, 1) },
+        cropAngle: { value: 0.0 },
+        cropFlipX: { value: 0.0 },
+        cropFlipY: { value: 0.0 },
         sharpness: { value: 0.0 },
         resolution: { value: new THREE.Vector2(1, 1) }
       },
@@ -367,6 +381,13 @@ export class ImagePipeline {
     const y1 = Math.min(Math.max(Math.max(rect.y0, rect.y1), 0), 1);
     this.material.uniforms.cropEnabled.value = enabled ? 1.0 : 0.0;
     this.material.uniforms.cropRect.value.set(x0, y0, x1, y1);
+    this.render();
+  }
+
+  setCropTransform(angleDeg: number, flipX: boolean, flipY: boolean) {
+    this.material.uniforms.cropAngle.value = THREE.MathUtils.degToRad(angleDeg);
+    this.material.uniforms.cropFlipX.value = flipX ? 1.0 : 0.0;
+    this.material.uniforms.cropFlipY.value = flipY ? 1.0 : 0.0;
     this.render();
   }
 
