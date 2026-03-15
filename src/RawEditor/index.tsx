@@ -6,8 +6,10 @@ import { ControlPanel } from './components/ControlPanel';
 import { CropWorkspace, CropRect } from './components/CropWorkspace';
 import { useHistoryManager } from './components/HistoryManager';
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw, Keyboard, Hand, Crop, SlidersHorizontal, Wand2, Pipette } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw, Keyboard, Hand, Crop, SlidersHorizontal, Wand2, Pipette, FlipHorizontal2, FlipVertical2, RotateCw, RotateCcwSquare } from "lucide-react";
 import { toast } from "sonner";
 import { translations, Language } from './locales';
 
@@ -35,6 +37,8 @@ const RawEditor: React.FC = () => {
   const [isSpacePreviewing, setIsSpacePreviewing] = useState(false);
   const [hotkeyTipOpen, setHotkeyTipOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<'adjust' | 'hand' | 'crop' | 'mask' | 'picker'>('adjust');
+  const [rightPanelPage, setRightPanelPage] = useState<'adjust' | 'crop' | 'mask' | 'picker'>('adjust');
+  const [cropPreset, setCropPreset] = useState('free');
   const [cropRect, setCropRect] = useState<CropRect>({ x0: 0, y0: 0, x1: 1, y1: 1 });
   const [cropEnabled, setCropEnabled] = useState(false);
   const [cropStraighten, setCropStraighten] = useState(0);
@@ -612,6 +616,49 @@ const RawEditor: React.FC = () => {
       setSplitX(Math.min(Math.max(next, 0), 1));
   };
 
+  const switchTool = (tool: 'adjust' | 'hand' | 'crop' | 'mask' | 'picker') => {
+    setActiveTool(tool);
+    if (tool === 'crop' || tool === 'mask' || tool === 'picker') {
+      setRightPanelPage(tool);
+    } else {
+      setRightPanelPage('adjust');
+    }
+  };
+
+  const cropPixelRatio = useMemo(() => {
+    const w = Math.abs(cropRect.x1 - cropRect.x0) * imageAspect;
+    const h = Math.abs(cropRect.y1 - cropRect.y0);
+    if (h <= 1e-6) return 0;
+    return w / h;
+  }, [cropRect, imageAspect]);
+
+  const applyCropPreset = (preset: string) => {
+    setCropPreset(preset);
+    if (preset === 'free') return;
+    const target = preset === 'origin'
+      ? imageAspect
+      : (() => {
+          const [w, h] = preset.split(':').map(Number);
+          return w > 0 && h > 0 ? w / h : imageAspect;
+        })();
+    const uvRatio = target / Math.max(imageAspect, 1e-6);
+    const x0 = Math.min(cropRect.x0, cropRect.x1);
+    const y0 = Math.min(cropRect.y0, cropRect.y1);
+    const x1 = Math.max(cropRect.x0, cropRect.x1);
+    const y1 = Math.max(cropRect.y0, cropRect.y1);
+    const cx = (x0 + x1) * 0.5;
+    const cy = (y0 + y1) * 0.5;
+    let w = Math.max(0.02, x1 - x0);
+    let h = Math.max(0.02, y1 - y0);
+    if (w / h > uvRatio) w = h * uvRatio;
+    else h = w / uvRatio;
+    const nx0 = Math.max(0, cx - w * 0.5);
+    const ny0 = Math.max(0, cy - h * 0.5);
+    const nx1 = Math.min(1, nx0 + w);
+    const ny1 = Math.min(1, ny0 + h);
+    setCropRect({ x0: nx0, y0: ny0, x1: nx1, y1: ny1 });
+  };
+
   const applyCropSelection = () => {
     const w = Math.abs(cropRect.x1 - cropRect.x0);
     const h = Math.abs(cropRect.y1 - cropRect.y0);
@@ -622,6 +669,7 @@ const RawEditor: React.FC = () => {
     setCropEnabled(true);
     pushHistory(makeSnapshot(imageState, { cropEnabled: true }), false);
     setActiveTool('adjust');
+    setRightPanelPage('adjust');
   };
 
   const handleCropStraightenChange = (v: number) => {
@@ -657,6 +705,7 @@ const RawEditor: React.FC = () => {
     const nextCropRect = { x0: 0, y0: 0, x1: 1, y1: 1 };
     setCropRect(nextCropRect);
     setCropEnabled(false);
+    setCropPreset('free');
     setCropStraighten(0);
     setCropQuarterTurns(0);
     setCropFlipX(false);
@@ -673,6 +722,7 @@ const RawEditor: React.FC = () => {
 
   const cancelCropEdit = () => {
     setActiveTool('adjust');
+    setRightPanelPage('adjust');
   };
 
   const resetView = () => {
@@ -699,6 +749,7 @@ const RawEditor: React.FC = () => {
       setCropFlipX(false);
       setCropFlipY(false);
       setHasImage(true);
+      setRightPanelPage('adjust');
       resetView();
 
       const model = rawImage.metadata?.exif?.model as string | undefined;
@@ -782,75 +833,39 @@ const RawEditor: React.FC = () => {
     <div className="flex h-screen bg-[#2b2b2b] text-zinc-200 overflow-hidden font-sans">
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col h-full">
-        {/* Toolbar */}
-        <div className="h-11 border-b border-zinc-700 bg-[#3a3a3a] flex items-center px-4 justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-                <span className="font-semibold tracking-tight text-sm">{t.rawStudio}</span>
-                {metadata?.name && <span className="text-xs text-zinc-400 truncate max-w-[260px]">{metadata.name}</span>}
-            </div>
-
-            <div className="flex items-center gap-2">
-                 <Button size="icon" variant="ghost" onClick={() => zoomAtCenter(1.2)} disabled={!hasImage} title="Zoom In">
-                    <ZoomIn className="w-4 h-4" />
-                </Button>
-                <Button size="icon" variant="ghost" onClick={() => zoomAtCenter(1 / 1.2)} disabled={!hasImage} title="Zoom Out">
-                    <ZoomOut className="w-4 h-4" />
-                </Button>
-                <Button size="icon" variant="ghost" onClick={resetView} disabled={!hasImage} title="Reset View">
-                    <RotateCcw className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant={compareMode === 'split' ? 'default' : 'ghost'}
-                  className={compareMode === 'split' ? 'shadow-sm' : ''}
-                  onClick={() => setCompareMode((m) => (m === 'split' ? 'off' : 'split'))}
-                  disabled={!hasImage}
-                >
-                  Before/After
-                </Button>
-                <Button
-                  size="sm"
-                  variant={showHeatOverlay ? 'default' : 'ghost'}
-                  className={showHeatOverlay ? 'shadow-sm' : ''}
-                  onClick={() => setShowHeatOverlay((v) => !v)}
-                  disabled={!hasImage}
-                >
-                  热区
-                </Button>
-
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip open={hotkeyTipOpen} onOpenChange={setHotkeyTipOpen}>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setHotkeyTipOpen((v) => !v)}
-                        title="快捷键"
-                      >
-                        <Keyboard className="w-4 h-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="end" className="max-w-xs text-xs leading-relaxed whitespace-pre-line">
-                      {'空格：按住预览原图\nB：切换 Before/After 分屏\nH：切换热区叠加\n双击分屏手柄：回中\n⌘/Ctrl+Z：撤销\n⇧⌘/Ctrl+Z：重做'}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <div className="w-px h-4 bg-border mx-2" />
-                 <Button size="icon" variant="ghost" onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} title="Switch Language">
-                    <Languages className="w-4 h-4" />
-                </Button>
-                 <Button size="icon" variant="ghost" onClick={handleUndo} disabled={!hasImage || !canUndo} title={`${t.undo} (⌘/Ctrl+Z)`}>
-                    <Undo2 className="w-4 h-4" />
-                </Button>
-                <Button size="icon" variant="ghost" onClick={handleRedo} disabled={!hasImage || !canRedo} title={`${t.redo} (⇧⌘/Ctrl+Z)`}>
-                    <Redo2 className="w-4 h-4" />
-                </Button>
-                <div className="w-px h-4 bg-border mx-2" />
-                <Button size="sm" variant="outline" onClick={handleExport} disabled={!hasImage}>
-                    <Download className="w-4 h-4 mr-2" />
-                    {t.export}
-                </Button>
-            </div>
+        <div className="h-7 border-b border-zinc-700 bg-[#323232] relative flex items-center px-3">
+          <div className="flex items-center gap-1.5 absolute left-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+          </div>
+          <div className="w-full text-center text-xs font-semibold tracking-wide text-zinc-200">Camera Raw 17.5</div>
+        </div>
+        <div className="h-10 border-b border-zinc-700 bg-[#3a3a3a] flex items-center px-3 justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-xs font-medium text-zinc-200 truncate max-w-[280px]">{metadata?.name || t.rawStudio}</span>
+            {metadata?.exif?.model && <span className="text-[11px] text-zinc-400 truncate max-w-[180px]">{String(metadata.exif.model)}</span>}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <TooltipProvider delayDuration={0}>
+              <Tooltip open={hotkeyTipOpen} onOpenChange={setHotkeyTipOpen}>
+                <TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHotkeyTipOpen((v) => !v)} title="快捷键"><Keyboard className="w-4 h-4" /></Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="end" className="max-w-xs text-xs leading-relaxed whitespace-pre-line">{'空格：按住预览原图\nB：切换 Before/After 分屏\nH：切换热区叠加\n双击分屏手柄：回中\n⌘/Ctrl+Z：撤销\n⇧⌘/Ctrl+Z：重做'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} title="Switch Language"><Languages className="w-4 h-4" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleUndo} disabled={!hasImage || !canUndo} title={`${t.undo} (⌘/Ctrl+Z)`}><Undo2 className="w-4 h-4" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleRedo} disabled={!hasImage || !canRedo} title={`${t.redo} (⇧⌘/Ctrl+Z)`}><Redo2 className="w-4 h-4" /></Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
+              <label className="cursor-pointer flex items-center justify-center">
+                <Upload className="w-4 h-4" />
+                <input type="file" className="hidden" accept="image/*,.dng,.cr2,.cr3,.nef,.nrw,.arw,.sr2,.srf,.raf,.orf,.rw2,.pef,.iiq,.3fr,.srw" onChange={handleFileChange} />
+              </label>
+            </Button>
+            <Button size="sm" variant="outline" className="h-8" onClick={handleExport} disabled={!hasImage}><Download className="w-4 h-4 mr-1.5" />{t.export}</Button>
+          </div>
         </div>
 
         {/* Canvas Area */}
@@ -973,30 +988,77 @@ const RawEditor: React.FC = () => {
               </div>
           )}
 
-          {hasImage && (
-            <div className="absolute top-1/2 right-3 -translate-y-1/2 flex flex-col gap-1.5 z-20">
-              <Button size="icon" variant={activeTool === 'adjust' ? 'default' : 'ghost'} className="h-8 w-8 bg-[#3a3a3a] hover:bg-[#4a4a4a]" onClick={() => setActiveTool('adjust')}><SlidersHorizontal className="w-4 h-4" /></Button>
-              <Button size="icon" variant={activeTool === 'hand' ? 'default' : 'ghost'} className="h-8 w-8 bg-[#3a3a3a] hover:bg-[#4a4a4a]" onClick={() => setActiveTool('hand')}><Hand className="w-4 h-4" /></Button>
-              <Button size="icon" variant={activeTool === 'crop' ? 'default' : 'ghost'} className="h-8 w-8 bg-[#3a3a3a] hover:bg-[#4a4a4a]" onClick={() => setActiveTool('crop')}><Crop className="w-4 h-4" /></Button>
-              <Button size="icon" variant={activeTool === 'mask' ? 'default' : 'ghost'} className="h-8 w-8 bg-[#3a3a3a] hover:bg-[#4a4a4a]" onClick={() => setActiveTool('mask')}><Wand2 className="w-4 h-4" /></Button>
-              <Button size="icon" variant={activeTool === 'picker' ? 'default' : 'ghost'} className="h-8 w-8 bg-[#3a3a3a] hover:bg-[#4a4a4a]" onClick={() => setActiveTool('picker')}><Pipette className="w-4 h-4" /></Button>
-            </div>
-          )}
 
           {hasImage && (
               <div className="absolute bottom-0 inset-x-0 h-9 bg-[#343434] border-t border-zinc-700 flex items-center justify-between px-3 text-xs text-zinc-300">
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={resetView}>适应</Button>
-                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => commitTransform(2, transform.current.pan)}>1:1</Button>
-                  </div>
-                  <div>{Math.round(uiZoom * 100)}%</div>
+                <div className="flex items-center gap-1.5">
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => zoomAtCenter(1 / 1.2)} title="Zoom Out"><ZoomOut className="w-3.5 h-3.5" /></Button>
+                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => zoomAtCenter(1.2)} title="Zoom In"><ZoomIn className="w-3.5 h-3.5" /></Button>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={resetView}>适应</Button>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => commitTransform(2, transform.current.pan)}>1:1</Button>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button size="sm" variant={compareMode === 'split' ? 'default' : 'ghost'} className="h-6 px-2 text-xs" onClick={() => setCompareMode((m) => (m === 'split' ? 'off' : 'split'))}>对比</Button>
+                  <Button size="sm" variant={showHeatOverlay ? 'default' : 'ghost'} className="h-6 px-2 text-xs" onClick={() => setShowHeatOverlay((v) => !v)}>热区</Button>
+                </div>
+                <div className="font-medium tracking-wide">{Math.round(uiZoom * 100)}%</div>
               </div>
           )}
         </div>
       </div>
 
-      {/* Right Sidebar */}
-      <ControlPanel state={imageState} onChange={applyState} lang={lang} histogram={histogram} metadata={metadata} />
+      <div className="w-[372px] bg-[#3b3b3b] border-l border-zinc-700 h-full flex text-zinc-200">
+        <div className="flex-1 min-w-0 border-r border-zinc-700">
+          {rightPanelPage === 'adjust' && (
+            <ControlPanel state={imageState} onChange={applyState} lang={lang} histogram={histogram} metadata={metadata} />
+          )}
+          {rightPanelPage === 'crop' && (
+            <div className="h-full overflow-auto px-3 py-3 space-y-4">
+              <div className="text-3xl font-bold tracking-tight">裁剪</div>
+              <div className="space-y-2 border-b border-zinc-700 pb-3">
+                <div className="text-xs text-zinc-300">预设</div>
+                <Select value={cropPreset} onValueChange={applyCropPreset}>
+                  <SelectTrigger className="h-9 border-zinc-600 bg-[#2f2f2f]"><SelectValue placeholder="预设" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="free">自由</SelectItem><SelectItem value="origin">原始比例</SelectItem>
+                    <SelectItem value="1:1">1:1</SelectItem><SelectItem value="4:3">4:3</SelectItem>
+                    <SelectItem value="3:2">3:2</SelectItem><SelectItem value="16:9">16:9</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="text-[11px] text-zinc-400">当前比例 {cropPixelRatio.toFixed(2)}:1</div>
+              </div>
+              <div className="space-y-2 border-b border-zinc-700 pb-3">
+                <div className="flex items-center justify-between text-xs"><span>角度</span><span className="px-2 py-0.5 rounded bg-[#2a2a2a] border border-zinc-600">{cropStraighten.toFixed(2)}</span></div>
+                <Slider value={[cropStraighten]} min={-15} max={15} step={0.1} onValueChange={([v]) => handleCropStraightenChange(v)} />
+              </div>
+              <div className="space-y-2 border-b border-zinc-700 pb-3">
+                <div className="text-lg font-semibold">旋转和翻转</div>
+                <div className="grid grid-cols-4 gap-2">
+                  <Button size="icon" variant="ghost" className="h-9 w-9" onClick={handleCropRotateCCW}><RotateCcw className="w-4 h-4" /></Button>
+                  <Button size="icon" variant="ghost" className="h-9 w-9" onClick={handleCropRotateCW}><RotateCw className="w-4 h-4" /></Button>
+                  <Button size="icon" variant="ghost" className="h-9 w-9" onClick={handleCropFlipH}><FlipHorizontal2 className="w-4 h-4" /></Button>
+                  <Button size="icon" variant="ghost" className="h-9 w-9" onClick={handleCropFlipV}><FlipVertical2 className="w-4 h-4" /></Button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Button size="sm" variant="ghost" onClick={resetCrop}>重置</Button>
+                <Button size="sm" variant="ghost" onClick={cancelCropEdit}>取消</Button>
+                <Button size="sm" variant="default" className="ml-auto" onClick={applyCropSelection}>完成</Button>
+              </div>
+            </div>
+          )}
+          {(rightPanelPage === 'mask' || rightPanelPage === 'picker') && (
+            <div className="h-full flex items-center justify-center text-sm text-zinc-400">该页面正在完善中</div>
+          )}
+        </div>
+        <div className="w-12 flex flex-col items-center gap-2 py-3 bg-[#3f3f3f]">
+          <Button size="icon" variant={activeTool === 'crop' ? 'default' : 'ghost'} className="h-9 w-9" onClick={() => switchTool('crop')}><Crop className="w-4 h-4" /></Button>
+          <Button size="icon" variant={activeTool === 'adjust' ? 'default' : 'ghost'} className="h-9 w-9" onClick={() => switchTool('adjust')}><SlidersHorizontal className="w-4 h-4" /></Button>
+          <Button size="icon" variant={activeTool === 'hand' ? 'default' : 'ghost'} className="h-9 w-9" onClick={() => switchTool('hand')}><Hand className="w-4 h-4" /></Button>
+          <Button size="icon" variant={activeTool === 'mask' ? 'default' : 'ghost'} className="h-9 w-9" onClick={() => switchTool('mask')}><Wand2 className="w-4 h-4" /></Button>
+          <Button size="icon" variant={activeTool === 'picker' ? 'default' : 'ghost'} className="h-9 w-9" onClick={() => switchTool('picker')}><Pipette className="w-4 h-4" /></Button>
+        </div>
+      </div>
     </div>
   );
 };

@@ -130,7 +130,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ state, onChange, lan
   };
 
   return (
-    <div className="w-[360px] bg-[#3a3a3a] border-l border-zinc-700 h-full flex flex-col text-zinc-200">
+    <div className="w-full bg-[#3b3b3b] h-full flex flex-col text-zinc-200">
       <div className="h-11 px-4 border-b border-zinc-700 font-medium text-sm flex items-center">{t.adjustments}</div>
       <ScrollArea className="flex-1 p-3">
         <div className="space-y-6">

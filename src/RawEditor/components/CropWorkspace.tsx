@@ -1,14 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Check, X, RotateCcw, RotateCw } from 'lucide-react';
 
 export type CropRect = { x0: number; y0: number; x1: number; y1: number };
 
@@ -43,15 +33,7 @@ const normalizeRect = (r: CropRect): CropRect => ({
   y1: Math.max(r.y0, r.y1),
 });
 
-const presets = [
-  { value: 'free', label: '自由' },
-  { value: 'original', label: '原始比例' },
-  { value: '1:1', label: '1:1' },
-  { value: '4:3', label: '4:3' },
-  { value: '3:2', label: '3:2' },
-  { value: '16:9', label: '16:9' },
-  { value: '9:16', label: '9:16' },
-];
+
 
 export const CropWorkspace: React.FC<Props> = ({
   visible,
@@ -289,26 +271,7 @@ export const CropWorkspace: React.FC<Props> = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [visible, onApply, onCancel]);
 
-  const cropRatioText = useMemo(() => {
-    const r = normalizeRect(cropRect);
-    const pixelW = Math.max((r.x1 - r.x0) * imageAspect, 1e-6);
-    const pixelH = Math.max(r.y1 - r.y0, 1e-6);
-    return (pixelW / pixelH).toFixed(2);
-  }, [cropRect, imageAspect]);
-
   if (!visible) return null;
-
-  const handlePresetChange = (value: string) => {
-    setPreset(value);
-    setLockRatio(value !== 'free');
-  };
-
-  const handleReset = () => {
-    onReset();
-    setPreset('free');
-    setLockRatio(false);
-    setInvertAspect(false);
-  };
 
   const startDrag = (mode: Handle, e: React.PointerEvent) => {
     const uv = clientToUv(e.clientX, e.clientY);
@@ -319,27 +282,6 @@ export const CropWorkspace: React.FC<Props> = ({
 
   return (
     <>
-      <div className="absolute top-3 right-14 z-40 bg-[#3a3a3a]/95 border border-zinc-600 rounded-md p-2 flex items-center gap-2">
-        <Select value={preset} onValueChange={handlePresetChange}>
-          <SelectTrigger className="h-8 w-24 text-xs border-zinc-600 bg-[#2f2f2f]"><SelectValue placeholder="比例" /></SelectTrigger>
-          <SelectContent>{presets.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
-        </Select>
-        <Button size="sm" variant={lockRatio ? 'default' : 'ghost'} className="h-8 px-2 text-xs" onClick={() => setLockRatio(v => !v)}>锁定比例</Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setInvertAspect(v => !v)} disabled={preset === 'free'}><RotateCw className="w-3.5 h-3.5 mr-1" />横竖切换</Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={onRotateCCW}>左转90°</Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={onRotateCW}>右转90°</Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={onFlipH}>水平翻转</Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={onFlipV}>垂直翻转</Button>
-        <div className="w-40 px-2">
-          <div className="text-[10px] text-zinc-300 mb-1">拉直 {straighten.toFixed(1)}°</div>
-          <Slider value={[straighten]} min={-15} max={15} step={0.1} onValueChange={([v]) => onStraightenChange(v)} />
-        </div>
-        <div className="text-[10px] px-2 py-1 rounded bg-black/35 border border-zinc-600">当前像素比例 {cropRatioText}:1</div>
-        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={handleReset}><RotateCcw className="w-3.5 h-3.5 mr-1" />重置</Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={onCancel}><X className="w-3.5 h-3.5 mr-1" />取消</Button>
-        <Button size="sm" variant="default" className="h-8 px-2 text-xs" onClick={onApply}><Check className="w-3.5 h-3.5 mr-1" />完成</Button>
-      </div>
-
       <div className="absolute inset-0 z-30 pointer-events-auto" onPointerDown={(e) => startDrag('new', e)}>
         <div className="absolute inset-0 bg-black/35" />
         <div className="absolute bg-black/35" style={{ left: 0, top: 0, width: `${box.left}%`, height: '100%' }} />
