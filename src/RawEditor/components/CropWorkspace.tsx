@@ -53,8 +53,8 @@ export const CropWorkspace: React.FC<Props> = ({
   clientToUv,
   uvToPercent,
 }) => {
-  const [preset, setPreset] = useState('free');
-  const [lockRatio, setLockRatio] = useState(false);
+  const [preset, setPreset] = useState('original');
+  const [lockRatio, setLockRatio] = useState(true);
   const [invertAspect, setInvertAspect] = useState(false);
   const [minSizeHint, setMinSizeHint] = useState(false);
 
@@ -83,6 +83,13 @@ export const CropWorkspace: React.FC<Props> = ({
     if (!aspect) return null;
     return aspect / Math.max(imageAspect, 1e-6);
   }, [aspect, imageAspect]);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (preset !== 'original') setPreset('original');
+    if (!lockRatio) setLockRatio(true);
+    if (invertAspect) setInvertAspect(false);
+  }, [visible, preset, lockRatio, invertAspect]);
 
   const box = useMemo(() => {
     const r = normalizeRect(cropRect);

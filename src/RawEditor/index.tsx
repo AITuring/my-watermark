@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw, Keyboard, Hand, Crop, SlidersHorizontal, Wand2, Pipette, FlipHorizontal2, FlipVertical2, RotateCw, RotateCcwSquare } from "lucide-react";
+import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw, Keyboard, Hand, Crop, SlidersHorizontal, Wand2, Pipette, FlipHorizontal2, FlipVertical2, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { translations, Language } from './locales';
 
@@ -45,6 +45,14 @@ const RawEditor: React.FC = () => {
   const [cropQuarterTurns, setCropQuarterTurns] = useState(0);
   const [cropFlipX, setCropFlipX] = useState(false);
   const [cropFlipY, setCropFlipY] = useState(false);
+  const [uprightMode, setUprightMode] = useState<'off' | 'auto' | 'horizontal' | 'vertical' | 'full'>('off');
+  const [cropGeomVertical, setCropGeomVertical] = useState(0);
+  const [cropGeomHorizontal, setCropGeomHorizontal] = useState(0);
+  const [cropGeomRotate, setCropGeomRotate] = useState(0);
+  const [cropGeomAspect, setCropGeomAspect] = useState(0);
+  const [cropGeomScale, setCropGeomScale] = useState(100);
+  const [cropGeomOffsetX, setCropGeomOffsetX] = useState(0);
+  const [cropGeomOffsetY, setCropGeomOffsetY] = useState(0);
 
   const isDragging = useRef(false);
   const isMinimapDragging = useRef(false);
@@ -63,6 +71,14 @@ const RawEditor: React.FC = () => {
     cropQuarterTurns: number;
     cropFlipX: boolean;
     cropFlipY: boolean;
+    uprightMode: 'off' | 'auto' | 'horizontal' | 'vertical' | 'full';
+    cropGeomVertical: number;
+    cropGeomHorizontal: number;
+    cropGeomRotate: number;
+    cropGeomAspect: number;
+    cropGeomScale: number;
+    cropGeomOffsetX: number;
+    cropGeomOffsetY: number;
   };
 
   const initialSnapshot: EditorSnapshot = {
@@ -73,6 +89,14 @@ const RawEditor: React.FC = () => {
     cropQuarterTurns: 0,
     cropFlipX: false,
     cropFlipY: false,
+    uprightMode: 'off',
+    cropGeomVertical: 0,
+    cropGeomHorizontal: 0,
+    cropGeomRotate: 0,
+    cropGeomAspect: 0,
+    cropGeomScale: 100,
+    cropGeomOffsetX: 0,
+    cropGeomOffsetY: 0,
   };
 
   const t = translations[lang];
@@ -266,6 +290,14 @@ const RawEditor: React.FC = () => {
     cropQuarterTurns: snap.cropQuarterTurns,
     cropFlipX: snap.cropFlipX,
     cropFlipY: snap.cropFlipY,
+    uprightMode: snap.uprightMode,
+    cropGeomVertical: snap.cropGeomVertical,
+    cropGeomHorizontal: snap.cropGeomHorizontal,
+    cropGeomRotate: snap.cropGeomRotate,
+    cropGeomAspect: snap.cropGeomAspect,
+    cropGeomScale: snap.cropGeomScale,
+    cropGeomOffsetX: snap.cropGeomOffsetX,
+    cropGeomOffsetY: snap.cropGeomOffsetY,
   });
 
   const makeSnapshot = (image: ImageState, overrides?: Partial<EditorSnapshot>): EditorSnapshot => ({
@@ -276,6 +308,14 @@ const RawEditor: React.FC = () => {
     cropQuarterTurns: overrides?.cropQuarterTurns ?? cropQuarterTurns,
     cropFlipX: overrides?.cropFlipX ?? cropFlipX,
     cropFlipY: overrides?.cropFlipY ?? cropFlipY,
+    uprightMode: overrides?.uprightMode ?? uprightMode,
+    cropGeomVertical: overrides?.cropGeomVertical ?? cropGeomVertical,
+    cropGeomHorizontal: overrides?.cropGeomHorizontal ?? cropGeomHorizontal,
+    cropGeomRotate: overrides?.cropGeomRotate ?? cropGeomRotate,
+    cropGeomAspect: overrides?.cropGeomAspect ?? cropGeomAspect,
+    cropGeomScale: overrides?.cropGeomScale ?? cropGeomScale,
+    cropGeomOffsetX: overrides?.cropGeomOffsetX ?? cropGeomOffsetX,
+    cropGeomOffsetY: overrides?.cropGeomOffsetY ?? cropGeomOffsetY,
   });
 
   const isSameState = (a: ImageState, b: ImageState): boolean => {
@@ -295,7 +335,10 @@ const RawEditor: React.FC = () => {
     isSameState(a.image, b.image) &&
     a.cropRect.x0 === b.cropRect.x0 && a.cropRect.y0 === b.cropRect.y0 && a.cropRect.x1 === b.cropRect.x1 && a.cropRect.y1 === b.cropRect.y1 &&
     a.cropEnabled === b.cropEnabled && a.cropStraighten === b.cropStraighten && a.cropQuarterTurns === b.cropQuarterTurns &&
-    a.cropFlipX === b.cropFlipX && a.cropFlipY === b.cropFlipY
+    a.cropFlipX === b.cropFlipX && a.cropFlipY === b.cropFlipY && a.uprightMode === b.uprightMode &&
+    a.cropGeomVertical === b.cropGeomVertical && a.cropGeomHorizontal === b.cropGeomHorizontal &&
+    a.cropGeomRotate === b.cropGeomRotate && a.cropGeomAspect === b.cropGeomAspect && a.cropGeomScale === b.cropGeomScale &&
+    a.cropGeomOffsetX === b.cropGeomOffsetX && a.cropGeomOffsetY === b.cropGeomOffsetY
   );
 
   const {
@@ -321,6 +364,14 @@ const RawEditor: React.FC = () => {
     setCropQuarterTurns(snap.cropQuarterTurns);
     setCropFlipX(snap.cropFlipX);
     setCropFlipY(snap.cropFlipY);
+    setUprightMode(snap.uprightMode);
+    setCropGeomVertical(snap.cropGeomVertical);
+    setCropGeomHorizontal(snap.cropGeomHorizontal);
+    setCropGeomRotate(snap.cropGeomRotate);
+    setCropGeomAspect(snap.cropGeomAspect);
+    setCropGeomScale(snap.cropGeomScale);
+    setCropGeomOffsetX(snap.cropGeomOffsetX);
+    setCropGeomOffsetY(snap.cropGeomOffsetY);
   };
 
   const applyState = (nextState: ImageState, trackHistory = true) => {
@@ -395,7 +446,16 @@ const RawEditor: React.FC = () => {
     commitCrop(cropEnabled, cropRect);
     const angle = cropQuarterTurns * 90 + cropStraighten;
     pipeline.setCropTransform(angle, cropFlipX, cropFlipY);
-  }, [pipeline, hasImage, cropEnabled, cropRect, commitCrop, cropQuarterTurns, cropStraighten, cropFlipX, cropFlipY]);
+    pipeline.setCropGeometry({
+      vertical: cropGeomVertical * 0.0012,
+      horizontal: cropGeomHorizontal * 0.0012,
+      rotate: cropGeomRotate,
+      aspect: 1 + cropGeomAspect * 0.01,
+      scale: Math.max(cropGeomScale, 1) * 0.01,
+      offsetX: cropGeomOffsetX * 0.0025,
+      offsetY: cropGeomOffsetY * 0.0025,
+    });
+  }, [pipeline, hasImage, cropEnabled, cropRect, commitCrop, cropQuarterTurns, cropStraighten, cropFlipX, cropFlipY, cropGeomVertical, cropGeomHorizontal, cropGeomRotate, cropGeomAspect, cropGeomScale, cropGeomOffsetX, cropGeomOffsetY]);
 
   useEffect(() => {
       const canvas = canvasRef.current;
@@ -633,14 +693,8 @@ const RawEditor: React.FC = () => {
   }, [cropRect, imageAspect]);
 
   const applyCropPreset = (preset: string) => {
-    setCropPreset(preset);
-    if (preset === 'free') return;
-    const target = preset === 'origin'
-      ? imageAspect
-      : (() => {
-          const [w, h] = preset.split(':').map(Number);
-          return w > 0 && h > 0 ? w / h : imageAspect;
-        })();
+    setCropPreset('origin');
+    const target = imageAspect;
     const uvRatio = target / Math.max(imageAspect, 1e-6);
     const x0 = Math.min(cropRect.x0, cropRect.x1);
     const y0 = Math.min(cropRect.y0, cropRect.y1);
@@ -701,6 +755,62 @@ const RawEditor: React.FC = () => {
     pushHistory(makeSnapshot(imageState, { cropFlipY: next }), false);
   };
 
+  const setCropGeomValue = (patch: Partial<EditorSnapshot>) => {
+    if (patch.cropGeomVertical !== undefined) setCropGeomVertical(patch.cropGeomVertical);
+    if (patch.cropGeomHorizontal !== undefined) setCropGeomHorizontal(patch.cropGeomHorizontal);
+    if (patch.cropGeomRotate !== undefined) setCropGeomRotate(patch.cropGeomRotate);
+    if (patch.cropGeomAspect !== undefined) setCropGeomAspect(patch.cropGeomAspect);
+    if (patch.cropGeomScale !== undefined) setCropGeomScale(patch.cropGeomScale);
+    if (patch.cropGeomOffsetX !== undefined) setCropGeomOffsetX(patch.cropGeomOffsetX);
+    if (patch.cropGeomOffsetY !== undefined) setCropGeomOffsetY(patch.cropGeomOffsetY);
+    if (patch.uprightMode !== undefined) setUprightMode(patch.uprightMode);
+    pushHistory(makeSnapshot(imageState, patch), false);
+  };
+
+
+  const clampNum = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+  const setCropGeomFromInput = (
+    key: 'cropGeomVertical' | 'cropGeomHorizontal' | 'cropGeomRotate' | 'cropGeomAspect' | 'cropGeomScale' | 'cropGeomOffsetX' | 'cropGeomOffsetY',
+    raw: string,
+    min: number,
+    max: number,
+  ) => {
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return;
+    setCropGeomValue({ [key]: clampNum(parsed, min, max), uprightMode: 'off' } as Partial<EditorSnapshot>);
+  };
+
+  const renderUprightIcon = (mode: 'off' | 'auto' | 'horizontal' | 'vertical' | 'full') => {
+    const common = { className: 'w-4 h-4', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+    if (mode === 'off') return <svg {...common}><circle cx="12" cy="12" r="8" /><path d="M8 8l8 8" /></svg>;
+    if (mode === 'auto') return <svg {...common}><path d="M4 18l4-12h1l4 12" /><path d="M6.5 12h4" /><path d="M15 17h5" /><path d="M17.5 7v10" /></svg>;
+    if (mode === 'horizontal') return <svg {...common}><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></svg>;
+    if (mode === 'vertical') return <svg {...common}><path d="M7 4v16" /><path d="M12 4v16" /><path d="M17 4v16" /></svg>;
+    return <svg {...common}><path d="M4 12h16" /><path d="M12 4v16" /><path d="M7 7h10v10H7z" /></svg>;
+  };
+
+  const applyUpright = (mode: 'off' | 'auto' | 'horizontal' | 'vertical' | 'full') => {
+    const ratioDelta = Math.max(-1, Math.min(1, (cropPixelRatio - imageAspect) / Math.max(imageAspect, 1e-6)));
+    if (mode === 'off') {
+      setCropGeomValue({ uprightMode: 'off', cropGeomVertical: 0, cropGeomHorizontal: 0, cropGeomRotate: 0, cropGeomAspect: 0, cropGeomScale: 100, cropGeomOffsetX: 0, cropGeomOffsetY: 0 });
+      return;
+    }
+    if (mode === 'horizontal') {
+      setCropGeomValue({ uprightMode: 'horizontal', cropGeomVertical: 0, cropGeomHorizontal: 0, cropGeomRotate: -cropStraighten * 0.8, cropGeomAspect: 0, cropGeomScale: 104, cropGeomOffsetX: 0, cropGeomOffsetY: 0 });
+      return;
+    }
+    if (mode === 'vertical') {
+      setCropGeomValue({ uprightMode: 'vertical', cropGeomVertical: ratioDelta * 22, cropGeomHorizontal: 0, cropGeomRotate: -cropStraighten * 0.4, cropGeomAspect: ratioDelta * 8, cropGeomScale: 106, cropGeomOffsetX: 0, cropGeomOffsetY: 0 });
+      return;
+    }
+    if (mode === 'full') {
+      setCropGeomValue({ uprightMode: 'full', cropGeomVertical: ratioDelta * 28, cropGeomHorizontal: -ratioDelta * 10, cropGeomRotate: -cropStraighten * 0.9, cropGeomAspect: ratioDelta * 18, cropGeomScale: 110, cropGeomOffsetX: 0, cropGeomOffsetY: 0 });
+      return;
+    }
+    setCropGeomValue({ uprightMode: 'auto', cropGeomVertical: ratioDelta * 16, cropGeomHorizontal: -ratioDelta * 6, cropGeomRotate: -cropStraighten * 0.55, cropGeomAspect: ratioDelta * 10, cropGeomScale: 105, cropGeomOffsetX: 0, cropGeomOffsetY: 0 });
+  };
+
   const resetCrop = () => {
     const nextCropRect = { x0: 0, y0: 0, x1: 1, y1: 1 };
     setCropRect(nextCropRect);
@@ -710,6 +820,14 @@ const RawEditor: React.FC = () => {
     setCropQuarterTurns(0);
     setCropFlipX(false);
     setCropFlipY(false);
+    setUprightMode('off');
+    setCropGeomVertical(0);
+    setCropGeomHorizontal(0);
+    setCropGeomRotate(0);
+    setCropGeomAspect(0);
+    setCropGeomScale(100);
+    setCropGeomOffsetX(0);
+    setCropGeomOffsetY(0);
     pushHistory(makeSnapshot(imageState, {
       cropRect: nextCropRect,
       cropEnabled: false,
@@ -717,6 +835,14 @@ const RawEditor: React.FC = () => {
       cropQuarterTurns: 0,
       cropFlipX: false,
       cropFlipY: false,
+      uprightMode: 'off',
+      cropGeomVertical: 0,
+      cropGeomHorizontal: 0,
+      cropGeomRotate: 0,
+      cropGeomAspect: 0,
+      cropGeomScale: 100,
+      cropGeomOffsetX: 0,
+      cropGeomOffsetY: 0,
     }));
   };
 
@@ -748,6 +874,14 @@ const RawEditor: React.FC = () => {
       setCropQuarterTurns(0);
       setCropFlipX(false);
       setCropFlipY(false);
+      setUprightMode('off');
+      setCropGeomVertical(0);
+      setCropGeomHorizontal(0);
+      setCropGeomRotate(0);
+      setCropGeomAspect(0);
+      setCropGeomScale(100);
+      setCropGeomOffsetX(0);
+      setCropGeomOffsetY(0);
       setHasImage(true);
       setRightPanelPage('adjust');
       resetView();
@@ -770,6 +904,14 @@ const RawEditor: React.FC = () => {
         cropQuarterTurns: 0,
         cropFlipX: false,
         cropFlipY: false,
+        uprightMode: 'off',
+        cropGeomVertical: 0,
+        cropGeomHorizontal: 0,
+        cropGeomRotate: 0,
+        cropGeomAspect: 0,
+        cropGeomScale: 100,
+        cropGeomOffsetX: 0,
+        cropGeomOffsetY: 0,
       }));
       setHistogram(pipeline.getHistogramData());
       setMetadata(rawImage.metadata);
@@ -833,14 +975,7 @@ const RawEditor: React.FC = () => {
     <div className="flex h-screen bg-[#2b2b2b] text-zinc-200 overflow-hidden font-sans">
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col h-full">
-        <div className="h-7 border-b border-zinc-700 bg-[#323232] relative flex items-center px-3">
-          <div className="flex items-center gap-1.5 absolute left-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
-            <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
-          </div>
-          <div className="w-full text-center text-xs font-semibold tracking-wide text-zinc-200">Camera Raw 17.5</div>
-        </div>
+       
         <div className="h-10 border-b border-zinc-700 bg-[#3a3a3a] flex items-center px-3 justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-xs font-medium text-zinc-200 truncate max-w-[280px]">{metadata?.name || t.rawStudio}</span>
@@ -1017,12 +1152,10 @@ const RawEditor: React.FC = () => {
               <div className="text-3xl font-bold tracking-tight">裁剪</div>
               <div className="space-y-2 border-b border-zinc-700 pb-3">
                 <div className="text-xs text-zinc-300">预设</div>
-                <Select value={cropPreset} onValueChange={applyCropPreset}>
-                  <SelectTrigger className="h-9 border-zinc-600 bg-[#2f2f2f]"><SelectValue placeholder="预设" /></SelectTrigger>
+                <Select value={'origin'} onValueChange={applyCropPreset}>
+                  <SelectTrigger className="h-9 border-zinc-600 bg-[#2f2f2f]" disabled><SelectValue placeholder="原始比例" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="free">自由</SelectItem><SelectItem value="origin">原始比例</SelectItem>
-                    <SelectItem value="1:1">1:1</SelectItem><SelectItem value="4:3">4:3</SelectItem>
-                    <SelectItem value="3:2">3:2</SelectItem><SelectItem value="16:9">16:9</SelectItem>
+                    <SelectItem value="origin">原始比例</SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="text-[11px] text-zinc-400">当前比例 {cropPixelRatio.toFixed(2)}:1</div>
@@ -1038,6 +1171,35 @@ const RawEditor: React.FC = () => {
                   <Button size="icon" variant="ghost" className="h-9 w-9" onClick={handleCropRotateCW}><RotateCw className="w-4 h-4" /></Button>
                   <Button size="icon" variant="ghost" className="h-9 w-9" onClick={handleCropFlipH}><FlipHorizontal2 className="w-4 h-4" /></Button>
                   <Button size="icon" variant="ghost" className="h-9 w-9" onClick={handleCropFlipV}><FlipVertical2 className="w-4 h-4" /></Button>
+                </div>
+              </div>
+              <div className="space-y-3 border-b border-zinc-700 pb-4">
+                <div className="text-lg font-semibold">Upright</div>
+                <div className="grid grid-cols-5 gap-1.5 rounded-md bg-[#2f2f2f] p-1 border border-zinc-700">
+                  <button className={`h-8 rounded flex items-center justify-center ${uprightMode === 'off' ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-300 hover:bg-zinc-700/60'}`} onClick={() => applyUpright('off')} title="禁用">{renderUprightIcon('off')}</button>
+                  <button className={`h-8 rounded flex items-center justify-center ${uprightMode === 'auto' ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-300 hover:bg-zinc-700/60'}`} onClick={() => applyUpright('auto')} title="自动">{renderUprightIcon('auto')}</button>
+                  <button className={`h-8 rounded flex items-center justify-center ${uprightMode === 'horizontal' ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-300 hover:bg-zinc-700/60'}`} onClick={() => applyUpright('horizontal')} title="水平">{renderUprightIcon('horizontal')}</button>
+                  <button className={`h-8 rounded flex items-center justify-center ${uprightMode === 'vertical' ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-300 hover:bg-zinc-700/60'}`} onClick={() => applyUpright('vertical')} title="垂直">{renderUprightIcon('vertical')}</button>
+                  <button className={`h-8 rounded flex items-center justify-center ${uprightMode === 'full' ? 'bg-zinc-200 text-zinc-900' : 'text-zinc-300 hover:bg-zinc-700/60'}`} onClick={() => applyUpright('full')} title="完整">{renderUprightIcon('full')}</button>
+                </div>
+              </div>
+              <div className="space-y-3 border-b border-zinc-700 pb-4">
+                <div className="text-lg font-semibold">手动转换</div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs"><span>垂直</span><input className="w-20 h-8 px-2 rounded bg-[#2a2a2a] border border-zinc-600 text-right" value={cropGeomVertical.toFixed(0)} onChange={(e) => setCropGeomFromInput('cropGeomVertical', e.target.value, -100, 100)} /></div>
+                  <Slider value={[cropGeomVertical]} min={-100} max={100} step={1} onValueChange={([v]) => setCropGeomValue({ cropGeomVertical: v, uprightMode: 'off' })} />
+                  <div className="flex items-center justify-between text-xs"><span>水平</span><input className="w-20 h-8 px-2 rounded bg-[#2a2a2a] border border-zinc-600 text-right" value={cropGeomHorizontal.toFixed(0)} onChange={(e) => setCropGeomFromInput('cropGeomHorizontal', e.target.value, -100, 100)} /></div>
+                  <Slider value={[cropGeomHorizontal]} min={-100} max={100} step={1} onValueChange={([v]) => setCropGeomValue({ cropGeomHorizontal: v, uprightMode: 'off' })} />
+                  <div className="flex items-center justify-between text-xs"><span>旋转</span><input className="w-20 h-8 px-2 rounded bg-[#2a2a2a] border border-zinc-600 text-right" value={cropGeomRotate.toFixed(1)} onChange={(e) => setCropGeomFromInput('cropGeomRotate', e.target.value, -45, 45)} /></div>
+                  <Slider value={[cropGeomRotate]} min={-45} max={45} step={0.1} onValueChange={([v]) => setCropGeomValue({ cropGeomRotate: v, uprightMode: 'off' })} />
+                  <div className="flex items-center justify-between text-xs"><span>长宽比</span><input className="w-20 h-8 px-2 rounded bg-[#2a2a2a] border border-zinc-600 text-right" value={cropGeomAspect.toFixed(0)} onChange={(e) => setCropGeomFromInput('cropGeomAspect', e.target.value, -100, 100)} /></div>
+                  <Slider value={[cropGeomAspect]} min={-100} max={100} step={1} onValueChange={([v]) => setCropGeomValue({ cropGeomAspect: v, uprightMode: 'off' })} />
+                  <div className="flex items-center justify-between text-xs"><span>缩放</span><input className="w-20 h-8 px-2 rounded bg-[#2a2a2a] border border-zinc-600 text-right" value={cropGeomScale.toFixed(0)} onChange={(e) => setCropGeomFromInput('cropGeomScale', e.target.value, 50, 150)} /></div>
+                  <Slider value={[cropGeomScale]} min={50} max={150} step={1} onValueChange={([v]) => setCropGeomValue({ cropGeomScale: v, uprightMode: 'off' })} />
+                  <div className="flex items-center justify-between text-xs"><span>横向补正</span><input className="w-20 h-8 px-2 rounded bg-[#2a2a2a] border border-zinc-600 text-right" value={cropGeomOffsetX.toFixed(0)} onChange={(e) => setCropGeomFromInput('cropGeomOffsetX', e.target.value, -100, 100)} /></div>
+                  <Slider value={[cropGeomOffsetX]} min={-100} max={100} step={1} onValueChange={([v]) => setCropGeomValue({ cropGeomOffsetX: v, uprightMode: 'off' })} />
+                  <div className="flex items-center justify-between text-xs"><span>纵向补正</span><input className="w-20 h-8 px-2 rounded bg-[#2a2a2a] border border-zinc-600 text-right" value={cropGeomOffsetY.toFixed(0)} onChange={(e) => setCropGeomFromInput('cropGeomOffsetY', e.target.value, -100, 100)} /></div>
+                  <Slider value={[cropGeomOffsetY]} min={-100} max={100} step={1} onValueChange={([v]) => setCropGeomValue({ cropGeomOffsetY: v, uprightMode: 'off' })} />
                 </div>
               </div>
               <div className="flex items-center gap-2 pt-1">

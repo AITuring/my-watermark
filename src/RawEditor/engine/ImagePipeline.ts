@@ -57,9 +57,17 @@ export class ImagePipeline {
       uniform float heatOverlay;
       uniform float cropEnabled;
       uniform vec4 cropRect;
+      uniform vec2 cropCenter;
       uniform float cropAngle;
       uniform float cropFlipX;
       uniform float cropFlipY;
+      uniform float cropGeomVertical;
+      uniform float cropGeomHorizontal;
+      uniform float cropGeomRotate;
+      uniform float cropGeomAspect;
+      uniform float cropGeomScale;
+      uniform float cropGeomOffsetX;
+      uniform float cropGeomOffsetY;
 
       varying vec2 vUv;
 
@@ -209,15 +217,38 @@ export class ImagePipeline {
           );
         }
 
-        vec2 centered = sampleUv - vec2(0.5);
+        vec2 centered = sampleUv - cropCenter;
+        float safeAspect = max(aspectRatio, 1e-6);
+        centered.x *= safeAspect;
+
         if (cropFlipX > 0.5) centered.x = -centered.x;
         if (cropFlipY > 0.5) centered.y = -centered.y;
+
         float c = cos(cropAngle);
         float s = sin(cropAngle);
         centered = mat2(c, -s, s, c) * centered;
-        sampleUv = centered + vec2(0.5);
 
-        vec4 texel = texture2D(tDiffuse, sampleUv);
+        float px = centered.x;
+        float py = centered.y;
+        float denomV = max(0.35, 1.0 + cropGeomVertical * py);
+        float denomH = max(0.35, 1.0 + cropGeomHorizontal * px);
+        px /= denomV;
+        py /= denomH;
+        centered = vec2(px, py);
+
+        float c2 = cos(cropGeomRotate);
+        float s2 = sin(cropGeomRotate);
+        centered = mat2(c2, -s2, s2, c2) * centered;
+
+        centered.x /= max(cropGeomAspect, 1e-4);
+        centered /= max(cropGeomScale, 1e-4);
+        centered += vec2(cropGeomOffsetX * safeAspect, cropGeomOffsetY);
+
+        centered.x /= safeAspect;
+        sampleUv = centered + cropCenter;
+
+        bool inBounds = sampleUv.x >= 0.0 && sampleUv.x <= 1.0 && sampleUv.y >= 0.0 && sampleUv.y <= 1.0;
+        vec4 texel = inBounds ? texture2D(tDiffuse, sampleUv) : vec4(0.0, 0.0, 0.0, 1.0);
         vec3 color = texel.rgb;
 
         color = applyWhiteBalance(color, temperature, tint);
@@ -313,9 +344,17 @@ export class ImagePipeline {
         heatOverlay: { value: 0.0 },
         cropEnabled: { value: 0.0 },
         cropRect: { value: new THREE.Vector4(0, 0, 1, 1) },
+        cropCenter: { value: new THREE.Vector2(0.5, 0.5) },
         cropAngle: { value: 0.0 },
         cropFlipX: { value: 0.0 },
         cropFlipY: { value: 0.0 },
+        cropGeomVertical: { value: 0.0 },
+        cropGeomHorizontal: { value: 0.0 },
+        cropGeomRotate: { value: 0.0 },
+        cropGeomAspect: { value: 1.0 },
+        cropGeomScale: { value: 1.0 },
+        cropGeomOffsetX: { value: 0.0 },
+        cropGeomOffsetY: { value: 0.0 },
         sharpness: { value: 0.0 },
         resolution: { value: new THREE.Vector2(1, 1) }
       },
@@ -381,6 +420,7 @@ export class ImagePipeline {
     const y1 = Math.min(Math.max(Math.max(rect.y0, rect.y1), 0), 1);
     this.material.uniforms.cropEnabled.value = enabled ? 1.0 : 0.0;
     this.material.uniforms.cropRect.value.set(x0, y0, x1, y1);
+    this.material.uniforms.cropCenter.value.set((x0 + x1) * 0.5, (y0 + y1) * 0.5);
     this.render();
   }
 
@@ -388,6 +428,17 @@ export class ImagePipeline {
     this.material.uniforms.cropAngle.value = THREE.MathUtils.degToRad(angleDeg);
     this.material.uniforms.cropFlipX.value = flipX ? 1.0 : 0.0;
     this.material.uniforms.cropFlipY.value = flipY ? 1.0 : 0.0;
+    this.render();
+  }
+
+  setCropGeometry(params: { vertical: number; horizontal: number; rotate: number; aspect: number; scale: number; offsetX: number; offsetY: number; }) {
+    this.material.uniforms.cropGeomVertical.value = params.vertical;
+    this.material.uniforms.cropGeomHorizontal.value = params.horizontal;
+    this.material.uniforms.cropGeomRotate.value = THREE.MathUtils.degToRad(params.rotate);
+    this.material.uniforms.cropGeomAspect.value = Math.max(params.aspect, 0.1);
+    this.material.uniforms.cropGeomScale.value = Math.max(params.scale, 0.1);
+    this.material.uniforms.cropGeomOffsetX.value = params.offsetX;
+    this.material.uniforms.cropGeomOffsetY.value = params.offsetY;
     this.render();
   }
 
