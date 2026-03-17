@@ -350,7 +350,7 @@ const RawEditor: React.FC = () => {
     canRedo,
   } = useHistoryManager<EditorSnapshot>({
     storageKey: 'raw-editor-history-stack-v1',
-    mergeWindowMs: 140,
+    mergeWindowMs: 1200,
     initial: initialSnapshot,
     clone: cloneSnapshot,
     equals: isSameSnapshot,
@@ -651,7 +651,9 @@ const RawEditor: React.FC = () => {
       const viewH = Math.max(8, imageH / z);
       const viewportX = Math.min(offsetX + imageW - viewW, Math.max(offsetX, offsetX + centerX * imageW - viewW / 2));
       const viewportY = Math.min(offsetY + imageH - viewH, Math.max(offsetY, offsetY + centerY * imageH - viewH / 2));
-      return { width, height, imageW, imageH, offsetX, offsetY, viewportX, viewportY, viewW, viewH };
+      const visibleRatio = (viewW * viewH) / Math.max(imageW * imageH, 1e-6);
+      const zoomedRatio = 1 - Math.min(Math.max(visibleRatio, 0), 1);
+      return { width, height, imageW, imageH, offsetX, offsetY, viewportX, viewportY, viewW, viewH, zoomedRatio };
   }, [hasImage, imageAspect, uiZoom, uiPan, getContainScale]);
 
   const updatePanFromMinimap = (clientX: number, clientY: number) => {
@@ -692,9 +694,23 @@ const RawEditor: React.FC = () => {
     return w / h;
   }, [cropRect, imageAspect]);
 
+  const cropPresetRatio = useMemo(() => {
+    if (cropPreset === 'free') return null;
+    if (cropPreset === 'origin') return imageAspect;
+    const [w, h] = cropPreset.split(':').map(Number);
+    if (!w || !h) return imageAspect;
+    return w / h;
+  }, [cropPreset, imageAspect]);
+
   const applyCropPreset = (preset: string) => {
-    setCropPreset('origin');
-    const target = imageAspect;
+    setCropPreset(preset);
+    if (preset === 'free') return;
+    const target = preset === 'origin'
+      ? imageAspect
+      : (() => {
+          const [w, h] = preset.split(':').map(Number);
+          return w > 0 && h > 0 ? w / h : imageAspect;
+        })();
     const uvRatio = target / Math.max(imageAspect, 1e-6);
     const x0 = Math.min(cropRect.x0, cropRect.x1);
     const y0 = Math.min(cropRect.y0, cropRect.y1);
@@ -728,7 +744,7 @@ const RawEditor: React.FC = () => {
 
   const handleCropStraightenChange = (v: number) => {
     setCropStraighten(v);
-    pushHistory(makeSnapshot(imageState, { cropStraighten: v }), false);
+    pushHistory(makeSnapshot(imageState, { cropStraighten: v }), true);
   };
 
   const handleCropRotateCW = () => {
@@ -755,7 +771,7 @@ const RawEditor: React.FC = () => {
     pushHistory(makeSnapshot(imageState, { cropFlipY: next }), false);
   };
 
-  const setCropGeomValue = (patch: Partial<EditorSnapshot>) => {
+  const setCropGeomValue = (patch: Partial<EditorSnapshot>, allowMerge = true) => {
     if (patch.cropGeomVertical !== undefined) setCropGeomVertical(patch.cropGeomVertical);
     if (patch.cropGeomHorizontal !== undefined) setCropGeomHorizontal(patch.cropGeomHorizontal);
     if (patch.cropGeomRotate !== undefined) setCropGeomRotate(patch.cropGeomRotate);
@@ -764,7 +780,7 @@ const RawEditor: React.FC = () => {
     if (patch.cropGeomOffsetX !== undefined) setCropGeomOffsetX(patch.cropGeomOffsetX);
     if (patch.cropGeomOffsetY !== undefined) setCropGeomOffsetY(patch.cropGeomOffsetY);
     if (patch.uprightMode !== undefined) setUprightMode(patch.uprightMode);
-    pushHistory(makeSnapshot(imageState, patch), false);
+    pushHistory(makeSnapshot(imageState, patch), allowMerge);
   };
 
 
@@ -975,7 +991,7 @@ const RawEditor: React.FC = () => {
     <div className="flex h-screen bg-[#2b2b2b] text-zinc-200 overflow-hidden font-sans">
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col h-full">
-       
+
         <div className="h-10 border-b border-zinc-700 bg-[#3a3a3a] flex items-center px-3 justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-xs font-medium text-zinc-200 truncate max-w-[280px]">{metadata?.name || t.rawStudio}</span>
@@ -993,6 +1009,8 @@ const RawEditor: React.FC = () => {
             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} title="Switch Language"><Languages className="w-4 h-4" /></Button>
             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleUndo} disabled={!hasImage || !canUndo} title={`${t.undo} (⌘/Ctrl+Z)`}><Undo2 className="w-4 h-4" /></Button>
             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleRedo} disabled={!hasImage || !canRedo} title={`${t.redo} (⇧⌘/Ctrl+Z)`}><Redo2 className="w-4 h-4" /></Button>
+            <Button size="sm" variant={compareMode === 'split' ? 'default' : 'outline'} className="h-8 px-2.5" onClick={() => setCompareMode((m) => (m === 'split' ? 'off' : 'split'))} disabled={!hasImage}>对比</Button>
+            <Button size="sm" variant={showHeatOverlay ? 'default' : 'outline'} className="h-8 px-2.5" onClick={() => setShowHeatOverlay((v) => !v)} disabled={!hasImage}>热区</Button>
             <Button size="icon" variant="ghost" className="h-8 w-8" asChild>
               <label className="cursor-pointer flex items-center justify-center">
                 <Upload className="w-4 h-4" />
@@ -1042,7 +1060,8 @@ const RawEditor: React.FC = () => {
           <CropWorkspace
             visible={hasImage && activeTool === 'crop'}
             imageAspect={imageAspect}
-            cropRect={cropRect}
+            lockedAspectRatio={cropPresetRatio}
+            cropRect={{ x0: cropRect.x0, y0: 1 - cropRect.y0, x1: cropRect.x1, y1: 1 - cropRect.y1 }}
             cropEnabled={cropEnabled}
             straighten={cropStraighten}
             onStraightenChange={handleCropStraightenChange}
@@ -1050,12 +1069,15 @@ const RawEditor: React.FC = () => {
             onRotateCCW={handleCropRotateCCW}
             onFlipH={handleCropFlipH}
             onFlipV={handleCropFlipV}
-            onCropRectChange={setCropRect}
+            onCropRectChange={(r) => setCropRect({ x0: r.x0, y0: 1 - r.y0, x1: r.x1, y1: 1 - r.y1 })}
             onApply={applyCropSelection}
             onReset={resetCrop}
             onCancel={cancelCropEdit}
-            clientToUv={clientToUv}
-            uvToPercent={uvToPercent}
+            clientToUv={(x, y) => {
+              const uv = clientToUv(x, y);
+              return uv ? { x: uv.x, y: 1 - uv.y } : null;
+            }}
+            uvToPercent={(u, v) => uvToPercent(u, 1 - v)}
           />
 
           {hasImage && compareMode === 'split' && !isSpacePreviewing && (
@@ -1089,7 +1111,7 @@ const RawEditor: React.FC = () => {
             </div>
           )}
 
-          {hasImage && minimap && (
+          {hasImage && minimap && minimap.zoomedRatio >= 0.3 && (
               <div
                 ref={minimapRef}
                 className="absolute bottom-4 left-4 bg-black/55 backdrop-blur rounded-md border border-white/20 shadow-lg p-1.5 select-none touch-none"
@@ -1132,11 +1154,7 @@ const RawEditor: React.FC = () => {
                   <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={resetView}>适应</Button>
                   <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => commitTransform(2, transform.current.pan)}>1:1</Button>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <Button size="sm" variant={compareMode === 'split' ? 'default' : 'ghost'} className="h-6 px-2 text-xs" onClick={() => setCompareMode((m) => (m === 'split' ? 'off' : 'split'))}>对比</Button>
-                  <Button size="sm" variant={showHeatOverlay ? 'default' : 'ghost'} className="h-6 px-2 text-xs" onClick={() => setShowHeatOverlay((v) => !v)}>热区</Button>
-                </div>
-                <div className="font-medium tracking-wide">{Math.round(uiZoom * 100)}%</div>
+                <div className="text-[11px] text-zinc-400 tracking-wide">缩放 {Math.round(uiZoom * 100)}% · 平移 X {uiPan.x.toFixed(2)} / Y {uiPan.y.toFixed(2)} · 裁切比 {cropPixelRatio.toFixed(2)}:1</div>
               </div>
           )}
         </div>
@@ -1149,13 +1167,21 @@ const RawEditor: React.FC = () => {
           )}
           {rightPanelPage === 'crop' && (
             <div className="h-full overflow-auto px-3 py-3 space-y-4">
-              <div className="text-3xl font-bold tracking-tight">裁剪</div>
+              <div className="h-11 px-4 border-b border-zinc-700 font-medium text-sm flex items-center">裁剪</div>
               <div className="space-y-2 border-b border-zinc-700 pb-3">
                 <div className="text-xs text-zinc-300">预设</div>
-                <Select value={'origin'} onValueChange={applyCropPreset}>
-                  <SelectTrigger className="h-9 border-zinc-600 bg-[#2f2f2f]" disabled><SelectValue placeholder="原始比例" /></SelectTrigger>
+                <Select value={cropPreset} onValueChange={applyCropPreset}>
+                  <SelectTrigger className="h-9 border-zinc-600 bg-[#2f2f2f]"><SelectValue placeholder="预设" /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="free">自由</SelectItem>
                     <SelectItem value="origin">原始比例</SelectItem>
+                    <SelectItem value="1:1">1:1</SelectItem>
+                    <SelectItem value="4:3">4:3</SelectItem>
+                    <SelectItem value="3:2">3:2</SelectItem>
+                    <SelectItem value="16:9">16:9</SelectItem>
+                    <SelectItem value="9:16">9:16</SelectItem>
+                    <SelectItem value="16:10">16:10</SelectItem>
+                    <SelectItem value="10:16">10:16</SelectItem>
                   </SelectContent>
                 </Select>
                 <div className="text-[11px] text-zinc-400">当前比例 {cropPixelRatio.toFixed(2)}:1</div>

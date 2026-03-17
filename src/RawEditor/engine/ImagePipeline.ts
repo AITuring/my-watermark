@@ -8,6 +8,7 @@ export class ImagePipeline {
   private material: THREE.ShaderMaterial;
   private texture: THREE.DataTexture | null = null;
   private canvas: HTMLCanvasElement;
+  private sourceAspectRatio = 1;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -49,6 +50,7 @@ export class ImagePipeline {
       uniform float sharpness;
       uniform vec2 resolution;
       uniform float aspectRatio;
+      uniform float sourceAspectRatio;
       uniform float containerAspectRatio;
       uniform float zoom;
       uniform vec2 pan;
@@ -218,7 +220,7 @@ export class ImagePipeline {
         }
 
         vec2 centered = sampleUv - cropCenter;
-        float safeAspect = max(aspectRatio, 1e-6);
+        float safeAspect = max(sourceAspectRatio, 1e-6);
         centered.x *= safeAspect;
 
         if (cropFlipX > 0.5) centered.x = -centered.x;
@@ -336,6 +338,7 @@ export class ImagePipeline {
         blacks: { value: 0.0 },
         curveCtrl: { value: new THREE.Vector3(0.25, 0.5, 0.75) },
         aspectRatio: { value: 1.0 },
+        sourceAspectRatio: { value: 1.0 },
         containerAspectRatio: { value: 1.0 },
         zoom: { value: 1.0 },
         pan: { value: new THREE.Vector2(0, 0) },
@@ -393,7 +396,9 @@ export class ImagePipeline {
     this.texture.anisotropy = maxAnisotropy;
 
     this.material.uniforms.tDiffuse.value = this.texture;
-    this.material.uniforms.aspectRatio.value = image.width / image.height;
+    this.sourceAspectRatio = image.width / image.height;
+    this.material.uniforms.aspectRatio.value = this.sourceAspectRatio;
+    this.material.uniforms.sourceAspectRatio.value = this.sourceAspectRatio;
     this.material.uniforms.resolution.value.set(image.width, image.height);
 
     // Initial render
@@ -421,6 +426,15 @@ export class ImagePipeline {
     this.material.uniforms.cropEnabled.value = enabled ? 1.0 : 0.0;
     this.material.uniforms.cropRect.value.set(x0, y0, x1, y1);
     this.material.uniforms.cropCenter.value.set((x0 + x1) * 0.5, (y0 + y1) * 0.5);
+
+    if (enabled) {
+      const w = Math.max(1e-6, x1 - x0);
+      const h = Math.max(1e-6, y1 - y0);
+      this.material.uniforms.aspectRatio.value = this.sourceAspectRatio * (w / h);
+    } else {
+      this.material.uniforms.aspectRatio.value = this.sourceAspectRatio;
+    }
+
     this.render();
   }
 

@@ -7,6 +7,7 @@ type Handle = 'move' | 'new' | 'n' | 's' | 'e' | 'w' | 'nw' | 'ne' | 'sw' | 'se'
 type Props = {
   visible: boolean;
   imageAspect: number;
+  lockedAspectRatio: number | null;
   cropRect: CropRect;
   cropEnabled: boolean;
   straighten: number;
@@ -24,7 +25,9 @@ type Props = {
 };
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-const minSize = 0.015;
+const maxCropY = 0.965;
+const clampY = (v: number) => Math.min(maxCropY, Math.max(0, v));
+const minSize = 0.06;
 
 const normalizeRect = (r: CropRect): CropRect => ({
   x0: Math.min(r.x0, r.x1),
@@ -38,6 +41,7 @@ const normalizeRect = (r: CropRect): CropRect => ({
 export const CropWorkspace: React.FC<Props> = ({
   visible,
   imageAspect,
+  lockedAspectRatio,
   cropRect,
   cropEnabled,
   straighten,
@@ -53,9 +57,6 @@ export const CropWorkspace: React.FC<Props> = ({
   clientToUv,
   uvToPercent,
 }) => {
-  const [preset, setPreset] = useState('original');
-  const [lockRatio, setLockRatio] = useState(true);
-  const [invertAspect, setInvertAspect] = useState(false);
   const [minSizeHint, setMinSizeHint] = useState(false);
 
   const dragRef = useRef<{
@@ -65,31 +66,10 @@ export const CropWorkspace: React.FC<Props> = ({
     startRect: CropRect;
   } | null>(null);
 
-  const aspect = useMemo(() => {
-    if (!lockRatio) return null;
-    if (preset === 'free') return null;
-    const base = preset === 'original'
-      ? Math.max(imageAspect, 0.01)
-      : (() => {
-          const [w, h] = preset.split(':').map(Number);
-          if (!w || !h) return null;
-          return w / h;
-        })();
-    if (!base) return null;
-    return invertAspect ? 1 / base : base;
-  }, [preset, lockRatio, imageAspect, invertAspect]);
-
   const uvAspect = useMemo(() => {
-    if (!aspect) return null;
-    return aspect / Math.max(imageAspect, 1e-6);
-  }, [aspect, imageAspect]);
-
-  useEffect(() => {
-    if (!visible) return;
-    if (preset !== 'original') setPreset('original');
-    if (!lockRatio) setLockRatio(true);
-    if (invertAspect) setInvertAspect(false);
-  }, [visible, preset, lockRatio, invertAspect]);
+    if (!lockedAspectRatio) return null;
+    return lockedAspectRatio / Math.max(imageAspect, 1e-6);
+  }, [lockedAspectRatio, imageAspect]);
 
   const box = useMemo(() => {
     const r = normalizeRect(cropRect);
@@ -128,33 +108,40 @@ export const CropWorkspace: React.FC<Props> = ({
     return normalizeRect({ x0: clamp01(x0), y0: clamp01(y0), x1: clamp01(x1), y1: clamp01(y1) });
   }, []);
 
-  const applyAspectToRect = (r: CropRect, mode: Handle, startRect: CropRect): CropRect => {
+  const applyAspectToRect = (r: CropRect, mode: Handle, startRect: CropRect, startUv: { x: number; y: number }): CropRect => {
     if (!uvAspect) return r;
     const nr = normalizeRect(r);
+    const s = normalizeRect(startRect);
 
     if (mode === 'e' || mode === 'w') {
-      const cx = (nr.x0 + nr.x1) * 0.5;
-      const cy = (startRect.y0 + startRect.y1) * 0.5;
-      const w = Math.max(nr.x1 - nr.x0, minSize);
+      const anchorX = mode === 'e' ? s.x0 : s.x1;
+      const px = mode === 'e' ? Math.max(nr.x1, anchorX + minSize) : Math.min(nr.x0, anchorX - minSize);
+      const w = Math.max(Math.abs(px - anchorX), minSize);
       const h = w / uvAspect;
-      return normalizeRect({ x0: cx - w / 2, x1: cx + w / 2, y0: cy - h / 2, y1: cy + h / 2 });
+      const cy = (s.y0 + s.y1) * 0.5;
+      const x0 = mode === 'e' ? anchorX : px;
+      const x1 = mode === 'e' ? px : anchorX;
+      return normalizeRect({ x0, x1, y0: cy - h / 2, y1: cy + h / 2 });
     }
 
     if (mode === 'n' || mode === 's') {
-      const cx = (startRect.x0 + startRect.x1) * 0.5;
-      const cy = (nr.y0 + nr.y1) * 0.5;
-      const h = Math.max(nr.y1 - nr.y0, minSize);
+      const anchorY = mode === 'n' ? s.y1 : s.y0;
+      const py = mode === 'n' ? Math.min(nr.y0, anchorY - minSize) : Math.max(nr.y1, anchorY + minSize);
+      const h = Math.max(Math.abs(py - anchorY), minSize);
       const w = h * uvAspect;
-      return normalizeRect({ x0: cx - w / 2, x1: cx + w / 2, y0: cy - h / 2, y1: cy + h / 2 });
+      const cx = (s.x0 + s.x1) * 0.5;
+      const y0 = mode === 'n' ? py : anchorY;
+      const y1 = mode === 'n' ? anchorY : py;
+      return normalizeRect({ x0: cx - w / 2, x1: cx + w / 2, y0, y1 });
     }
 
-    const s = normalizeRect(startRect);
     let ax = s.x0;
     let ay = s.y0;
+    if (mode === 'new') { ax = startUv.x; ay = startUv.y; }
     if (mode === 'nw') { ax = s.x1; ay = s.y1; }
     if (mode === 'ne') { ax = s.x0; ay = s.y1; }
-    if (mode === 'sw') { ax = s.x0; ay = s.y0; }
-    if (mode === 'se' || mode === 'new') { ax = s.x0; ay = s.y0; }
+    if (mode === 'sw') { ax = s.x1; ay = s.y0; }
+    if (mode === 'se') { ax = s.x0; ay = s.y0; }
 
     let px = mode === 'new' ? nr.x1 : (mode.includes('w') ? nr.x0 : nr.x1);
     let py = mode === 'new' ? nr.y1 : (mode.includes('n') ? nr.y0 : nr.y1);
@@ -174,7 +161,7 @@ export const CropWorkspace: React.FC<Props> = ({
     return normalizeRect({ x0: ax, y0: ay, x1: px, y1: py });
   };
 
-  const safeRect = (r: CropRect): CropRect => {
+  const safeRect = (r: CropRect, disableSnap = false): CropRect => {
     const snap = (v: number) => {
       const targets = [0, 1, 1 / 3, 2 / 3, 0.5];
       const tol = 0.012;
@@ -184,16 +171,18 @@ export const CropWorkspace: React.FC<Props> = ({
       return v;
     };
 
+    const fitX = (v: number) => (disableSnap ? clamp01(v) : snap(clamp01(v)));
+    const fitY = (v: number) => (disableSnap ? clampY(v) : snap(clampY(v)));
     const nr = normalizeRect({
-      x0: snap(clamp01(r.x0)),
-      y0: snap(clamp01(r.y0)),
-      x1: snap(clamp01(r.x1)),
-      y1: snap(clamp01(r.y1)),
+      x0: fitX(r.x0),
+      y0: fitY(r.y0),
+      x1: fitX(r.x1),
+      y1: fitY(r.y1),
     });
 
     let clampedByMin = false;
     if (nr.x1 - nr.x0 < minSize) { nr.x1 = Math.min(1, nr.x0 + minSize); clampedByMin = true; }
-    if (nr.y1 - nr.y0 < minSize) { nr.y1 = Math.min(1, nr.y0 + minSize); clampedByMin = true; }
+    if (nr.y1 - nr.y0 < minSize) { nr.y1 = Math.min(maxCropY, nr.y0 + minSize); clampedByMin = true; }
     setMinSizeHint(clampedByMin);
 
     return normalizeRect(nr);
@@ -209,26 +198,70 @@ export const CropWorkspace: React.FC<Props> = ({
       const w = s.x1 - s.x0;
       const h = s.y1 - s.y0;
       next = {
-        x0: clamp01(s.x0 + dx),
-        y0: clamp01(s.y0 + dy),
-        x1: clamp01(s.x0 + dx + w),
-        y1: clamp01(s.y0 + dy + h),
+        x0: s.x0 + dx,
+        y0: s.y0 + dy,
+        x1: s.x0 + dx + w,
+        y1: s.y0 + dy + h,
       };
       if (next.x1 > 1) { const d = next.x1 - 1; next.x0 -= d; next.x1 -= d; }
       if (next.y1 > 1) { const d = next.y1 - 1; next.y0 -= d; next.y1 -= d; }
       if (next.x0 < 0) { const d = -next.x0; next.x0 += d; next.x1 += d; }
       if (next.y0 < 0) { const d = -next.y0; next.y0 += d; next.y1 += d; }
-      onCropRectChange(safeRect(next));
+      onCropRectChange(safeRect(next, true));
       return;
     }
 
-    if (mode === 'new') next = { x0: startUv.x, y0: startUv.y, x1: uv.x, y1: uv.y };
-    if (mode.includes('n')) next.y0 = uv.y;
-    if (mode.includes('s')) next.y1 = uv.y;
-    if (mode.includes('w')) next.x0 = uv.x;
-    if (mode.includes('e')) next.x1 = uv.x;
+    if (uvAspect && (mode === 'n' || mode === 's')) {
+      const anchorY = mode === 'n' ? s.y1 : s.y0;
+      const py = mode === 'n' ? Math.min(uv.y, anchorY - minSize) : Math.max(uv.y, anchorY + minSize);
+      const h = Math.max(Math.abs(py - anchorY), minSize);
+      let w = h * uvAspect;
+      const cx = (s.x0 + s.x1) * 0.5;
+      if (w > 1) w = 1;
+      let x0 = cx - w / 2;
+      let x1 = cx + w / 2;
+      if (x0 < 0) { x1 -= x0; x0 = 0; }
+      if (x1 > 1) { const d = x1 - 1; x0 -= d; x1 = 1; }
+      const y0 = mode === 'n' ? py : anchorY;
+      const y1 = mode === 'n' ? anchorY : py;
+      onCropRectChange(safeRect({ x0, y0, x1, y1 }));
+      return;
+    }
 
-    next = applyAspectToRect(next, mode, s);
+    if (uvAspect && (mode === 'w' || mode === 'e')) {
+      const anchorX = mode === 'e' ? s.x0 : s.x1;
+      const px = mode === 'e' ? Math.max(uv.x, anchorX + minSize) : Math.min(uv.x, anchorX - minSize);
+      const w = Math.max(Math.abs(px - anchorX), minSize);
+      let h = w / uvAspect;
+      const cy = (s.y0 + s.y1) * 0.5;
+      if (h > 1) h = 1;
+      let y0 = cy - h / 2;
+      let y1 = cy + h / 2;
+      if (y0 < 0) { y1 -= y0; y0 = 0; }
+      if (y1 > 1) { const d = y1 - 1; y0 -= d; y1 = 1; }
+      const x0 = mode === 'e' ? anchorX : px;
+      const x1 = mode === 'e' ? px : anchorX;
+      onCropRectChange(safeRect({ x0, y0, x1, y1 }));
+      return;
+    }
+
+    if (mode === 'new') {
+      const dx = Math.abs(uv.x - startUv.x);
+      const dy = Math.abs(uv.y - startUv.y);
+      if (dx < 0.004 && dy < 0.004) return;
+      next = { x0: startUv.x, y0: startUv.y, x1: uv.x, y1: uv.y };
+    } else {
+      const minTop = s.y0 + minSize;
+      const maxBottom = s.y1 - minSize;
+      const minLeft = s.x0 + minSize;
+      const maxRight = s.x1 - minSize;
+      if (mode.includes('n')) next.y0 = Math.min(uv.y, maxBottom);
+      if (mode.includes('s')) next.y1 = Math.max(uv.y, minTop);
+      if (mode.includes('w')) next.x0 = Math.min(uv.x, maxRight);
+      if (mode.includes('e')) next.x1 = Math.max(uv.x, minLeft);
+    }
+
+    next = applyAspectToRect(next, mode, s, startUv);
     onCropRectChange(safeRect(next));
   };
 
@@ -284,7 +317,6 @@ export const CropWorkspace: React.FC<Props> = ({
     const uv = clientToUv(e.clientX, e.clientY);
     if (!uv) return;
     dragRef.current = { active: true, mode, startUv: uv, startRect: cropRect };
-    if (mode === 'new') onCropRectChange({ x0: uv.x, y0: uv.y, x1: uv.x, y1: uv.y });
   };
 
   return (
