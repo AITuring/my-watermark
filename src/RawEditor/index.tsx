@@ -1061,7 +1061,7 @@ const RawEditor: React.FC = () => {
             visible={hasImage && activeTool === 'crop'}
             imageAspect={imageAspect}
             lockedAspectRatio={cropPresetRatio}
-            cropRect={{ x0: cropRect.x0, y0: 1 - cropRect.y0, x1: cropRect.x1, y1: 1 - cropRect.y1 }}
+            cropRect={cropRect}
             cropEnabled={cropEnabled}
             straighten={cropStraighten}
             onStraightenChange={handleCropStraightenChange}
@@ -1069,15 +1069,12 @@ const RawEditor: React.FC = () => {
             onRotateCCW={handleCropRotateCCW}
             onFlipH={handleCropFlipH}
             onFlipV={handleCropFlipV}
-            onCropRectChange={(r) => setCropRect({ x0: r.x0, y0: 1 - r.y0, x1: r.x1, y1: 1 - r.y1 })}
+            onCropRectChange={setCropRect}
             onApply={applyCropSelection}
             onReset={resetCrop}
             onCancel={cancelCropEdit}
-            clientToUv={(x, y) => {
-              const uv = clientToUv(x, y);
-              return uv ? { x: uv.x, y: 1 - uv.y } : null;
-            }}
-            uvToPercent={(u, v) => uvToPercent(u, 1 - v)}
+            clientToUv={clientToUv}
+            uvToPercent={uvToPercent}
           />
 
           {hasImage && compareMode === 'split' && !isSpacePreviewing && (

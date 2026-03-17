@@ -25,8 +25,6 @@ type Props = {
 };
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-const maxCropY = 0.965;
-const clampY = (v: number) => Math.min(maxCropY, Math.max(0, v));
 const minSize = 0.06;
 
 const normalizeRect = (r: CropRect): CropRect => ({
@@ -172,7 +170,7 @@ export const CropWorkspace: React.FC<Props> = ({
     };
 
     const fitX = (v: number) => (disableSnap ? clamp01(v) : snap(clamp01(v)));
-    const fitY = (v: number) => (disableSnap ? clampY(v) : snap(clampY(v)));
+    const fitY = (v: number) => (disableSnap ? clamp01(v) : snap(clamp01(v)));
     const nr = normalizeRect({
       x0: fitX(r.x0),
       y0: fitY(r.y0),
@@ -182,7 +180,7 @@ export const CropWorkspace: React.FC<Props> = ({
 
     let clampedByMin = false;
     if (nr.x1 - nr.x0 < minSize) { nr.x1 = Math.min(1, nr.x0 + minSize); clampedByMin = true; }
-    if (nr.y1 - nr.y0 < minSize) { nr.y1 = Math.min(maxCropY, nr.y0 + minSize); clampedByMin = true; }
+    if (nr.y1 - nr.y0 < minSize) { nr.y1 = Math.min(1, nr.y0 + minSize); clampedByMin = true; }
     setMinSizeHint(clampedByMin);
 
     return normalizeRect(nr);
@@ -321,7 +319,7 @@ export const CropWorkspace: React.FC<Props> = ({
 
   return (
     <>
-      <div className="absolute inset-0 z-30 pointer-events-auto" onPointerDown={(e) => startDrag('new', e)}>
+      <div className="absolute inset-x-0 top-0 bottom-9 z-30 pointer-events-auto" onPointerDown={(e) => startDrag('new', e)}>
         <div className="absolute inset-0 bg-black/35" />
         <div className="absolute bg-black/35" style={{ left: 0, top: 0, width: `${box.left}%`, height: '100%' }} />
         <div className="absolute bg-black/35" style={{ left: `${box.left + box.width}%`, top: 0, width: `${Math.max(0, 100 - box.left - box.width)}%`, height: '100%' }} />
