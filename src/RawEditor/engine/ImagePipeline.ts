@@ -9,6 +9,8 @@ export class ImagePipeline {
   private texture: THREE.DataTexture | null = null;
   private canvas: HTMLCanvasElement;
   private sourceAspectRatio = 1;
+  private cropRectState = { x0: 0, y0: 0, x1: 1, y1: 1 };
+  private cropEnabledState = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -411,6 +413,16 @@ export class ImagePipeline {
       this.render();
   }
 
+  private updateDisplayAspectFromCropState() {
+    if (!this.cropEnabledState) {
+      this.material.uniforms.aspectRatio.value = this.sourceAspectRatio;
+      return;
+    }
+    const w = Math.max(1e-6, this.cropRectState.x1 - this.cropRectState.x0);
+    const h = Math.max(1e-6, this.cropRectState.y1 - this.cropRectState.y0);
+    this.material.uniforms.aspectRatio.value = this.sourceAspectRatio * (w / h);
+  }
+
   setCompareOptions(mode: 'off' | 'before' | 'split', splitX: number, heatOverlay: boolean) {
     this.material.uniforms.compareMode.value = mode === 'before' ? 1.0 : mode === 'split' ? 2.0 : 0.0;
     this.material.uniforms.splitX.value = Math.min(Math.max(splitX, 0), 1);
@@ -423,18 +435,12 @@ export class ImagePipeline {
     const y0 = Math.min(Math.max(Math.min(rect.y0, rect.y1), 0), 1);
     const x1 = Math.min(Math.max(Math.max(rect.x0, rect.x1), 0), 1);
     const y1 = Math.min(Math.max(Math.max(rect.y0, rect.y1), 0), 1);
+    this.cropEnabledState = enabled;
+    this.cropRectState = { x0, y0, x1, y1 };
     this.material.uniforms.cropEnabled.value = enabled ? 1.0 : 0.0;
     this.material.uniforms.cropRect.value.set(x0, y0, x1, y1);
     this.material.uniforms.cropCenter.value.set((x0 + x1) * 0.5, (y0 + y1) * 0.5);
-
-    if (enabled) {
-      const w = Math.max(1e-6, x1 - x0);
-      const h = Math.max(1e-6, y1 - y0);
-      this.material.uniforms.aspectRatio.value = this.sourceAspectRatio * (w / h);
-    } else {
-      this.material.uniforms.aspectRatio.value = this.sourceAspectRatio;
-    }
-
+    this.updateDisplayAspectFromCropState();
     this.render();
   }
 

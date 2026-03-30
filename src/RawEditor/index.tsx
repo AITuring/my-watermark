@@ -246,7 +246,6 @@ const RawEditor: React.FC = () => {
   const commitCrop = useCallback((enabled: boolean, rect = cropRect) => {
     if (!pipeline) return;
     pipeline.setCropRect(enabled, rect);
-    setCropEnabled(enabled);
   }, [pipeline, cropRect]);
 
   const getRawBaselineByModel = (model?: string): Partial<ImageState> => {
@@ -443,7 +442,7 @@ const RawEditor: React.FC = () => {
 
   useEffect(() => {
     if (!pipeline || !hasImage) return;
-    commitCrop(cropEnabled, cropRect);
+    commitCrop(cropEnabled || activeTool === 'crop', cropRect);
     const angle = cropQuarterTurns * 90 + cropStraighten;
     pipeline.setCropTransform(angle, cropFlipX, cropFlipY);
     pipeline.setCropGeometry({
@@ -455,7 +454,7 @@ const RawEditor: React.FC = () => {
       offsetX: cropGeomOffsetX * 0.0025,
       offsetY: cropGeomOffsetY * 0.0025,
     });
-  }, [pipeline, hasImage, cropEnabled, cropRect, commitCrop, cropQuarterTurns, cropStraighten, cropFlipX, cropFlipY, cropGeomVertical, cropGeomHorizontal, cropGeomRotate, cropGeomAspect, cropGeomScale, cropGeomOffsetX, cropGeomOffsetY]);
+  }, [pipeline, hasImage, cropEnabled, activeTool, cropRect, commitCrop, cropQuarterTurns, cropStraighten, cropFlipX, cropFlipY, cropGeomVertical, cropGeomHorizontal, cropGeomRotate, cropGeomAspect, cropGeomScale, cropGeomOffsetX, cropGeomOffsetY]);
 
   useEffect(() => {
       const canvas = canvasRef.current;
@@ -694,23 +693,18 @@ const RawEditor: React.FC = () => {
     return w / h;
   }, [cropRect, imageAspect]);
 
-  const cropPresetRatio = useMemo(() => {
-    if (cropPreset === 'free') return null;
-    if (cropPreset === 'origin') return imageAspect;
-    const [w, h] = cropPreset.split(':').map(Number);
-    if (!w || !h) return imageAspect;
-    return w / h;
-  }, [cropPreset, imageAspect]);
-
-  const applyCropPreset = (preset: string) => {
-    setCropPreset(preset);
-    if (preset === 'free') return;
-    const target = preset === 'origin'
+  const getPresetRatio = useCallback((preset: string) => {
+    if (preset === 'free') return null;
+    const base = preset === 'origin'
       ? imageAspect
       : (() => {
           const [w, h] = preset.split(':').map(Number);
           return w > 0 && h > 0 ? w / h : imageAspect;
         })();
+    return base;
+  }, [imageAspect]);
+
+  const fitCropRectToRatio = useCallback((target: number) => {
     const uvRatio = target / Math.max(imageAspect, 1e-6);
     const x0 = Math.min(cropRect.x0, cropRect.x1);
     const y0 = Math.min(cropRect.y0, cropRect.y1);
@@ -726,7 +720,75 @@ const RawEditor: React.FC = () => {
     const ny0 = Math.max(0, cy - h * 0.5);
     const nx1 = Math.min(1, nx0 + w);
     const ny1 = Math.min(1, ny0 + h);
-    setCropRect({ x0: nx0, y0: ny0, x1: nx1, y1: ny1 });
+    return { x0: nx0, y0: ny0, x1: nx1, y1: ny1 };
+  }, [cropRect, imageAspect]);
+
+  const rotateCropRectInPixelSpace = useCallback((rect: CropRect, dir: 'cw' | 'ccw'): CropRect => {
+    const x0 = Math.min(rect.x0, rect.x1);
+    const y0 = Math.min(rect.y0, rect.y1);
+    const x1 = Math.max(rect.x0, rect.x1);
+    const y1 = Math.max(rect.y0, rect.y1);
+    const toPixel = (u: number, v: number) => ({ x: (u - 0.5) * imageAspect, y: v - 0.5 });
+    const toUv = (x: number, y: number) => ({ u: x / Math.max(imageAspect, 1e-6) + 0.5, v: y + 0.5 });
+    const corners = [
+      toPixel(x0, y0),
+      toPixel(x1, y0),
+      toPixel(x0, y1),
+      toPixel(x1, y1),
+    ];
+    const rotated = corners.map((p) => (
+      dir === 'cw'
+        ? toUv(p.y, -p.x)
+        : toUv(-p.y, p.x)
+    ));
+    let rx0 = Math.min(...rotated.map((p) => p.u));
+    let ry0 = Math.min(...rotated.map((p) => p.v));
+    let rx1 = Math.max(...rotated.map((p) => p.u));
+    let ry1 = Math.max(...rotated.map((p) => p.v));
+    const w = rx1 - rx0;
+    const h = ry1 - ry0;
+    if (w >= 1) { rx0 = 0; rx1 = 1; }
+    else {
+      if (rx0 < 0) { const d = -rx0; rx0 += d; rx1 += d; }
+      if (rx1 > 1) { const d = rx1 - 1; rx0 -= d; rx1 -= d; }
+    }
+    if (h >= 1) { ry0 = 0; ry1 = 1; }
+    else {
+      if (ry0 < 0) { const d = -ry0; ry0 += d; ry1 += d; }
+      if (ry1 > 1) { const d = ry1 - 1; ry0 -= d; ry1 -= d; }
+    }
+    return {
+      x0: Math.min(Math.max(rx0, 0), 1),
+      y0: Math.min(Math.max(ry0, 0), 1),
+      x1: Math.min(Math.max(rx1, 0), 1),
+      y1: Math.min(Math.max(ry1, 0), 1),
+    };
+  }, [imageAspect]);
+
+  const cropPresetRatio = useMemo(() => getPresetRatio(cropPreset), [cropPreset, getPresetRatio]);
+  const cropDebugMetrics = useMemo(() => {
+    const x0 = Math.min(cropRect.x0, cropRect.x1);
+    const y0 = Math.min(cropRect.y0, cropRect.y1);
+    const x1 = Math.max(cropRect.x0, cropRect.x1);
+    const y1 = Math.max(cropRect.y0, cropRect.y1);
+    const sampleW = metadata ? Math.max(1, Math.round((x1 - x0) * metadata.width)) : 0;
+    const sampleH = metadata ? Math.max(1, Math.round((y1 - y0) * metadata.height)) : 0;
+    const a = uvToPercent(x0, y0);
+    const b = uvToPercent(x1, y1);
+    const view = containerRef.current?.getBoundingClientRect();
+    const mappedW = view ? Math.abs(b.left - a.left) * 0.01 * view.width : 0;
+    const mappedH = view ? Math.abs(b.top - a.top) * 0.01 * view.height : 0;
+    const sampleRatio = sampleH > 0 ? sampleW / sampleH : 0;
+    const mappedRatio = mappedH > 0 ? mappedW / mappedH : 0;
+    const ratioDelta = sampleRatio > 0 && mappedRatio > 0 ? (mappedRatio / sampleRatio - 1) * 100 : 0;
+    return { sampleW, sampleH, mappedW, mappedH, sampleRatio, mappedRatio, ratioDelta };
+  }, [cropRect, metadata, uvToPercent, uiZoom, uiPan, cropQuarterTurns]);
+
+  const applyCropPreset = (preset: string) => {
+    setCropPreset(preset);
+    const target = getPresetRatio(preset);
+    if (!target) return;
+    setCropRect(fitCropRectToRatio(target));
   };
 
   const applyCropSelection = () => {
@@ -749,14 +811,18 @@ const RawEditor: React.FC = () => {
 
   const handleCropRotateCW = () => {
     const next = (cropQuarterTurns + 1) % 4;
+    const nextRect = rotateCropRectInPixelSpace(cropRect, 'cw');
+    setCropRect(nextRect);
     setCropQuarterTurns(next);
-    pushHistory(makeSnapshot(imageState, { cropQuarterTurns: next }), false);
+    pushHistory(makeSnapshot(imageState, { cropQuarterTurns: next, cropRect: nextRect }), false);
   };
 
   const handleCropRotateCCW = () => {
     const next = (cropQuarterTurns + 3) % 4;
+    const nextRect = rotateCropRectInPixelSpace(cropRect, 'ccw');
+    setCropRect(nextRect);
     setCropQuarterTurns(next);
-    pushHistory(makeSnapshot(imageState, { cropQuarterTurns: next }), false);
+    pushHistory(makeSnapshot(imageState, { cropQuarterTurns: next, cropRect: nextRect }), false);
   };
 
   const handleCropFlipH = () => {
@@ -1151,7 +1217,10 @@ const RawEditor: React.FC = () => {
                   <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={resetView}>适应</Button>
                   <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => commitTransform(2, transform.current.pan)}>1:1</Button>
                 </div>
-                <div className="text-[11px] text-zinc-400 tracking-wide">缩放 {Math.round(uiZoom * 100)}% · 平移 X {uiPan.x.toFixed(2)} / Y {uiPan.y.toFixed(2)} · 裁切比 {cropPixelRatio.toFixed(2)}:1</div>
+                <div className="text-[11px] text-zinc-400 tracking-wide">
+                  缩放 {Math.round(uiZoom * 100)}% · 平移 X {uiPan.x.toFixed(2)} / Y {uiPan.y.toFixed(2)} · 裁切比 {cropPixelRatio.toFixed(2)}:1
+                  {activeTool === 'crop' ? ` · 采样 ${cropDebugMetrics.sampleW}×${cropDebugMetrics.sampleH}px · 映射 ${Math.round(cropDebugMetrics.mappedW)}×${Math.round(cropDebugMetrics.mappedH)}px · 比例偏差 ${cropDebugMetrics.ratioDelta.toFixed(2)}%` : ''}
+                </div>
               </div>
           )}
         </div>
