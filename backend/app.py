@@ -12,6 +12,8 @@ import gc
 import sys
 import traceback
 import math
+import asyncio
+import os
 from dataclasses import asdict
 import rawpy
 
@@ -1310,9 +1312,48 @@ from museum_scraper import (
     MUSEUM_SEARCHERS,
     MUSEUM_NAMES,
     proxy_image,
+    list_exhibition_events,
+    get_exhibition_overview,
+    refresh_exhibition_events,
+    EVENT_JSON_PATH,
+    LEGACY_EVENT_JSON_PATH,
     ArtifactResult,
     SearchResult,
 )
+
+event_refresh_task: Optional[asyncio.Task] = None
+EVENT_REFRESH_INTERVAL_SECONDS = int(os.getenv("MUSEUM_EVENT_REFRESH_SECONDS", "86400"))
+
+
+async def _event_refresh_loop():
+    while True:
+        try:
+            await refresh_exhibition_events(force=True)
+        except Exception as exc:
+            print(f"展览数据刷新失败: {exc}")
+        await asyncio.sleep(EVENT_REFRESH_INTERVAL_SECONDS)
+
+
+@app.on_event("startup")
+async def startup_event_refresh():
+    global event_refresh_task
+    try:
+        await refresh_exhibition_events(force=True)
+    except Exception as exc:
+        print(f"启动时刷新展览数据失败: {exc}")
+    event_refresh_task = asyncio.create_task(_event_refresh_loop())
+
+
+@app.on_event("shutdown")
+async def shutdown_event_refresh():
+    global event_refresh_task
+    if event_refresh_task and not event_refresh_task.done():
+        event_refresh_task.cancel()
+        try:
+            await event_refresh_task
+        except asyncio.CancelledError:
+            pass
+    event_refresh_task = None
 
 
 @app.get("/api/museum/search")
@@ -1376,6 +1417,59 @@ async def museum_image_proxy(
             "Cache-Control": "public, max-age=86400",
             "Access-Control-Allow-Origin": "*",
         },
+    )
+
+
+@app.get("/api/museum/events")
+async def museum_events(
+    city: str = Query("", description="城市过滤"),
+    start_date: str = Query("", description="开始日期 YYYY-MM-DD"),
+    end_date: str = Query("", description="结束日期 YYYY-MM-DD"),
+    keyword: str = Query("", description="关键词"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+):
+    return await list_exhibition_events(
+        city=city,
+        start_date=start_date,
+        end_date=end_date,
+        keyword=keyword,
+        page=page,
+        size=size,
+    )
+
+
+@app.post("/api/museum/events/refresh")
+async def museum_events_refresh():
+    return await refresh_exhibition_events(force=True)
+
+
+@app.get("/api/museum/events/overview")
+async def museum_events_overview(
+    city: str = Query("", description="城市过滤"),
+    start_date: str = Query("", description="开始日期 YYYY-MM-DD"),
+    end_date: str = Query("", description="结束日期 YYYY-MM-DD"),
+    keyword: str = Query("", description="关键词"),
+    event_limit: int = Query(800, ge=1, le=5000, description="返回事件数量上限"),
+):
+    return await get_exhibition_overview(
+        city=city,
+        start_date=start_date,
+        end_date=end_date,
+        keyword=keyword,
+        event_limit=event_limit,
+    )
+
+
+@app.get("/api/museum/events/raw")
+async def museum_events_raw():
+    target = EVENT_JSON_PATH if EVENT_JSON_PATH.exists() else LEGACY_EVENT_JSON_PATH
+    if not target.exists():
+        return {"items": [], "total": 0, "message": "数据文件不存在，请先触发刷新"}
+    return Response(
+        content=target.read_text(encoding="utf-8"),
+        media_type="application/json",
+        headers={"Cache-Control": "no-cache"},
     )
 
 
