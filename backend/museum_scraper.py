@@ -1060,6 +1060,8 @@ class ExhibitionEvent:
     fee: str = ""
     open_hours: str = ""
     city_slug: str = ""
+    cover_url: str = ""
+    poster_url: str = ""
     source: str = ""
     source_url: str = ""
     updated_at: str = ""
@@ -1209,6 +1211,23 @@ def _extract_events_from_json(payload: Any, source: str, source_url: str) -> Lis
                         or source_url
                     )
                     raw_excerpt = str(node.get("description") or node.get("summary") or "")[:240]
+                    cover_url = (
+                        node.get("cover")
+                        or node.get("cover_url")
+                        or node.get("coverUrl")
+                        or node.get("image")
+                        or node.get("image_url")
+                        or node.get("imageUrl")
+                        or ""
+                    )
+                    poster_url = (
+                        node.get("poster")
+                        or node.get("poster_url")
+                        or node.get("posterUrl")
+                        or node.get("banner")
+                        or node.get("banner_url")
+                        or ""
+                    )
                     event_id = hashlib.md5(
                         f"{title}|{museum}|{city}|{start_date}|{end_date}".encode()
                     ).hexdigest()[:16]
@@ -1221,6 +1240,8 @@ def _extract_events_from_json(payload: Any, source: str, source_url: str) -> Lis
                             start_date=start_date,
                             end_date=end_date,
                             highlights=highlights,
+                            cover_url=str(cover_url).strip(),
+                            poster_url=str(poster_url).strip(),
                             source=source,
                             source_url=str(detail_url),
                             updated_at=_today_iso(),
@@ -1274,6 +1295,12 @@ def _extract_events_from_html(html: str, source: str, source_url: str, museum: s
 
         highlights = _to_highlights(text)
         raw_excerpt = text[:240]
+        cover_el = card.select_one("img")
+        cover_url = ""
+        if cover_el:
+            src = cover_el.get("src") or cover_el.get("data-src") or ""
+            if src:
+                cover_url = urljoin(source_url, src)
         event_id = hashlib.md5(
             f"{title}|{local_museum}|{local_city}|{start_date}|{end_date}".encode()
         ).hexdigest()[:16]
@@ -1286,6 +1313,7 @@ def _extract_events_from_html(html: str, source: str, source_url: str, museum: s
             start_date=start_date,
             end_date=end_date,
             highlights=highlights,
+            cover_url=cover_url,
             source=source,
             source_url=link,
             updated_at=_today_iso(),
@@ -1385,6 +1413,8 @@ def _load_events_from_json() -> List[ExhibitionEvent]:
                 hall=str(row.get("hall", "")),
                 fee=str(row.get("fee", "")),
                 open_hours=str(row.get("open_hours", "")),
+                cover_url=str(row.get("cover_url", "")),
+                poster_url=str(row.get("poster_url", "")),
                 highlights=highlights,
                 source=str(row.get("source", "")),
                 source_url=str(row.get("source_url", "")),
@@ -1491,6 +1521,7 @@ def _icity_parse_list_page(html: str) -> List[Dict[str, str]]:
         info_el = item.select_one("a.info[href*='/events/']")
         title_el = item.select_one(".title")
         museum_el = item.select_one(".subtitle")
+        cover_el = item.select_one("img.cover, img.thumb, img")
 
         href = ""
         if info_el:
@@ -1508,12 +1539,18 @@ def _icity_parse_list_page(html: str) -> List[Dict[str, str]]:
         title = title_el.get_text(strip=True) if title_el else ""
         museum = museum_el.get_text(" ", strip=True) if museum_el else ""
         museum = museum.replace("展览", "").strip()
+        cover_url = ""
+        if cover_el:
+            src = cover_el.get("src") or cover_el.get("data-src") or ""
+            if src:
+                cover_url = urljoin("https://art.icity.ly", src)
         entries.append(
             {
                 "slug": slug,
                 "title": title,
                 "museum": museum,
                 "url": urljoin("https://art.icity.ly", href),
+                "cover_url": cover_url,
             }
         )
 
@@ -1573,6 +1610,18 @@ async def _fetch_icity_event_detail(
         content_text = " ".join([item for item in content_blocks if item]).strip()
         highlights = _to_highlights(content_text)[:6]
         raw_excerpt = content_text[:240]
+        cover_el = soup.select_one("img.cover")
+        poster_el = soup.select_one("img.fit-width")
+        cover_url = event_meta.get("cover_url", "").strip()
+        poster_url = ""
+        if cover_el:
+            src = cover_el.get("src") or cover_el.get("data-src") or ""
+            if src:
+                cover_url = urljoin(url, src)
+        if poster_el:
+            src = poster_el.get("src") or poster_el.get("data-src") or ""
+            if src:
+                poster_url = urljoin(url, src)
 
         event_id = hashlib.md5(
             f"{title}|{museum}|{city}|{start_date}|{end_date}".encode()
@@ -1590,6 +1639,8 @@ async def _fetch_icity_event_detail(
             fee=fee,
             open_hours=open_hours,
             city_slug=event_meta.get("city_slug", ""),
+            cover_url=cover_url,
+            poster_url=poster_url,
             source="icity",
             source_url=url,
             updated_at=_today_iso(),
@@ -1726,7 +1777,9 @@ def _event_overlap(
     query_start: Optional[date],
     query_end: Optional[date],
 ) -> bool:
-    if query_start and event_end < query_start:
+    long_term = event_start == event_end
+    effective_end = date.max if long_term else event_end
+    if query_start and effective_end < query_start:
         return False
     if query_end and event_start > query_end:
         return False
