@@ -1,0 +1,45 @@
+name: update-exhibitions-json
+
+on:
+  push:
+    paths-ignore:
+      - "backend/data/**"
+      - "backend/backend/data/**"
+  schedule:
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Update exhibitions json
+        env:
+          MUSEUM_EVENT_JSON_PATH: backend/data/exhibitions_latest.json
+          MUSEUM_EVENT_SNAPSHOT_DIR: backend/data/snapshots
+        run: python backend/scripts/update_exhibitions_json.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend/data/exhibitions_latest.json backend/data/snapshots backend/backend/data/exhibitions_latest.json
+          if git diff --staged --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "chore: daily update exhibitions json"
+          git push

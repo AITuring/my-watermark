@@ -8,6 +8,9 @@ export class ImagePipeline {
   private material: THREE.ShaderMaterial;
   private texture: THREE.DataTexture | null = null;
   private canvas: HTMLCanvasElement;
+  private sourceAspectRatio = 1;
+  private cropRectState = { x0: 0, y0: 0, x1: 1, y1: 1 };
+  private cropEnabledState = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -49,9 +52,26 @@ export class ImagePipeline {
       uniform float sharpness;
       uniform vec2 resolution;
       uniform float aspectRatio;
+      uniform float sourceAspectRatio;
       uniform float containerAspectRatio;
       uniform float zoom;
       uniform vec2 pan;
+      uniform float compareMode;
+      uniform float splitX;
+      uniform float heatOverlay;
+      uniform float cropEnabled;
+      uniform vec4 cropRect;
+      uniform vec2 cropCenter;
+      uniform float cropAngle;
+      uniform float cropFlipX;
+      uniform float cropFlipY;
+      uniform float cropGeomVertical;
+      uniform float cropGeomHorizontal;
+      uniform float cropGeomRotate;
+      uniform float cropGeomAspect;
+      uniform float cropGeomScale;
+      uniform float cropGeomOffsetX;
+      uniform float cropGeomOffsetY;
 
       varying vec2 vUv;
 
@@ -193,20 +213,78 @@ export class ImagePipeline {
       }
 
       void main() {
-        vec4 texel = texture2D(tDiffuse, vUv);
+        vec2 sampleUv = vUv;
+        if (cropEnabled > 0.5) {
+          sampleUv = vec2(
+            mix(cropRect.x, cropRect.z, vUv.x),
+            mix(cropRect.y, cropRect.w, vUv.y)
+          );
+        }
+
+        vec2 centered = sampleUv - cropCenter;
+        float safeAspect = max(sourceAspectRatio, 1e-6);
+        centered.x *= safeAspect;
+
+        if (cropFlipX > 0.5) centered.x = -centered.x;
+        if (cropFlipY > 0.5) centered.y = -centered.y;
+
+        float c = cos(cropAngle);
+        float s = sin(cropAngle);
+        centered = mat2(c, -s, s, c) * centered;
+
+        float px = centered.x;
+        float py = centered.y;
+        float denomV = max(0.35, 1.0 + cropGeomVertical * py);
+        float denomH = max(0.35, 1.0 + cropGeomHorizontal * px);
+        px /= denomV;
+        py /= denomH;
+        centered = vec2(px, py);
+
+        float c2 = cos(cropGeomRotate);
+        float s2 = sin(cropGeomRotate);
+        centered = mat2(c2, -s2, s2, c2) * centered;
+
+        centered.x /= max(cropGeomAspect, 1e-4);
+        centered /= max(cropGeomScale, 1e-4);
+        centered += vec2(cropGeomOffsetX * safeAspect, cropGeomOffsetY);
+
+        centered.x /= safeAspect;
+        sampleUv = centered + cropCenter;
+
+        bool inBounds = sampleUv.x >= 0.0 && sampleUv.x <= 1.0 && sampleUv.y >= 0.0 && sampleUv.y <= 1.0;
+        vec4 texel = inBounds ? texture2D(tDiffuse, sampleUv) : vec4(0.0, 0.0, 0.0, 1.0);
         vec3 color = texel.rgb;
 
         color = applyWhiteBalance(color, temperature, tint);
         color = applyTone(color, exposure, contrast, highlights, shadows, whites, blacks);
         color = applyCurve(color, curveCtrl);
         color = applySaturation(color, saturation, vibrance);
-        color = applyClarity(vUv, color, clarity);
+        color = applyClarity(sampleUv, color, clarity);
         color = applyDehaze(color, dehaze);
-        color = applySharpen(vUv, color, sharpness);
+        color = applySharpen(sampleUv, color, sharpness);
 
-        color = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
+        vec3 edited = pow(max(color, vec3(0.0)), vec3(1.0 / 2.2));
+        vec3 original = pow(max(texel.rgb, vec3(0.0)), vec3(1.0 / 2.2));
+        vec3 outColor = edited;
 
-        gl_FragColor = vec4(color, texel.a);
+        if (compareMode > 1.5) {
+          outColor = vUv.x < splitX ? original : edited;
+        } else if (compareMode > 0.5) {
+          outColor = original;
+        }
+
+        if (heatOverlay > 0.5) {
+          vec3 delta = edited - original;
+          float lumaDelta = abs(dot(delta, vec3(0.2126, 0.7152, 0.0722)));
+          vec3 chromaDeltaVec = delta - vec3(dot(delta, vec3(0.2126, 0.7152, 0.0722)));
+          float chromaDelta = length(chromaDeltaVec);
+          float score = max(chromaDelta * 2.1, lumaDelta * 0.6);
+          float d = smoothstep(0.10, 0.42, score);
+          vec3 heatColor = mix(vec3(0.0, 0.20, 1.0), vec3(1.0, 0.15, 0.0), d);
+          outColor = mix(outColor, heatColor, d * 0.38);
+        }
+
+        gl_FragColor = vec4(outColor, texel.a);
       }
     `;
 
@@ -262,9 +340,26 @@ export class ImagePipeline {
         blacks: { value: 0.0 },
         curveCtrl: { value: new THREE.Vector3(0.25, 0.5, 0.75) },
         aspectRatio: { value: 1.0 },
+        sourceAspectRatio: { value: 1.0 },
         containerAspectRatio: { value: 1.0 },
         zoom: { value: 1.0 },
         pan: { value: new THREE.Vector2(0, 0) },
+        compareMode: { value: 0.0 },
+        splitX: { value: 0.5 },
+        heatOverlay: { value: 0.0 },
+        cropEnabled: { value: 0.0 },
+        cropRect: { value: new THREE.Vector4(0, 0, 1, 1) },
+        cropCenter: { value: new THREE.Vector2(0.5, 0.5) },
+        cropAngle: { value: 0.0 },
+        cropFlipX: { value: 0.0 },
+        cropFlipY: { value: 0.0 },
+        cropGeomVertical: { value: 0.0 },
+        cropGeomHorizontal: { value: 0.0 },
+        cropGeomRotate: { value: 0.0 },
+        cropGeomAspect: { value: 1.0 },
+        cropGeomScale: { value: 1.0 },
+        cropGeomOffsetX: { value: 0.0 },
+        cropGeomOffsetY: { value: 0.0 },
         sharpness: { value: 0.0 },
         resolution: { value: new THREE.Vector2(1, 1) }
       },
@@ -303,7 +398,9 @@ export class ImagePipeline {
     this.texture.anisotropy = maxAnisotropy;
 
     this.material.uniforms.tDiffuse.value = this.texture;
-    this.material.uniforms.aspectRatio.value = image.width / image.height;
+    this.sourceAspectRatio = image.width / image.height;
+    this.material.uniforms.aspectRatio.value = this.sourceAspectRatio;
+    this.material.uniforms.sourceAspectRatio.value = this.sourceAspectRatio;
     this.material.uniforms.resolution.value.set(image.width, image.height);
 
     // Initial render
@@ -314,6 +411,55 @@ export class ImagePipeline {
       this.material.uniforms.zoom.value = zoom;
       this.material.uniforms.pan.value.set(pan.x, pan.y);
       this.render();
+  }
+
+  private updateDisplayAspectFromCropState() {
+    if (!this.cropEnabledState) {
+      this.material.uniforms.aspectRatio.value = this.sourceAspectRatio;
+      return;
+    }
+    const w = Math.max(1e-6, this.cropRectState.x1 - this.cropRectState.x0);
+    const h = Math.max(1e-6, this.cropRectState.y1 - this.cropRectState.y0);
+    this.material.uniforms.aspectRatio.value = this.sourceAspectRatio * (w / h);
+  }
+
+  setCompareOptions(mode: 'off' | 'before' | 'split', splitX: number, heatOverlay: boolean) {
+    this.material.uniforms.compareMode.value = mode === 'before' ? 1.0 : mode === 'split' ? 2.0 : 0.0;
+    this.material.uniforms.splitX.value = Math.min(Math.max(splitX, 0), 1);
+    this.material.uniforms.heatOverlay.value = heatOverlay ? 1.0 : 0.0;
+    this.render();
+  }
+
+  setCropRect(enabled: boolean, rect: { x0: number; y0: number; x1: number; y1: number }) {
+    const x0 = Math.min(Math.max(Math.min(rect.x0, rect.x1), 0), 1);
+    const y0 = Math.min(Math.max(Math.min(rect.y0, rect.y1), 0), 1);
+    const x1 = Math.min(Math.max(Math.max(rect.x0, rect.x1), 0), 1);
+    const y1 = Math.min(Math.max(Math.max(rect.y0, rect.y1), 0), 1);
+    this.cropEnabledState = enabled;
+    this.cropRectState = { x0, y0, x1, y1 };
+    this.material.uniforms.cropEnabled.value = enabled ? 1.0 : 0.0;
+    this.material.uniforms.cropRect.value.set(x0, y0, x1, y1);
+    this.material.uniforms.cropCenter.value.set((x0 + x1) * 0.5, (y0 + y1) * 0.5);
+    this.updateDisplayAspectFromCropState();
+    this.render();
+  }
+
+  setCropTransform(angleDeg: number, flipX: boolean, flipY: boolean) {
+    this.material.uniforms.cropAngle.value = THREE.MathUtils.degToRad(angleDeg);
+    this.material.uniforms.cropFlipX.value = flipX ? 1.0 : 0.0;
+    this.material.uniforms.cropFlipY.value = flipY ? 1.0 : 0.0;
+    this.render();
+  }
+
+  setCropGeometry(params: { vertical: number; horizontal: number; rotate: number; aspect: number; scale: number; offsetX: number; offsetY: number; }) {
+    this.material.uniforms.cropGeomVertical.value = params.vertical;
+    this.material.uniforms.cropGeomHorizontal.value = params.horizontal;
+    this.material.uniforms.cropGeomRotate.value = THREE.MathUtils.degToRad(params.rotate);
+    this.material.uniforms.cropGeomAspect.value = Math.max(params.aspect, 0.1);
+    this.material.uniforms.cropGeomScale.value = Math.max(params.scale, 0.1);
+    this.material.uniforms.cropGeomOffsetX.value = params.offsetX;
+    this.material.uniforms.cropGeomOffsetY.value = params.offsetY;
+    this.render();
   }
 
   updateState(state: ImageState) {
@@ -366,6 +512,11 @@ export class ImagePipeline {
   getHistogramData(): { r: number[]; g: number[]; b: number[] } {
     if (!this.texture) return { r: [], g: [], b: [] };
 
+    const savedCompareMode = this.material.uniforms.compareMode.value;
+    const savedHeatOverlay = this.material.uniforms.heatOverlay.value;
+    this.material.uniforms.compareMode.value = 0;
+    this.material.uniforms.heatOverlay.value = 0;
+
     // Create a temporary WebGLRenderTarget to read pixels from
     const width = 256;
     const height = 256;
@@ -404,11 +555,15 @@ export class ImagePipeline {
 
     // Normalize (optional, depends on visualization)
     const max = Math.max(...r, ...g, ...b);
-    return {
+    const result = {
         r: r.map(v => v / max),
         g: g.map(v => v / max),
         b: b.map(v => v / max)
     };
+    this.material.uniforms.compareMode.value = savedCompareMode;
+    this.material.uniforms.heatOverlay.value = savedHeatOverlay;
+    this.render();
+    return result;
   }
 
 
@@ -417,8 +572,55 @@ export class ImagePipeline {
     this.renderer.render(this.scene, this.camera);
   }
 
+  exportMinimapPreview(maxWidth: number = 320, maxHeight: number = 200): string | null {
+    if (!this.texture) return null;
+
+    const savedCompareMode = this.material.uniforms.compareMode.value;
+    const savedHeatOverlay = this.material.uniforms.heatOverlay.value;
+    this.material.uniforms.compareMode.value = 0;
+    this.material.uniforms.heatOverlay.value = 0;
+
+    const currentSize = new THREE.Vector2();
+    this.renderer.getSize(currentSize);
+    const currentPixelRatio = this.renderer.getPixelRatio();
+    const originalContainerAspect = this.material.uniforms.containerAspectRatio.value;
+    const savedZoom = this.material.uniforms.zoom.value;
+    const savedPan = this.material.uniforms.pan.value.clone();
+
+    const imageWidth = this.texture.image.width;
+    const imageHeight = this.texture.image.height;
+    const scale = Math.min(maxWidth / imageWidth, maxHeight / imageHeight, 1);
+    const width = Math.max(1, Math.round(imageWidth * scale));
+    const height = Math.max(1, Math.round(imageHeight * scale));
+
+    this.renderer.setPixelRatio(1);
+    this.renderer.setSize(width, height, false);
+    this.material.uniforms.containerAspectRatio.value = imageWidth / imageHeight;
+    this.material.uniforms.zoom.value = 1;
+    this.material.uniforms.pan.value.set(0, 0);
+
+    this.render();
+    const dataUrl = this.canvas.toDataURL('image/jpeg', 0.78);
+
+    this.renderer.setPixelRatio(currentPixelRatio);
+    this.renderer.setSize(currentSize.x, currentSize.y, false);
+    this.material.uniforms.containerAspectRatio.value = originalContainerAspect;
+    this.material.uniforms.zoom.value = savedZoom;
+    this.material.uniforms.pan.value.copy(savedPan);
+    this.material.uniforms.compareMode.value = savedCompareMode;
+    this.material.uniforms.heatOverlay.value = savedHeatOverlay;
+    this.render();
+
+    return dataUrl;
+  }
+
   exportFullRes(type: 'image/png' | 'image/jpeg' = 'image/png', quality: number = 1.0): string {
     if (!this.texture) return '';
+
+    const savedCompareMode = this.material.uniforms.compareMode.value;
+    const savedHeatOverlay = this.material.uniforms.heatOverlay.value;
+    this.material.uniforms.compareMode.value = 0;
+    this.material.uniforms.heatOverlay.value = 0;
 
     // Save current size
     const currentSize = new THREE.Vector2();
@@ -465,6 +667,8 @@ export class ImagePipeline {
     this.material.uniforms.containerAspectRatio.value = originalContainerAspect;
     this.material.uniforms.zoom.value = savedZoom;
     this.material.uniforms.pan.value.copy(savedPan);
+    this.material.uniforms.compareMode.value = savedCompareMode;
+    this.material.uniforms.heatOverlay.value = savedHeatOverlay;
 
     this.render(); // Re-render at screen size
 

@@ -39,6 +39,7 @@ import Gallery from "./Gallery";
 import Sanxingdui from "./sanxingdui";
 import ArtifactAI from "./ArtifactAI";
 import MuseumExplorer from "./MuseumExplorer";
+import MuseumEventRadar from "./MuseumEventRadar";
 import { Toaster } from "sonner";
 
 
@@ -211,6 +212,13 @@ const routeItems = [
         url: "/museum",
         component: <MuseumExplorer />,
         icon: "material-symbols:museum-outline",
+    },
+    {
+        label: "临展雷达",
+        id: "museum-events",
+        url: "/museum-events",
+        component: <MuseumEventRadar />,
+        icon: "material-symbols:event-available-outline",
     },
 ];
 
