@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CalendarDays, ExternalLink, RefreshCw, Sparkles } from "lucide-react";
+import { CalendarDays, ExternalLink, Heart, RefreshCw, Sparkles, Star } from "lucide-react";
 
 interface MuseumEvent {
   id: string;
@@ -20,6 +20,8 @@ interface MuseumEvent {
   city_slug: string;
   cover_url: string;
   poster_url: string;
+  rating_stars: number;
+  likes_count: number;
   source: string;
   source_url: string;
   updated_at: string;
@@ -65,6 +67,14 @@ function toISODate(dt: Date) {
   const m = String(dt.getMonth() + 1).padStart(2, "0");
   const d = String(dt.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function getNextMonthRangeFromToday() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + 1);
+  return { start: toISODate(start), end: toISODate(end) };
 }
 
 function normalizeCityName(value: string) {
@@ -134,12 +144,8 @@ function buildOverviewFromEvents(items: MuseumEvent[], source: string): Overview
 const MuseumEventRadar: React.FC = () => {
   const backendUrl = getBackendUrl();
   const [city, setCity] = useState("北京");
-  const [startDate, setStartDate] = useState(() => toISODate(new Date()));
-  const [endDate, setEndDate] = useState(() => {
-    const dt = new Date();
-    dt.setDate(dt.getDate() + 7);
-    return toISODate(dt);
-  });
+  const [startDate, setStartDate] = useState(() => getNextMonthRangeFromToday().start);
+  const [endDate, setEndDate] = useState(() => getNextMonthRangeFromToday().end);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [dataSource, setDataSource] = useState("json");
@@ -295,12 +301,19 @@ const MuseumEventRadar: React.FC = () => {
 
   const cityEvents = useMemo(() => {
     const cityKeyword = city.trim().toLowerCase();
-    return (data?.events || []).filter((item) => {
+    const filtered = (data?.events || []).filter((item) => {
       const passCity = !cityKeyword || `${item.city} ${item.city_slug}`.toLowerCase().includes(cityKeyword);
       if (!passCity) return false;
       const passDate = dateOverlaps(item.start_date, item.end_date, startDate, endDate);
       if (!passDate) return false;
       return true;
+    });
+    return filtered.sort((a, b) => {
+      const likesDiff = (b.likes_count || 0) - (a.likes_count || 0);
+      if (likesDiff !== 0) return likesDiff;
+      const starsDiff = (b.rating_stars || 0) - (a.rating_stars || 0);
+      if (starsDiff !== 0) return starsDiff;
+      return a.start_date > b.start_date ? 1 : -1;
     });
   }, [city, data, endDate, startDate]);
 
@@ -325,12 +338,18 @@ const MuseumEventRadar: React.FC = () => {
   }, [cityEvents]);
 
   const timelineRange = useMemo(() => {
-    const dates = cityEvents.flatMap((item) => [new Date(item.start_date), new Date(item.end_date)]).filter((d) => !Number.isNaN(d.getTime()));
-    if (!dates.length) return null;
-    const min = new Date(Math.min(...dates.map((d) => d.getTime())));
-    const max = new Date(Math.max(...dates.map((d) => d.getTime())));
-    return { min, max };
-  }, [cityEvents]);
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start <= end) {
+        return { min: start, max: end };
+      }
+    }
+    const today = new Date();
+    const weekLater = new Date();
+    weekLater.setDate(today.getDate() + 7);
+    return { min: today, max: weekLater };
+  }, [endDate, startDate]);
 
   const ganttItems = useMemo(() => {
     if (!timelineRange) return [];
@@ -347,31 +366,29 @@ const MuseumEventRadar: React.FC = () => {
     ];
     return cityEvents
       .slice()
+      .filter((event) => event.start_date !== event.end_date)
       .sort((a, b) => {
-        const aPermanent = a.start_date === a.end_date;
-        const bPermanent = b.start_date === b.end_date;
-        if (aPermanent !== bPermanent) {
-          return aPermanent ? 1 : -1;
-        }
-        if (a.start_date === b.start_date) {
-          return a.museum.localeCompare(b.museum, "zh-CN");
-        }
+        const likesDiff = (b.likes_count || 0) - (a.likes_count || 0);
+        if (likesDiff !== 0) return likesDiff;
+        const starsDiff = (b.rating_stars || 0) - (a.rating_stars || 0);
+        if (starsDiff !== 0) return starsDiff;
         return a.start_date > b.start_date ? 1 : -1;
       })
       .slice(0, 120)
       .map((event, index) => {
-        const start = new Date(event.start_date).getTime();
-        const end = new Date(event.end_date).getTime();
-        const left = Math.max(0, ((start - timelineRange.min.getTime()) / totalMs) * 100);
-        const permanent = event.start_date === event.end_date;
-        const width = permanent
-          ? Math.max(100 - left, 10)
-          : Math.max(2.4, ((Math.max(end, start) - start) / totalMs) * 100);
+        const rangeStartMs = timelineRange.min.getTime();
+        const rangeEndMs = timelineRange.max.getTime();
+        const startMs = new Date(event.start_date).getTime();
+        const rawEndMs = new Date(event.end_date).getTime();
+        const effectiveEndMs = Math.max(rawEndMs, startMs);
+        const displayStartMs = Math.max(startMs, rangeStartMs);
+        const displayEndMs = Math.min(effectiveEndMs, rangeEndMs);
+        const left = Math.max(0, ((displayStartMs - rangeStartMs) / totalMs) * 100);
+        const width = Math.max(2.4, ((Math.max(displayEndMs, displayStartMs) - displayStartMs) / totalMs) * 100);
         return {
           event,
           left,
           width,
-          permanent,
           colorClass: palette[index % palette.length],
           label: `${event.museum}｜${event.title}`,
         };
@@ -396,7 +413,13 @@ const MuseumEventRadar: React.FC = () => {
     return Array.from(map.values())
       .map((group) => ({
         ...group,
-        events: group.events.sort((a, b) => (a.start_date > b.start_date ? 1 : -1)),
+        events: group.events.sort((a, b) => {
+          const likesDiff = (b.likes_count || 0) - (a.likes_count || 0);
+          if (likesDiff !== 0) return likesDiff;
+          const starsDiff = (b.rating_stars || 0) - (a.rating_stars || 0);
+          if (starsDiff !== 0) return starsDiff;
+          return a.start_date > b.start_date ? 1 : -1;
+        }),
       }))
       .sort((a, b) => a.museum.localeCompare(b.museum, "zh-CN"));
   }, [cityEvents]);
@@ -457,8 +480,8 @@ const MuseumEventRadar: React.FC = () => {
       <div className="mx-auto max-w-6xl space-y-5">
         <Card className="border-0 bg-white/85 p-5 shadow-sm backdrop-blur md:p-6">
           <div className="space-y-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">本地临展雷达</h1>
-            <p className="text-sm text-slate-600">默认定位当前城市，定位失败则展示北京；支持按时间窗口筛选。</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">临展雷达</h1>
+            {/* <p className="text-sm text-slate-600">默认定位当前城市，定位失败则展示北京；支持按时间窗口筛选。</p> */}
           </div>
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-12">
             <Input
@@ -489,7 +512,7 @@ const MuseumEventRadar: React.FC = () => {
           <div className="mt-4 grid grid-cols-1 gap-2 text-xs text-slate-500 md:grid-cols-3">
             <div>当前城市：{city || "北京"}</div>
             <div>最近同步：{data?.last_refresh || "暂无"}</div>
-            <div>数据来源：{dataSource}</div>
+            {/* <div>数据来源：{dataSource}</div> */}
           </div>
         </Card>
 
@@ -522,7 +545,7 @@ const MuseumEventRadar: React.FC = () => {
                         <span>终点：{timelineRange.max.toISOString().slice(0, 10)}</span>
                       </div>
                       <div className="space-y-3">
-                        {ganttItems.map(({ event, left, width, permanent, colorClass, label }) => (
+                        {ganttItems.map(({ event, left, width, colorClass, label }) => (
                           <div key={`g-${event.id}`} className="space-y-1.5">
                             <div className="truncate text-xs text-slate-600">{label}</div>
                             <div className="h-5 rounded bg-slate-100">
@@ -533,7 +556,7 @@ const MuseumEventRadar: React.FC = () => {
                             </div>
                             <div className="flex items-center justify-between text-[11px] text-slate-500">
                               <span>{event.start_date}</span>
-                              <span>{permanent ? "常设展" : event.end_date}</span>
+                              <span>{event.end_date}</span>
                             </div>
                           </div>
                         ))}
@@ -582,6 +605,16 @@ const MuseumEventRadar: React.FC = () => {
                                 <div className="mb-2 flex items-center gap-2 text-xs text-slate-600">
                                   <CalendarDays className="h-3.5 w-3.5" />
                                   <span>{event.start_date} 至 {event.end_date}</span>
+                                </div>
+                                <div className="mb-2 flex items-center gap-3 text-xs text-slate-600">
+                                  <span className="inline-flex items-center gap-1">
+                                    <Heart className="h-3.5 w-3.5 text-rose-500" />
+                                    {(event.likes_count || 0).toLocaleString()}
+                                  </span>
+                                  <span className="inline-flex items-center gap-1">
+                                    <Star className="h-3.5 w-3.5 text-amber-500" />
+                                    {(event.rating_stars || 0).toFixed(1)}
+                                  </span>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                   {(event.highlights || []).slice(0, 3).map((h) => (
