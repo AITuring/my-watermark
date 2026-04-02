@@ -32,6 +32,7 @@ import "./App.css";
 import BatchImageCompressor from "./BatchImageCompressor";
 import GooglePhoto from "./GooglePhoto";
 import ImageSplitter from "./ImageSplitter";
+import ImageCropper from "./ImageCropper";
 import Calendar from "./Calendar";
 import ChristmasTreeHand from "./ChristmasTreeHand";
 import PhotoFrame from "./PhotoFrame";
@@ -87,6 +88,13 @@ const routeItems = [
         url: "/split",
         component: <ImageSplitter />,
         icon: "material-symbols:split-vertical",
+    },
+    {
+        label: "图片裁切",
+        id: "crop",
+        url: "/crop",
+        component: <ImageCropper />,
+        icon: "material-symbols:crop",
     },
     {
         label: "大图拼接",
@@ -297,6 +305,7 @@ const FloatingButtons = () => {
         { path: "/", icon: "material-symbols:apps", label: "应用库" },
         { path: "/watermark", icon: "ri:image-ai-line", label: "水印添加" },
         { path: "/puzzle", icon: "tabler:layout-board-split", label: "图片拼接" },
+        { path: "/crop", icon: "material-symbols:crop", label: "图片裁切" },
         { path: "/restaurant", icon: "ri:restaurant-2-line", label: "美食推荐" },
         { path: "/news", icon: "ri:news-line", label: "新闻" },
         { path: "/google-photo", icon: "logos:google-photos", label: "Google 相册" },

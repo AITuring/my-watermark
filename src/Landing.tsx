@@ -15,7 +15,8 @@ import {
     Utensils,
     Clock,
     FileText,
-    Aperture
+    Aperture,
+    Crop
 } from "lucide-react";
 import h001 from "@/assets/history/split_001.png";
 import h002 from "@/assets/history/split_002.png";
@@ -378,6 +379,19 @@ export default function Landing() {
                 text: "text-lime-700 dark:text-lime-300",
                 border: "hover:border-lime-200 dark:hover:border-lime-700",
                 hoverGradient: "from-lime-100 to-transparent dark:from-lime-900/40",
+            },
+        },
+        {
+            id: "crop",
+            title: "图片裁切",
+            description: "固定像素或比例框选后一键导出",
+            icon: Crop,
+            href: "/crop",
+            colorTheme: {
+                bg: "bg-teal-50 dark:bg-teal-900/20",
+                text: "text-teal-700 dark:text-teal-300",
+                border: "hover:border-teal-200 dark:hover:border-teal-700",
+                hoverGradient: "from-teal-100 to-transparent dark:from-teal-900/40",
             },
         },
         {
