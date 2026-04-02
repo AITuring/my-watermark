@@ -156,6 +156,11 @@ export default function ImageCropper() {
         };
     }, []);
 
+    const releaseUrl = (url: string) => {
+        URL.revokeObjectURL(url);
+        objectUrlsRef.current = objectUrlsRef.current.filter((item) => item !== url);
+    };
+
     const updateActiveCrop = (updater: (prev: CropBox, image: CropImage) => CropBox) => {
         if (!activeId) return;
         setImages((prev) =>
@@ -293,6 +298,30 @@ export default function ImageCropper() {
         setActiveId((prev) => prev ?? valid[0].id);
         toast.success(`已加载 ${valid.length} 张图片`);
         e.target.value = "";
+    };
+
+    const removeImage = (id: string) => {
+        setImages((prev) => {
+            const removeIndex = prev.findIndex((item) => item.id === id);
+            if (removeIndex < 0) return prev;
+            const removing = prev[removeIndex];
+            releaseUrl(removing.url);
+            const next = prev.filter((item) => item.id !== id);
+            setActiveId((current) => {
+                if (current !== id) return current;
+                if (!next.length) return null;
+                const nextIndex = Math.min(removeIndex, next.length - 1);
+                return next[nextIndex].id;
+            });
+            return next;
+        });
+    };
+
+    const clearAllImages = () => {
+        objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+        objectUrlsRef.current = [];
+        setImages([]);
+        setActiveId(null);
     };
 
     const drawCropToBlob = async (
@@ -530,6 +559,9 @@ export default function ImageCropper() {
                                 <Button onClick={exportBatch} disabled={!images.length}>
                                     批量导出ZIP
                                 </Button>
+                                <Button variant="destructive" onClick={clearAllImages} disabled={!images.length}>
+                                    清空列表
+                                </Button>
                             </div>
                             {activeImage && (
                                 <div className="flex flex-wrap gap-2">
@@ -605,6 +637,18 @@ export default function ImageCropper() {
                                                     {item.width} × {item.height}
                                                 </div>
                                             </div>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="destructive"
+                                                className="ml-auto h-7 px-2"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    removeImage(item.id);
+                                                }}
+                                            >
+                                                删除
+                                            </Button>
                                         </button>
                                     ))}
                                 </div>
