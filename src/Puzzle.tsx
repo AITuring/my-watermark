@@ -127,14 +127,10 @@ const PhotoFrame = memo(
             <div
                 ref={ref}
                 style={{
-                    width: overlay ? (wrapperStyle?.width ?? style.width) : style.width,
-                    // padding: margin || 0,
+                    ...(wrapperStyle ?? {}),
+                    width: wrapperStyle?.width ?? style.width,
                     boxSizing: "border-box",
                     position: "relative",
-                    // borderRadius: margin > 2 ? "4px" : 0,
-                    // boxShadow: margin > 0
-                    // ? "0px 3px 3px -2px rgb(0 0 0 / 20%), 0px 3px 4px 0px rgb(0 0 0 / 24%), 0px 1px 8px 0px rgb(0 0 0 / 22%)"
-                    // : "none",
                     transition:
                         "box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms",
                 }}
@@ -147,15 +143,11 @@ const PhotoFrame = memo(
                 {...attributes}
                 {...listeners}
             >
-                <div className="relative w-full h-full">
+                <div className="relative">
                     <img
                         alt={alt}
                         style={{
                             ...style,
-                            width: "100%",
-                            height: "auto",
-                            padding: 0,
-                            margin: 0,
                             borderRadius: radius || 0,
                             cursor: "zoom-in",
                         }}
@@ -164,7 +156,7 @@ const PhotoFrame = memo(
                             if (!overlay && onPreview) onPreview(index ?? 0)
                         }}
                     />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                    <div className="interactive-overlay absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
                         <div className="flex items-center text-white">
                             <Icon
                                 icon="ph:eye-bold"
@@ -176,7 +168,7 @@ const PhotoFrame = memo(
                 </div>
 
                 {!overlay && (
-                    <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                    <div className="interactive-actions opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -271,7 +263,6 @@ const Puzzle = () => {
     );
     const [tiltAngle, setTiltAngle] = useState<number>(0);
     const [tiltScale, setTiltScale] = useState<number>(1);
-    const [vignette, setVignette] = useState<boolean>(true);
     const [pageScale, setPageScale] = useState<number>(1);
     const [estimatedPages, setEstimatedPages] = useState<number>(1);
     const [showPagePreview, setShowPagePreview] = useState<boolean>(true);
@@ -486,6 +477,11 @@ const Puzzle = () => {
                     const wrapper = clonedDoc.getElementById("tilt-wrapper") as HTMLElement | null;
                     if (container) container.style.overflow = "visible";
                     if (wrapper) wrapper.style.overflow = "visible";
+                    clonedDoc
+                        .querySelectorAll(".interactive-overlay, .interactive-actions")
+                        .forEach((node) => {
+                            (node as HTMLElement).style.display = "none";
+                        });
                     const images = clonedDoc.getElementsByTagName("img");
                     return Promise.all(
                         Array.from(images).map((img) =>
@@ -509,7 +505,7 @@ const Puzzle = () => {
                 },
             });
 
-            const padding = Math.round(40 * inputScale);
+            const padding = 0;
             const fullCanvas = document.createElement("canvas");
             fullCanvas.width = originalCanvas.width + padding * 2;
             fullCanvas.height = originalCanvas.height + padding * 2;
@@ -519,20 +515,6 @@ const Puzzle = () => {
             fctx.drawImage(originalCanvas, padding, padding);
 
             if (!selectedRatio || selectedRatio.width === null) {
-                if (vignette) {
-                    const g = fctx.createRadialGradient(
-                        fullCanvas.width / 2,
-                        fullCanvas.height / 2,
-                        Math.min(fullCanvas.width, fullCanvas.height) * 0.45,
-                        fullCanvas.width / 2,
-                        fullCanvas.height / 2,
-                        Math.max(fullCanvas.width, fullCanvas.height) * 0.6
-                    );
-                    g.addColorStop(0, "rgba(0,0,0,0)");
-                    g.addColorStop(1, "rgba(0,0,0,0.35)");
-                    fctx.fillStyle = g;
-                    fctx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
-                }
                 fullCanvas.toBlob((blob) => {
                     if (!blob) return;
                     const url = URL.createObjectURL(blob);
@@ -572,13 +554,6 @@ const Puzzle = () => {
                         const dh = Math.min(pageH, Math.round(sliceH * scaleFactor));
                         const dy = Math.round((pageH - dh) / 2);
                         pctx.drawImage(fullCanvas, 0, prev, fullCanvas.width, sliceH, 0, dy, pageW, dh);
-                    }
-                    if (vignette) {
-                        const g = pctx.createRadialGradient(pageW / 2, pageH / 2, Math.min(pageW, pageH) * 0.45, pageW / 2, pageH / 2, Math.max(pageW, pageH) * 0.6);
-                        g.addColorStop(0, "rgba(0,0,0,0)");
-                        g.addColorStop(1, "rgba(0,0,0,0.35)");
-                        pctx.fillStyle = g;
-                        pctx.fillRect(0, 0, pageW, pageH);
                     }
                     await new Promise((r) => requestAnimationFrame(() => r(null)));
                     const blob = (page as any).convertToBlob ? await (page as any).convertToBlob({ type: "image/jpeg", quality: 0.9 }) : await new Promise<Blob | null>((resolve) => page.toBlob(resolve, "image/jpeg", 0.9));
@@ -629,17 +604,6 @@ const Puzzle = () => {
                     </div>
                 )}
             </div>
-            {vignette && (
-                <div
-                    style={{
-                        position: 'absolute',
-                        inset: 0,
-                        pointerEvents: 'none',
-                        background:
-                            'radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.35) 100%)',
-                    }}
-                />
-            )}
         </div>
     );
 
@@ -1074,10 +1038,6 @@ const Puzzle = () => {
                                 />
                             </div>
                             <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
-                                <div className="text-xs sm:text-sm">暗角:</div>
-                                <Switch checked={vignette} onCheckedChange={setVignette} />
-                            </div>
-                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
                                 <div className="text-xs sm:text-sm">每页内容缩放:</div>
                                 <Slider
                                     className="w-24 sm:w-28 ml-2"
@@ -1166,5 +1126,3 @@ const Puzzle = () => {
 };
 
 export default Puzzle;
-
-
