@@ -17,7 +17,6 @@ import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { Icon } from "@iconify/react";
 import {
     closestCenter,
@@ -261,11 +260,9 @@ const Puzzle = () => {
     const [selectedRatio, setSelectedRatio] = useState<AspectRatio | null>(
         null
     );
-    const [tiltAngle, setTiltAngle] = useState<number>(0);
-    const [tiltScale, setTiltScale] = useState<number>(1);
-    const [pageScale, setPageScale] = useState<number>(1);
-    const [estimatedPages, setEstimatedPages] = useState<number>(1);
-    const [showPagePreview, setShowPagePreview] = useState<boolean>(true);
+    const tiltAngle = 0;
+    const tiltScale = 1;
+    const pageScale = 1;
     const [overlayBounds, setOverlayBounds] = useState<number[]>([]);
 
     // 添加一个状态来存储容器尺寸
@@ -596,13 +593,6 @@ const Puzzle = () => {
                 >
                     {containerProps?.children}
                 </div>
-                {showPagePreview && selectedRatio?.width && overlayBounds.length > 0 && (
-                    <div id="page-overlay" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                        {overlayBounds.map((y, i) => (
-                            <div key={i} style={{ position: 'absolute', top: `${y}px`, left: 0, right: 0, height: 0, borderTop: '2px dashed rgba(255,0,0,0.5)' }} />
-                        ))}
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -804,9 +794,9 @@ const Puzzle = () => {
 
     useEffect(() => {
         const wrapper = document.getElementById("tilt-wrapper") as HTMLElement | null;
-        if (!wrapper) { setEstimatedPages(1); setOverlayBounds([]); return; }
+        if (!wrapper) { setOverlayBounds([]); return; }
         const rect = wrapper.getBoundingClientRect();
-        if (!selectedRatio || selectedRatio.width === null) { setEstimatedPages(1); setOverlayBounds([]); return; }
+        if (!selectedRatio || selectedRatio.width === null) { setOverlayBounds([]); return; }
         const ratio = selectedRatio.width / selectedRatio.height;
         const pageW = rect.width;
         const pageH = pageW / ratio;
@@ -826,7 +816,6 @@ const Puzzle = () => {
             breaks.push(Math.min(Math.max(snapped, 0), rect.height));
         }
         const uniqueBreaks = Array.from(new Set(breaks.map(v => Math.round(v)))).sort((a,b)=>a-b);
-        setEstimatedPages(uniqueBreaks.length + 1);
         setOverlayBounds(uniqueBreaks);
     }, [selectedRatio?.width, selectedRatio?.height, tiltAngle, tiltScale, margin, layout, inputColumns, images.length, containerSize.width, containerSize.height, pageScale]);
 
@@ -997,67 +986,6 @@ const Puzzle = () => {
                                     value={inputScale}
                                     onChange={(e) => setInputScale(Number(e.target.value))}
                                 />
-                            </div>
-                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
-                                <div className="text-xs sm:text-sm">倾斜角度:</div>
-                                <Slider
-                                    className="w-24 sm:w-28 ml-2"
-                                    value={[tiltAngle]}
-                                    min={-45}
-                                    max={45}
-                                    step={1}
-                                    onValueChange={(value) => setTiltAngle(value[0])}
-                                />
-                                <input
-                                    type="number"
-                                    className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
-                                    min={-45}
-                                    max={45}
-                                    value={tiltAngle}
-                                    onChange={(e) => setTiltAngle(Number(e.target.value))}
-                                />
-                            </div>
-                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
-                                <div className="text-xs sm:text-sm">缩放:</div>
-                                <Slider
-                                    className="w-24 sm:w-28 ml-2"
-                                    value={[tiltScale]}
-                                    min={0.6}
-                                    max={1.6}
-                                    step={0.05}
-                                    onValueChange={(value) => setTiltScale(Number(value[0]))}
-                                />
-                                <input
-                                    type="number"
-                                    className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
-                                    min={0.6}
-                                    max={1.6}
-                                    step={0.05}
-                                    value={tiltScale}
-                                    onChange={(e) => setTiltScale(Number(e.target.value))}
-                                />
-                            </div>
-                            <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
-                                <div className="text-xs sm:text-sm">每页内容缩放:</div>
-                                <Slider
-                                    className="w-24 sm:w-28 ml-2"
-                                    value={[pageScale]}
-                                    min={0.6}
-                                    max={1.5}
-                                    step={0.05}
-                                    onValueChange={(v) => setPageScale(Number(v[0]))}
-                                />
-                                <input
-                                    type="number"
-                                    className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
-                                    min={0.6}
-                                    max={1.5}
-                                    step={0.05}
-                                    value={pageScale}
-                                    onChange={(e) => setPageScale(Number(e.target.value))}
-                                />
-                                <Badge variant="outline" className="ml-2">预估页数: {(!selectedRatio || selectedRatio.width === null) ? 1 : estimatedPages}</Badge>
-                                <div className="ml-3 flex items-center gap-2"><span>分页预览:</span><Switch checked={showPagePreview} onCheckedChange={setShowPagePreview} /></div>
                             </div>
                         </div>
                         <Separator className="my-2" />
