@@ -1062,6 +1062,8 @@ class ExhibitionEvent:
     city_slug: str = ""
     cover_url: str = ""
     poster_url: str = ""
+    rating_stars: float = 0.0
+    likes_count: int = 0
     source: str = ""
     source_url: str = ""
     updated_at: str = ""
@@ -1135,6 +1137,46 @@ def _to_highlights(value: Any) -> List[str]:
         parts = re.split(r"[；;。.!?\n]+", value)
         return [p.strip() for p in parts if p.strip()][:6]
     return []
+
+
+def _extract_number_value(value: Any) -> int:
+    if value is None:
+        return 0
+    if isinstance(value, (int, float)):
+        return int(value)
+    text = str(value).replace(",", "").replace("，", "").strip()
+    if not text:
+        return 0
+    m = re.search(r"(\d+(?:\.\d+)?)\s*([kKwW万]?)", text)
+    if not m:
+        return 0
+    num = float(m.group(1))
+    unit = m.group(2).lower()
+    if unit in {"w", "万"}:
+        num *= 10000
+    if unit == "k":
+        num *= 1000
+    return int(num)
+
+
+def _extract_rating_stars(value: Any) -> float:
+    if value is None:
+        return 0.0
+    if isinstance(value, (int, float)):
+        v = float(value)
+        if v > 5:
+            v = v / 2 if v <= 10 else 5.0
+        return max(0.0, min(5.0, v))
+    text = str(value).strip()
+    if not text:
+        return 0.0
+    m = re.search(r"(\d+(?:\.\d+)?)", text)
+    if not m:
+        return 0.0
+    v = float(m.group(1))
+    if v > 5:
+        v = v / 2 if v <= 10 else 5.0
+    return max(0.0, min(5.0, v))
 
 
 def _extract_events_from_json(payload: Any, source: str, source_url: str) -> List[ExhibitionEvent]:
@@ -1228,6 +1270,22 @@ def _extract_events_from_json(payload: Any, source: str, source_url: str) -> Lis
                         or node.get("banner_url")
                         or ""
                     )
+                    rating_stars = _extract_rating_stars(
+                        node.get("rating")
+                        or node.get("score")
+                        or node.get("stars")
+                        or node.get("rank")
+                        or node.get("rating_stars")
+                    )
+                    likes_count = _extract_number_value(
+                        node.get("likes")
+                        or node.get("likes_count")
+                        or node.get("favs")
+                        or node.get("favorites")
+                        or node.get("hearts")
+                        or node.get("heart_count")
+                        or node.get("wants")
+                    )
                     event_id = hashlib.md5(
                         f"{title}|{museum}|{city}|{start_date}|{end_date}".encode()
                     ).hexdigest()[:16]
@@ -1242,6 +1300,8 @@ def _extract_events_from_json(payload: Any, source: str, source_url: str) -> Lis
                             highlights=highlights,
                             cover_url=str(cover_url).strip(),
                             poster_url=str(poster_url).strip(),
+                            rating_stars=rating_stars,
+                            likes_count=likes_count,
                             source=source,
                             source_url=str(detail_url),
                             updated_at=_today_iso(),
@@ -1301,6 +1361,8 @@ def _extract_events_from_html(html: str, source: str, source_url: str, museum: s
             src = cover_el.get("src") or cover_el.get("data-src") or ""
             if src:
                 cover_url = urljoin(source_url, src)
+        rating_stars = _extract_rating_stars(text)
+        likes_count = _extract_number_value(text)
         event_id = hashlib.md5(
             f"{title}|{local_museum}|{local_city}|{start_date}|{end_date}".encode()
         ).hexdigest()[:16]
@@ -1314,6 +1376,8 @@ def _extract_events_from_html(html: str, source: str, source_url: str, museum: s
             end_date=end_date,
             highlights=highlights,
             cover_url=cover_url,
+            rating_stars=rating_stars,
+            likes_count=likes_count,
             source=source,
             source_url=link,
             updated_at=_today_iso(),
@@ -1415,6 +1479,8 @@ def _load_events_from_json() -> List[ExhibitionEvent]:
                 open_hours=str(row.get("open_hours", "")),
                 cover_url=str(row.get("cover_url", "")),
                 poster_url=str(row.get("poster_url", "")),
+                rating_stars=_extract_rating_stars(row.get("rating_stars", 0)),
+                likes_count=_extract_number_value(row.get("likes_count", 0)),
                 highlights=highlights,
                 source=str(row.get("source", "")),
                 source_url=str(row.get("source_url", "")),
@@ -1622,6 +1688,18 @@ async def _fetch_icity_event_detail(
             src = poster_el.get("src") or poster_el.get("data-src") or ""
             if src:
                 poster_url = urljoin(url, src)
+        popularity_text = " ".join([
+            info_map.get("评分", ""),
+            info_map.get("喜欢", ""),
+            info_map.get("想看", ""),
+            soup.get_text(" ", strip=True)[:2000],
+        ])
+        rating_stars = _extract_rating_stars(info_map.get("评分") or popularity_text)
+        likes_count = _extract_number_value(
+            info_map.get("喜欢")
+            or info_map.get("想看")
+            or popularity_text
+        )
 
         event_id = hashlib.md5(
             f"{title}|{museum}|{city}|{start_date}|{end_date}".encode()
@@ -1641,6 +1719,8 @@ async def _fetch_icity_event_detail(
             city_slug=event_meta.get("city_slug", ""),
             cover_url=cover_url,
             poster_url=poster_url,
+            rating_stars=rating_stars,
+            likes_count=likes_count,
             source="icity",
             source_url=url,
             updated_at=_today_iso(),
