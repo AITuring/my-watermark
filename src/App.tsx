@@ -1,5 +1,4 @@
-import NavTabs from "./components/animata/container/nav-tabs";
-import { useContext, useState, useRef, useEffect } from "react";
+import { lazy, Suspense, useContext, useState, useRef, useEffect } from "react";
 import {
     BrowserRouter,
     Routes,
@@ -8,227 +7,17 @@ import {
     useLocation,
 } from "react-router-dom";
 import { ThemeProvider, ThemeContext } from "./context";
-import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Icon } from "@iconify/react";
-import Puzzle from "./Puzzle";
-import Watermark from "./Watermark";
-import CompTest from "./CompTest";
-import LandscapePainting from "./components/LandscapePainting";
-import NewsApp from "./News";
-import ImageCollage from "./ImageCollage";
 import Landing from "./Landing";
-import FileRenamer from "./FileRenamer";
-import CreativeMosaic from "./CreativeMosaic";
-
-// import BorderWatermark from "./BorderWatermark";
-import Lottery from "./Lottery";
-import ChangeColor from "./ChangeColor";
-import PhotoCollage from "./PhotoCollage";
-import ImageStitching from "./ImageStitching";
-import RestaurantFinder from "./RestaurantFinder";
-import Wenwu from "./Wenwu";
 import "./App.css";
-import BatchImageCompressor from "./BatchImageCompressor";
-import GooglePhoto from "./GooglePhoto";
-import ImageSplitter from "./ImageSplitter";
-import ImageCropper from "./ImageCropper";
-import Calendar from "./Calendar";
-import ChristmasTreeHand from "./ChristmasTreeHand";
-import PhotoFrame from "./PhotoFrame";
-import Gallery from "./Gallery";
-import Sanxingdui from "./sanxingdui";
-import ArtifactAI from "./ArtifactAI";
-import MuseumExplorer from "./MuseumExplorer";
-import MuseumEventRadar from "./MuseumEventRadar";
 import { Toaster } from "sonner";
+import { appCatalog } from "./app-catalog";
 
-
-import RawEditor from "./RawEditor";
-
-const routeItems = [
-    {
-        label: "应用库",
-        id: "landing",
-        url: "/",
-        component: <Landing />,
-        icon: "material-symbols:apps",
-    },
-    {
-        label: "水印添加",
-        id: "watermark",
-        url: "/watermark",
-        component: <Watermark />,
-        icon: "ri:image-ai-line",
-    },
-    {
-        label: "批量压缩",
-        id: "compress",
-        url: "/compress",
-        component: <BatchImageCompressor />,
-        icon: "material-symbols:compress",
-    },
-    {
-        label: "Google 相册",
-        id: "photo",
-        url: "/google-photo",
-        component: <GooglePhoto />,
-        icon: "logos:google-photos",
-    },
-    {
-        label: "简约相框",
-        id: "frame",
-        url: "/frame",
-        component: <PhotoFrame />,
-        icon: "ri:image-edit-line",
-    },
-    {
-        label: "图片分割",
-        id: "split",
-        url: "/split",
-        component: <ImageSplitter />,
-        icon: "material-symbols:split-vertical",
-    },
-    {
-        label: "图片裁切",
-        id: "crop",
-        url: "/crop",
-        component: <ImageCropper />,
-        icon: "material-symbols:crop",
-    },
-    {
-        label: "大图拼接",
-        id: "puzzle",
-        url: "/puzzle",
-        component: <Puzzle />,
-        icon: "tabler:layout-board-split",
-    },
-    {
-        label: "图片拼接",
-        id: "stitch",
-        url: "/stitch",
-        component: <ImageStitching />,
-        icon: "material-symbols:photo-library-outline",
-    },
-    {
-        label: "文物百科",
-        id: "artifact-ai",
-        url: "/artifact-ai",
-        component: <ArtifactAI />,
-        icon: "lucide:book-open",
-    },
-    {
-        label: "餐厅搜索",
-        id: "restaurant",
-        url: "/restaurant",
-        component: <RestaurantFinder />,
-        icon: "ri:restaurant-2-line",
-    },
-    {
-        label: "图片颜色调整",
-        id: "change",
-        url: "/change",
-        component: <ChangeColor />,
-        icon: "material-symbols:palette-outline",
-    },
-    {
-        label: "195禁出",
-        id: "wenwu",
-        url: "/wenwu",
-        component: <Wenwu />,
-        icon: "material-symbols:museum-outline",
-    },
-    {
-        label: "新闻",
-        id: "news",
-        url: "/news",
-        component: <NewsApp />,
-        icon: "ri:news-line",
-    },
-    {
-        label: "图片拼接",
-        id: "collage",
-        url: "/collage",
-        component: <ImageCollage />,
-        icon: "material-symbols:photo-library-outline",
-    },
-    {
-        label: "文件重命名",
-        id: "rename",
-        url: "/rename",
-        component: <FileRenamer />,
-        icon: "material-symbols:file-rename-outline",
-    },
-    {
-        label: "创意马赛克",
-        id: "mosaic",
-        url: "/mosaic",
-        component: <CreativeMosaic />,
-        icon: "material-symbols:mosaic-outline",
-    },
-    {
-        label: "年度相册",
-        id: "gallery",
-        url: "/gallery",
-        component: <Gallery />,
-        icon: "material-symbols:photo-library-outline",
-    },
-    {
-        label: "测试",
-        id: "test",
-        url: "/test",
-        component: (
-            <LandscapePainting
-                width={1400}
-                height={900}
-                seed="qing-a2"
-            />
-        ),
-        icon: "material-symbols:test-tube",
-    },
-    {
-        label: "圣诞树",
-        id: "christmas",
-        url: "/christmas",
-        component: <ChristmasTreeHand />,
-        icon: "mdi:pine-tree",
-    },
-    {
-        label: "日历",
-        id: "calendar",
-        url: "/calendar",
-        component: <Calendar />,
-        icon: "material-symbols:calendar-month-outline",
-    },
-    {
-        label: "三星堆",
-        id: "sanxingdui",
-        url: "/sxd",
-        component: <Sanxingdui />,
-        icon: "material-symbols:gesture-2",
-    },
-    {
-        label: "RAW编辑器",
-        id: "raw-editor",
-        url: "/raw-editor",
-        component: <RawEditor />,
-        icon: "material-symbols:camera-enhance-outline",
-    },
-    {
-        label: "博物万象",
-        id: "museum",
-        url: "/museum",
-        component: <MuseumExplorer />,
-        icon: "material-symbols:museum-outline",
-    },
-    {
-        label: "临展雷达",
-        id: "museum-events",
-        url: "/museum-events",
-        component: <MuseumEventRadar />,
-        icon: "material-symbols:event-available-outline",
-    },
-];
+const routeItems = appCatalog.map((item) => ({
+    ...item,
+    Page: lazy(item.component),
+}));
 
 
 const FloatingButtons = () => {
@@ -497,11 +286,16 @@ const App = () => {
                         // style={{ height: "calc(100vh - 80px)" }}
                     >
                         <Routes>
+                            <Route path="/" element={<Landing />} />
                             {routeItems.map((item) => (
                                 <Route
                                     key={item.id}
                                     path={item.url}
-                                    element={item.component}
+                                    element={
+                                        <Suspense fallback={<div className="p-6 text-sm text-gray-500">正在加载页面...</div>}>
+                                            <item.Page />
+                                        </Suspense>
+                                    }
                                 />
                             ))}
                         </Routes>

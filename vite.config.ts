@@ -6,10 +6,12 @@ import viteCompression from "vite-plugin-compression";
 import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig, type PluginOption } from "vite";
 
+const enableLegacy = process.env.LEGACY_BUILD === "true";
+
 export default defineConfig({
     plugins: [
         react(),
-        legacy(),
+        enableLegacy ? legacy() : null,
         VitePWA({
             registerType: "autoUpdate",
             includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],

@@ -10,6 +10,7 @@
     "dev": "vite",
     "dev:photos": "node scripts/generate-photos.js && vite",
     "build": "tsc && vite build",
+    "build:legacy": "LEGACY_BUILD=true tsc && vite build",
     "build:photos": "node scripts/generate-photos.js && tsc && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",

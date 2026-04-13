@@ -1,23 +1,8 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import DarkToggle from "@/components/DarkToggle";
-import LandscapePainting from "./components/LandscapePainting";
-import {
-    Image,
-    Layers,
-    Stamp,
-    Shrink,
-    Map,
-    Newspaper,
-    LayoutGrid,
-    Split,
-    Utensils,
-    Clock,
-    FileText,
-    Aperture,
-    Crop
-} from "lucide-react";
+import { Icon } from "@iconify/react";
+import { appCatalog } from "./app-catalog";
 import h001 from "@/assets/history/split_001.png";
 import h002 from "@/assets/history/split_002.png";
 import h003 from "@/assets/history/split_003.png";
@@ -62,7 +47,7 @@ interface ToolItem {
     id: string;
     title: string;
     description: string;
-    icon: React.ElementType;
+    icon: string;
     href: string;
     colorTheme: {
         bg: string;
@@ -81,88 +66,6 @@ const ToolCard = ({
     index: number;
     onClick: () => void;
 }) => {
-    const Icon = item.icon;
-
-    const hashRandom = (seed: number) => {
-        let x = Math.sin(seed) * 10000;
-        return x - Math.floor(x);
-    };
-
-    // 精选12款中国水墨意境图案 (保证不重复)
-    const getDecorationPath = (idx: number) => {
-        // 坐标规则：x=0→64（宽度），y=64（底部）→y≈42-58（主峰最低y≈42，次峰≈48-55）
-        // 真实感逻辑：主峰→次峰高度渐增（坡度变缓），曲线向主峰内侧偏移（不对称）
-        const naturalMountainPaths = [
-            // 1 — 主峰居中+双侧缓降（最经典的山脉形态）
-            "M0 64 Q12 56 22 50 Q32 42 42 50 Q52 56 64 64 Z",
-            // 解析：主峰在x=32（y=42），向左（x=22,y=50）和向右（x=42,y=50）坡度渐缓，自然对称中带微差
-
-            // 2 — 主峰偏左+右侧长缓坡（左陡右缓，真实山脉常见形态）
-            "M0 64 Q8 50 18 46 Q28 52 38 56 Q48 58 58 56 Q64 54 64 64 Z",
-            // 解析：主峰在x=18（y=46），左侧陡峭（x=0到x=18，y从64→46），右侧缓坡延伸（x=18到x=64，y从46→64）
-
-            // 3 — 主峰偏右+左侧长缓坡（右陡左缓，与路径2呼应）
-            "M0 64 Q10 58 20 56 Q30 54 40 50 Q50 44 60 50 Q64 56 64 64 Z",
-            // 解析：主峰在x=50（y=44），右侧陡峭（x=50到x=64，y从44→64），左侧缓坡延伸
-
-            // 4 — 双主脉+中间谷（峰谷相间，层次分明）
-            "M0 64 Q12 54 22 50 Q32 56 42 52 Q52 46 62 54 Q64 58 64 64 Z",
-            // 解析：左主脉x=22（y=50），右主脉x=52（y=46），中间谷x=32（y=56），形成“峰-谷-峰”节奏
-
-            // 5 — 低缓主脉+多小支峰（如丘陵地带，起伏柔和）
-            "M0 64 Q8 57 16 55 Q24 57 32 53 Q40 57 48 55 Q56 57 64 64 Z",
-            // 解析：主峰x=32（y=53），周围小支峰y≈55-57，高度差仅2-4，模拟丘陵的平缓起伏
-
-            // 6 — 主峰高+右侧小支峰（主脉突出，支脉依附）
-            "M0 64 Q14 56 24 48 Q32 54 40 52 Q50 48 60 54 Q64 58 64 64 Z",
-            // 解析：主峰x=24（y=48），右侧x=50处有小支峰（y=48），依附主脉走势
-
-            // 7 — 长缓坡起+主峰+陡收（有“山脉延伸而来”的流动感）
-            "M0 64 Q16 59 32 55 Q40 46 48 52 Q56 56 64 60 Q64 64 64 64 Z",
-            // 解析：左侧长缓坡（x=0到x=32，y从64→55），主峰x=40（y=46），右侧稍陡收束
-
-            // 8 — 对称双主峰+中间微凸（如山脉鞍部，自然衔接）
-            "M0 64 Q16 52 26 56 Q32 58 38 56 Q48 52 64 64 Z",
-            // 解析：左右双主峰x=16和x=48（y=52），中间鞍部x=32（y=58），过渡自然
-
-            // 9 — 主峰低+支峰错落（如远山层叠，朦胧中见层次）
-            "M0 64 Q10 56 20 54 Q30 58 40 55 Q50 52 60 54 Q64 56 64 64 Z",
-            // 解析：主峰不突出（y≈52-54），支峰高度微差（3-5单位），模拟远山的朦胧层叠
-
-            // 10 — 左起微降+主峰+右缓收（有“自然生长”的流向）
-            "M0 64 Q10 62 20 60 Q30 54 40 48 Q50 54 60 58 Q64 60 64 64 Z",
-            // 解析：左侧先微降（x=0→20，y64→60），再升向主峰（x=40,y48），右侧自然收平
-
-            // 11 — 主峰陡峭+底部宽缓（如孤峰，根部扎实）
-            "M0 64 Q12 58 20 50 Q28 44 36 50 Q44 56 52 54 Q60 56 64 64 Z",
-            // 解析：主峰x=28（y=44）陡峭，底部向两侧展开（y≈56-64），有“根基稳固”的真实感
-
-            // 12 — 多小峰依附主脉（主脉x=32，小峰沿主脉分布）
-            "M0 64 Q6 56 12 52 Q18 56 24 50 Q30 54 36 48 Q42 52 48 56 Q54 52 60 56 Q64 60 64 64 Z",
-            // 解析：主脉沿x轴中间分布，小峰y值围绕52-56波动，高度差≤4，像主脉上的小凸起
-
-            // 13 — 右半段主脉+左延伸（主脉在右，左脉自然延伸）
-            "M0 64 Q16 60 32 59 Q44 56 56 50 Q64 56 64 64 Z",
-            // 解析：主脉在x=56（y=50），左侧延伸部分坡度极缓（y从59→60），模拟山脉余脉
-
-            // 14 — 左高右低+坡度渐变（左侧稍陡，向右均匀变缓）
-            "M0 64 Q8 54 18 52 Q28 54 38 56 Q48 57 58 58 Q64 59 64 64 Z",
-            // 解析：左侧y值低（52），向右y值逐渐升高（52→59），坡度均匀变缓，无突变
-
-            // 15 — 中间微凸+双侧对称缓降（低调自然，适合小卡片）
-            "M0 64 Q20 56 32 53 Q44 56 64 64 Z",
-            // 解析：主峰x=32（y=53），双侧坡度对称且缓（y从53→64，x跨度20-22），适合简约场景
-
-            // 16 — 峰谷交错+自然收束（小起伏贯穿，末端平缓收尾）
-            "M0 64 Q10 57 18 55 Q26 57 34 54 Q42 56 50 53 Q58 55 64 57 Q64 64 64 64 Z",
-            // 解析：全程小起伏（y53-57），末端x=64处y=57→64，平缓收尾，有“山脉消失在地平线”的感觉
-        ];
-
-        return naturalMountainPaths[
-            Math.abs(idx) % naturalMountainPaths.length
-        ];
-    };
-
     return (
         <motion.div
             whileHover={{ y: -4, scale: 1.005 }}
@@ -194,7 +97,7 @@ const ToolCard = ({
                 <div
                     className={`shrink-0 p-2.5 rounded-lg bg-white/80 dark:bg-stone-700/80 border border-stone-100 dark:border-stone-600 shadow-sm ${item.colorTheme.text} transition-transform duration-300 group-hover:scale-105 backdrop-blur-sm`}
                 >
-                    <Icon size={20} strokeWidth={1.5} />
+                    <Icon icon={item.icon} width={20} height={20} />
                 </div>
 
                 {/* 文字内容 */}
@@ -248,205 +151,53 @@ const ToolCard = ({
 
 export default function Landing() {
     const navigate = useNavigate();
-
-    const items: ToolItem[] = [
+    const colorThemes = [
         {
-            id: "watermark",
-            title: "水印添加",
-            description: "批量添加文字或图片水印，保护版权",
-            icon: Stamp,
-            href: "/watermark",
-            colorTheme: {
-                bg: "bg-cyan-50 dark:bg-cyan-900/20",
-                text: "text-cyan-700 dark:text-cyan-300",
-                border: "hover:border-cyan-200 dark:hover:border-cyan-700",
-                hoverGradient: "from-cyan-100 to-transparent dark:from-cyan-900/40",
-            },
+            bg: "bg-cyan-50 dark:bg-cyan-900/20",
+            text: "text-cyan-700 dark:text-cyan-300",
+            border: "hover:border-cyan-200 dark:hover:border-cyan-700",
+            hoverGradient: "from-cyan-100 to-transparent dark:from-cyan-900/40",
         },
         {
-            id: "puzzle",
-            title: "大图拼接",
-            description: "智能拼接多张图片，支持自定义布局",
-            icon: Layers,
-            href: "/puzzle",
-            colorTheme: {
-                bg: "bg-violet-50 dark:bg-violet-900/20",
-                text: "text-violet-700 dark:text-violet-300",
-                border: "hover:border-violet-200 dark:hover:border-violet-700",
-                hoverGradient: "from-violet-100 to-transparent dark:from-violet-900/40",
-            },
+            bg: "bg-violet-50 dark:bg-violet-900/20",
+            text: "text-violet-700 dark:text-violet-300",
+            border: "hover:border-violet-200 dark:hover:border-violet-700",
+            hoverGradient: "from-violet-100 to-transparent dark:from-violet-900/40",
         },
         {
-            id: "google-photo",
-            title: "Google 相册",
-            description: "笑谈间气吐霓虹的相册",
-            icon: Image,
-            href: "/google-photo",
-            colorTheme: {
-                bg: "bg-indigo-50 dark:bg-indigo-900/20",
-                text: "text-indigo-700 dark:text-indigo-300",
-                border: "hover:border-indigo-200 dark:hover:border-indigo-700",
-                hoverGradient: "from-indigo-100 to-transparent dark:from-indigo-900/40",
-            },
-        },
-        // 还不成熟
-        // {
-        //     id: "stitch",
-        //     title: "图片拼接",
-        //     description: "自由拼接多张图片，无缝合成",
-        //     icon: Scissors,
-        //     href: "/stitch",
-        //     colorTheme: {
-        //         bg: "bg-emerald-50",
-        //         text: "text-emerald-700",
-        //         border: "hover:border-emerald-200",
-        //         hoverGradient: "from-emerald-100 to-transparent",
-        //     },
-        // },
-        // {
-        //     id: "change",
-        //     title: "颜色调整",
-        //     description: "专业的色彩与滤镜微调工具",
-        //     icon: Palette,
-        //     href: "/change",
-        //     colorTheme: {
-        //         bg: "bg-rose-50",
-        //         text: "text-rose-700",
-        //         border: "hover:border-rose-200",
-        //         hoverGradient: "from-rose-100 to-transparent",
-        //     },
-        // },
-        {
-            id: "frame",
-            title: "照片边框",
-            description: "为照片添加优雅的边框",
-            icon: Aperture,
-            href: "/frame",
-            colorTheme: {
-                bg: "bg-rose-50",
-                text: "text-rose-700",
-                border: "hover:border-rose-200",
-                hoverGradient: "from-rose-100 to-transparent",
-            },
+            bg: "bg-indigo-50 dark:bg-indigo-900/20",
+            text: "text-indigo-700 dark:text-indigo-300",
+            border: "hover:border-indigo-200 dark:hover:border-indigo-700",
+            hoverGradient: "from-indigo-100 to-transparent dark:from-indigo-900/40",
         },
         {
-            id: "rename",
-            title: "文件重命名",
-            description: "批量修改文件名，支持多种规则",
-            icon: FileText,
-            href: "/rename",
-            colorTheme: {
-                bg: "bg-blue-50 dark:bg-blue-900/20",
-                text: "text-blue-700 dark:text-blue-300",
-                border: "hover:border-blue-200 dark:hover:border-blue-700",
-                hoverGradient: "from-blue-100 to-transparent dark:from-blue-900/40",
-            },
+            bg: "bg-rose-50 dark:bg-rose-900/20",
+            text: "text-rose-700 dark:text-rose-300",
+            border: "hover:border-rose-200 dark:hover:border-rose-700",
+            hoverGradient: "from-rose-100 to-transparent dark:from-rose-900/40",
         },
         {
-            id: "compress",
-            title: "批量压缩",
-            description: "高效压缩图片体积，保持画质",
-            icon: Shrink,
-            href: "/compress",
-            colorTheme: {
-                bg: "bg-slate-100 dark:bg-slate-800",
-                text: "text-slate-700 dark:text-slate-300",
-                border: "hover:border-slate-300 dark:hover:border-slate-600",
-                hoverGradient: "from-slate-200 to-transparent dark:from-slate-800",
-            },
+            bg: "bg-amber-50 dark:bg-amber-900/20",
+            text: "text-amber-700 dark:text-amber-300",
+            border: "hover:border-amber-200 dark:hover:border-amber-700",
+            hoverGradient: "from-amber-100 to-transparent dark:from-amber-900/40",
         },
         {
-            id: "wenwu",
-            title: "195 禁出",
-            description: "探索国家级馆藏文物地图",
-            icon: Map,
-            href: "/wenwu",
-            colorTheme: {
-                bg: "bg-amber-50 dark:bg-amber-900/20",
-                text: "text-amber-700 dark:text-amber-300",
-                border: "hover:border-amber-200 dark:hover:border-amber-700",
-                hoverGradient: "from-amber-100 to-transparent dark:from-amber-900/40",
-            },
-        },
-        {
-            id: "split",
-            title: "长图拆分",
-            description: "精确按比例拆分长图",
-            icon: Split,
-            href: "/split",
-            colorTheme: {
-                bg: "bg-lime-50 dark:bg-lime-900/20",
-                text: "text-lime-700 dark:text-lime-300",
-                border: "hover:border-lime-200 dark:hover:border-lime-700",
-                hoverGradient: "from-lime-100 to-transparent dark:from-lime-900/40",
-            },
-        },
-        {
-            id: "crop",
-            title: "图片裁切",
-            description: "固定像素或比例框选后一键导出",
-            icon: Crop,
-            href: "/crop",
-            colorTheme: {
-                bg: "bg-teal-50 dark:bg-teal-900/20",
-                text: "text-teal-700 dark:text-teal-300",
-                border: "hover:border-teal-200 dark:hover:border-teal-700",
-                hoverGradient: "from-teal-100 to-transparent dark:from-teal-900/40",
-            },
-        },
-        {
-            id: "calendar",
-            title: "屏幕时钟",
-            description: "好玩有趣的屏幕时钟",
-            icon: Clock,
-            href: "/calendar",
-            colorTheme: {
-                bg: "bg-yellow-50 dark:bg-yellow-900/20",
-                text: "text-yellow-700 dark:text-yellow-300",
-                border: "hover:border-yellow-200 dark:hover:border-yellow-700",
-                hoverGradient: "from-yellow-100 to-transparent dark:from-yellow-900/40",
-            },
-        },
-        {
-            id: "news",
-            title: "每日新闻",
-            description: "实时聚合热点新闻资讯",
-            icon: Newspaper,
-            href: "/news",
-            colorTheme: {
-                bg: "bg-red-50 dark:bg-red-900/20",
-                text: "text-red-700 dark:text-red-300",
-                border: "hover:border-red-200 dark:hover:border-red-700",
-                hoverGradient: "from-red-100 to-transparent dark:from-red-900/40",
-            },
-        },
-        {
-            id: "restaurant",
-            title: "餐厅搜索",
-            description: "快速发现周边热门美食",
-            icon: Utensils,
-            href: "/restaurant",
-            colorTheme: {
-                bg: "bg-orange-50 dark:bg-orange-900/20",
-                text: "text-orange-700 dark:text-orange-300",
-                border: "hover:border-orange-200 dark:hover:border-orange-700",
-                hoverGradient: "from-orange-100 to-transparent dark:from-orange-900/40",
-            },
-        },
-        {
-            id: "collage",
-            title: "拼图模式",
-            description: "丰富的拼图模板与样式选择",
-            icon: LayoutGrid,
-            href: "/collage",
-            colorTheme: {
-                bg: "bg-fuchsia-50 dark:bg-fuchsia-900/20",
-                text: "text-fuchsia-700 dark:text-fuchsia-300",
-                border: "hover:border-fuchsia-200 dark:hover:border-fuchsia-700",
-                hoverGradient: "from-fuchsia-100 to-transparent dark:from-fuchsia-900/40",
-            },
+            bg: "bg-lime-50 dark:bg-lime-900/20",
+            text: "text-lime-700 dark:text-lime-300",
+            border: "hover:border-lime-200 dark:hover:border-lime-700",
+            hoverGradient: "from-lime-100 to-transparent dark:from-lime-900/40",
         },
     ];
+
+    const items: ToolItem[] = appCatalog.map((app, index) => ({
+        id: app.id,
+        title: app.label,
+        description: app.description,
+        icon: app.icon,
+        href: app.url,
+        colorTheme: colorThemes[index % colorThemes.length],
+    }));
 
     return (
         <div className="min-h-screen w-full bg-[#FDFBF7] dark:bg-[#1a1a1a] text-stone-800 dark:text-stone-200 font-mono selection:bg-stone-200 dark:selection:bg-stone-700 selection:text-stone-800 dark:selection:text-stone-100 overflow-x-hidden relative">
@@ -599,6 +350,14 @@ export default function Landing() {
                             </svg>
                         </motion.span>
                     </motion.h1>
+                    <motion.p
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.15 }}
+                        className="text-sm md:text-base text-stone-500 dark:text-stone-400 leading-relaxed font-mono tracking-wide"
+                    >
+                        共 {items.length} 个应用，按卡片简介快速选择最合适的工具。
+                    </motion.p>
 
                     {/* <motion.p
                         initial={{ opacity: 0, y: 15 }}
