@@ -187,3 +187,11 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("./MuseumEventRadar"),
     },
 ];
+
+// 应用目录
+// 5.2早上到临沂，北寨汉墓 临沂博物馆 一天
+// 晚上 到济宁北
+// 5.3第二天 早上 直冲 武梁祠 下午巨野博物馆
+// 晚上巨野北 到济南
+// 5.4第三天 孝堂山+长清博物馆+灵岩寺
+//

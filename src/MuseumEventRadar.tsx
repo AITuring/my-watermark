@@ -257,6 +257,21 @@ function getRelativeDayLabel(value: string) {
   return formatDateLabel(value);
 }
 
+function getEndUrgencyLabel(endDate: string) {
+  const target = new Date(endDate);
+  if (Number.isNaN(target.getTime())) return null;
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfTarget = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+  const days = Math.round((startOfTarget - startOfToday) / (24 * 3600 * 1000));
+  if (days < 0) return null;
+  if (days === 0) return { label: "今天结束", tone: "bg-red-100 text-red-700", level: "urgent" as const };
+  if (days === 1) return { label: "明天结束", tone: "bg-red-100 text-red-700", level: "urgent" as const };
+  if (days <= 3) return { label: `${days} 天后结束`, tone: "bg-orange-100 text-orange-700", level: "soon" as const };
+  if (days <= 7) return { label: "本周内结束", tone: "bg-amber-100 text-amber-700", level: "soon" as const };
+  return null;
+}
+
 function buildCityBrief(cityName: string, events: MuseumEvent[], caiScore?: number) {
   const now = new Date();
   const in7 = new Date(now.getTime() + 7 * 24 * 3600 * 1000);
@@ -337,8 +352,15 @@ function getFallbackAccent(event: MuseumEvent | null) {
 const MuseumEventRadar: React.FC = () => {
   const backendUrl = getBackendUrl();
   const [city, setCity] = useState("北京");
+  const [cityInput, setCityInput] = useState("北京");
   const [startDate, setStartDate] = useState(() => toISODate(new Date()));
+  const [startDateInput, setStartDateInput] = useState(() => toISODate(new Date()));
   const [endDate, setEndDate] = useState(() => {
+    const dt = new Date();
+    dt.setDate(dt.getDate() + 7);
+    return toISODate(dt);
+  });
+  const [endDateInput, setEndDateInput] = useState(() => {
     const dt = new Date();
     dt.setDate(dt.getDate() + 7);
     return toISODate(dt);
@@ -361,6 +383,7 @@ const MuseumEventRadar: React.FC = () => {
   const [travelMode, setTravelMode] = useState<TravelMode>("driving");
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
   const [showMapDialog, setShowMapDialog] = useState(false);
+  const [listFilter, setListFilter] = useState<"all" | "latest" | "hot" | "ending" | "upcoming" | "ended" | "permanent">("all");
   const [highlightPage, setHighlightPage] = useState(0);
   const [showSourceSummary, setShowSourceSummary] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -454,6 +477,12 @@ const MuseumEventRadar: React.FC = () => {
     return () => clearInterval(timer);
   }, [fetchOverview]);
 
+  const applyFilters = useCallback(() => {
+    setCity((cityInput || "").trim());
+    setStartDate(startDateInput);
+    setEndDate(endDateInput);
+  }, [cityInput, endDateInput, startDateInput]);
+
   const cityOptions = useMemo(() => {
     return (data?.cities || []).map((item) => item.city).filter((item) => item && item !== "未知城市");
   }, [data]);
@@ -471,6 +500,20 @@ const MuseumEventRadar: React.FC = () => {
       script.onerror = () => reject(new Error("地图脚本加载失败"));
       document.head.appendChild(script);
     });
+  }, []);
+
+  const stabilizeMapRender = useCallback((mapInstance: any) => {
+    if (!mapInstance) return;
+    const run = () => {
+      try {
+        mapInstance.resize();
+      } catch {
+        void 0;
+      }
+    };
+    requestAnimationFrame(run);
+    window.setTimeout(run, 120);
+    window.setTimeout(run, 320);
   }, []);
 
   const geocodeLocation = useCallback(
@@ -594,10 +637,12 @@ const MuseumEventRadar: React.FC = () => {
         const detected = await detectCityByLocation();
         if (!cancelled && detected) {
           setCity(detected);
+          setCityInput(detected);
         }
       } catch {
         if (!cancelled) {
           setCity("北京");
+          setCityInput("北京");
         }
       }
     })();
@@ -714,7 +759,6 @@ const MuseumEventRadar: React.FC = () => {
 
   const updateMap = useCallback(async () => {
     if (!mapContainerRef.current) return;
-    if (!cityMuseums.length) return;
     try {
       const AMap = await loadAMap();
       if (!mapRef.current) {
@@ -723,9 +767,21 @@ const MuseumEventRadar: React.FC = () => {
           center: [116.397428, 39.90923],
           mapStyle: "amap://styles/whitesmoke",
         });
+        mapRef.current.on?.("complete", () => {
+          stabilizeMapRender(mapRef.current);
+        });
       }
       markerRef.current.forEach((m) => m.setMap(null));
       markerRef.current = [];
+
+      if (!cityMuseums.length) {
+        const cityCoord = await geocodeLocation(city || "北京", city || "北京");
+        if (cityCoord) {
+          mapRef.current.setZoomAndCenter(10, [cityCoord.lng, cityCoord.lat]);
+        }
+        stabilizeMapRender(mapRef.current);
+        return;
+      }
 
       const points: any[] = [];
       for (const museum of cityMuseums.slice(0, 80)) {
@@ -742,10 +798,11 @@ const MuseumEventRadar: React.FC = () => {
       if (points.length) {
         mapRef.current.setFitView(markerRef.current);
       }
+      stabilizeMapRender(mapRef.current);
     } catch (e) {
       setError(e instanceof Error ? e.message : "地图加载失败");
     }
-  }, [city, cityMuseums, geocodeLocation, loadAMap]);
+  }, [city, cityMuseums, geocodeLocation, loadAMap, stabilizeMapRender]);
 
   useEffect(() => {
     updateMap();
@@ -770,6 +827,9 @@ const MuseumEventRadar: React.FC = () => {
             mapStyle: "amap://styles/whitesmoke",
             viewMode: "2D",
           });
+          cityMapRef.current.on?.("complete", () => {
+            stabilizeMapRender(cityMapRef.current);
+          });
         }
         cityMarkerRef.current.forEach((marker) => marker.setMap(null));
         cityMarkerRef.current = [];
@@ -777,37 +837,152 @@ const MuseumEventRadar: React.FC = () => {
           const location = await geocodeLocation(item.city, item.city);
           if (!location) continue;
           const active = normalizeCityName(item.city) === normalizeCityName(city);
-          const pulseSize = Math.round(44 + item.cai * 7);
+          const pulseSize = Math.max(30, Math.min(70, Math.round(24 + item.cai * 1.15)));
           const marker = new AMap.Marker({
             position: [location.lng, location.lat],
             offset: new AMap.Pixel(-pulseSize / 2, -pulseSize / 2),
             content: `
               <button style="width:${pulseSize}px;height:${pulseSize}px;border:none;background:transparent;cursor:pointer;position:relative;">
-                <span style="position:absolute;inset:0;border-radius:999px;background:${active ? "rgba(15,23,42,0.92)" : "rgba(29,78,216,0.18)"};animation:pulse-city 2.4s ease-out infinite;"></span>
-                <span style="position:absolute;inset:${active ? "9px" : "12px"};border-radius:999px;background:${active ? "#f8fafc" : "rgba(29,78,216,0.88)"};display:flex;align-items:center;justify-content:center;color:${active ? "#0f172a" : "white"};font-size:11px;font-weight:700;">${item.city.slice(0, 2)}</span>
+                <span style="position:absolute;inset:0;border-radius:999px;background:${active ? "rgba(15,23,42,0.88)" : "rgba(29,78,216,0.16)"};animation:pulse-city 2.4s ease-out infinite;"></span>
+                <span style="position:absolute;inset:${active ? "8px" : "10px"};border-radius:999px;background:${active ? "#f8fafc" : "rgba(29,78,216,0.9)"};display:flex;align-items:center;justify-content:center;color:${active ? "#0f172a" : "white"};font-size:10px;font-weight:700;">${item.city.slice(0, 2)}</span>
               </button>
             `,
             extData: { city: item.city },
           });
-          marker.on("click", () => setCity(item.city));
+          marker.on("click", () => {
+            setCity(item.city);
+            setCityInput(item.city);
+          });
           marker.setMap(cityMapRef.current);
           cityMarkerRef.current.push(marker);
         }
+        stabilizeMapRender(cityMapRef.current);
       } catch {
         void 0;
       }
     };
     paintCityPulseMap();
-  }, [city, cityRanking, geocodeLocation, loadAMap]);
+  }, [city, cityRanking, geocodeLocation, loadAMap, stabilizeMapRender]);
+
+  useEffect(() => {
+    const cityContainer = cityMapContainerRef.current;
+    const museumContainer = mapContainerRef.current;
+    if (!cityContainer && !museumContainer) return;
+    const resizeCity = () => cityMapRef.current?.resize?.();
+    const resizeMuseum = () => mapRef.current?.resize?.();
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        resizeCity();
+        resizeMuseum();
+      });
+    });
+    if (cityContainer) ro.observe(cityContainer);
+    if (museumContainer) ro.observe(museumContainer);
+    const onWindowResize = () => {
+      resizeCity();
+      resizeMuseum();
+    };
+    window.addEventListener("resize", onWindowResize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", onWindowResize);
+    };
+  }, [cityRanking.length, cityMuseums.length]);
 
   const activeCityInsight = useMemo(() => {
     const rank = cityRanking.find((item) => normalizeCityName(item.city) === normalizeCityName(city));
     return buildCityBrief(city || "北京", data?.events || [], rank?.cai);
   }, [city, cityRanking, data]);
 
+  const endingSoonCityEvents = useMemo(() => {
+    const now = new Date();
+    const in14 = new Date(now.getTime() + 14 * 24 * 3600 * 1000);
+    return cityEvents
+      .filter((event) => {
+        if (event.start_date === event.end_date) return false;
+        const end = new Date(event.end_date);
+        return end >= now && end <= in14;
+      })
+      .sort((a, b) => (a.end_date > b.end_date ? 1 : -1))
+      .slice(0, 8);
+  }, [cityEvents]);
+
+  const hotCityEvents = useMemo(() => {
+    const now = new Date();
+    return cityEvents
+      .slice()
+      .sort((a, b) => {
+        const aStart = new Date(a.start_date);
+        const aEnd = new Date(a.end_date);
+        const bStart = new Date(b.start_date);
+        const bEnd = new Date(b.end_date);
+        const aOngoing = a.start_date === a.end_date || (aStart <= now && aEnd >= now) ? 1 : 0;
+        const bOngoing = b.start_date === b.end_date || (bStart <= now && bEnd >= now) ? 1 : 0;
+        const aScore = (a.rating || 0) * 4 + (a.highlights?.length || 0) + aOngoing * 5;
+        const bScore = (b.rating || 0) * 4 + (b.highlights?.length || 0) + bOngoing * 5;
+        if (aScore !== bScore) return bScore - aScore;
+        return a.end_date > b.end_date ? 1 : -1;
+      })
+      .slice(0, 14);
+  }, [cityEvents]);
+
+  const filteredListEvents = useMemo(() => {
+    const temporaryEvents = cityEvents.filter((event) => event.start_date !== event.end_date);
+    const permanentEvents = cityEvents.filter((event) => event.start_date === event.end_date);
+    const sortedByDate = temporaryEvents.slice().sort((a, b) => (a.end_date > b.end_date ? 1 : -1));
+    if (listFilter === "latest") {
+      return cityEvents.slice().sort((a, b) => {
+        const aTs = Date.parse(a.updated_at || "") || Date.parse(a.end_date || "") || Date.parse(a.start_date || "") || 0;
+        const bTs = Date.parse(b.updated_at || "") || Date.parse(b.end_date || "") || Date.parse(b.start_date || "") || 0;
+        return bTs - aTs;
+      });
+    }
+    if (listFilter === "hot") {
+      return hotCityEvents.filter((event) => event.start_date !== event.end_date);
+    }
+    if (listFilter === "ending") {
+      return sortedByDate.filter((event) => getProgressState(event.start_date, event.end_date).state === "lastcall");
+    }
+    if (listFilter === "upcoming") {
+      return sortedByDate.filter((event) => getProgressState(event.start_date, event.end_date).state === "pre");
+    }
+    if (listFilter === "ended") {
+      return sortedByDate.filter((event) => getProgressState(event.start_date, event.end_date).ended);
+    }
+    if (listFilter === "permanent") {
+      return permanentEvents;
+    }
+    return sortedByDate;
+  }, [cityEvents, hotCityEvents, listFilter]);
+
+  const ganttWindow = useMemo(() => {
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    start.setDate(start.getDate() - 30);
+    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    end.setDate(end.getDate() + 30);
+    return {
+      startMs: start.getTime(),
+      endMs: end.getTime(),
+      totalMs: Math.max(1, end.getTime() - start.getTime()),
+      todayMs: today.getTime(),
+    };
+  }, []);
+
   const selectedEvent = useMemo(() => {
-    return cityEvents.find((event) => event.id === selectedEventId) || cityEvents[0] || null;
-  }, [cityEvents, selectedEventId]);
+    return filteredListEvents.find((event) => event.id === selectedEventId) || filteredListEvents[0] || null;
+  }, [filteredListEvents, selectedEventId]);
+
+  useEffect(() => {
+    if (!filteredListEvents.length) {
+      setSelectedEventId("");
+      return;
+    }
+    const exists = filteredListEvents.some((event) => event.id === selectedEventId);
+    if (!exists) {
+      setSelectedEventId(filteredListEvents[0].id);
+    }
+  }, [filteredListEvents, selectedEventId]);
 
   const favoriteEvents = useMemo(() => {
     const set = new Set(favorites);
@@ -1044,39 +1219,29 @@ const MuseumEventRadar: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-      <div className="mx-auto max-w-7xl space-y-5">
+      <div className="mx-auto max-w-[1500px] space-y-6">
         <Card className="overflow-hidden border border-slate-200/70 bg-white/90 shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] backdrop-blur">
-          <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="grid gap-0 xl:grid-cols-[minmax(560px,1.28fr)_minmax(420px,0.72fr)]">
             <div className="border-b border-slate-200/80 p-5 lg:border-b-0 lg:border-r lg:p-7">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="space-y-3">
-                  <div className="text-[11px] uppercase tracking-[0.34em] text-slate-500">ArtPulse / City Art Index</div>
-                  <div>
-                    <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-5xl">{city || "北京"}</h1>
-                    <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-                      {activeCityInsight.sentence}
-                    </p>
-                  </div>
-                </div>
-                <div className="min-w-[180px] rounded-2xl border border-slate-200 bg-slate-950 px-4 py-4 text-white">
-                  <div className="text-[11px] uppercase tracking-[0.28em] text-slate-400">Active CAI</div>
-                  <div className="mt-2 text-4xl font-semibold">
-                    {cityRanking.find((item) => normalizeCityName(item.city) === normalizeCityName(city))?.cai.toFixed(1) || "0.0"}
-                  </div>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-300">
-                    <span>{activeCityInsight.active} 场进行中</span>
-                    <span>·</span>
-                    <span>{activeCityInsight.endingSoon} 场待抢救</span>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <div className="text-[11px] uppercase tracking-[0.34em] text-slate-500">当前城市 / 临期提醒</div>
+                <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">{city || "北京"}</h1>
+                <p className="text-sm leading-6 text-slate-600">
+                  先看哪些展快结束，再看热门展期，最后点开详情决定什么时候去最合适。
+                </p>
               </div>
               <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-12">
                 <Input
                   className="border-slate-300 bg-white md:col-span-4"
                   placeholder="城市（如 北京）"
                   list="event-city-list"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  value={cityInput}
+                  onChange={(e) => setCityInput(e.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      applyFilters();
+                    }
+                  }}
                 />
                 <datalist id="event-city-list">
                   {cityOptions.map((c) => (
@@ -1086,38 +1251,52 @@ const MuseumEventRadar: React.FC = () => {
                 <Input
                   className="border-slate-300 bg-white md:col-span-4"
                   type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  value={startDateInput}
+                  onChange={(e) => setStartDateInput(e.target.value)}
                 />
                 <Input
                   className="border-slate-300 bg-white md:col-span-4"
                   type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  value={endDateInput}
+                  onChange={(e) => setEndDateInput(e.target.value)}
                 />
               </div>
-              <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">进行中</div>
-                  <div className="mt-2 text-2xl font-semibold text-slate-900">{activeCityInsight.active}</div>
-                </div>
-                <div className="rounded-2xl border border-red-100 bg-red-50/70 px-4 py-3">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-red-500">7日闭幕</div>
-                  <div className="mt-2 text-2xl font-semibold text-red-700">{activeCityInsight.endingSoon}</div>
-                </div>
-                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 px-4 py-3">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-indigo-500">本周新开</div>
-                  <div className="mt-2 text-2xl font-semibold text-indigo-700">{activeCityInsight.openingSoon}</div>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">数据源</div>
-                  <div className="mt-2 text-lg font-semibold text-slate-900">{dataSource}</div>
-                </div>
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={applyFilters}
+                  className="rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                >
+                  应用筛选
+                </button>
               </div>
-              <div className="mt-5 flex flex-wrap gap-4 text-xs text-slate-500">
-                <span>当前城市：{city || "北京"}</span>
+              <div className="mt-5 rounded-2xl border border-red-100 bg-red-50/60 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-sm font-semibold text-red-700">本城市即将结束（14天内）</div>
+                  <div className="text-xs text-red-500">{endingSoonCityEvents.length} 场</div>
+                </div>
+                {endingSoonCityEvents.length ? (
+                  <div className="space-y-2">
+                    {endingSoonCityEvents.map((event) => (
+                      <button
+                        type="button"
+                        key={`ending-${event.id}`}
+                        onClick={() => setSelectedEventId(event.id)}
+                        className="flex w-full items-center justify-between rounded-xl bg-white px-3 py-2 text-left text-sm transition hover:bg-red-100/60"
+                      >
+                        <span className="mr-3 truncate text-slate-800">{event.title}</span>
+                        <span className="shrink-0 text-xs font-medium text-red-600">{formatDateLabel(event.end_date)} 截止</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600">近 14 天暂无即将结束展览。</div>
+                )}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
+                <span>进行中：{activeCityInsight.active}</span>
+                <span>数据源：{dataSource}</span>
                 <span>最近同步：{data?.last_refresh || "暂无"}</span>
-                {activeCityInsight.featured ? <span>推荐关注：{activeCityInsight.featured.title}</span> : null}
               </div>
             </div>
             <div className="p-5 lg:p-7">
@@ -1144,8 +1323,12 @@ const MuseumEventRadar: React.FC = () => {
                       const active = normalizeCityName(c.city) === normalizeCityName(city);
                       return (
                         <button
+                          type="button"
                           key={c.city}
-                          onClick={() => setCity(c.city)}
+                          onClick={() => {
+                            setCity(c.city);
+                            setCityInput(c.city);
+                          }}
                           className={`min-w-[170px] rounded-2xl border px-3 py-2 text-left transition ${
                             active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white"
                           }`}
@@ -1175,426 +1358,187 @@ const MuseumEventRadar: React.FC = () => {
         )}
 
         <Card className="border-0 bg-white/90 p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="text-sm text-slate-600">当前筛选共 {cityEvents.length} 场展览</div>
-            <div className="text-xs text-slate-500">城市馆点 {cityMuseums.length} 个</div>
-          </div>
+          <div className="mb-3 text-sm text-slate-700">当前筛选共 {cityEvents.length} 场展览。展期条已融合在列表内，点击任一展览即可查看要点。</div>
           {loading ? (
             <div className="flex h-48 items-center justify-center text-slate-500">
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
               正在加载展览数据...
             </div>
           ) : cityEvents.length ? (
-            <ScrollArea className="h-[64vh] pr-3">
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-                <div className="space-y-4">
-                  <Card className="border border-slate-200/80 bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Smart Itinerary</div>
-                        <div className="mt-1 text-lg font-semibold text-slate-900">一键排程</div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Tabs value={travelMode} onValueChange={(value) => setTravelMode(value as TravelMode)}>
-                          <TabsList className="h-10 rounded-full bg-slate-100 p-1">
-                            <TabsTrigger value="driving" className="rounded-full px-3">驾车</TabsTrigger>
-                            <TabsTrigger value="walking" className="rounded-full px-3">步行</TabsTrigger>
-                            <TabsTrigger value="transfer" className="rounded-full px-3">公交</TabsTrigger>
-                          </TabsList>
-                        </Tabs>
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.95fr_1.05fr] xl:items-start">
+              <Card className="border border-slate-200/80 bg-white p-4 shadow-sm">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="text-lg font-semibold text-slate-900">展览列表</div>
+                  <div className="text-xs text-slate-500">{filteredListEvents.length} 场</div>
+                </div>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {[
+                    { key: "all", label: "全部" },
+                    { key: "latest", label: "最新" },
+                    { key: "hot", label: "热门" },
+                    { key: "ending", label: "即将结束" },
+                    { key: "upcoming", label: "即将开始" },
+                    { key: "ended", label: "已结束" },
+                    { key: "permanent", label: "常设展" },
+                  ].map((tab) => (
+                    <button
+                      type="button"
+                      key={tab.key}
+                      onClick={() => setListFilter(tab.key as "all" | "latest" | "hot" | "ending" | "upcoming" | "ended" | "permanent")}
+                      className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                        listFilter === tab.key ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                <ScrollArea className="h-[62vh] pr-2 md:h-[70vh]">
+                  <div className="space-y-2">
+                    {filteredListEvents.map((event) => {
+                      const status = getEventStatus(event.start_date, event.end_date);
+                      const active = selectedEvent?.id === event.id;
+                      const permanent = event.start_date === event.end_date;
+                      const phase = getProgressState(event.start_date, event.end_date);
+                      const endHint = permanent ? null : getEndUrgencyLabel(event.end_date);
+                      const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+                      const startMs = new Date(event.start_date).getTime();
+                      const endMs = new Date(event.end_date).getTime();
+                      const clippedStart = Math.max(startMs, ganttWindow.startMs);
+                      const clippedEnd = Math.min(endMs, ganttWindow.endMs);
+                      const hasOverlap = clippedEnd >= clippedStart;
+                      const left = hasOverlap
+                        ? clampPercent(((clippedStart - ganttWindow.startMs) / ganttWindow.totalMs) * 100)
+                        : startMs > ganttWindow.endMs
+                        ? 98
+                        : 0;
+                      const width = hasOverlap
+                        ? Math.max(2, ((clippedEnd - clippedStart) / ganttWindow.totalMs) * 100)
+                        : 2;
+                      const todayPos = clampPercent(((ganttWindow.todayMs - ganttWindow.startMs) / ganttWindow.totalMs) * 100);
+                      const endPos = clampPercent(((endMs - ganttWindow.startMs) / ganttWindow.totalMs) * 100);
+                      return (
                         <button
-                          onClick={() => void planItinerary()}
-                          disabled={favorites.length < 3}
-                          className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                            favorites.length >= 3
-                              ? "bg-slate-950 text-white hover:bg-slate-800"
-                              : "bg-slate-100 text-slate-500"
+                          type="button"
+                          key={`list-${event.id}`}
+                          onClick={() => setSelectedEventId(event.id)}
+                          className={`w-full rounded-xl border px-3 py-3 text-left transition ${
+                            active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:border-slate-300"
                           }`}
                         >
-                          {planningRoute ? "正在计算真实路线…" : `选中 ${favorites.length} 场后排程`}
+                          <div className="flex items-start gap-3">
+                            {(event.cover_url || event.poster_url) ? (
+                              <img
+                                src={event.cover_url || event.poster_url}
+                                alt={event.title}
+                                className="h-16 w-12 shrink-0 rounded object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="h-16 w-12 shrink-0 rounded bg-slate-100" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className={`line-clamp-2 text-[17px] font-semibold ${active ? "text-white" : "text-slate-900"}`}>{event.title}</div>
+                              <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{event.museum}</div>
+                              <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
+                                {formatDateLabel(event.start_date)} - {formatDateLabel(event.end_date)}
+                              </div>
+                              {permanent ? (
+                                <div className={`mt-2 text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>常设展</div>
+                              ) : (
+                                <div className="relative mt-2 h-8">
+                                  <div className={`absolute left-0 right-0 top-3 h-2.5 rounded-full ${active ? "bg-white/10" : "bg-slate-100"}`} />
+                                  <div
+                                    className={`absolute top-3 h-2.5 rounded-full ${
+                                      phase.state === "lastcall" ? "bg-red-600" : phase.state === "hot" ? "bg-blue-700" : "bg-slate-500"
+                                    }`}
+                                    style={{ marginLeft: `${left}%`, width: `${width}%` }}
+                                  />
+                                  <span
+                                    className={`absolute top-1 h-6 w-px ${active ? "bg-white/60" : "bg-slate-400/70"}`}
+                                    style={{ left: `${todayPos}%` }}
+                                  />
+                                  <span
+                                    className={`absolute top-3 h-2.5 w-2.5 -translate-x-1/2 rounded-full border-2 ${
+                                      active ? "border-white bg-slate-900" : "border-white bg-slate-700"
+                                    }`}
+                                    style={{ left: `${endPos}%` }}
+                                  />
+                                  {endHint?.level === "urgent" ? (
+                                    <span
+                                      className={`absolute top-2.5 h-3.5 w-3.5 -translate-x-1/2 rounded-full border ${
+                                        active ? "border-red-200/80" : "border-red-500/70"
+                                      } animate-ping`}
+                                      style={{ left: `${endPos}%` }}
+                                    />
+                                  ) : null}
+                                  {endHint ? (
+                                    <span
+                                      className={`absolute top-0 -translate-x-1/2 rounded px-1.5 py-[1px] text-[10px] font-semibold ${
+                                        active ? "bg-red-500/30 text-red-100" : endHint.tone
+                                      }`}
+                                      style={{ left: `${endPos}%` }}
+                                    >
+                                      {endHint.label}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              )}
+                            </div>
+                            <Badge className={status.color}>{status.label}</Badge>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </Card>
+
+              <div className="xl:sticky xl:top-6">
+                {selectedEvent ? (
+                  <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-sm xl:max-h-[78vh]">
+                    <div
+                      className="relative min-h-[280px] p-5 text-white"
+                      style={{
+                        backgroundImage: `linear-gradient(180deg, rgba(15,23,42,0.12), rgba(15,23,42,0.82)), linear-gradient(135deg, ${detailAccent}, rgba(15,23,42,0.96)), url(${selectedEvent.poster_url || selectedEvent.cover_url})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="max-w-xl">
+                          <h2 className="text-2xl font-semibold leading-tight">{selectedEvent.title}</h2>
+                          <div className="mt-2 text-xs text-white/85">{selectedEvent.museum} · {selectedEvent.city}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowMapDialog(true)}
+                          className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs"
+                        >
+                          去地图导航
                         </button>
                       </div>
+                      <div className="mt-4 rounded-xl border border-white/20 bg-black/20 p-3 text-sm leading-6">
+                        {(selectedEvent.highlights || []).length ? selectedEvent.highlights[Math.min(highlightPage, selectedEvent.highlights.length - 1)] : "暂无结构化要点"}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/85">
+                        <span>{selectedEvent.start_date} 至 {selectedEvent.end_date}</span>
+                        <span>{computeOpenStatus(selectedEvent.open_hours).label}</span>
+                      </div>
                     </div>
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#fff,#f8fafc)] p-4">
-                      {routeSteps.length ? (
-                          <div className="space-y-3">
-                          {routeSteps.map((item, index) => (
-                            <div key={item.id} className="grid grid-cols-[72px_16px_1fr] gap-3">
-                              <div className="pt-0.5 text-right text-xs leading-5 text-slate-500">
-                                <div className="font-medium text-slate-700">{item.time}</div>
-                                <div>{item.endTime}</div>
-                              </div>
-                              <div className="relative flex justify-center">
-                                <span className={`mt-1 h-3 w-3 rounded-full ${item.type === "event" ? "bg-slate-950" : item.type === "travel" ? "bg-blue-600" : "bg-amber-500"}`} />
-                                {index < routeSteps.length - 1 ? <span className="absolute top-4 h-full w-px bg-slate-300" /> : null}
-                              </div>
-                              <div className={`rounded-2xl border px-4 py-3 ${item.type === "event" ? "border-slate-200 bg-white" : item.type === "travel" ? "border-blue-100 bg-blue-50" : "border-amber-100 bg-amber-50"}`}>
-                                <div className="flex items-center justify-between gap-3">
-                                  <div className="text-sm font-semibold text-slate-900">{item.title}</div>
-                                  <ArrowRight className="h-4 w-4 text-slate-400" />
-                                </div>
-                                <div className="mt-1 text-xs text-slate-600">{item.subtitle || (travelMode === "walking" ? "高德步行耗时估算" : travelMode === "transfer" ? "高德公交耗时估算" : "高德驾车耗时估算")}</div>
-                                <div className="mt-2 text-[11px] text-slate-500">{item.address}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="space-y-2 text-sm text-slate-600">
-                          <div>先收藏至少 3 场展览，再点击“一键排程”。</div>
-                          <div className="text-xs text-slate-500">当前会调用真实地图 {travelMode === "walking" ? "步行" : travelMode === "transfer" ? "公交" : "驾车"} 耗时估算，综合闭馆时间与路程生成路线图。</div>
-                        </div>
-                      )}
-                    </div>
+                    {selectedEvent.raw_excerpt ? (
+                      <div className="max-h-[36vh] overflow-y-auto border-t border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-600">
+                        {selectedEvent.raw_excerpt}
+                      </div>
+                    ) : null}
                   </Card>
-
-                  <Card className="border border-slate-200/80 bg-white p-4 shadow-sm">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div>
-                        <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Saved Timeline</div>
-                        <div className="mt-1 text-lg font-semibold text-slate-900">收藏后的时间轴分组</div>
-                      </div>
-                      <div className="text-xs text-slate-500">{favoriteEvents.filter((event) => normalizeCityName(event.city) === normalizeCityName(city)).length} 场</div>
-                    </div>
-                    <div className="space-y-3">
-                      {[
-                        { label: "Last Call", tone: "border-red-100 bg-red-50", items: favoriteTimelineGroups.rescue },
-                        { label: "进行中", tone: "border-blue-100 bg-blue-50", items: favoriteTimelineGroups.active },
-                        { label: "期待中", tone: "border-slate-200 bg-slate-50", items: favoriteTimelineGroups.upcoming },
-                      ].map((group) => (
-                        <div key={group.label} className={`rounded-2xl border p-3 ${group.tone}`}>
-                          <div className="flex items-center justify-between text-sm font-medium text-slate-900">
-                            <span>{group.label}</span>
-                            <span className="text-xs text-slate-500">{group.items.length}</span>
-                          </div>
-                          <div className="mt-2 space-y-2">
-                            {group.items.length ? (
-                              group.items.map((event) => (
-                                <button key={`saved-${event.id}`} onClick={() => setSelectedEventId(event.id)} className="block w-full rounded-xl bg-white/80 px-3 py-2 text-left text-sm text-slate-700">
-                                  <div className="font-medium text-slate-900">{event.title}</div>
-                                  <div className="mt-1 text-[11px] text-slate-500">{formatDateLabel(event.start_date)} — {formatDateLabel(event.end_date)}</div>
-                                </button>
-                              ))
-                            ) : (
-                              <div className="text-xs text-slate-500">这一组还没有收藏内容。</div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-
-                  <Card className="border border-slate-200/80 bg-white p-4 shadow-sm">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div>
-                        <div className="text-[11px] uppercase tracking-[0.28em] text-slate-500">Lifespan Timeline</div>
-                        <div className="mt-1 text-lg font-semibold text-slate-900">展期全景</div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
-                        <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-[repeating-linear-gradient(90deg,#c7cddc_0_8px,transparent_8px_16px)]" /> 期待中</span>
-                        <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-blue-700" /> 热展期</span>
-                        <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-3 rounded bg-red-600" /> Last Call</span>
-                      </div>
-                    </div>
-                    {timelineRange ? (
-                      <div className="space-y-3">
-                        <div className="mb-2 flex justify-between text-[11px] text-slate-500">
-                          {Array.from({ length: 7 }).map((_, i) => {
-                            const t =
-                              timelineRange.min.getTime() +
-                              ((timelineRange.max.getTime() - timelineRange.min.getTime()) * i) / 6;
-                            return <span key={`tick-${i}`}>{formatDateLabel(new Date(t).toISOString())}</span>;
-                          })}
-                        </div>
-                        <div className="space-y-3">
-                          {ganttItems.map(({ event, left, width, permanent, colorClass, label }) => (
-                            <button
-                              key={`g-${event.id}`}
-                              onClick={() => setSelectedEventId(event.id)}
-                              className={`block w-full rounded-2xl border p-3 text-left transition ${
-                                selectedEvent?.id === event.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white hover:border-slate-300"
-                              }`}
-                              title={`${label}｜${event.start_date} → ${event.end_date}`}
-                            >
-                              <div className={`truncate text-xs ${selectedEvent?.id === event.id ? "text-slate-300" : "text-slate-500"}`}>{label}</div>
-                              <div
-                                className={`relative mt-2 h-7 rounded-full border ${selectedEvent?.id === event.id ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"}`}
-                                style={{
-                                  backgroundImage:
-                                    "repeating-linear-gradient(to right, rgba(148,163,184,0.35) 0 1px, transparent 1px 10%)",
-                                }}
-                              >
-                                <div className={`h-7 rounded-full ${colorClass}`} style={{ marginLeft: `${left}%`, width: `${width}%` }} />
-                              </div>
-                              <div className={`mt-2 flex items-center justify-between text-[11px] ${selectedEvent?.id === event.id ? "text-slate-300" : "text-slate-500"}`}>
-                                <span>{formatDateLabel(event.start_date)} · {getRelativeDayLabel(event.start_date)}</span>
-                                <span>{permanent ? "常设展" : `${formatDateLabel(event.end_date)} 截止`}</span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-slate-500">暂无可绘制的时间范围</div>
-                    )}
-                  </Card>
-
-                  <Card className="border border-slate-200/80 bg-white p-4 shadow-sm">
-                    <div className="mb-2 text-[11px] uppercase tracking-[0.28em] text-slate-500">City Map</div>
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="text-lg font-semibold text-slate-900">馆点分布</div>
-                      <div className="text-xs text-slate-500">{cityMuseums.length} 个馆点</div>
-                    </div>
-                    <div ref={mapContainerRef} className="h-[320px] w-full rounded-2xl bg-slate-100" />
-                  </Card>
-                </div>
-
-                <div className="space-y-4">
-                  {selectedEvent ? (
-                    <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-sm">
-                      <div
-                        className="relative min-h-[320px] p-5 text-white"
-                        style={{
-                          backgroundImage: `linear-gradient(180deg, rgba(15,23,42,0.08), rgba(15,23,42,0.82)), linear-gradient(135deg, ${detailAccent}, rgba(15,23,42,0.96)), url(${selectedEvent.poster_url || selectedEvent.cover_url})`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }}
-                      >
-                        <div className="flex h-full min-h-[280px] flex-col justify-between">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="max-w-xl">
-                              <div className="text-[11px] uppercase tracking-[0.32em] text-white/60">AI-Driven Details</div>
-                              <h2 className="mt-3 text-2xl font-semibold leading-tight md:text-3xl">{selectedEvent.title}</h2>
-                              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80">
-                                <span>{selectedEvent.museum}</span>
-                                <span>·</span>
-                                <span>{selectedEvent.city}</span>
-                                <span>·</span>
-                                <span>{computeOpenStatus(selectedEvent.open_hours).label}</span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => {
-                                const exists = favorites.includes(selectedEvent.id);
-                                const next = exists ? favorites.filter((id) => id !== selectedEvent.id) : [...favorites, selectedEvent.id];
-                                setFavorites(next);
-                                try {
-                                  localStorage.setItem("museum_favorites", JSON.stringify(next));
-                                } catch {}
-                              }}
-                              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs text-white backdrop-blur"
-                            >
-                              <Heart className={`h-4 w-4 ${favorites.includes(selectedEvent.id) ? "fill-current" : ""}`} />
-                              {favorites.includes(selectedEvent.id) ? "已加入待办时间轴" : "加入待办时间轴"}
-                            </button>
-                          </div>
-                          <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
-                            <div className="rounded-2xl border border-white/15 bg-black/20 p-4 backdrop-blur">
-                              <div className="flex items-center justify-between">
-                                <div className="text-[11px] uppercase tracking-[0.24em] text-white/50">Highlights</div>
-                                {(selectedEvent.highlights || []).length > 1 ? (
-                                  <div className="flex items-center gap-2 text-[11px] text-white/60">
-                                    <button
-                                      onClick={() => setHighlightPage((prev) => Math.max(0, prev - 1))}
-                                      className="rounded-full border border-white/15 px-2 py-1"
-                                    >
-                                      上一张
-                                    </button>
-                                    <span>{highlightPage + 1}/{Math.max(1, (selectedEvent.highlights || []).length)}</span>
-                                    <button
-                                      onClick={() => setHighlightPage((prev) => Math.min((selectedEvent.highlights || []).length - 1, prev + 1))}
-                                      className="rounded-full border border-white/15 px-2 py-1"
-                                    >
-                                      下一张
-                                    </button>
-                                  </div>
-                                ) : null}
-                              </div>
-                              <div className="mt-3 min-h-[120px]">
-                                {(selectedEvent.highlights || []).length ? (
-                                  <div className="rounded-[24px] border border-white/15 bg-white/10 p-5">
-                                    <div className="text-sm leading-7 text-white/95">{selectedEvent.highlights[Math.min(highlightPage, selectedEvent.highlights.length - 1)]}</div>
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-white/70">暂无结构化亮点，建议补充策展关键词。</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="rounded-2xl border border-white/15 bg-black/20 p-4 backdrop-blur">
-                              <div className="space-y-3 text-sm text-white/90">
-                                <div className="flex items-start gap-2">
-                                  <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-white/70" />
-                                  <span>{selectedEvent.start_date} 至 {selectedEvent.end_date}</span>
-                                </div>
-                                <div className="flex items-start gap-2">
-                                  <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-white/70" />
-                                  <span>{selectedEvent.open_hours || "开放时间待补充"}</span>
-                                </div>
-                                <button
-                                  onClick={() => setShowMapDialog(true)}
-                                  className="flex items-start gap-2 text-left text-white/90 hover:text-white"
-                                >
-                                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-white/70" />
-                                  <span>{selectedEvent.address || "地址待补充"}</span>
-                                </button>
-                                {selectedEvent.source_url ? (
-                                  <div className="rounded-2xl border border-white/15 bg-white/5 p-3">
-                                    <button
-                                      onClick={() => setShowSourceSummary((prev) => !prev)}
-                                      className="inline-flex items-center gap-1 text-xs text-white/80 hover:text-white"
-                                    >
-                                      {showSourceSummary ? "收起来源摘要" : "展开来源摘要"} <ExternalLink className="h-3.5 w-3.5" />
-                                    </button>
-                                    {showSourceSummary ? (
-                                      <div className="mt-3 space-y-2">
-                                        <div className="text-xs leading-6 text-white/75">
-                                          {(selectedEvent.raw_excerpt || "暂无来源摘要").slice(0, 180)}
-                                          {(selectedEvent.raw_excerpt || "").length > 180 ? "…" : ""}
-                                        </div>
-                                        <a
-                                          href={selectedEvent.source_url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="inline-flex items-center gap-1 text-xs text-white hover:text-white"
-                                        >
-                                          打开原始来源 <ExternalLink className="h-3.5 w-3.5" />
-                                        </a>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      {selectedEvent.raw_excerpt ? (
-                        <div className="border-t border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-600">
-                          {selectedEvent.raw_excerpt}
-                        </div>
-                      ) : null}
+                  ) : (
+                    <Card className="border border-slate-200/80 bg-white p-6 text-sm text-slate-500 shadow-sm">
+                      请选择左侧展览查看详情
                     </Card>
-                  ) : null}
-
-                  <div className="space-y-4">
-                    {museumGroups.map((group) => (
-                      <Card key={`${group.museum}-${group.address}`} className="border border-slate-200/80 bg-white p-4 shadow-sm">
-                        <div className="mb-3 flex items-center justify-between">
-                          <div>
-                            <div className="text-lg font-semibold text-slate-900">{group.museum}</div>
-                            {group.address ? <div className="mt-1 text-xs text-slate-500">{group.address}</div> : null}
-                          </div>
-                          <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                            {group.events.length} 场
-                          </Badge>
-                        </div>
-                        <div className="space-y-3">
-                          {group.events.map((event) => {
-                            const status = getEventStatus(event.start_date, event.end_date);
-                            const prog = getProgressState(event.start_date, event.end_date);
-                            const openState = computeOpenStatus(event.open_hours);
-                            const active = selectedEvent?.id === event.id;
-                            const endedCls = prog.ended ? "opacity-45" : "";
-                            const barColor =
-                              prog.state === "pre"
-                                ? "bg-[repeating-linear-gradient(90deg,#c7cddc_0_8px,transparent_8px_16px)]"
-                                : prog.state === "hot"
-                                ? "bg-blue-700"
-                                : prog.state === "lastcall"
-                                ? "bg-red-600 animate-pulse"
-                                : "bg-slate-400";
-                            return (
-                              <div
-                                key={event.id}
-                                onClick={() => setSelectedEventId(event.id)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    setSelectedEventId(event.id);
-                                  }
-                                }}
-                                role="button"
-                                tabIndex={0}
-                                className={`w-full rounded-2xl border p-3 text-left transition ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-100 bg-slate-50 hover:border-slate-300"} ${endedCls}`}
-                              >
-                                <div className="flex gap-3">
-                                  {(event.cover_url || event.poster_url) && (
-                                    <div className="h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-slate-100">
-                                      <img
-                                        src={event.cover_url || event.poster_url}
-                                        alt={event.title}
-                                        className="h-full w-full object-cover"
-                                        loading="lazy"
-                                      />
-                                    </div>
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <div className="mb-2 flex items-start justify-between gap-3">
-                                      <h3 className={`line-clamp-2 text-base font-semibold ${active ? "text-white" : "text-slate-900"}`}>{event.title}</h3>
-                                      <Badge className={status.color}>{status.label}</Badge>
-                                    </div>
-                                    <div className={`mb-2 flex flex-wrap items-center gap-3 text-xs ${active ? "text-slate-300" : "text-slate-600"}`}>
-                                      <span className="inline-flex items-center gap-1">
-                                        <CalendarDays className="h-3.5 w-3.5" />
-                                        {formatDateLabel(event.start_date)} — {formatDateLabel(event.end_date)}
-                                      </span>
-                                      <span className={active ? "text-white/80" : openState.color}>{openState.label}</span>
-                                    </div>
-                                    <div className={`mb-2 h-2 w-full rounded-full ${active ? "bg-white/10" : "bg-slate-200"}`}>
-                                      <div className={`h-2 rounded-full ${barColor}`} style={{ width: `${Math.floor(prog.progress * 100)}%` }} />
-                                    </div>
-                                    <div className={`mb-3 flex items-center justify-between text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>
-                                      <span>{prog.state === "pre" ? "期待中" : prog.state === "hot" ? "热展期" : prog.state === "lastcall" ? "Last Call" : prog.state === "permanent" ? "常设展" : "已结束"}</span>
-                                      <span>{prog.state === "lastcall" ? `距结束 ${getRelativeDayLabel(event.end_date)}` : getRelativeDayLabel(event.end_date)}</span>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                      {(event.highlights || []).slice(0, 4).map((h) => (
-                                        <span key={`${event.id}-${h}`} className={`rounded-full px-2.5 py-1 text-[11px] ${active ? "bg-white/10 text-white/85" : "bg-white text-slate-700"}`}>
-                                          {h}
-                                        </span>
-                                      ))}
-                                    </div>
-                                    <div className={`mt-3 flex items-center gap-4 text-xs ${active ? "text-slate-300" : "text-slate-600"}`}>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const exists = favorites.includes(event.id);
-                                          const next = exists ? favorites.filter((id) => id !== event.id) : [...favorites, event.id];
-                                          setFavorites(next);
-                                          try {
-                                            localStorage.setItem("museum_favorites", JSON.stringify(next));
-                                          } catch {}
-                                        }}
-                                        className="inline-flex items-center gap-1"
-                                      >
-                                        <Heart className={`h-3.5 w-3.5 ${favorites.includes(event.id) ? "fill-current" : ""}`} />
-                                        {favorites.includes(event.id) ? "已收藏" : "收藏"}
-                                      </button>
-                                      {event.address ? (
-                                        <a
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="inline-flex items-center gap-1 hover:underline"
-                                          href={`https://uri.amap.com/search?query=${encodeURIComponent(event.address)}`}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                        >
-                                          <MapPin className="h-3.5 w-3.5" />
-                                          地图
-                                        </a>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
+                  )}
                 </div>
               </div>
-            </ScrollArea>
           ) : (
             <div className="flex h-48 items-center justify-center text-sm text-slate-500">
               暂无该城市该时间段展览数据。
