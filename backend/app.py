@@ -1426,14 +1426,16 @@ async def museum_events(
     start_date: str = Query("", description="开始日期 YYYY-MM-DD"),
     end_date: str = Query("", description="结束日期 YYYY-MM-DD"),
     keyword: str = Query("", description="关键词"),
+    order: str = Query("", description="排序类型（all/latest/hot/ending/upcoming/ended）"),
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=2000),
 ):
     return await list_exhibition_events(
         city=city,
         start_date=start_date,
         end_date=end_date,
         keyword=keyword,
+        order=order,
         page=page,
         size=size,
     )

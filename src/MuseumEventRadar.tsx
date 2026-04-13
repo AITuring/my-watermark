@@ -384,6 +384,7 @@ const MuseumEventRadar: React.FC = () => {
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
   const [showMapDialog, setShowMapDialog] = useState(false);
   const [listFilter, setListFilter] = useState<"all" | "latest" | "hot" | "ending" | "upcoming" | "ended" | "permanent">("all");
+  const [orderedListEvents, setOrderedListEvents] = useState<MuseumEvent[] | null>(null);
   const [highlightPage, setHighlightPage] = useState(0);
   const [showSourceSummary, setShowSourceSummary] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -926,9 +927,62 @@ const MuseumEventRadar: React.FC = () => {
       .slice(0, 14);
   }, [cityEvents]);
 
+  const listOrder = useMemo(() => {
+    if (listFilter === "all") return "all";
+    if (listFilter === "latest") return "latest";
+    if (listFilter === "hot") return "hot";
+    if (listFilter === "ending") return "ending";
+    if (listFilter === "upcoming") return "upcoming";
+    if (listFilter === "ended") return "ended";
+    return "";
+  }, [listFilter]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchOrderedTabEvents = async () => {
+      if (listFilter === "permanent") {
+        setOrderedListEvents(null);
+        return;
+      }
+      try {
+        const url = new URL(`${backendUrl}/api/museum/events`);
+        if (city.trim()) url.searchParams.set("city", city.trim());
+        if (startDate) url.searchParams.set("start_date", normalizeDateInput(startDate));
+        if (endDate) url.searchParams.set("end_date", normalizeDateInput(endDate));
+        url.searchParams.set("order", listOrder || "all");
+        url.searchParams.set("page", "1");
+        url.searchParams.set("size", "1200");
+        const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(12000) });
+        if (resp.ok) {
+          const json = await resp.json();
+          const items = Array.isArray(json?.items) ? (json.items as MuseumEvent[]) : [];
+          if (!cancelled) {
+            setOrderedListEvents(items);
+          }
+          return;
+        }
+      } catch {
+        void 0;
+      }
+      if (!cancelled) {
+        setOrderedListEvents(null);
+      }
+    };
+    void fetchOrderedTabEvents();
+    return () => {
+      cancelled = true;
+    };
+  }, [backendUrl, city, endDate, listFilter, listOrder, startDate]);
+
   const filteredListEvents = useMemo(() => {
     const temporaryEvents = cityEvents.filter((event) => event.start_date !== event.end_date);
     const permanentEvents = cityEvents.filter((event) => event.start_date === event.end_date);
+    if (listFilter === "permanent") {
+      return permanentEvents;
+    }
+    if (orderedListEvents && orderedListEvents.length) {
+      return orderedListEvents;
+    }
     const sortedByDate = temporaryEvents.slice().sort((a, b) => (a.end_date > b.end_date ? 1 : -1));
     if (listFilter === "latest") {
       return cityEvents.slice().sort((a, b) => {
@@ -949,11 +1003,8 @@ const MuseumEventRadar: React.FC = () => {
     if (listFilter === "ended") {
       return sortedByDate.filter((event) => getProgressState(event.start_date, event.end_date).ended);
     }
-    if (listFilter === "permanent") {
-      return permanentEvents;
-    }
     return sortedByDate;
-  }, [cityEvents, hotCityEvents, listFilter]);
+  }, [cityEvents, hotCityEvents, listFilter, orderedListEvents]);
 
   const ganttWindow = useMemo(() => {
     const today = new Date();

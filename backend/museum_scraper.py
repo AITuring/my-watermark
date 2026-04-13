@@ -1411,6 +1411,14 @@ _event_last_refresh_ts: float = 0.0
 _event_last_error: str = ""
 EVENT_CACHE_TTL_SECONDS = 60 * 30
 _event_refresh_task: Optional[asyncio.Task] = None
+ICITY_ORDER_ALIASES: Dict[str, List[str]] = {
+    "all": ["all"],
+    "latest": ["latest"],
+    "hot": ["popular", "hot"],
+    "ending": ["ending", "closing", "ending-soon"],
+    "upcoming": ["upcoming", "starting", "opening-soon"],
+    "ended": ["ended", "past"],
+}
 
 
 def _icity_headers() -> Dict[str, str]:
@@ -1820,6 +1828,106 @@ async def _fetch_icity_events() -> List[ExhibitionEvent]:
     return []
 
 
+def _sort_events_by_order(events: List[ExhibitionEvent], order: str) -> List[ExhibitionEvent]:
+    now = datetime.now().date()
+    if order == "latest":
+        return sorted(
+            events,
+            key=lambda item: (
+                DateTimeSafe.parse_ts(item.updated_at),
+                DateTimeSafe.parse_date(item.end_date),
+                DateTimeSafe.parse_date(item.start_date),
+            ),
+            reverse=True,
+        )
+    if order == "hot":
+        return sorted(
+            events,
+            key=lambda item: (
+                item.rating_stars,
+                item.likes_count,
+                DateTimeSafe.parse_date(item.end_date),
+            ),
+            reverse=True,
+        )
+    if order == "ending":
+        return sorted(
+            [e for e in events if DateTimeSafe.parse_date(e.start_date) != DateTimeSafe.parse_date(e.end_date)],
+            key=lambda item: DateTimeSafe.parse_date(item.end_date),
+        )
+    if order == "upcoming":
+        return sorted(
+            [e for e in events if DateTimeSafe.parse_date(e.start_date) and DateTimeSafe.parse_date(e.start_date) > now],
+            key=lambda item: DateTimeSafe.parse_date(item.start_date),
+        )
+    if order == "ended":
+        return sorted(
+            [e for e in events if DateTimeSafe.parse_date(e.end_date) and DateTimeSafe.parse_date(e.end_date) < now],
+            key=lambda item: DateTimeSafe.parse_date(item.end_date),
+            reverse=True,
+        )
+    return sorted(events, key=lambda item: (item.start_date, item.end_date, item.city, item.museum))
+
+
+class DateTimeSafe:
+    @staticmethod
+    def parse_date(value: str) -> date:
+        parsed = _parse_iso_date(value or "")
+        return parsed or date.min
+
+    @staticmethod
+    def parse_ts(value: str) -> datetime:
+        try:
+            if value:
+                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except Exception:
+            pass
+        return datetime.min
+
+
+async def _fetch_icity_events_by_order(order: str) -> List[ExhibitionEvent]:
+    aliases = ICITY_ORDER_ALIASES.get(order, [order] if order else ["all"])
+    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, verify=False) as client:
+        for alias in aliases:
+            metas: List[Dict[str, str]] = []
+            seen: set[str] = set()
+            base = f"https://art.icity.ly/?order={alias}"
+            for page in range(1, ICITY_MAX_PAGES + 1):
+                join_char = "&" if "?" in base else "?"
+                url = f"{base}{join_char}page={page}"
+                try:
+                    resp = await client.get(url, headers=_icity_headers())
+                except Exception:
+                    continue
+                if resp.status_code != 200:
+                    continue
+                parsed = _icity_parse_list_page(resp.text)
+                if not parsed:
+                    continue
+                new_count = 0
+                for item in parsed:
+                    if item["slug"] in seen:
+                        continue
+                    seen.add(item["slug"])
+                    metas.append(item)
+                    new_count += 1
+                if new_count == 0:
+                    break
+            if not metas:
+                continue
+            metas = metas[:ICITY_MAX_DETAILS]
+            semaphore = asyncio.Semaphore(8)
+            detail_tasks = [_fetch_icity_event_detail(client, item, semaphore) for item in metas]
+            settled = await asyncio.gather(*detail_tasks, return_exceptions=True)
+            events: List[ExhibitionEvent] = []
+            for result in settled:
+                if isinstance(result, ExhibitionEvent):
+                    events.append(result)
+            if events:
+                return events
+    return []
+
+
 async def _fetch_wechat_events() -> List[ExhibitionEvent]:
     events: List[ExhibitionEvent] = []
     if not WECHAT_EVENT_SOURCES:
@@ -1978,19 +2086,29 @@ async def list_exhibition_events(
     start_date: str = "",
     end_date: str = "",
     keyword: str = "",
+    order: str = "",
     page: int = 1,
     size: int = 20,
 ) -> Dict[str, Any]:
-    await refresh_exhibition_events(force=False)
+    base_events: List[ExhibitionEvent] = []
+    if order:
+        try:
+            base_events = await _fetch_icity_events_by_order(order)
+        except Exception:
+            base_events = []
+    if not base_events:
+        await refresh_exhibition_events(force=True if order else False)
+        await refresh_exhibition_events(force=False)
+        base_events = _event_store
+
     filtered = _filter_events(
-        _event_store,
+        base_events,
         city=city,
         start_date=start_date,
         end_date=end_date,
         keyword=keyword,
     )
-
-    filtered.sort(key=lambda item: (item.start_date, item.end_date, item.city, item.museum))
+    filtered = _sort_events_by_order(filtered, order)
     total = len(filtered)
     start_index = max(0, (page - 1) * size)
     end_index = start_index + size
