@@ -7,8 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { useNavigate } from "react-router-dom";
+import { setPendingCropTransfer, type TransferTarget } from "@/utils/crop-transfer";
 
-type CropMode = "fixed" | "ratio";
+type CropMode = "fixed" | "ratio" | "free";
 type DragMode = "new" | "move" | "nw" | "ne" | "sw" | "se";
 
 type CropBox = {
@@ -77,6 +79,14 @@ const createCenteredCrop = (imgW: number, imgH: number, ratio: number): CropBox 
     return { x, y, w, h };
 };
 
+const createCenteredFreeCrop = (imgW: number, imgH: number): CropBox => {
+    const w = imgW * 0.75;
+    const h = imgH * 0.75;
+    const x = (imgW - w) / 2;
+    const y = (imgH - h) / 2;
+    return { x, y, w, h };
+};
+
 const buildAspectBox = (
     anchor: { x: number; y: number },
     point: { x: number; y: number },
@@ -106,6 +116,7 @@ const buildAspectBox = (
 };
 
 export default function ImageCropper() {
+    const navigate = useNavigate();
     const [images, setImages] = useState<CropImage[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [mode, setMode] = useState<CropMode>("fixed");
@@ -114,6 +125,7 @@ export default function ImageCropper() {
     const [ratioPreset, setRatioPreset] = useState("1:1");
     const [customRatioW, setCustomRatioW] = useState(1);
     const [customRatioH, setCustomRatioH] = useState(1);
+    const [isRoutingExporting, setIsRoutingExporting] = useState(false);
     const stageRef = useRef<HTMLDivElement | null>(null);
     const dragRef = useRef<DragState>({
         active: false,
@@ -123,7 +135,10 @@ export default function ImageCropper() {
     });
     const objectUrlsRef = useRef<string[]>([]);
 
-    const selectedRatio = useMemo(() => {
+    const selectedRatio = useMemo<number | null>(() => {
+        if (mode === "free") {
+            return null;
+        }
         if (mode === "fixed") {
             return Math.max(targetWidth, 1) / Math.max(targetHeight, 1);
         }
@@ -133,6 +148,7 @@ export default function ImageCropper() {
         const found = ratioOptions.find((r) => r.label === ratioPreset);
         return found?.value ?? 1;
     }, [mode, targetWidth, targetHeight, ratioPreset, customRatioW, customRatioH]);
+    const isFreeMode = mode === "free";
 
     const activeImage = useMemo(
         () => images.find((item) => item.id === activeId) ?? null,
@@ -174,19 +190,26 @@ export default function ImageCropper() {
 
     const resetCurrentCrop = () => {
         if (!activeImage) return;
-        updateActiveCrop((_, image) => createCenteredCrop(image.width, image.height, selectedRatio));
+        updateActiveCrop((_, image) =>
+            isFreeMode
+                ? createCenteredFreeCrop(image.width, image.height)
+                : createCenteredCrop(image.width, image.height, selectedRatio ?? 1)
+        );
     };
 
     const resetAllCrop = () => {
         setImages((prev) =>
             prev.map((item) => ({
                 ...item,
-                crop: createCenteredCrop(item.width, item.height, selectedRatio),
+                crop: isFreeMode
+                    ? createCenteredFreeCrop(item.width, item.height)
+                    : createCenteredCrop(item.width, item.height, selectedRatio ?? 1),
             }))
         );
     };
 
     useEffect(() => {
+        if (selectedRatio === null) return;
         if (!images.length) return;
         setImages((prev) =>
             prev.map((item) => ({
@@ -194,7 +217,7 @@ export default function ImageCropper() {
                 crop: createCenteredCrop(item.width, item.height, selectedRatio),
             }))
         );
-    }, [selectedRatio]);
+    }, [selectedRatio, images.length]);
 
     const getImagePoint = (clientX: number, clientY: number) => {
         const stageEl = stageRef.current;
@@ -243,7 +266,18 @@ export default function ImageCropper() {
                 if (d.mode === "sw") anchor = { x: x + w, y };
                 if (d.mode === "se") anchor = { x, y };
             }
-            const next = buildAspectBox(anchor, pt, selectedRatio, activeImage.width, activeImage.height);
+            const next = isFreeMode
+                ? fitBoxInImage(
+                      normalizeBox({
+                          x: anchor.x,
+                          y: anchor.y,
+                          w: pt.x - anchor.x,
+                          h: pt.y - anchor.y,
+                      }),
+                      activeImage.width,
+                      activeImage.height
+                  )
+                : buildAspectBox(anchor, pt, selectedRatio ?? 1, activeImage.width, activeImage.height);
             if (next.w < 2 || next.h < 2) return;
             updateActiveCrop(() => next);
         };
@@ -258,7 +292,7 @@ export default function ImageCropper() {
             window.removeEventListener("pointermove", onMove);
             window.removeEventListener("pointerup", onUp);
         };
-    }, [activeImage, selectedRatio]);
+    }, [activeImage, isFreeMode, selectedRatio]);
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
@@ -272,7 +306,10 @@ export default function ImageCropper() {
                         img.src = url;
                         img.onload = () => {
                             objectUrlsRef.current.push(url);
-                            const crop = createCenteredCrop(img.width, img.height, selectedRatio);
+                            const crop =
+                                mode === "free"
+                                    ? createCenteredFreeCrop(img.width, img.height)
+                                    : createCenteredCrop(img.width, img.height, selectedRatio ?? 1);
                             resolve({
                                 id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
                                 name: file.name.replace(/\.[^/.]+$/, "") || "image",
@@ -412,6 +449,49 @@ export default function ImageCropper() {
         toast.success(`已批量导出 ${success} 张`);
     };
 
+    const buildCroppedFiles = async () => {
+        const results: File[] = [];
+        for (let i = 0; i < images.length; i += 1) {
+            const image = images[i];
+            const crop = image.crop;
+            const outputW =
+                mode === "fixed" ? Math.max(1, Math.round(targetWidth)) : Math.max(1, Math.round(crop.w));
+            const outputH =
+                mode === "fixed" ? Math.max(1, Math.round(targetHeight)) : Math.max(1, Math.round(crop.h));
+            const blob = await drawCropToBlob(image, crop, outputW, outputH);
+            if (!blob) continue;
+            results.push(
+                new File([blob], `${image.name}-crop-${outputW}x${outputH}.jpg`, {
+                    type: "image/jpeg",
+                })
+            );
+        }
+        return results;
+    };
+
+    const routeWithCrops = async (target: TransferTarget) => {
+        if (!images.length) {
+            toast.error("请先上传图片");
+            return;
+        }
+        try {
+            setIsRoutingExporting(true);
+            const files = await buildCroppedFiles();
+            if (!files.length) {
+                toast.error("裁切结果生成失败");
+                return;
+            }
+            setPendingCropTransfer(target, files);
+            navigate(target === "watermark" ? "/watermark" : "/puzzle");
+            toast.success(`已发送 ${files.length} 张裁切图到${target === "watermark" ? "水印" : "拼图"}`);
+        } catch (err) {
+            console.error(err);
+            toast.error("发送失败，请重试");
+        } finally {
+            setIsRoutingExporting(false);
+        }
+    };
+
     const setCropX = (x: number) => {
         if (!activeImage) return;
         updateActiveCrop((prev, image) => ({
@@ -431,11 +511,16 @@ export default function ImageCropper() {
     const setCropW = (nextWRaw: number) => {
         if (!activeImage) return;
         updateActiveCrop((prev, image) => {
+            if (isFreeMode) {
+                const w = clamp(nextWRaw, 1, image.width);
+                const x = clamp(prev.x, 0, image.width - w);
+                return { ...prev, x, w };
+            }
             let w = clamp(nextWRaw, 1, image.width);
-            let h = w / selectedRatio;
+            let h = w / (selectedRatio ?? 1);
             if (h > image.height) {
                 h = image.height;
-                w = h * selectedRatio;
+                w = h * (selectedRatio ?? 1);
             }
             const x = clamp(prev.x, 0, image.width - w);
             const y = clamp(prev.y, 0, image.height - h);
@@ -446,11 +531,16 @@ export default function ImageCropper() {
     const setCropH = (nextHRaw: number) => {
         if (!activeImage) return;
         updateActiveCrop((prev, image) => {
+            if (isFreeMode) {
+                const h = clamp(nextHRaw, 1, image.height);
+                const y = clamp(prev.y, 0, image.height - h);
+                return { ...prev, y, h };
+            }
             let h = clamp(nextHRaw, 1, image.height);
-            let w = h * selectedRatio;
+            let w = h * (selectedRatio ?? 1);
             if (w > image.width) {
                 w = image.width;
-                h = w / selectedRatio;
+                h = w / (selectedRatio ?? 1);
             }
             const x = clamp(prev.x, 0, image.width - w);
             const y = clamp(prev.y, 0, image.height - h);
@@ -485,6 +575,7 @@ export default function ImageCropper() {
                                     <SelectContent>
                                         <SelectItem value="fixed">固定像素导出</SelectItem>
                                         <SelectItem value="ratio">按比例选区导出</SelectItem>
+                                        <SelectItem value="free">自由裁切导出</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -499,7 +590,7 @@ export default function ImageCropper() {
                                         <Input type="number" value={targetHeight} min={1} onChange={(e) => setTargetHeight(Number(e.target.value || 1))} />
                                     </div>
                                 </div>
-                            ) : (
+                            ) : mode === "ratio" ? (
                                 <div className="space-y-2">
                                     <div className="text-sm">长宽比</div>
                                     <Select value={ratioPreset} onValueChange={setRatioPreset}>
@@ -531,6 +622,10 @@ export default function ImageCropper() {
                                         </div>
                                     )}
                                 </div>
+                            ) : (
+                                <div className="text-xs text-muted-foreground rounded-md border p-2">
+                                    自由裁切不锁定比例，按你拖拽的选区导出原始像素尺寸。
+                                </div>
                             )}
                             <div className="flex flex-wrap gap-2">
                                 <Button asChild>
@@ -561,6 +656,22 @@ export default function ImageCropper() {
                                 </Button>
                                 <Button variant="destructive" onClick={clearAllImages} disabled={!images.length}>
                                     清空列表
+                                </Button>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => routeWithCrops("watermark")}
+                                    disabled={!images.length || isRoutingExporting}
+                                >
+                                    发送到水印
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => routeWithCrops("puzzle")}
+                                    disabled={!images.length || isRoutingExporting}
+                                >
+                                    发送到拼图
                                 </Button>
                             </div>
                             {activeImage && (

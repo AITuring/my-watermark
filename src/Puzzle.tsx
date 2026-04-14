@@ -50,6 +50,7 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { consumePendingCropTransfer } from "@/utils/crop-transfer";
 
 
 interface AspectRatio {
@@ -442,6 +443,12 @@ const Puzzle = () => {
         },
         [isUpload]
     );
+
+    useEffect(() => {
+        const incomingFiles = consumePendingCropTransfer("puzzle");
+        if (!incomingFiles.length) return;
+        void onDrop(incomingFiles);
+    }, []);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,

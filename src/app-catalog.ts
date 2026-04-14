@@ -55,7 +55,7 @@ export const appCatalog: AppCatalogItem[] = [
         label: "图片裁切",
         url: "/crop",
         icon: "material-symbols:crop",
-        description: "按固定像素或比例精准裁切，导出尺寸更可控",
+        description: "支持固定像素、按比例和自由裁切，导出尺寸更可控",
         component: () => import("./ImageCropper"),
     },
     {

@@ -946,9 +946,7 @@ const MuseumEventRadar: React.FC = () => {
       }
       try {
         const url = new URL(`${backendUrl}/api/museum/events`);
-        if (city.trim()) url.searchParams.set("city", city.trim());
-        if (startDate) url.searchParams.set("start_date", normalizeDateInput(startDate));
-        if (endDate) url.searchParams.set("end_date", normalizeDateInput(endDate));
+        // iCity tab需要与原站order结果一致，不能叠加本地城市/日期二次过滤
         url.searchParams.set("order", listOrder || "all");
         url.searchParams.set("page", "1");
         url.searchParams.set("size", "1200");
@@ -972,7 +970,7 @@ const MuseumEventRadar: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [backendUrl, city, endDate, listFilter, listOrder, startDate]);
+  }, [backendUrl, listFilter, listOrder]);
 
   const filteredListEvents = useMemo(() => {
     const temporaryEvents = cityEvents.filter((event) => event.start_date !== event.end_date);

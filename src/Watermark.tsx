@@ -30,6 +30,7 @@ import MobileImageGallery from "./MobileImageGallery";
 import pLimit from "p-limit";
 import confetti from "canvas-confetti";
 import "./watermark.css";
+import { consumePendingCropTransfer } from "@/utils/crop-transfer";
 
 interface ProgressButtonProps {
     onClick: () => void;
@@ -279,6 +280,12 @@ const Watermark: React.FC = () => {
             }
         });
     };
+
+    useEffect(() => {
+        const incomingFiles = consumePendingCropTransfer("watermark");
+        if (!incomingFiles.length) return;
+        void handleImagesUpload(incomingFiles);
+    }, []);
 
     // 更新水印颜色
     const handleWatermarkColorChange = (
