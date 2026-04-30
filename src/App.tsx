@@ -92,6 +92,7 @@ const FloatingButtons = () => {
 
     const menuItems = [
         { path: "/", icon: "material-symbols:apps", label: "应用库" },
+        { path: "/travel-route-map", icon: "mdi:map-marker-path", label: "旅行路线地图" },
         { path: "/watermark", icon: "ri:image-ai-line", label: "水印添加" },
         { path: "/puzzle", icon: "tabler:layout-board-split", label: "图片拼接" },
         { path: "/crop", icon: "material-symbols:crop", label: "图片裁切" },

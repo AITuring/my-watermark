@@ -11,6 +11,14 @@ export interface AppCatalogItem {
 
 export const appCatalog: AppCatalogItem[] = [
     {
+        id: "travel-route-map",
+        label: "旅行路线地图",
+        url: "/travel-route-map",
+        icon: "mdi:map-marker-path",
+        description: "输入多天行程自动绘制 3D 手绘地图，按天分色并锚定图例",
+        component: () => import("./TravelRouteMap"),
+    },
+    {
         id: "watermark",
         label: "水印添加",
         url: "/watermark",
