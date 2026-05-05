@@ -133,6 +133,8 @@ const Watermark: React.FC = () => {
     const dropzoneRef = useRef(null);
 
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [downloadFinalizing, setDownloadFinalizing] = useState(false);
     // 图片处理进度
     const [imgProgress, setImgProgress] = useState<number>(0);
     // 第一步：上传图片
@@ -226,59 +228,64 @@ const Watermark: React.FC = () => {
     }, [images]);
 
     const handleImagesUpload = async (files: File[]) => {
-        const uploadImages = await loadImageData(files);
-        setImages((prevImages) => {
-            // 如果之前没有图片，直接设置
-            if (prevImages.length === 0) {
-                setCurrentImg(uploadImages[0]);
-                setImageUploaderVisible(false);
+        setUploading(true);
+        try {
+            const uploadImages = await loadImageData(files);
+            setImages((prevImages) => {
+                // 如果之前没有图片，直接设置
+                if (prevImages.length === 0) {
+                    setCurrentImg(uploadImages[0]);
+                    setImageUploaderVisible(false);
 
-                // 初始化水印位置
-                setWatermarkPositions(
-                    uploadImages.map((img) => ({
+                    // 初始化水印位置
+                    setWatermarkPositions(
+                        uploadImages.map((img) => ({
+                            id: img.id,
+                            x: 0.5,
+                            y: 0.5,
+                            scaleX: 1,
+                            scaleY: 1,
+                            rotation: 0,
+                        }))
+                    );
+
+                    // 初始化水印颜色（默认为空，表示使用原始颜色）
+                    const newColors = {};
+                    uploadImages.forEach((img) => {
+                        newColors[img.id] = "";
+                    });
+                    setWatermarkColorUrls((prev) => ({ ...prev, ...newColors }));
+
+                    return uploadImages;
+                } else {
+                    // 如果已有图片，合并新上传的图片
+                    const newImages = [...prevImages, ...uploadImages];
+
+                    // 为新上传的图片初始化水印位置
+                    const newPositions = uploadImages.map((img) => ({
                         id: img.id,
                         x: 0.5,
                         y: 0.5,
                         scaleX: 1,
                         scaleY: 1,
                         rotation: 0,
-                    }))
-                );
+                    }));
 
-                // 初始化水印颜色（默认为空，表示使用原始颜色）
-                const newColors = {};
-                uploadImages.forEach((img) => {
-                    newColors[img.id] = "";
-                });
-                setWatermarkColorUrls((prev) => ({ ...prev, ...newColors }));
+                    // 初始化水印颜色（默认为空，表示使用原始颜色）
+                    const newColors = {};
+                    uploadImages.forEach((img) => {
+                        newColors[img.id] = "";
+                    });
+                    setWatermarkColorUrls((prev) => ({ ...prev, ...newColors }));
 
-                return uploadImages;
-            } else {
-                // 如果已有图片，合并新上传的图片
-                const newImages = [...prevImages, ...uploadImages];
+                    setWatermarkPositions((prev) => [...prev, ...newPositions]);
 
-                // 为新上传的图片初始化水印位置
-                const newPositions = uploadImages.map((img) => ({
-                    id: img.id,
-                    x: 0.5,
-                    y: 0.5,
-                    scaleX: 1,
-                    scaleY: 1,
-                    rotation: 0,
-                }));
-
-                // 初始化水印颜色（默认为空，表示使用原始颜色）
-                const newColors = {};
-                uploadImages.forEach((img) => {
-                    newColors[img.id] = "";
-                });
-                setWatermarkColorUrls((prev) => ({ ...prev, ...newColors }));
-
-                setWatermarkPositions((prev) => [...prev, ...newPositions]);
-
-                return newImages;
-            }
-        });
+                    return newImages;
+                }
+            });
+        } finally {
+            setUploading(false);
+        }
     };
 
     useEffect(() => {
@@ -473,6 +480,10 @@ const Watermark: React.FC = () => {
             await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
+        setDownloadFinalizing(true);
+        const finalizeDelay = Math.min(10000, Math.max(1200, imgPostionList.length * 25));
+        await new Promise((resolve) => setTimeout(resolve, finalizeDelay));
+        setDownloadFinalizing(false);
         document.body.removeChild(downloadLink);
         setLoading(false);
         confetti({
@@ -540,6 +551,7 @@ const Watermark: React.FC = () => {
         } catch (error) {
             console.error("处理水印失败:", error);
             alert("处理水印失败，请重试。");
+            setDownloadFinalizing(false);
             setLoading(false);
         }
     };
@@ -1255,6 +1267,8 @@ const Watermark: React.FC = () => {
                                                         color: e.target.value,
                                                     }))
                                                 }
+                                                title="选择混合水印颜色"
+                                                aria-label="选择混合水印颜色"
                                                 className="absolute -top-2 -left-2 w-10 h-10 p-0 border-0 cursor-pointer"
                                             />
                                         </div>
@@ -1359,6 +1373,29 @@ const Watermark: React.FC = () => {
 
     return (
         <div className="relative w-screen h-screen">
+            {(uploading || loading || downloadFinalizing) && (
+                <div className="absolute inset-0 z-[60] bg-black/45 backdrop-blur-sm flex items-center justify-center px-4">
+                    <div className="bg-white/90 dark:bg-slate-900/90 rounded-xl shadow-xl border border-white/30 px-6 py-5 min-w-[260px]">
+                        <div className="flex items-center gap-3">
+                            <div className="w-5 h-5 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+                            <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                {uploading
+                                    ? "正在读取图片，请稍候..."
+                                    : downloadFinalizing
+                                    ? "已提交下载任务，浏览器仍在写入文件..."
+                                    : `正在处理图片 ${Math.round(smoothProgress)}%`}
+                            </div>
+                        </div>
+                        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                            {uploading
+                                ? "大批量上传时会短暂占用性能"
+                                : downloadFinalizing
+                                ? "请查看浏览器下载列表中的进度"
+                                : "请不要关闭当前页面"}
+                        </div>
+                    </div>
+                </div>
+            )}
             {imageUploaderVisible ? <div className="watermarkBg"></div> : <></>}
             <div>{isMobile ? renderMobileUI() : renderDesktopUI()}</div>
         </div>
