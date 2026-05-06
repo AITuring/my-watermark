@@ -47,8 +47,7 @@ const AMAP_KEY_PAIRS = [
         securityJsCode: "8d5961ba4c131a09904cab742029ca42",
     },
 ] as const;
-const DEFAULT_REGION_HINT = "山西省临汾市";
-const MAX_DISTANCE_FROM_REGION_KM = 180;
+const DEFAULT_REGION_HINT = "";
 const MAX_DAILY_SEGMENT_KM = 220;
 
 const DEFAULT_ROUTE = `D1：临汾博物馆—灵光寺琉璃塔（国七）—陶寺遗址（国三）与陶寺博物馆—襄汾普净寺（国六）—新绛福胜寺（国五）—汾城古建筑群（国六）
@@ -68,6 +67,19 @@ const sanitizeToken = (value: string) =>
         .replace(/\s+/g, "")
         .trim();
 
+const splitCompoundPlace = (token: string) => {
+    const cleaned = sanitizeToken(token);
+    if (!cleaned) return [];
+    const parts = cleaned
+        .split(/(?<=[\u4e00-\u9fa5])(?:与|和|及)(?=[\u4e00-\u9fa5])/g)
+        .map((part) => sanitizeToken(part))
+        .filter(Boolean);
+    if (parts.length >= 2 && parts.every((part) => part.length >= 2)) {
+        return parts;
+    }
+    return [cleaned];
+};
+
 const splitPlaceTokens = (routeBody: string) => {
     const roughTokens = routeBody
         .split(/(?:->|→|=>|＞|>|到|—|－|–|,|，|;|；|\/|\|)/g)
@@ -75,11 +87,11 @@ const splitPlaceTokens = (routeBody: string) => {
         .filter(Boolean);
 
     if (roughTokens.length > 1) {
-        return roughTokens.map((token) => sanitizeToken(token)).filter(Boolean);
+        return roughTokens.flatMap((token) => splitCompoundPlace(token)).filter(Boolean);
     }
     return routeBody
         .split(/\s+/g)
-        .map((token) => sanitizeToken(token))
+        .flatMap((token) => splitCompoundPlace(token))
         .filter(Boolean);
 };
 
@@ -177,6 +189,9 @@ const detectCityHint = (regionHint: string) => {
     return matches[matches.length - 1];
 };
 
+const normalizePlaceName = (value: string) =>
+    sanitizeToken(value).replace(/(景区|博物馆|遗址|古建筑群|寺|庙|塔|陵|祠|故居)$/g, "");
+
 const geocodeByAmapSdk = async (placeName: string, regionHint: string): Promise<GeocodedPoint | null> => {
     const AMap = await ensureAmapSdk();
     if (!AMap) return null;
@@ -228,15 +243,40 @@ const geocodeByAmapSdk = async (placeName: string, regionHint: string): Promise<
                 const placeSearch = new AMap.PlaceSearch({
                     city: cityHint,
                     citylimit: strictCity,
-                    pageSize: 1,
+                    pageSize: 10,
                     extensions: "base",
                 });
                 placeSearch.search(query, (searchStatus: string, searchResult: any) => {
                     if (searchStatus === "complete" && searchResult?.poiList?.pois?.length) {
-                        const poi = searchResult.poiList.pois[0];
-                        const position = extractLngLat(poi?.location);
-                        if (position) {
-                            resolveOne({ name: placeName, lng: position.lng, lat: position.lat });
+                        const pois = searchResult.poiList.pois as any[];
+                        const normalizedTarget = normalizePlaceName(placeName);
+                        let bestPoint: GeocodedPoint | null = null;
+                        let bestScore = Number.NEGATIVE_INFINITY;
+                        for (const poi of pois) {
+                            const position = extractLngLat(poi?.location);
+                            if (!position) continue;
+                            const poiName = String(poi?.name ?? "");
+                            const normalizedPoiName = normalizePlaceName(poiName);
+                            const addressText = `${poi?.pname ?? ""}${poi?.cityname ?? ""}${poi?.adname ?? ""}${poi?.address ?? ""}`;
+                            let score = 0;
+                            if (normalizedPoiName === normalizedTarget) score += 8;
+                            if (
+                                normalizedPoiName.includes(normalizedTarget) ||
+                                normalizedTarget.includes(normalizedPoiName)
+                            ) {
+                                score += 4;
+                            }
+                            if (cleanRegion && addressText.includes(cleanRegion)) score += 3;
+                            if (cityHint !== "全国" && addressText.includes(cityHint.replace(/[市州县区]$/, ""))) {
+                                score += 2;
+                            }
+                            if (!bestPoint || score > bestScore) {
+                                bestScore = score;
+                                bestPoint = { name: placeName, lng: position.lng, lat: position.lat };
+                            }
+                        }
+                        if (bestPoint) {
+                            resolveOne(bestPoint);
                             return;
                         }
                     }
@@ -246,16 +286,16 @@ const geocodeByAmapSdk = async (placeName: string, regionHint: string): Promise<
 
         (async () => {
             for (const query of queryCandidates) {
-                const geocodeHit = await geocodeOne(query);
-                if (geocodeHit) {
-                    window.clearTimeout(timeoutId);
-                    finish(geocodeHit);
-                    return;
-                }
                 const strictSearchHit = await searchOne(query, true);
                 if (strictSearchHit) {
                     window.clearTimeout(timeoutId);
                     finish(strictSearchHit);
+                    return;
+                }
+                const geocodeHit = await geocodeOne(query);
+                if (geocodeHit) {
+                    window.clearTimeout(timeoutId);
+                    finish(geocodeHit);
                     return;
                 }
             }
@@ -270,38 +310,6 @@ const geocodeByAmapSdk = async (placeName: string, regionHint: string): Promise<
             window.clearTimeout(timeoutId);
             finish(null);
         })();
-    });
-};
-
-const geocodeRegionCenter = async (regionHint: string): Promise<{ lng: number; lat: number } | null> => {
-    const AMap = await ensureAmapSdk();
-    if (!AMap) return null;
-    const query = regionHint.trim();
-    if (!query) return null;
-    const cityHint = detectCityHint(query);
-    return new Promise((resolve) => {
-        let settled = false;
-        const finish = (value: { lng: number; lat: number } | null) => {
-            if (settled) return;
-            settled = true;
-            resolve(value);
-        };
-        const timeoutId = window.setTimeout(() => finish(null), 6000);
-        const geocoder = new AMap.Geocoder({
-            city: cityHint,
-        });
-        geocoder.getLocation(query, (status: string, result: any) => {
-            if (status === "complete" && result?.geocodes?.length) {
-                const position = extractLngLat(result.geocodes[0].location);
-                if (position) {
-                    window.clearTimeout(timeoutId);
-                    finish(position);
-                    return;
-                }
-            }
-            window.clearTimeout(timeoutId);
-            finish(null);
-        });
     });
 };
 
@@ -322,7 +330,6 @@ export default function TravelRouteMap() {
     const [isResolving, setIsResolving] = useState(false);
     const [resolveMessage, setResolveMessage] = useState("");
     const cacheRef = useRef(new Map<string, GeocodedPoint | null>());
-    const regionCenterCacheRef = useRef(new Map<string, { lng: number; lat: number } | null>());
 
     const parsedDays = useMemo(() => parseRouteInput(routeInput), [routeInput]);
 
@@ -369,13 +376,6 @@ export default function TravelRouteMap() {
 
             if (!active) return;
 
-            const regionKey = regionHint.trim();
-            if (!regionCenterCacheRef.current.has(regionKey)) {
-                const center = await geocodeRegionCenter(regionKey);
-                regionCenterCacheRef.current.set(regionKey, center);
-            }
-            const regionCenter = regionCenterCacheRef.current.get(regionKey) ?? null;
-
             const unresolvedSet = new Set<string>();
             const routes: ResolvedRoute[] = parsedDays.map((day) => {
                 const points: GeocodedPoint[] = [];
@@ -384,13 +384,6 @@ export default function TravelRouteMap() {
                     if (!point) {
                         unresolvedSet.add(place);
                         return;
-                    }
-                    if (regionCenter) {
-                        const outOfRegion = distanceKm(point, regionCenter) > MAX_DISTANCE_FROM_REGION_KM;
-                        if (outOfRegion) {
-                            unresolvedSet.add(place);
-                            return;
-                        }
                     }
                     const prev = points[points.length - 1];
                     if (prev) {
@@ -417,7 +410,7 @@ export default function TravelRouteMap() {
             setIsResolving(false);
             if (unresolved.length > 0) {
                 setResolveMessage(
-                    `已启用区域与同日行程校验，过滤了 ${unresolved.length} 个不合理或未命中的点位。`,
+                    `已启用同日行程校验，过滤了 ${unresolved.length} 个不合理或未命中的点位。`,
                 );
             } else {
                 setResolveMessage("");
@@ -640,14 +633,14 @@ export default function TravelRouteMap() {
                         输入路线（支持 D1/第1天，支持 `—` `/` `-&gt;` 分隔）
                     </label>
                     <label htmlFor="region-hint" className="block text-sm font-semibold mt-3 mb-2">
-                        区域约束（用于消除同名地点歧义）
+                        搜索提示（可选，不做区域限制）
                     </label>
                     <input
                         id="region-hint"
                         value={regionHint}
                         onChange={(event) => setRegionHint(event.target.value)}
                         className="w-full rounded-2xl border border-[#cbb89b] bg-[#fff8ea] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#d69452] shadow-inner"
-                        placeholder="例如：山西省临汾市"
+                        placeholder="可留空；例如：山西省临汾市"
                     />
                     <textarea
                         id="route-input"
