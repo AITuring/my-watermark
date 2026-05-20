@@ -1,0 +1,770 @@
+.app-shell {
+  --bg: #faf8f5;
+  --bg-warm: #f2ede4;
+  --ink: #1a1510;
+  --ink-mid: #5c4a35;
+  --ink-light: #9a8775;
+  --accent: #8b5e3c;
+  --accent-deep: #5c3d22;
+  --accent-light: #c4956a;
+  --rust: #b5522b;
+  --sage: #6b7f5e;
+  --border: #ddd3c3;
+  --card-bg: #fffbf6;
+  --shadow: rgba(92, 61, 34, 0.08);
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 15px;
+  line-height: 1.8;
+  scroll-behavior: smooth;
+}
+
+.app-shell * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.app-shell button,
+.app-shell a {
+  font: inherit;
+}
+
+.app-shell button {
+  border: none;
+  background: none;
+}
+
+.app-shell img {
+  display: block;
+  max-width: 100%;
+}
+
+.app-shell .serif { font-family: 'Noto Serif SC', serif; }
+
+.app-shell .gallery-hero {
+  position: relative;
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #0f0d0b;
+}
+
+.app-shell .gallery-hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(139,94,60,0.2) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 50% at 20% 70%, rgba(92,61,34,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 50% at 80% 70%, rgba(107,127,94,0.08) 0%, transparent 60%),
+    #0f0d0b;
+}
+
+.app-shell .gallery-hero-grain,
+.app-shell .detail-hero-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px;
+}
+
+.app-shell .covers-collage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  opacity: 0.15;
+  overflow: hidden;
+}
+
+.app-shell .covers-collage img {
+  height: 140px;
+  border-radius: 3px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  object-fit: cover;
+}
+
+.app-shell .gallery-hero-content {
+  position: relative;
+  z-index: 2;
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.app-shell .gallery-hero-subtitle,
+.app-shell .detail-hero-subtitle {
+  margin-bottom: 24px;
+  color: var(--accent-light);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 11px;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.app-shell .gallery-hero-title {
+  margin-bottom: 16px;
+  color: #fff;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 8px;
+}
+
+.app-shell .gallery-hero-desc {
+  margin-bottom: 48px;
+  color: rgba(255,255,255,0.45);
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 1px;
+}
+
+.app-shell .gallery-stats {
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+}
+
+.app-shell .gallery-stat-num,
+.app-shell .stat-num {
+  display: block;
+  color: var(--accent-light);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.app-shell .gallery-stat-label,
+.app-shell .stat-label {
+  color: rgba(255,255,255,0.3);
+  font-size: 11px;
+  font-weight: 300;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.app-shell .gallery-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 40px;
+}
+
+.app-shell .gallery-header {
+  margin-bottom: 52px;
+  text-align: center;
+}
+
+.app-shell .gallery-tag,
+.app-shell .section-tag {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--accent);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 10px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+.app-shell .gallery-title {
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.app-shell .gallery-sub,
+.app-shell .section-sub {
+  color: var(--ink-light);
+  font-size: 14px;
+  font-weight: 300;
+}
+
+.app-shell .books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 28px;
+}
+
+.app-shell .book-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card-bg);
+  cursor: pointer;
+  text-align: left;
+  transition: box-shadow 0.3s, transform 0.3s;
+}
+
+.app-shell .book-card:hover {
+  box-shadow: 0 12px 48px var(--shadow);
+  transform: translateY(-4px);
+}
+
+.app-shell .book-card-cover {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  overflow: hidden;
+  background: #1a1510;
+}
+
+.app-shell .book-card-cover img {
+  height: 170px;
+  border-radius: 3px;
+  object-fit: cover;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3);
+  transition: transform 0.3s;
+}
+
+.app-shell .book-card:hover .book-card-cover img {
+  transform: scale(1.03);
+}
+
+.app-shell .rating-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(15,13,11,0.85);
+  color: var(--accent-light);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+
+.app-shell .book-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 20px 22px 22px;
+}
+
+.app-shell .book-card-title {
+  display: -webkit-box;
+  margin-bottom: 6px;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.app-shell .book-card-author {
+  margin-bottom: 12px;
+  color: var(--ink-light);
+  font-size: 13px;
+}
+
+.app-shell .book-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.app-shell .category-tag {
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(139,94,60,0.08);
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.app-shell .note-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-light);
+  font-size: 12px;
+}
+
+.app-shell .note-count.has-notes {
+  color: var(--accent);
+}
+
+.app-shell .note-count.zero {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.app-shell .detail-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #0f0d0b;
+}
+
+.app-shell .detail-hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 80% at 75% 50%, rgba(139,94,60,0.25) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 20% 80%, rgba(92,61,34,0.15) 0%, transparent 60%),
+    #0f0d0b;
+}
+
+.app-shell .detail-hero-content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  align-items: center;
+  gap: 72px;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 80px 60px;
+}
+
+.app-shell .cover-wrap {
+  position: relative;
+}
+
+.app-shell .cover-glow {
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(ellipse, rgba(196,149,106,0.3), transparent 70%);
+  filter: blur(20px);
+}
+
+.app-shell .cover-img {
+  position: relative;
+  width: 220px;
+  border-radius: 4px;
+  box-shadow:
+    0 30px 80px rgba(0,0,0,0.6),
+    0 8px 20px rgba(0,0,0,0.4),
+    inset 0 0 0 1px rgba(255,255,255,0.08);
+  transform: rotateY(-3deg) rotateX(2deg);
+  transition: transform 0.4s ease;
+}
+
+.app-shell .cover-img:hover {
+  transform: rotateY(0deg) rotateX(0deg);
+}
+
+.app-shell .detail-hero-text {
+  color: #fff;
+}
+
+.app-shell .detail-hero-subtitle {
+  letter-spacing: 4px;
+}
+
+.app-shell .detail-hero-title {
+  margin-bottom: 12px;
+  color: #fff;
+  font-family: 'Noto Serif SC', serif;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 4px;
+}
+
+.app-shell .detail-hero-author {
+  margin-bottom: 36px;
+  color: rgba(255,255,255,0.5);
+  font-size: 16px;
+  font-weight: 300;
+}
+
+.app-shell .detail-hero-author span {
+  color: var(--accent-light);
+}
+
+.app-shell .detail-hero-desc {
+  display: -webkit-box;
+  max-width: 520px;
+  margin-bottom: 48px;
+  overflow: hidden;
+  border-left: 1px solid rgba(196,149,106,0.4);
+  padding-left: 20px;
+  color: rgba(255,255,255,0.55);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 2;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
+.app-shell .detail-hero-stats {
+  display: flex;
+  gap: 40px;
+}
+
+.app-shell .stat {
+  text-align: center;
+}
+
+.app-shell .stat-label {
+  color: rgba(255,255,255,0.35);
+}
+
+.app-shell .back-btn {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  z-index: 200;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(196,149,106,0.3);
+  border-radius: 24px;
+  padding: 10px 20px;
+  background: rgba(15,13,11,0.8);
+  color: var(--accent-light);
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: all 0.2s;
+}
+
+.app-shell .back-btn:hover {
+  border-color: var(--accent-light);
+  background: rgba(139,94,60,0.4);
+}
+
+.app-shell .back-btn.visible {
+  display: flex;
+}
+
+.app-shell .section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 80px 60px;
+}
+
+.app-shell .section-header {
+  margin-bottom: 52px;
+}
+
+.app-shell .section-title {
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.app-shell .info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+
+.app-shell .info-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 36px;
+  background: var(--card-bg);
+}
+
+.app-shell .info-label {
+  margin-bottom: 10px;
+  color: var(--ink-light);
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.app-shell .info-value {
+  color: var(--ink-mid);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.app-shell .rating-big {
+  color: var(--accent);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 42px;
+  font-weight: 700;
+}
+
+.app-shell .rating-max {
+  color: var(--ink-light);
+  font-size: 18px;
+}
+
+.app-shell .rating-count {
+  margin-top: 4px;
+  color: var(--ink-light);
+  font-size: 12px;
+}
+
+.app-shell .rating-title {
+  margin-top: 2px;
+  color: var(--accent-light);
+  font-size: 13px;
+}
+
+.app-shell .notes-section {
+  background: var(--bg-warm);
+}
+
+.app-shell .note-card {
+  position: relative;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 36px;
+  background: var(--card-bg);
+  transition: box-shadow 0.3s, transform 0.3s;
+}
+
+.app-shell .note-card:hover {
+  box-shadow: 0 8px 40px var(--shadow);
+  transform: translateY(-2px);
+}
+
+.app-shell .note-chapter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.app-shell .note-chapter::before {
+  content: '';
+  display: block;
+  width: 16px;
+  height: 1px;
+  background: var(--accent);
+}
+
+.app-shell .note-text {
+  position: relative;
+  color: var(--ink);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 15px;
+  line-height: 2;
+}
+
+.app-shell .note-text::before {
+  content: '\201c';
+  position: absolute;
+  top: -4px;
+  left: -12px;
+  opacity: 0.5;
+  color: var(--accent-light);
+  font-family: Georgia, serif;
+  font-size: 36px;
+  line-height: 1;
+}
+
+.app-shell .note-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.app-shell .note-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font-size: 12px;
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.app-shell .note-link:hover {
+  opacity: 1;
+}
+
+.app-shell .note-date {
+  margin-left: auto;
+  color: var(--ink-light);
+  font-size: 11px;
+}
+
+.app-shell .no-notes {
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.app-shell .no-notes-icon {
+  margin-bottom: 16px;
+  opacity: 0.3;
+  font-size: 48px;
+}
+
+.app-shell .no-notes-text {
+  margin-bottom: 8px;
+  color: var(--ink-light);
+  font-family: 'Noto Serif SC', serif;
+  font-size: 18px;
+}
+
+.app-shell .no-notes-sub {
+  color: var(--ink-light);
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+.app-shell .ornament {
+  padding: 20px 0;
+  opacity: 0.3;
+  font-size: 20px;
+  letter-spacing: 16px;
+  text-align: center;
+}
+
+.app-shell .footer {
+  border-top: 1px solid var(--border);
+  padding: 60px;
+  color: var(--ink-light);
+  font-size: 12px;
+  text-align: center;
+}
+
+.app-shell .footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.app-shell .reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.app-shell .reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.app-shell .chapters-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 48px;
+}
+
+.app-shell .chapter-pill {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 8px 20px;
+  background: var(--card-bg);
+  color: var(--ink-mid);
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.app-shell .chapter-pill:hover,
+.app-shell .chapter-pill.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .app-shell .gallery-hero-title {
+    font-size: 32px;
+    letter-spacing: 4px;
+  }
+
+  .app-shell .gallery-stats {
+    gap: 28px;
+  }
+
+  .app-shell .gallery-stat-num {
+    font-size: 28px;
+  }
+
+  .app-shell .gallery-section {
+    padding: 60px 20px;
+  }
+
+  .app-shell .books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+  }
+
+  .app-shell .detail-hero-content {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: 60px 24px;
+    text-align: center;
+  }
+
+  .app-shell .cover-img {
+    width: 160px;
+    margin: 0 auto;
+    transform: none;
+  }
+
+  .app-shell .detail-hero-title {
+    font-size: 32px;
+    letter-spacing: 3px;
+  }
+
+  .app-shell .detail-hero-stats {
+    justify-content: center;
+  }
+
+  .app-shell .detail-hero-desc {
+    max-width: 100%;
+    border-top: 1px solid rgba(196,149,106,0.4);
+    border-left: none;
+    padding-top: 20px;
+    padding-left: 0;
+  }
+
+  .app-shell .section {
+    padding: 60px 24px;
+  }
+
+  .app-shell .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell .note-card {
+    padding: 24px;
+  }
+
+  .app-shell .back-btn {
+    top: 12px;
+    left: 12px;
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  .app-shell .covers-collage {
+    display: none;
+  }
+}

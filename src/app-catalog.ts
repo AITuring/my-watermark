@@ -11,6 +11,14 @@ export interface AppCatalogItem {
 
 export const appCatalog: AppCatalogItem[] = [
     {
+        id: "reading-notes",
+        label: "读书笔记合集",
+        url: "/reading-notes",
+        icon: "material-symbols:auto-stories-outline-rounded",
+        description: "按书架浏览微信读书笔记，沉浸式查看封面、书摘与章节划线",
+        component: () => import("./ReadingNotesCollection"),
+    },
+    {
         id: "watermark",
         label: "水印添加",
         url: "/watermark",

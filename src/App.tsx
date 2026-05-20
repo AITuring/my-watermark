@@ -1,4 +1,5 @@
 import { lazy, Suspense, useContext, useState, useRef, useEffect } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import {
     BrowserRouter,
     Routes,
@@ -45,7 +46,7 @@ const FloatingButtons = () => {
             y: Math.min(Math.max(8, y), h - ch - 8),
         };
     };
-    const startDrag = (e) => {
+    const startDrag = (e: ReactPointerEvent<HTMLElement>) => {
         e.preventDefault();
         e.stopPropagation();
         const rect = containerRef.current?.getBoundingClientRect();
@@ -59,13 +60,13 @@ const FloatingButtons = () => {
             e.currentTarget.setPointerCapture(e.pointerId);
         }
     };
-    const onDragMove = (e) => {
+    const onDragMove = (e: ReactPointerEvent<HTMLElement>) => {
         if (!dragRef.current.dragging) return;
         if (e.pointerType === 'mouse' && e.buttons === 0) return;
         const next = clamp(e.clientX - dragRef.current.offsetX, e.clientY - dragRef.current.offsetY);
         setPos(next);
     };
-    const endDragOrClick = (e) => {
+    const endDragOrClick = (e: ReactPointerEvent<HTMLElement>) => {
         if (!dragRef.current.dragging) return;
         const moved = Math.hypot(
             e.clientX - dragRef.current.startX,
@@ -92,6 +93,7 @@ const FloatingButtons = () => {
 
     const menuItems = [
         { path: "/", icon: "material-symbols:apps", label: "应用库" },
+        { path: "/reading-notes", icon: "material-symbols:auto-stories-outline-rounded", label: "读书笔记" },
         { path: "/watermark", icon: "ri:image-ai-line", label: "水印添加" },
         { path: "/puzzle", icon: "tabler:layout-board-split", label: "图片拼接" },
         { path: "/crop", icon: "material-symbols:crop", label: "图片裁切" },
@@ -118,6 +120,7 @@ const FloatingButtons = () => {
                                     <Tooltip key={item.path}>
                                         <TooltipTrigger asChild>
                                             <button
+                                                type="button"
                                                 title={item.label}
                                                 onClick={() => {
                                                     navigate(item.path);
@@ -139,6 +142,7 @@ const FloatingButtons = () => {
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <button
+                                            type="button"
                                             title={isDark ? "切换日间模式" : "切换夜间模式"}
                                             onClick={toggleTheme}
                                             className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
@@ -164,6 +168,7 @@ const FloatingButtons = () => {
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <button
+                                            type="button"
                                             title="收起导航"
                                             onClick={() => setOpen(false)}
                                             style={{ touchAction: 'none' }}
@@ -184,6 +189,7 @@ const FloatingButtons = () => {
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <button
+                                            type="button"
                                             title="收起导航"
                                             onClick={() => setOpen(false)}
                                             style={{ touchAction: 'none' }}
@@ -202,6 +208,7 @@ const FloatingButtons = () => {
                                     <Tooltip key={item.path}>
                                         <TooltipTrigger asChild>
                                             <button
+                                                type="button"
                                                 title={item.label}
                                                 onClick={() => {
                                                     navigate(item.path);
@@ -223,6 +230,7 @@ const FloatingButtons = () => {
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <button
+                                            type="button"
                                             title={isDark ? "切换日间模式" : "切换夜间模式"}
                                             onClick={toggleTheme}
                                             className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
