@@ -2,6 +2,7 @@ import { useState, useEffect, forwardRef } from "react";
 import Konva from "konva";
 import { Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
+import { getImageOpaqueBounds } from "./utils";
 
 interface ImageWithFixedWidthProps {
     src: string;
@@ -47,12 +48,19 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
     ) => {
         const [image, status] = useImage(src);
         const [size, setSize] = useState({ width: fixedWidth, height: 0 });
+        const [crop, setCrop] = useState({
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+        });
 
         useEffect(() => {
             if (image && status === "loaded") {
-                const height =
-                    (image.naturalHeight / image.naturalWidth) * fixedWidth;
+                const bounds = getImageOpaqueBounds(image);
+                const height = (bounds.height / bounds.width) * fixedWidth;
                 setSize({ width: fixedWidth, height });
+                setCrop(bounds);
             }
         }, [image, fixedWidth, status]);
 
@@ -75,6 +83,11 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
                 {...otherProps}
                 width={size.width}
                 height={size.height}
+                crop={
+                    crop.width > 0 && crop.height > 0
+                        ? crop
+                        : undefined
+                }
             />
         );
     }

@@ -22,7 +22,12 @@ import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
 import { WatermarkPosition } from "./types";
-import { extractDominantColors, applyColorToWatermark } from "./utils";
+import {
+    extractDominantColors,
+    applyColorToWatermark,
+    getAdaptiveWatermarkBaseScale,
+    getAdaptiveWatermarkRenderMetrics,
+} from "./utils";
 import ImageWithFixedWidth from "./ImageWithFixedWidth";
 import "./watermark.css";
 
@@ -440,22 +445,14 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 更新水印尺寸
     const updateWatermarkSize = (scale) => {
         if (watermarkImage && backgroundImage) {
-            // 使用与 calculateWatermarkPosition 相同的逻辑
-            const minDimension = Math.min(
+            const renderMetrics = getAdaptiveWatermarkRenderMetrics(
                 backgroundImage.naturalWidth,
-                backgroundImage.naturalHeight
+                backgroundImage.naturalHeight,
+                watermarkImage,
+                scale
             );
-            const standardWatermarkSize = minDimension * 0.1;
-            const standardScale =
-                standardWatermarkSize / watermarkImage.naturalWidth;
-
-            // 应用用户缩放比例
-            const finalScale = standardScale * scale;
-
-            const width =
-                watermarkImage.naturalWidth * finalScale * backgroundScale;
-            const height =
-                watermarkImage.naturalHeight * finalScale * backgroundScale;
+            const width = renderMetrics.width * backgroundScale;
+            const height = renderMetrics.height * backgroundScale;
 
             if (width > 0 && height > 0) {
                 setWatermarkSize({ width, height });
@@ -579,21 +576,17 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         if (!backgroundImage || !watermarkImage) return;
 
         // 与渲染时 fixedWidth 完全一致的计算逻辑：基于背景图较短边的 10%
-        const minDimension = Math.min(
+        const renderMetrics = getAdaptiveWatermarkRenderMetrics(
             backgroundImage.naturalWidth,
-            backgroundImage.naturalHeight
+            backgroundImage.naturalHeight,
+            watermarkImage,
+            currentScale
         );
-        const standardWatermarkSize = minDimension * 0.1;
-        const standardScale =
-            standardWatermarkSize / watermarkImage.naturalWidth;
-
-        const finalScale = standardScale * currentScale;
-
         // watermarkSize 存储的是未乘以 backgroundScale 的“原图尺寸”，
         // 后续在边界判断里会乘以 backgroundScale 转为预览尺寸
         setWatermarkSize({
-            width: watermarkImage.naturalWidth * finalScale,
-            height: watermarkImage.naturalHeight * finalScale,
+            width: renderMetrics.width,
+            height: renderMetrics.height,
         });
     }, [backgroundImage, watermarkImage, currentScale]);
 
@@ -605,21 +598,14 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         // 统一渲染尺寸：标准10% * currentScale * backgroundScale
         if (!watermarkImage || !backgroundImage) return;
 
-        const minDimension = Math.min(
+        const renderMetrics = getAdaptiveWatermarkRenderMetrics(
             backgroundImage.naturalWidth,
-            backgroundImage.naturalHeight
+            backgroundImage.naturalHeight,
+            watermarkImage,
+            currentScale
         );
-        const standardWatermarkSize = minDimension * 0.1;
-        const standardScale =
-            standardWatermarkSize / watermarkImage.naturalWidth;
-        const finalScale = standardScale * currentScale;
-
-        // 与 ImageWithFixedWidth 渲染一致的预览宽高
-        const renderWidth =
-            watermarkImage.naturalWidth * finalScale * backgroundScale;
-        const renderHeight =
-            (watermarkImage.naturalHeight / watermarkImage.naturalWidth) *
-            renderWidth;
+        const renderWidth = renderMetrics.width * backgroundScale;
+        const renderHeight = renderMetrics.height * backgroundScale;
 
         // 4 像素偏移的预览值（不参与生成，仅用于保持操作体验）
         const pixelOffset = 4;
@@ -684,17 +670,17 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         node.scaleY(1);
 
         // 用 nextScale 计算预览尺寸做边界限制
-        const previewWatermarkWidth =
-            (watermarkImage ? watermarkImage.naturalWidth : 0) *
-            watermarkStandardScale *
-            nextScale *
-            backgroundScale;
-
-        const previewWatermarkHeight =
-            (watermarkImage ? watermarkImage.naturalHeight : 0) *
-            watermarkStandardScale *
-            nextScale *
-            backgroundScale;
+        const previewMetrics =
+            watermarkImage && backgroundImage
+                ? getAdaptiveWatermarkRenderMetrics(
+                      backgroundImage.naturalWidth,
+                      backgroundImage.naturalHeight,
+                      watermarkImage,
+                      nextScale
+                  )
+                : { width: 0, height: 0 };
+        const previewWatermarkWidth = previewMetrics.width * backgroundScale;
+        const previewWatermarkHeight = previewMetrics.height * backgroundScale;
 
         const pixelOffset = 4;
         const previewOffsetX = backgroundImage
@@ -759,20 +745,14 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
         if (!watermarkImage || !backgroundImage) return;
 
-        const minDimension = Math.min(
+        const renderMetrics = getAdaptiveWatermarkRenderMetrics(
             backgroundImage.naturalWidth,
-            backgroundImage.naturalHeight
+            backgroundImage.naturalHeight,
+            watermarkImage,
+            currentScale
         );
-        const standardWatermarkSize = minDimension * 0.1;
-        const standardScale =
-            standardWatermarkSize / watermarkImage.naturalWidth;
-        const finalScale = standardScale * currentScale;
-
-        const renderWidth =
-            watermarkImage.naturalWidth * finalScale * backgroundScale;
-        const renderHeight =
-            (watermarkImage.naturalHeight / watermarkImage.naturalWidth) *
-            renderWidth;
+        const renderWidth = renderMetrics.width * backgroundScale;
+        const renderHeight = renderMetrics.height * backgroundScale;
 
         const pixelOffset = 4;
         const previewOffsetX = backgroundImage
@@ -949,22 +929,17 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                     fixedWidth={(() => {
                                         if (!backgroundImage || !watermarkImage)
                                             return 0;
-                                        const minDimension = Math.min(
-                                            backgroundImage.naturalWidth,
-                                            backgroundImage.naturalHeight
-                                        );
-                                        const standardWatermarkSize =
-                                            minDimension * 0.1;
-                                        const standardScale =
-                                            standardWatermarkSize /
-                                            watermarkImage.naturalWidth;
-                                        const finalScale =
-                                            standardScale * currentScale;
+                                        const renderMetrics =
+                                            getAdaptiveWatermarkRenderMetrics(
+                                                backgroundImage.naturalWidth,
+                                                backgroundImage.naturalHeight,
+                                                watermarkImage,
+                                                currentScale
+                                            );
 
                                         // 预览尺寸：原图→舞台的 backgroundScale，不再使用 backgroundSliderValue
                                         return (
-                                            watermarkImage.naturalWidth *
-                                            finalScale *
+                                            renderMetrics.width *
                                             backgroundScale
                                         );
                                     })()}

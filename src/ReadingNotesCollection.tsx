@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { BOOKS } from '@/assets/wxbooks/books'
+import CoverCollage from '@/components/CoverCollage'
 import './ReadingNotesCollection.css'
 
 type Route =
@@ -35,21 +36,6 @@ type LibraryBook = {
 }
 
 const LIBRARY = BOOKS as readonly LibraryBook[]
-
-const COLLAGE_STYLES = [
-  { height: 104, rotate: -7 },
-  { height: 152, rotate: 6 },
-  { height: 126, rotate: -4 },
-  { height: 168, rotate: 8 },
-  { height: 114, rotate: -10 },
-  { height: 144, rotate: 4 },
-  { height: 138, rotate: -3 },
-  { height: 160, rotate: 7 },
-  { height: 118, rotate: -5 },
-  { height: 150, rotate: 3 },
-  { height: 132, rotate: -8 },
-  { height: 172, rotate: 5 },
-] as const
 
 function useReveal() {
   const ref = useRef<HTMLDivElement | null>(null)
@@ -104,29 +90,17 @@ function Ornament() {
 
 function GalleryHero({ totalNotes, totalDays }: { totalNotes: number; totalDays: number }) {
   const ref = useReveal()
-  const collageBooks = LIBRARY.slice(0, 18)
+  const collageBooks = LIBRARY.slice(0, 18).map((book) => ({
+    id: book.bookId,
+    src: book.cover,
+    alt: book.title,
+  }))
 
   return (
     <section className="gallery-hero" ref={ref}>
       <div className="gallery-hero-bg" />
       <div className="gallery-hero-grain" />
-      <div className="covers-collage" aria-hidden="true">
-        {collageBooks.map((book, index) => {
-          const style = COLLAGE_STYLES[index % COLLAGE_STYLES.length]
-          return (
-            <img
-              key={book.bookId}
-              src={book.cover}
-              alt=""
-              loading="lazy"
-              style={{
-                height: `${style.height}px`,
-                transform: `rotate(${style.rotate}deg)`,
-              }}
-            />
-          )
-        })}
-      </div>
+      <CoverCollage images={collageBooks} className="gallery-covers-collage" />
       <div className="gallery-hero-content">
         <div className="gallery-hero-subtitle reveal">微信读书 · 阅读笔记</div>
         <h1 className="gallery-hero-title serif reveal">读书笔记合集</h1>

@@ -19,6 +19,14 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("./ReadingNotesCollection"),
     },
     {
+        id: "cover-collage",
+        label: "封面拼贴",
+        url: "/cover-collage",
+        icon: "material-symbols:imagesmode-outline-rounded",
+        description: "上传多张图片生成暗色展陈感 cover 图，适合做封面和分享海报",
+        component: () => import("./CoverCollageMaker"),
+    },
+    {
         id: "watermark",
         label: "水印添加",
         url: "/watermark",

@@ -41,6 +41,10 @@ import {
 import Konva from "konva";
 import ImageWithFixedWidth from "./ImageWithFixedWidth";
 import ImageUploader from "./ImageUploader";
+import {
+    getAdaptiveWatermarkBaseScale,
+    getAdaptiveWatermarkRenderMetrics,
+} from "./utils";
 
 // 绘制辅助线函数
 const drawGuideLines = (layer: Konva.Layer, width: number, height: number) => {
@@ -390,13 +394,11 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
             // 添加：计算水印标准化比例
             if (watermarkImage) {
-                const minDimension = Math.min(
+                const standardScale = getAdaptiveWatermarkBaseScale(
                     backgroundImage.naturalWidth,
-                    backgroundImage.naturalHeight
+                    backgroundImage.naturalHeight,
+                    watermarkImage.naturalWidth
                 );
-                const standardWatermarkSize = minDimension * 0.1; // 水印大小为较短边的10%
-                const standardScale =
-                    standardWatermarkSize / watermarkImage.naturalWidth;
                 setWatermarkStandardScale(standardScale);
             }
         }
@@ -566,17 +568,14 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         const centerY = Math.max(0, Math.min(1, percentY));
 
         // 计算实际渲染的水印尺寸 - 与 ImageWithFixedWidth 保持一致
-        const minDimension = Math.min(
+        const renderMetrics = getAdaptiveWatermarkRenderMetrics(
             backgroundImage.naturalWidth,
-            backgroundImage.naturalHeight
+            backgroundImage.naturalHeight,
+            watermarkImage,
+            currentScale
         );
-        const standardWatermarkSize = minDimension * 0.1;
-        const standardScale = standardWatermarkSize / watermarkImage.naturalWidth;
-        const finalScale = standardScale * currentScale;
-
-        // 计算实际渲染的水印宽度（与 ImageWithFixedWidth 中的 fixedWidth 一致）
-        const renderWidth = watermarkImage.naturalWidth * finalScale * backgroundScale;
-        const renderHeight = (watermarkImage.naturalHeight / watermarkImage.naturalWidth) * renderWidth;
+        const renderWidth = renderMetrics.width * backgroundScale;
+        const renderHeight = renderMetrics.height * backgroundScale;
 
         // 计算4像素偏移在预览中的对应值
         const pixelOffset = 4;
@@ -637,17 +636,14 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         if (!backgroundImage || !watermarkImage) return;
 
         // 计算实际渲染的水印尺寸 - 与 ImageWithFixedWidth 保持一致
-        const minDimension = Math.min(
+        const renderMetrics = getAdaptiveWatermarkRenderMetrics(
             backgroundImage.naturalWidth,
-            backgroundImage.naturalHeight
+            backgroundImage.naturalHeight,
+            watermarkImage,
+            currentScale
         );
-        const standardWatermarkSize = minDimension * 0.1;
-        const standardScale = standardWatermarkSize / watermarkImage.naturalWidth;
-        const finalScale = standardScale * currentScale;
-
-        // 计算实际渲染的水印宽度（与 ImageWithFixedWidth 中的 fixedWidth 一致）
-        const renderWidth = watermarkImage.naturalWidth * finalScale * backgroundScale;
-        const renderHeight = (watermarkImage.naturalHeight / watermarkImage.naturalWidth) * renderWidth;
+        const renderWidth = renderMetrics.width * backgroundScale;
+        const renderHeight = renderMetrics.height * backgroundScale;
 
         // 计算4像素偏移在预览中的对应值
         const pixelOffset = 4;
@@ -730,17 +726,18 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         node.scaleY(1);
 
         // 用 nextScale 计算预览尺寸做边界限制（与桌面端一致的公式）
-        const previewWatermarkWidth =
-            (watermarkImage ? watermarkImage.naturalWidth : 0) *
-            watermarkStandardScale *
-            nextScale *
-            backgroundScale;
+        const previewMetrics =
+            watermarkImage && backgroundImage
+                ? getAdaptiveWatermarkRenderMetrics(
+                      backgroundImage.naturalWidth,
+                      backgroundImage.naturalHeight,
+                      watermarkImage,
+                      nextScale
+                  )
+                : { width: 0, height: 0 };
 
-        const previewWatermarkHeight =
-            (watermarkImage ? watermarkImage.naturalHeight : 0) *
-            watermarkStandardScale *
-            nextScale *
-            backgroundScale;
+        const previewWatermarkWidth = previewMetrics.width * backgroundScale;
+        const previewWatermarkHeight = previewMetrics.height * backgroundScale;
 
         // 计算4像素偏移在预览中的对应值
         const pixelOffset = 4;
@@ -793,15 +790,14 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         if (!backgroundImage || !watermarkImage) return;
         const centerX = 0.5;
         const centerY = 0.5;
-        const minDimension = Math.min(
+        const renderMetrics = getAdaptiveWatermarkRenderMetrics(
             backgroundImage.naturalWidth,
-            backgroundImage.naturalHeight
+            backgroundImage.naturalHeight,
+            watermarkImage,
+            currentScale
         );
-        const standardWatermarkSize = minDimension * 0.1;
-        const standardScale = standardWatermarkSize / watermarkImage.naturalWidth;
-        const finalScale = standardScale * currentScale;
-        const renderWidth = watermarkImage.naturalWidth * finalScale * backgroundScale;
-        const renderHeight = (watermarkImage.naturalHeight / watermarkImage.naturalWidth) * renderWidth;
+        const renderWidth = renderMetrics.width * backgroundScale;
+        const renderHeight = renderMetrics.height * backgroundScale;
         const pixelOffset = 4;
         const previewOffsetX = (pixelOffset / backgroundImage.naturalWidth) * backgroundImageSize.width;
         const previewOffsetY = (pixelOffset / backgroundImage.naturalHeight) * backgroundImageSize.height;
@@ -885,17 +881,18 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         nextScale = Math.max(minScale, Math.min(maxScale, nextScale));
 
         // 计算缩放后水印在预览中的尺寸
-        const previewWatermarkWidth =
-            (watermarkImage ? watermarkImage.naturalWidth : 0) *
-            watermarkStandardScale *
-            nextScale *
-            backgroundScale;
+        const previewMetrics =
+            watermarkImage && backgroundImage
+                ? getAdaptiveWatermarkRenderMetrics(
+                      backgroundImage.naturalWidth,
+                      backgroundImage.naturalHeight,
+                      watermarkImage,
+                      nextScale
+                  )
+                : { width: 0, height: 0 };
 
-        const previewWatermarkHeight =
-            (watermarkImage ? watermarkImage.naturalHeight : 0) *
-            watermarkStandardScale *
-            nextScale *
-            backgroundScale;
+        const previewWatermarkWidth = previewMetrics.width * backgroundScale;
+        const previewWatermarkHeight = previewMetrics.height * backgroundScale;
 
         // 4px 安全边距换算到预览坐标
         const pixelOffset = 4;
@@ -1104,22 +1101,17 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 fixedWidth={(() => {
                                     if (!backgroundImage || !watermarkImage)
                                         return 0;
-                                    const minDimension = Math.min(
-                                        backgroundImage.naturalWidth,
-                                        backgroundImage.naturalHeight
-                                    );
-                                    const standardWatermarkSize =
-                                        minDimension * 0.1; // 以背景较短边的 10% 为标准水印大小
-                                    const standardScale =
-                                        standardWatermarkSize /
-                                        watermarkImage.naturalWidth;
-                                    const finalScale =
-                                        standardScale * currentScale;
+                                    const renderMetrics =
+                                        getAdaptiveWatermarkRenderMetrics(
+                                            backgroundImage.naturalWidth,
+                                            backgroundImage.naturalHeight,
+                                            watermarkImage,
+                                            currentScale
+                                        );
 
                                     // 预览尺寸
                                     return (
-                                        watermarkImage.naturalWidth *
-                                        finalScale *
+                                        renderMetrics.width *
                                         backgroundScale
                                     );
                                 })()}
@@ -1281,17 +1273,17 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
                                     <div className="space-y-2">
                                         <Label>第一行文字</Label>
-                                        <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={mixedWatermarkConfig.textLine1} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine1: e.target.value }))} />
+                                        <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第一行文字" aria-label="第一行文字" placeholder="请输入第一行文字" value={mixedWatermarkConfig.textLine1} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine1: e.target.value }))} />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>第二行文字</Label>
-                                        <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={mixedWatermarkConfig.textLine2} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: e.target.value }))} />
+                                        <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第二行文字" aria-label="第二行文字" placeholder="请输入第二行文字" value={mixedWatermarkConfig.textLine2} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: e.target.value }))} />
                                     </div>
                                     <div className="space-y-2">
                                         <Label>文字颜色</Label>
                                         <div className="flex gap-2">
-                                            <input type="color" className="h-10 w-20 p-1 rounded border" value={mixedWatermarkConfig.color} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, color: e.target.value }))} />
-                                            <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={mixedWatermarkConfig.color} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, color: e.target.value }))} />
+                                            <input type="color" className="h-10 w-20 p-1 rounded border" title="文字颜色" aria-label="文字颜色" value={mixedWatermarkConfig.color} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, color: e.target.value }))} />
+                                            <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="颜色值" aria-label="颜色值" placeholder="#000000" value={mixedWatermarkConfig.color} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, color: e.target.value }))} />
                                         </div>
                                     </div>
                                     <div className="space-y-2">

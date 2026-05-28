@@ -73,24 +73,17 @@
   background-size: 180px;
 }
 
-.app-shell .covers-collage {
+.app-shell .gallery-covers-collage {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  padding: 40px;
-  opacity: 0.15;
+  opacity: 0.16;
   overflow: hidden;
 }
 
-.app-shell .covers-collage img {
-  height: 140px;
-  border-radius: 3px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  object-fit: cover;
+.app-shell .gallery-covers-collage .cover-collage__item {
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.46),
+    0 8px 18px rgba(0, 0, 0, 0.32);
 }
 
 .app-shell .gallery-hero-content {
@@ -247,6 +240,7 @@
   font-family: 'Noto Serif SC', serif;
   font-size: 13px;
   font-weight: 600;
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
@@ -441,6 +435,7 @@
   font-size: 13px;
   text-decoration: none;
   cursor: pointer;
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   transition: all 0.2s;
 }
@@ -764,7 +759,7 @@
     font-size: 12px;
   }
 
-  .app-shell .covers-collage {
+  .app-shell .gallery-covers-collage {
     display: none;
   }
 }

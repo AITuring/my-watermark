@@ -768,6 +768,123 @@ async function loadImageData(files: File[]): Promise<ImageType[]> {
     return Promise.all(promises);
 }
 
+const WATERMARK_BASE_RATIO = 0.1;
+const WATERMARK_MIN_SIZE = 80;
+const WATERMARK_MAX_RATIO = 0.18;
+const watermarkBoundsCache = new WeakMap<HTMLImageElement, ImageBounds>();
+
+interface ImageBounds {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+function getAdaptiveWatermarkTargetSize(
+    imageWidth: number,
+    imageHeight: number
+): number {
+    const minDimension = Math.min(imageWidth, imageHeight);
+    const preferredSize = minDimension * WATERMARK_BASE_RATIO;
+    const cappedMinSize = Math.min(WATERMARK_MIN_SIZE, minDimension * WATERMARK_MAX_RATIO);
+    return Math.min(
+        Math.max(preferredSize, cappedMinSize),
+        minDimension * WATERMARK_MAX_RATIO
+    );
+}
+
+function getAdaptiveWatermarkBaseScale(
+    imageWidth: number,
+    imageHeight: number,
+    watermarkWidth: number
+): number {
+    if (!watermarkWidth) {
+        return 1;
+    }
+
+    return getAdaptiveWatermarkTargetSize(imageWidth, imageHeight) / watermarkWidth;
+}
+
+function getImageOpaqueBounds(image: HTMLImageElement): ImageBounds {
+    const cachedBounds = watermarkBoundsCache.get(image);
+    if (cachedBounds) {
+        return cachedBounds;
+    }
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+        return {
+            x: 0,
+            y: 0,
+            width: image.width,
+            height: image.height,
+        };
+    }
+
+    canvas.width = image.width;
+    canvas.height = image.height;
+    ctx.drawImage(image, 0, 0);
+
+    const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const alpha = data[(y * width + x) * 4 + 3];
+            if (alpha <= 8) {
+                continue;
+            }
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+        }
+    }
+
+    const bounds =
+        maxX >= minX && maxY >= minY
+            ? {
+                  x: minX,
+                  y: minY,
+                  width: maxX - minX + 1,
+                  height: maxY - minY + 1,
+              }
+            : {
+                  x: 0,
+                  y: 0,
+                  width: image.width,
+                  height: image.height,
+              };
+
+    watermarkBoundsCache.set(image, bounds);
+    return bounds;
+}
+
+function getAdaptiveWatermarkRenderMetrics(
+    imageWidth: number,
+    imageHeight: number,
+    watermarkImage: HTMLImageElement,
+    scale = 1
+): ImageBounds {
+    const contentBounds = getImageOpaqueBounds(watermarkImage);
+    const standardScale = getAdaptiveWatermarkBaseScale(
+        imageWidth,
+        imageHeight,
+        contentBounds.width
+    );
+    const finalScale = standardScale * scale;
+
+    return {
+        ...contentBounds,
+        width: contentBounds.width * finalScale,
+        height: contentBounds.height * finalScale,
+    };
+}
+
 // 计算水印的位置
 function calculateWatermarkPosition(
     watermarkImage,
@@ -781,13 +898,15 @@ function calculateWatermarkPosition(
     }
 
     // 使用与预览一致的尺寸计算：标准10% * 用户缩放（position.scaleX）
-    const minDimension = Math.min(imageWidth, imageHeight);
-    const standardWatermarkSize = minDimension * 0.1;
-    const standardScale = standardWatermarkSize / watermarkImage.width;
-    const finalScale = standardScale * (position.scaleX || 1);
-
-    const watermarkWidth = watermarkImage.width * finalScale;
-    const watermarkHeight = watermarkImage.height * finalScale;
+    const contentBounds = getImageOpaqueBounds(watermarkImage);
+    const renderMetrics = getAdaptiveWatermarkRenderMetrics(
+        imageWidth,
+        imageHeight,
+        watermarkImage,
+        position.scaleX || 1
+    );
+    const watermarkWidth = renderMetrics.width;
+    const watermarkHeight = renderMetrics.height;
 
     // 预览里存的是“左上角坐标按图片宽高的百分比”，这里直接还原为像素
     const relX = Math.max(0, Math.min(1, position.x || 0.5));
@@ -804,6 +923,12 @@ function calculateWatermarkPosition(
         y: pxY,
         width: watermarkWidth,
         height: watermarkHeight,
+        crop: {
+            x: contentBounds.x,
+            y: contentBounds.y,
+            width: contentBounds.width,
+            height: contentBounds.height,
+        },
     };
 }
 
@@ -877,6 +1002,7 @@ async function processImage(
                 let canvas: HTMLCanvasElement | null = null;
                 let tempCanvas: HTMLCanvasElement | null = null;
                 let patternCanvas: HTMLCanvasElement | null = null; // 暗水印用到的临时画布
+                let exportStarted = false;
 
                 try {
                     onProgress?.(50);
@@ -913,6 +1039,7 @@ async function processImage(
                     const watermarkY = watermarkPosition.y;
                     const watermarkWidth = watermarkPosition.width;
                     const watermarkHeight = watermarkPosition.height;
+                    const watermarkCrop = watermarkPosition.crop;
 
                     // 文字水印绘制逻辑已移至下方，与图片水印互斥
 
@@ -1153,6 +1280,10 @@ async function processImage(
                         // 普通图片水印
                         ctx.drawImage(
                             watermarkImage,
+                            watermarkCrop.x,
+                            watermarkCrop.y,
+                            watermarkCrop.width,
+                            watermarkCrop.height,
                             -watermarkWidth / 2,
                             -watermarkHeight / 2,
                             watermarkWidth,
@@ -1188,7 +1319,8 @@ async function processImage(
                             pctx.clearRect(0, 0, patternSize, patternSize);
 
                             // 保持水印图案的宽高比
-                            const wmAspect = watermarkImage.width / watermarkImage.height;
+                            const tileSourceBounds = getImageOpaqueBounds(watermarkImage);
+                            const wmAspect = tileSourceBounds.width / tileSourceBounds.height;
                             let drawW = tileSize;
                             let drawH = tileSize;
                             if (wmAspect > 1) {
@@ -1202,7 +1334,17 @@ async function processImage(
                             // 将水印图案绘制到瓦片中
                             pctx.save();
                             pctx.globalAlpha = 1; // 在主画布控制总体透明度
-                            pctx.drawImage(watermarkImage, dx, dy, drawW, drawH);
+                            pctx.drawImage(
+                                watermarkImage,
+                                tileSourceBounds.x,
+                                tileSourceBounds.y,
+                                tileSourceBounds.width,
+                                tileSourceBounds.height,
+                                dx,
+                                dy,
+                                drawW,
+                                drawH
+                            );
                             pctx.restore();
 
                             const pattern = ctx.createPattern(patternCanvas, "repeat");
@@ -1231,32 +1373,41 @@ async function processImage(
                     onProgress?.(90);
 
                     // 导出最终的图片
+                    exportStarted = true;
                     canvas.toBlob(
                         (blob) => {
-                            if (blob) {
-                                const url = memoryManager.createObjectURL(blob);
-                                onProgress?.(100);
+                            try {
+                                if (blob) {
+                                    const url = memoryManager.createObjectURL(blob);
+                                    onProgress?.(100);
 
-                                const endTime = performance.now();
-                                console.log(
-                                    `处理图片耗时: ${(
-                                        endTime - startTime
-                                    ).toFixed(2)} ms`
-                                );
+                                    const endTime = performance.now();
+                                    console.log(
+                                        `处理图片耗时: ${(
+                                            endTime - startTime
+                                        ).toFixed(2)} ms`
+                                    );
 
-                                resolve({ url, name: file.name });
-                            } else {
-                                reject(new Error("图片导出失败"));
+                                    resolve({ url, name: file.name });
+                                } else {
+                                    reject(new Error("图片导出失败"));
+                                }
+                            } finally {
+                                if (canvas) {
+                                    memoryManager.releaseCanvas(canvas);
+                                }
                             }
                         },
                         "image/jpeg",
                         quality
                     );
                 } catch (error) {
+                    if (canvas && !exportStarted) {
+                        memoryManager.releaseCanvas(canvas);
+                    }
                     reject(error);
                 } finally {
                     // 清理资源
-                    if (canvas) memoryManager.releaseCanvas(canvas);
                     if (tempCanvas) memoryManager.releaseCanvas(tempCanvas);
                     if (patternCanvas) memoryManager.releaseCanvas(patternCanvas); // 释放暗水印临时画布
                 }
@@ -1542,6 +1693,9 @@ async function applyColorToWatermark(watermarkUrl, color) {
 export {
     uuid,
     loadImageData,
+    getAdaptiveWatermarkBaseScale,
+    getImageOpaqueBounds,
+    getAdaptiveWatermarkRenderMetrics,
     calculateWatermarkPosition,
     debounce,
     processImage,
