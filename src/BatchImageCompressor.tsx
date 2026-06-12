@@ -3,12 +3,14 @@ import { useDropzone } from 'react-dropzone';
 import imageCompression from 'browser-image-compression';
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
+import { useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Download, Upload, Image as ImageIcon } from 'lucide-react';
 import { FractalBackground } from '@/components/FractalBackground';
+import { setPendingCropTransfer, type TransferTarget } from '@/utils/crop-transfer';
 
 interface CompressedImage {
   id: string;
@@ -20,6 +22,7 @@ interface CompressedImage {
 }
 
 const BatchImageCompressor: React.FC = () => {
+  const navigate = useNavigate();
   const [images, setImages] = useState<CompressedImage[]>([]);
   const [quality, setQuality] = useState([0.8]); // 默认质量80%
   const [isCompressing, setIsCompressing] = useState(false);
@@ -129,6 +132,20 @@ const BatchImageCompressor: React.FC = () => {
     }
 
     setIsExporting(false);
+  };
+
+  const handleRouteTransfer = (target: TransferTarget) => {
+    const files = images
+      .map((image) => image.compressedFile)
+      .filter((file): file is File => Boolean(file));
+
+    if (!files.length) {
+      alert('没有压缩后的图片可发送');
+      return;
+    }
+
+    setPendingCropTransfer(target, files);
+    navigate(target === 'watermark' ? '/watermark' : '/crop');
   };
 
   // 删除图片
@@ -250,7 +267,7 @@ const BatchImageCompressor: React.FC = () => {
 
           {/* 导出按钮 */}
           {images.some(img => img.compressedFile) && (
-            <div className="flex justify-center">
+            <div className="flex justify-center gap-3 flex-wrap">
               <Button
                 onClick={handleBatchExport}
                 disabled={isExporting}
@@ -259,6 +276,20 @@ const BatchImageCompressor: React.FC = () => {
               >
                 <Download className="w-4 h-4 mr-2" />
                 {isExporting ? '导出中...' : '批量导出压缩图片'}
+              </Button>
+              <Button
+                onClick={() => handleRouteTransfer('watermark')}
+                variant="outline"
+                size="lg"
+              >
+                发送到水印
+              </Button>
+              <Button
+                onClick={() => handleRouteTransfer('crop')}
+                variant="outline"
+                size="lg"
+              >
+                发送到裁切
               </Button>
             </div>
           )}

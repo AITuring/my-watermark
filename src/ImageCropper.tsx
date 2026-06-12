@@ -8,7 +8,11 @@ import { toast } from "sonner";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { useNavigate } from "react-router-dom";
-import { setPendingCropTransfer, type TransferTarget } from "@/utils/crop-transfer";
+import {
+    consumePendingCropTransfer,
+    setPendingCropTransfer,
+    type TransferTarget,
+} from "@/utils/crop-transfer";
 
 type CropMode = "fixed" | "ratio" | "free";
 type DragMode = "new" | "move" | "nw" | "ne" | "sw" | "se";
@@ -87,6 +91,20 @@ const createCenteredFreeCrop = (imgW: number, imgH: number): CropBox => {
     return { x, y, w, h };
 };
 
+const getDefaultCrop = (imgW: number, imgH: number, mode: CropMode, ratio: number | null) =>
+    mode === "free" ? createCenteredFreeCrop(imgW, imgH) : createCenteredCrop(imgW, imgH, ratio ?? 1);
+
+const loadImageElement = (src: string) =>
+    new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("load-image-failed"));
+        img.src = src;
+        if (img.complete && img.naturalWidth > 0) {
+            resolve(img);
+        }
+    });
+
 const buildAspectBox = (
     anchor: { x: number; y: number },
     point: { x: number; y: number },
@@ -125,6 +143,7 @@ export default function ImageCropper() {
     const [ratioPreset, setRatioPreset] = useState("1:1");
     const [customRatioW, setCustomRatioW] = useState(1);
     const [customRatioH, setCustomRatioH] = useState(1);
+    const [customAngle, setCustomAngle] = useState(0);
     const [isRoutingExporting, setIsRoutingExporting] = useState(false);
     const stageRef = useRef<HTMLDivElement | null>(null);
     const dragRef = useRef<DragState>({
@@ -172,9 +191,123 @@ export default function ImageCropper() {
         };
     }, []);
 
+    const loadFiles = async (files: File[]) => {
+        if (!files.length) return;
+        const loaded = await Promise.all(
+            files.map(
+                (file) =>
+                    new Promise<CropImage | null>((resolve) => {
+                        const url = URL.createObjectURL(file);
+                        const img = new Image();
+                        img.src = url;
+                        img.onload = () => {
+                            objectUrlsRef.current.push(url);
+                            const crop =
+                                mode === "free"
+                                    ? createCenteredFreeCrop(img.width, img.height)
+                                    : createCenteredCrop(img.width, img.height, selectedRatio ?? 1);
+                            resolve({
+                                id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+                                name: file.name.replace(/\.[^/.]+$/, "") || "image",
+                                url,
+                                width: img.width,
+                                height: img.height,
+                                crop,
+                            });
+                        };
+                        img.onerror = () => {
+                            URL.revokeObjectURL(url);
+                            resolve(null);
+                        };
+                    })
+            )
+        );
+        const valid = loaded.filter((item): item is CropImage => Boolean(item));
+        if (!valid.length) {
+            toast.error("图片读取失败");
+            return;
+        }
+        setImages((prev) => [...prev, ...valid]);
+        setActiveId((prev) => prev ?? valid[0].id);
+        toast.success(`已加载 ${valid.length} 张图片`);
+    };
+
+    useEffect(() => {
+        const incomingFiles = consumePendingCropTransfer("crop");
+        if (!incomingFiles.length) return;
+        void loadFiles(incomingFiles);
+    }, []);
+
     const releaseUrl = (url: string) => {
         URL.revokeObjectURL(url);
         objectUrlsRef.current = objectUrlsRef.current.filter((item) => item !== url);
+    };
+
+    const transformImage = async (image: CropImage, angleDeg: number) => {
+        const img = await loadImageElement(image.url);
+
+        const angleRad = (angleDeg * Math.PI) / 180;
+        const sin = Math.abs(Math.sin(angleRad));
+        const cos = Math.abs(Math.cos(angleRad));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.ceil(image.width * cos + image.height * sin));
+        canvas.height = Math.max(1, Math.ceil(image.width * sin + image.height * cos));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+            throw new Error("canvas-context-unavailable");
+        }
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(angleRad);
+        ctx.drawImage(img, -image.width / 2, -image.height / 2);
+
+        const blob = await new Promise<Blob | null>((resolve) =>
+            canvas.toBlob(resolve, "image/jpeg", 0.95)
+        );
+        if (!blob) {
+            throw new Error("transform-export-failed");
+        }
+
+        return {
+            url: URL.createObjectURL(blob),
+            width: canvas.width,
+            height: canvas.height,
+        };
+    };
+
+    const applyRotationToActive = async (angleDeg: number) => {
+        if (!activeImage) {
+            toast.error("请先选择图片");
+            return;
+        }
+
+        if (!Number.isFinite(angleDeg) || Math.abs(angleDeg) < 0.0001) {
+            toast.error("请输入有效角度");
+            return;
+        }
+
+        try {
+            const nextImage = await transformImage(activeImage, angleDeg);
+            objectUrlsRef.current.push(nextImage.url);
+            setImages((prev) =>
+                prev.map((item) => {
+                    if (item.id !== activeImage.id) return item;
+                    return {
+                        ...item,
+                        url: nextImage.url,
+                        width: nextImage.width,
+                        height: nextImage.height,
+                        crop: getDefaultCrop(nextImage.width, nextImage.height, mode, selectedRatio),
+                    };
+                })
+            );
+            releaseUrl(activeImage.url);
+        } catch (error) {
+            console.error(error);
+            toast.error("几何变换失败，请重试");
+        }
     };
 
     const updateActiveCrop = (updater: (prev: CropBox, image: CropImage) => CropBox) => {
@@ -297,43 +430,7 @@ export default function ImageCropper() {
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files ?? []);
         if (!files.length) return;
-        const loaded = await Promise.all(
-            files.map(
-                (file) =>
-                    new Promise<CropImage | null>((resolve) => {
-                        const url = URL.createObjectURL(file);
-                        const img = new Image();
-                        img.src = url;
-                        img.onload = () => {
-                            objectUrlsRef.current.push(url);
-                            const crop =
-                                mode === "free"
-                                    ? createCenteredFreeCrop(img.width, img.height)
-                                    : createCenteredCrop(img.width, img.height, selectedRatio ?? 1);
-                            resolve({
-                                id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-                                name: file.name.replace(/\.[^/.]+$/, "") || "image",
-                                url,
-                                width: img.width,
-                                height: img.height,
-                                crop,
-                            });
-                        };
-                        img.onerror = () => {
-                            URL.revokeObjectURL(url);
-                            resolve(null);
-                        };
-                    })
-            )
-        );
-        const valid = loaded.filter((item): item is CropImage => Boolean(item));
-        if (!valid.length) {
-            toast.error("图片读取失败");
-            return;
-        }
-        setImages((prev) => [...prev, ...valid]);
-        setActiveId((prev) => prev ?? valid[0].id);
-        toast.success(`已加载 ${valid.length} 张图片`);
+        await loadFiles(files);
         e.target.value = "";
     };
 
@@ -367,12 +464,7 @@ export default function ImageCropper() {
         outputW: number,
         outputH: number
     ) => {
-        const img = new Image();
-        img.src = image.url;
-        await new Promise<void>((resolve, reject) => {
-            img.onload = () => resolve();
-            img.onerror = () => reject(new Error("load-image-failed"));
-        });
+        const img = await loadImageElement(image.url);
         const canvas = document.createElement("canvas");
         canvas.width = outputW;
         canvas.height = outputH;
@@ -646,6 +738,33 @@ export default function ImageCropper() {
                                 <Button variant="secondary" onClick={resetAllCrop} disabled={!images.length}>
                                     重置全部
                                 </Button>
+                            </div>
+                            <div className="space-y-2 rounded-md border p-3">
+                                <div className="text-sm">几何操作</div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button variant="secondary" onClick={() => applyRotationToActive(90)} disabled={!activeImage}>
+                                        顺时针 90 度
+                                    </Button>
+                                    <Button variant="secondary" onClick={() => applyRotationToActive(-90)} disabled={!activeImage}>
+                                        逆时针 90 度
+                                    </Button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 items-center">
+                                    <Input
+                                        type="number"
+                                        value={customAngle}
+                                        step="0.1"
+                                        className="w-32"
+                                        onChange={(e) => setCustomAngle(Number(e.target.value || 0))}
+                                        placeholder="角度"
+                                    />
+                                    <Button variant="secondary" onClick={() => applyRotationToActive(customAngle)} disabled={!activeImage}>
+                                        应用自定义角度
+                                    </Button>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    正数为顺时针，负数为逆时针。旋转会直接作用到当前图片，预览、裁切和导出保持一致。
+                                </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 <Button onClick={exportCurrent} disabled={!activeImage}>
