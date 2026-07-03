@@ -33,7 +33,9 @@ export interface FocusStackResult {
 
 type LoadedImage = ImageBitmap | HTMLImageElement;
 
-const DEFAULT_ANALYSIS_MAX_DIMENSION = 1600;
+const DEFAULT_ANALYSIS_MAX_DIMENSION = 1024;
+// 融合处理的像素预算：超过则按比例下采样，防止大图爆内存导致浏览器崩溃。
+const MAX_PROCESS_PIXELS = 24_000_000;
 
 function createCanvas(width: number, height: number): HTMLCanvasElement {
     const canvas = document.createElement("canvas");
@@ -75,6 +77,14 @@ function disposeImageSource(source: LoadedImage) {
     }
 }
 
+function getCanvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) {
+        throw new Error("Canvas 上下文不可用");
+    }
+    return ctx;
+}
+
 function drawAlignedImage(
     ctx: CanvasRenderingContext2D,
     source: CanvasImageSource,
@@ -87,6 +97,7 @@ function drawAlignedImage(
     ctx.save();
     ctx.clearRect(0, 0, width, height);
     ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.translate(width / 2 + shiftX, height / 2 + shiftY);
     ctx.scale(scale, scale);
     ctx.drawImage(source, -width / 2, -height / 2, width, height);
@@ -113,15 +124,13 @@ function computeLaplacianMap(
         for (let x = 1; x < width - 1; x += 1) {
             const index = row + x;
             const center = gray[index];
-            const value =
-                Math.abs(
-                    4 * center -
-                        gray[index - 1] -
-                        gray[index + 1] -
-                        gray[index - width] -
-                        gray[index + width]
-                );
-            output[index] = value;
+            output[index] = Math.abs(
+                4 * center -
+                    gray[index - 1] -
+                    gray[index + 1] -
+                    gray[index - width] -
+                    gray[index + width]
+            );
         }
     }
     return output;
@@ -177,41 +186,6 @@ function boxBlurMap(
     return output;
 }
 
-function normalizeMapToCanvas(
-    map: Float32Array,
-    width: number,
-    height: number
-): HTMLCanvasElement {
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-        throw new Error("Canvas 初始化失败");
-    }
-
-    let min = Number.POSITIVE_INFINITY;
-    let max = Number.NEGATIVE_INFINITY;
-    for (let i = 0; i < map.length; i += 1) {
-        const value = map[i];
-        if (value < min) min = value;
-        if (value > max) max = value;
-    }
-
-    const range = Math.max(1e-6, max - min);
-    const imageData = ctx.createImageData(width, height);
-    for (let i = 0, p = 0; p < map.length; i += 4, p += 1) {
-        const normalized = Math.max(
-            0,
-            Math.min(255, Math.round(((map[p] - min) / range) * 255))
-        );
-        imageData.data[i] = normalized;
-        imageData.data[i + 1] = normalized;
-        imageData.data[i + 2] = normalized;
-        imageData.data[i + 3] = 255;
-    }
-    ctx.putImageData(imageData, 0, 0);
-    return canvas;
-}
-
 function percentile(values: number[], ratio: number): number {
     if (values.length === 0) {
         return 0;
@@ -241,16 +215,45 @@ function normalizeScoreMap(map: Float32Array): Float32Array {
     return output;
 }
 
+function normalizeMapToCanvas(
+    map: Float32Array,
+    width: number,
+    height: number
+): HTMLCanvasElement {
+    const canvas = createCanvas(width, height);
+    const ctx = getCanvasContext(canvas);
+
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (let i = 0; i < map.length; i += 1) {
+        const value = map[i];
+        if (value < min) min = value;
+        if (value > max) max = value;
+    }
+
+    const range = Math.max(1e-6, max - min);
+    const imageData = ctx.createImageData(width, height);
+    for (let i = 0, p = 0; p < map.length; i += 4, p += 1) {
+        const normalized = Math.max(
+            0,
+            Math.min(255, Math.round(((map[p] - min) / range) * 255))
+        );
+        imageData.data[i] = normalized;
+        imageData.data[i + 1] = normalized;
+        imageData.data[i + 2] = normalized;
+        imageData.data[i + 3] = 255;
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
+}
+
 function maskToCanvas(
     mask: Float32Array,
     width: number,
     height: number
 ): HTMLCanvasElement {
     const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-        throw new Error("Canvas 初始化失败");
-    }
+    const ctx = getCanvasContext(canvas);
     const imageData = ctx.createImageData(width, height);
     for (let i = 0, p = 0; p < mask.length; i += 4, p += 1) {
         const value = Math.max(0, Math.min(255, Math.round(mask[p] * 255)));
@@ -269,19 +272,14 @@ function winnerOverlayToCanvas(
     height: number
 ): HTMLCanvasElement {
     const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-        throw new Error("Canvas 初始化失败");
-    }
+    const ctx = getCanvasContext(canvas);
 
     const imageData = ctx.createImageData(width, height);
     for (let i = 0, p = 0; p < mask.length; i += 4, p += 1) {
         const value = mask[p];
-        const red = Math.round((1 - value) * 255);
-        const blue = Math.round(value * 255);
-        imageData.data[i] = red;
+        imageData.data[i] = Math.round((1 - value) * 255);
         imageData.data[i + 1] = 0;
-        imageData.data[i + 2] = blue;
+        imageData.data[i + 2] = Math.round(value * 255);
         imageData.data[i + 3] = 180;
     }
     ctx.putImageData(imageData, 0, 0);
@@ -294,13 +292,17 @@ async function canvasToObjectUrl(
     quality?: number
 ): Promise<string> {
     const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((value) => {
-            if (!value) {
-                reject(new Error("图片导出失败"));
-                return;
-            }
-            resolve(value);
-        }, type, quality);
+        canvas.toBlob(
+            (value) => {
+                if (!value) {
+                    reject(new Error("图片导出失败"));
+                    return;
+                }
+                resolve(value);
+            },
+            type,
+            quality
+        );
     });
 
     return URL.createObjectURL(blob);
@@ -344,7 +346,8 @@ function estimateTranslation(
                 }
             }
 
-            const normalizedScore = count > 0 ? score / count : Number.NEGATIVE_INFINITY;
+            const normalizedScore =
+                count > 0 ? score / count : Number.NEGATIVE_INFINITY;
             if (normalizedScore > bestScore) {
                 bestScore = normalizedScore;
                 bestX = dx;
@@ -356,240 +359,144 @@ function estimateTranslation(
     return { x: bestX, y: bestY };
 }
 
-function smoothstep(edge0: number, edge1: number, value: number): number {
-    const denominator = Math.max(1e-6, edge1 - edge0);
-    const t = Math.max(0, Math.min(1, (value - edge0) / denominator));
-    return t * t * (3 - 2 * t);
+interface ChannelPlanes {
+    r: Float32Array;
+    g: Float32Array;
+    b: Float32Array;
+    lum: Float32Array;
+    width: number;
+    height: number;
 }
 
-function mixMaps(
-    first: Float32Array,
-    second: Float32Array,
-    firstWeight: number
-): Float32Array {
-    const mixed = new Float32Array(first.length);
-    const secondWeight = 1 - firstWeight;
-    for (let i = 0; i < first.length; i += 1) {
-        mixed[i] = first[i] * firstWeight + second[i] * secondWeight;
-    }
-    return mixed;
-}
-
-function confidenceOf(a: number, b: number): number {
-    return (b - a) / (a + b + 1e-6);
-}
-
-function computeSobelMagnitudeMap(
-    gray: Float32Array,
+function imageDataToChannelPlanes(
+    data: Uint8ClampedArray,
     width: number,
     height: number
-): Float32Array {
-    const output = new Float32Array(width * height);
-    for (let y = 1; y < height - 1; y += 1) {
-        const row = y * width;
-        for (let x = 1; x < width - 1; x += 1) {
-            const index = row + x;
-            const gx =
-                -gray[index - width - 1] +
-                gray[index - width + 1] -
-                2 * gray[index - 1] +
-                2 * gray[index + 1] -
-                gray[index + width - 1] +
-                gray[index + width + 1];
-            const gy =
-                gray[index - width - 1] +
-                2 * gray[index - width] +
-                gray[index - width + 1] -
-                gray[index + width - 1] -
-                2 * gray[index + width] -
-                gray[index + width + 1];
-            output[index] = Math.sqrt(gx * gx + gy * gy);
-        }
+): ChannelPlanes {
+    const length = width * height;
+    const r = new Float32Array(length);
+    const g = new Float32Array(length);
+    const b = new Float32Array(length);
+    const lum = new Float32Array(length);
+    for (let i = 0, p = 0; p < length; i += 4, p += 1) {
+        const rr = data[i];
+        const gg = data[i + 1];
+        const bb = data[i + 2];
+        r[p] = rr;
+        g[p] = gg;
+        b[p] = bb;
+        lum[p] = rr * 0.299 + gg * 0.587 + bb * 0.114;
     }
-    return output;
+    return { r, g, b, lum, width, height };
 }
 
-function squareMap(source: Float32Array): Float32Array {
-    const output = new Float32Array(source.length);
-    for (let i = 0; i < source.length; i += 1) {
-        output[i] = source[i] * source[i];
-    }
-    return output;
-}
-
-function computeLocalVarianceMap(
-    gray: Float32Array,
+// 在“归一化分析分辨率”下计算归属掩膜。
+// 这是消除斑块的关键：清晰度/连贯窗口是绝对像素，若直接在原始高分辨率上计算，
+// 窗口相对纹理（如谷纹）太小，判定会在纹理尺度上来回翻转 → 斑块。
+// 固定在约 1024px 上决策，窗口相对纹理才够大，能把整块区域稳定归属同一张。
+// 掩膜随后被放大回原分辨率，最终像素仍取自全分辨率原图，清晰度不损失。
+function computeDecisionMask(
+    lumA: Float32Array,
+    lumB: Float32Array,
     width: number,
     height: number,
-    radius: number
+    options: FocusStackOptions
 ): Float32Array {
-    const mean = boxBlurMap(gray, width, height, radius);
-    const meanSq = boxBlurMap(squareMap(gray), width, height, radius);
-    const variance = new Float32Array(gray.length);
-    for (let i = 0; i < gray.length; i += 1) {
-        variance[i] = Math.max(0, meanSq[i] - mean[i] * mean[i]);
+    const size = width * height;
+
+    // 局部清晰度度量：亮度拉普拉斯（越大越清晰），再做一次平滑消除噪声。
+    const focusRadius = Math.max(1, Math.round(options.smoothRadius));
+    const focusA = boxBlurMap(
+        computeLaplacianMap(lumA, width, height),
+        width,
+        height,
+        focusRadius
+    );
+    const focusB = boxBlurMap(
+        computeLaplacianMap(lumB, width, height),
+        width,
+        height,
+        focusRadius
+    );
+
+    // B 相对 A 的“清晰度优势”，归一化到 [-1,1]（与绝对对比度无关）。
+    const advantage = new Float32Array(size);
+    for (let i = 0; i < size; i += 1) {
+        advantage[i] = (focusB[i] - focusA[i]) / (focusB[i] + focusA[i] + 1e-3);
     }
-    return variance;
+
+    // 连贯化：抹平细小抖动，避免逐像素翻转产生斑块；
+    // 较大窗口让强纹理区把“归属”扩散到相邻的平滑缝隙，使整块区域来自同一张。
+    const coherenceRadius = Math.max(6, Math.round(options.smoothRadius * 2));
+    const coherent = boxBlurMap(advantage, width, height, coherenceRadius);
+
+    // 置信度地板：区域清晰度太低（暗部/两张都平坦）时判定无意义，
+    // 直接归属参考图 A，避免背景出现无意义的碎斑。地板取全图 90 百分位的一小部分。
+    const regionalA = boxBlurMap(focusA, width, height, coherenceRadius);
+    const regionalB = boxBlurMap(focusB, width, height, coherenceRadius);
+    const magnitudeSamples: number[] = [];
+    for (let i = 0; i < size; i += 7) {
+        magnitudeSamples.push(Math.max(regionalA[i], regionalB[i]));
+    }
+    magnitudeSamples.sort((a, b) => a - b);
+    const confidenceFloor = percentile(magnitudeSamples, 0.9) * 0.06;
+
+    // 关键：只有当 B 明显比 A 更清晰（优势超过 margin）且该处清晰度可信时，
+    // 才切换到 B。否则稳定保留参考图 A —— 这样“两张都清晰/都模糊”的暧昧区
+    // （比如玉璧表面两张都在景深内）不会来回翻转 → 消除斑块糊。
+    const margin = Math.max(0.06, options.confidenceThreshold);
+    const decisionMask = new Float32Array(size);
+    for (let i = 0; i < size; i += 1) {
+        const confident = Math.max(regionalA[i], regionalB[i]) > confidenceFloor;
+        decisionMask[i] = confident && coherent[i] > margin ? 1 : 0;
+    }
+
+    // 窄羽化，仅消除接缝锯齿。
+    const feather = Math.max(1, Math.round(options.featherRadius) + 1);
+    return boxBlurMap(decisionMask, width, height, feather);
 }
 
-function buildDecisionMask(
-    gradientA: Float32Array,
-    gradientB: Float32Array,
-    laplacianA: Float32Array,
-    laplacianB: Float32Array,
-    varianceA: Float32Array,
-    varianceB: Float32Array,
-    threshold: number
+// 把分析分辨率的掩膜用双线性放大到目标分辨率，返回 0..1 权重。
+function upscaleMaskToWeights(
+    mask: Float32Array,
+    maskWidth: number,
+    maskHeight: number,
+    targetWidth: number,
+    targetHeight: number
 ): Float32Array {
-    const mask = new Float32Array(gradientA.length);
-    for (let i = 0; i < gradientA.length; i += 1) {
-        const gradientConfidence = confidenceOf(gradientA[i], gradientB[i]);
-        const laplacianConfidence = confidenceOf(laplacianA[i], laplacianB[i]);
-        const varianceConfidence = confidenceOf(varianceA[i], varianceB[i]);
-        const decisiveConfidence =
-            gradientConfidence * 0.45 +
-            laplacianConfidence * 0.35 +
-            varianceConfidence * 0.2;
-
-        if (decisiveConfidence <= -threshold) {
-            mask[i] = 0;
-            continue;
-        }
-
-        if (decisiveConfidence >= threshold) {
-            mask[i] = 1;
-            continue;
-        }
-
-        mask[i] = smoothstep(-threshold, threshold, decisiveConfidence);
+    const smallCanvas = maskToCanvas(mask, maskWidth, maskHeight);
+    const bigCanvas = createCanvas(targetWidth, targetHeight);
+    const ctx = getCanvasContext(bigCanvas);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(smallCanvas, 0, 0, targetWidth, targetHeight);
+    const data = ctx.getImageData(0, 0, targetWidth, targetHeight).data;
+    const out = new Float32Array(targetWidth * targetHeight);
+    for (let i = 0, p = 0; p < out.length; i += 4, p += 1) {
+        out[p] = data[i] / 255;
     }
-    return mask;
+    return out;
 }
 
-function buildRegionalWinnerMask(
-    scoreA: Float32Array,
-    scoreB: Float32Array,
+function channelsToCanvas(
+    r: Float32Array,
+    g: Float32Array,
+    b: Float32Array,
     width: number,
-    height: number,
-    radius: number,
-    threshold: number
-): Float32Array {
-    const regionalA = boxBlurMap(scoreA, width, height, radius);
-    const regionalB = boxBlurMap(scoreB, width, height, radius);
-    const mask = new Float32Array(scoreA.length);
-
-    for (let i = 0; i < scoreA.length; i += 1) {
-        const confidence = confidenceOf(regionalA[i], regionalB[i]);
-        if (confidence <= -threshold) {
-            mask[i] = 0;
-            continue;
-        }
-        if (confidence >= threshold) {
-            mask[i] = 1;
-            continue;
-        }
-        mask[i] = smoothstep(-threshold, threshold, confidence);
+    height: number
+): HTMLCanvasElement {
+    const canvas = createCanvas(width, height);
+    const ctx = getCanvasContext(canvas);
+    const imageData = ctx.createImageData(width, height);
+    const data = imageData.data;
+    for (let i = 0, p = 0; p < r.length; i += 4, p += 1) {
+        data[i] = Math.max(0, Math.min(255, Math.round(r[p])));
+        data[i + 1] = Math.max(0, Math.min(255, Math.round(g[p])));
+        data[i + 2] = Math.max(0, Math.min(255, Math.round(b[p])));
+        data[i + 3] = 255;
     }
-
-    return mask;
-}
-
-function buildBlockWinnerMask(
-    scoreA: Float32Array,
-    scoreB: Float32Array,
-    width: number,
-    height: number,
-    blockSize: number,
-    threshold: number
-): Float32Array {
-    const mask = new Float32Array(width * height);
-    const effectiveBlockSize = Math.max(8, blockSize);
-
-    for (let blockY = 0; blockY < height; blockY += effectiveBlockSize) {
-        for (let blockX = 0; blockX < width; blockX += effectiveBlockSize) {
-            const endY = Math.min(height, blockY + effectiveBlockSize);
-            const endX = Math.min(width, blockX + effectiveBlockSize);
-            let sumA = 0;
-            let sumB = 0;
-            let count = 0;
-
-            for (let y = blockY; y < endY; y += 1) {
-                const row = y * width;
-                for (let x = blockX; x < endX; x += 1) {
-                    const index = row + x;
-                    sumA += scoreA[index];
-                    sumB += scoreB[index];
-                    count += 1;
-                }
-            }
-
-            const averageA = count > 0 ? sumA / count : 0;
-            const averageB = count > 0 ? sumB / count : 0;
-            const confidence = confidenceOf(averageA, averageB);
-            const winner = confidence >= -threshold ? (averageA >= averageB ? 0 : 1) : 0;
-
-            for (let y = blockY; y < endY; y += 1) {
-                const row = y * width;
-                for (let x = blockX; x < endX; x += 1) {
-                    mask[row + x] = winner;
-                }
-            }
-        }
-    }
-
-    return mask;
-}
-
-function mergeMasks(
-    regionalMask: Float32Array,
-    detailMask: Float32Array
-): Float32Array {
-    const output = new Float32Array(regionalMask.length);
-    for (let i = 0; i < regionalMask.length; i += 1) {
-        const regionalValue = regionalMask[i];
-        if (regionalValue <= 0.08 || regionalValue >= 0.92) {
-            output[i] = regionalValue >= 0.5 ? 1 : 0;
-            continue;
-        }
-
-        // 大区域先决定归属，只在交界不明确时用细节图修边。
-        output[i] = regionalValue * 0.9 + detailMask[i] * 0.1 >= 0.5 ? 1 : 0;
-    }
-    return output;
-}
-
-function featherBinaryBoundaryMask(
-    binaryMask: Float32Array,
-    width: number,
-    height: number,
-    featherRadius: number
-): Float32Array {
-    if (featherRadius <= 0) {
-        return binaryMask;
-    }
-
-    const blurred = boxBlurMap(binaryMask, width, height, featherRadius);
-    const output = new Float32Array(binaryMask.length);
-    for (let y = 0; y < height; y += 1) {
-        for (let x = 0; x < width; x += 1) {
-            const i = y * width + x;
-            const original = binaryMask[i];
-            let boundary = false;
-            if (x > 0 && binaryMask[i - 1] !== original) boundary = true;
-            if (x < width - 1 && binaryMask[i + 1] !== original) boundary = true;
-            if (y > 0 && binaryMask[i - width] !== original) boundary = true;
-            if (y < height - 1 && binaryMask[i + width] !== original) boundary = true;
-
-            if (!boundary) {
-                output[i] = original;
-                continue;
-            }
-
-            const feathered = blurred[i];
-            output[i] = Math.max(0, Math.min(1, feathered));
-        }
-    }
-    return output;
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
 }
 
 function getEffectiveAnalysisSize(
@@ -606,12 +513,19 @@ function getEffectiveAnalysisSize(
     };
 }
 
-function getCanvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-        throw new Error("Canvas 上下文不可用");
+function getProcessSize(
+    width: number,
+    height: number
+): { width: number; height: number } {
+    const totalPixels = width * height;
+    if (totalPixels <= MAX_PROCESS_PIXELS) {
+        return { width, height };
     }
-    return ctx;
+    const ratio = Math.sqrt(MAX_PROCESS_PIXELS / totalPixels);
+    return {
+        width: Math.max(1, Math.round(width * ratio)),
+        height: Math.max(1, Math.round(height * ratio)),
+    };
 }
 
 function reportProgress(
@@ -635,25 +549,28 @@ export async function createFocusStackResult(
     ]);
 
     try {
-        const outputWidth = Math.min(firstSource.width, secondSource.width);
-        const outputHeight = Math.min(firstSource.height, secondSource.height);
+        const nativeWidth = Math.min(firstSource.width, secondSource.width);
+        const nativeHeight = Math.min(firstSource.height, secondSource.height);
+        const processSize = getProcessSize(nativeWidth, nativeHeight);
+        const outputWidth = processSize.width;
+        const outputHeight = processSize.height;
+
         const analysisSize = getEffectiveAnalysisSize(
             outputWidth,
             outputHeight,
             options.analysisMaxDimension ?? DEFAULT_ANALYSIS_MAX_DIMENSION
         );
 
+        // --- 低分辨率对齐分析 ---
         const basePreviewCanvas = createCanvas(analysisSize.width, analysisSize.height);
-        const alignedPreviewCanvas = createCanvas(analysisSize.width, analysisSize.height);
-        const basePreviewCtx = getCanvasContext(basePreviewCanvas);
-        const alignedPreviewCtx = getCanvasContext(alignedPreviewCanvas);
-
-        drawAlignedImage(
-            basePreviewCtx,
-            firstSource,
+        const alignedPreviewCanvas = createCanvas(
             analysisSize.width,
             analysisSize.height
         );
+        const basePreviewCtx = getCanvasContext(basePreviewCanvas);
+        const alignedPreviewCtx = getCanvasContext(alignedPreviewCanvas);
+
+        drawAlignedImage(basePreviewCtx, firstSource, analysisSize.width, analysisSize.height);
         drawAlignedImage(
             alignedPreviewCtx,
             secondSource,
@@ -661,33 +578,34 @@ export async function createFocusStackResult(
             analysisSize.height
         );
 
-        reportProgress(onProgress, 20, "分析对齐");
+        reportProgress(onProgress, 18, "分析对齐");
         const baseGray = rgbaToGrayscale(
             basePreviewCtx.getImageData(0, 0, analysisSize.width, analysisSize.height).data
         );
         const targetGray = rgbaToGrayscale(
-            alignedPreviewCtx.getImageData(0, 0, analysisSize.width, analysisSize.height).data
-        );
-        const baseEdgesForAlign = computeLaplacianMap(
-            baseGray,
-            analysisSize.width,
-            analysisSize.height
-        );
-        const targetEdgesForAlign = computeLaplacianMap(
-            targetGray,
-            analysisSize.width,
-            analysisSize.height
+            alignedPreviewCtx.getImageData(0, 0, analysisSize.width, analysisSize.height)
+                .data
         );
 
         let autoOffset = { x: 0, y: 0 };
         if (options.autoAlign) {
+            const baseEdges = computeLaplacianMap(
+                baseGray,
+                analysisSize.width,
+                analysisSize.height
+            );
+            const targetEdges = computeLaplacianMap(
+                targetGray,
+                analysisSize.width,
+                analysisSize.height
+            );
             const scaledSearchRadius = Math.max(
                 1,
                 Math.round(options.searchRadius * analysisSize.scale)
             );
             const offset = estimateTranslation(
-                baseEdgesForAlign,
-                targetEdgesForAlign,
+                baseEdges,
+                targetEdges,
                 analysisSize.width,
                 analysisSize.height,
                 scaledSearchRadius
@@ -698,11 +616,10 @@ export async function createFocusStackResult(
             };
         }
 
-        await nextFrame();
-
         const effectiveShiftX = autoOffset.x + options.manualShiftX;
         const effectiveShiftY = autoOffset.y + options.manualShiftY;
 
+        // 更新对齐后的预览（低分辨率）。
         drawAlignedImage(
             alignedPreviewCtx,
             secondSource,
@@ -713,177 +630,18 @@ export async function createFocusStackResult(
             options.scale
         );
 
-        reportProgress(onProgress, 45, "计算清晰区域");
-        const alignedGray = rgbaToGrayscale(
-            alignedPreviewCtx.getImageData(0, 0, analysisSize.width, analysisSize.height).data
-        );
-        const laplacianA = computeLaplacianMap(
-            baseGray,
-            analysisSize.width,
-            analysisSize.height
-        );
-        const laplacianB = computeLaplacianMap(
-            alignedGray,
-            analysisSize.width,
-            analysisSize.height
-        );
-        const sobelA = computeSobelMagnitudeMap(
-            baseGray,
-            analysisSize.width,
-            analysisSize.height
-        );
-        const sobelB = computeSobelMagnitudeMap(
-            alignedGray,
-            analysisSize.width,
-            analysisSize.height
-        );
-        const localVarianceA = computeLocalVarianceMap(
-            baseGray,
-            analysisSize.width,
-            analysisSize.height,
-            Math.max(1, Math.round(options.smoothRadius * 0.75))
-        );
-        const localVarianceB = computeLocalVarianceMap(
-            alignedGray,
-            analysisSize.width,
-            analysisSize.height,
-            Math.max(1, Math.round(options.smoothRadius * 0.75))
-        );
-        const normalizedSobelA = normalizeScoreMap(sobelA);
-        const normalizedSobelB = normalizeScoreMap(sobelB);
-        const normalizedLaplacianA = normalizeScoreMap(laplacianA);
-        const normalizedLaplacianB = normalizeScoreMap(laplacianB);
-        const normalizedVarianceA = normalizeScoreMap(localVarianceA);
-        const normalizedVarianceB = normalizeScoreMap(localVarianceB);
-        const sharpnessA = mixMaps(
-            mixMaps(
-                boxBlurMap(
-                    normalizedSobelA,
-                    analysisSize.width,
-                    analysisSize.height,
-                    Math.max(1, Math.round(options.smoothRadius * 0.5))
-                ),
-                boxBlurMap(
-                    normalizedLaplacianA,
-                    analysisSize.width,
-                    analysisSize.height,
-                    Math.max(1, Math.round(options.smoothRadius * 0.5))
-                ),
-                0.55
-            ),
-            boxBlurMap(
-                normalizedVarianceA,
-                analysisSize.width,
-                analysisSize.height,
-                Math.max(1, Math.round(options.smoothRadius * 0.5))
-            ),
-            0.8
-        );
-        const sharpnessB = mixMaps(
-            boxBlurMap(
-                mixMaps(
-                    boxBlurMap(
-                        normalizedSobelB,
-                        analysisSize.width,
-                        analysisSize.height,
-                        Math.max(1, Math.round(options.smoothRadius * 0.5))
-                    ),
-                    boxBlurMap(
-                        normalizedLaplacianB,
-                        analysisSize.width,
-                        analysisSize.height,
-                        Math.max(1, Math.round(options.smoothRadius * 0.5))
-                    ),
-                    0.55
-                ),
-                analysisSize.width,
-                analysisSize.height,
-                0
-            ),
-            boxBlurMap(
-                normalizedVarianceB,
-                analysisSize.width,
-                analysisSize.height,
-                Math.max(1, Math.round(options.smoothRadius * 0.5))
-            ),
-            0.8
-        );
-        const detailMask = buildDecisionMask(
-            boxBlurMap(
-                normalizedSobelA,
-                analysisSize.width,
-                analysisSize.height,
-                Math.max(1, Math.round(options.smoothRadius * 0.5))
-            ),
-            boxBlurMap(
-                normalizedSobelB,
-                analysisSize.width,
-                analysisSize.height,
-                Math.max(1, Math.round(options.smoothRadius * 0.5))
-            ),
-            normalizedLaplacianA,
-            normalizedLaplacianB,
-            normalizedVarianceA,
-            normalizedVarianceB,
-            options.confidenceThreshold
-        );
-        const regionalMask = buildRegionalWinnerMask(
-            sharpnessA,
-            sharpnessB,
-            analysisSize.width,
-            analysisSize.height,
-            Math.max(6, Math.round(options.smoothRadius * 2.5)),
-            Math.max(0.015, options.confidenceThreshold * 0.6)
-        );
-        const blockMask = buildBlockWinnerMask(
-            sharpnessA,
-            sharpnessB,
-            analysisSize.width,
-            analysisSize.height,
-            Math.max(20, Math.round(options.smoothRadius * 6)),
-            Math.max(0.01, options.confidenceThreshold * 0.4)
-        );
-        let mask = mergeMasks(blockMask, mergeMasks(regionalMask, detailMask));
-        mask = featherBinaryBoundaryMask(
-            mask,
-            analysisSize.width,
-            analysisSize.height,
-            options.featherRadius
-        );
-
         await nextFrame();
 
-        reportProgress(onProgress, 70, "生成掩膜");
-        const maskPreviewCanvas = maskToCanvas(
-            mask,
-            analysisSize.width,
-            analysisSize.height
-        );
-        const winnerOverlayCanvas = winnerOverlayToCanvas(
-            mask,
-            analysisSize.width,
-            analysisSize.height
-        );
-        const sharpnessACanvas = normalizeMapToCanvas(
-            sharpnessA,
-            analysisSize.width,
-            analysisSize.height
-        );
-        const sharpnessBCanvas = normalizeMapToCanvas(
-            sharpnessB,
-            analysisSize.width,
-            analysisSize.height
-        );
+        // --- 处理分辨率下的对齐渲染 ---
+        reportProgress(onProgress, 32, "渲染对齐图层");
+        const layerACanvas = createCanvas(outputWidth, outputHeight);
+        const layerBCanvas = createCanvas(outputWidth, outputHeight);
+        const layerACtx = getCanvasContext(layerACanvas);
+        const layerBCtx = getCanvasContext(layerBCanvas);
 
-        reportProgress(onProgress, 82, "合成全分辨率结果");
-        const resultCanvas = createCanvas(outputWidth, outputHeight);
-        const resultCtx = getCanvasContext(resultCanvas);
-        drawAlignedImage(resultCtx, firstSource, outputWidth, outputHeight);
-
-        const secondLayerCanvas = createCanvas(outputWidth, outputHeight);
-        const secondLayerCtx = getCanvasContext(secondLayerCanvas);
+        drawAlignedImage(layerACtx, firstSource, outputWidth, outputHeight);
         drawAlignedImage(
-            secondLayerCtx,
+            layerBCtx,
             secondSource,
             outputWidth,
             outputHeight,
@@ -892,14 +650,96 @@ export async function createFocusStackResult(
             options.scale
         );
 
-        const fullMaskCanvas = createCanvas(outputWidth, outputHeight);
-        const fullMaskCtx = getCanvasContext(fullMaskCanvas);
-        fullMaskCtx.imageSmoothingEnabled = false;
-        fullMaskCtx.drawImage(maskPreviewCanvas, 0, 0, outputWidth, outputHeight);
-        secondLayerCtx.globalCompositeOperation = "destination-in";
-        secondLayerCtx.drawImage(fullMaskCanvas, 0, 0);
-        secondLayerCtx.globalCompositeOperation = "source-over";
-        resultCtx.drawImage(secondLayerCanvas, 0, 0);
+        const imageA = imageDataToChannelPlanes(
+            layerACtx.getImageData(0, 0, outputWidth, outputHeight).data,
+            outputWidth,
+            outputHeight
+        );
+        const imageB = imageDataToChannelPlanes(
+            layerBCtx.getImageData(0, 0, outputWidth, outputHeight).data,
+            outputWidth,
+            outputHeight
+        );
+
+        await nextFrame();
+
+        // --- 归属决策（在归一化分析分辨率上进行，随后放大回原分辨率）---
+        reportProgress(onProgress, 55, "分析清晰区域");
+        const analysisLumA = baseGray;
+        const analysisLumB = rgbaToGrayscale(
+            alignedPreviewCtx.getImageData(
+                0,
+                0,
+                analysisSize.width,
+                analysisSize.height
+            ).data
+        );
+        const analysisMask = computeDecisionMask(
+            analysisLumA,
+            analysisLumB,
+            analysisSize.width,
+            analysisSize.height,
+            options
+        );
+        const maskWeights = upscaleMaskToWeights(
+            analysisMask,
+            analysisSize.width,
+            analysisSize.height,
+            outputWidth,
+            outputHeight
+        );
+
+        await nextFrame();
+
+        // --- 全分辨率深度叠加：每像素取更清晰那张的原始像素 ---
+        reportProgress(onProgress, 78, "生成结果与掩膜");
+        const outputSize = outputWidth * outputHeight;
+        const rOut = new Float32Array(outputSize);
+        const gOut = new Float32Array(outputSize);
+        const bOut = new Float32Array(outputSize);
+        for (let i = 0; i < outputSize; i += 1) {
+            const w = maskWeights[i];
+            const iw = 1 - w;
+            rOut[i] = imageA.r[i] * iw + imageB.r[i] * w;
+            gOut[i] = imageA.g[i] * iw + imageB.g[i] * w;
+            bOut[i] = imageA.b[i] * iw + imageB.b[i] * w;
+        }
+        const resultCanvas = channelsToCanvas(
+            rOut,
+            gOut,
+            bOut,
+            outputWidth,
+            outputHeight
+        );
+
+        const maskPreviewCanvas = maskToCanvas(
+            maskWeights,
+            outputWidth,
+            outputHeight
+        );
+        const winnerOverlayCanvas = winnerOverlayToCanvas(
+            maskWeights,
+            outputWidth,
+            outputHeight
+        );
+
+        // 清晰度可视化：处理分辨率下各自的梯度能量。
+        const sharpRawA = computeLaplacianMap(imageA.lum, outputWidth, outputHeight);
+        const sharpRawB = computeLaplacianMap(imageB.lum, outputWidth, outputHeight);
+        const sharpnessACanvas = normalizeMapToCanvas(
+            normalizeScoreMap(
+                boxBlurMap(sharpRawA, outputWidth, outputHeight, Math.max(1, options.smoothRadius))
+            ),
+            outputWidth,
+            outputHeight
+        );
+        const sharpnessBCanvas = normalizeMapToCanvas(
+            normalizeScoreMap(
+                boxBlurMap(sharpRawB, outputWidth, outputHeight, Math.max(1, options.smoothRadius))
+            ),
+            outputWidth,
+            outputHeight
+        );
 
         reportProgress(onProgress, 92, "导出预览");
         const [

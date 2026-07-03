@@ -239,9 +239,9 @@ const FocusStacking = () => {
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Badge variant="secondary">避免平均堆栈发糊</Badge>
-                        <Badge variant="secondary">局部清晰度选择融合</Badge>
-                        <Badge variant="secondary">支持轻微对齐微调</Badge>
+                        <Badge variant="secondary">逐区域取最清晰来源</Badge>
+                        <Badge variant="secondary">接缝推离边缘去光晕</Badge>
+                        <Badge variant="secondary">全分辨率直接合成</Badge>
                     </div>
                 </div>
 
@@ -511,7 +511,7 @@ const FocusStacking = () => {
                             <CardHeader>
                                 <CardTitle>处理状态</CardTitle>
                                 <CardDescription>
-                                    先在低分辨率下分析清晰区域，再输出全分辨率结果。
+                                    先在低分辨率下对齐，再按局部清晰度逐区域取最清晰的来源合成。
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
