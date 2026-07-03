@@ -7,10 +7,15 @@
     "node": ">=22"
   },
   "scripts": {
+    "predev": "node scripts/sync-museum-events-json.mjs",
     "dev": "vite",
+    "predev:photos": "node scripts/sync-museum-events-json.mjs",
     "dev:photos": "node scripts/generate-photos.js && vite",
+    "prebuild": "node scripts/sync-museum-events-json.mjs",
     "build": "tsc && vite build",
+    "prebuild:legacy": "node scripts/sync-museum-events-json.mjs",
     "build:legacy": "LEGACY_BUILD=true tsc && vite build",
+    "prebuild:photos": "node scripts/sync-museum-events-json.mjs",
     "build:photos": "node scripts/generate-photos.js && tsc && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",

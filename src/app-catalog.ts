@@ -91,6 +91,14 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("./ImageStitching"),
     },
     {
+        id: "focus-stack",
+        label: "焦点合成",
+        url: "/focus-stack",
+        icon: "mdi:image-filter-hdr",
+        description: "把不同对焦点的照片融合成一张尽量全清晰的成片",
+        component: () => import("./FocusStacking"),
+    },
+    {
         id: "artifact-ai",
         label: "文物百科",
         url: "/artifact-ai",
