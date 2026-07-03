@@ -411,6 +411,7 @@ const MuseumEventRadar: React.FC = () => {
       setError("");
       try {
         const fallbackUrls = [
+          "/museum-events/exhibitions_latest.json",
           "/backend/backend/data/exhibitions_latest.json",
           "/backend/data/exhibitions_latest.json",
           `${backendUrl}/api/museum/events/raw`,
