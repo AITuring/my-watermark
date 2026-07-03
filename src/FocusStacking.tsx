@@ -68,6 +68,7 @@ const FocusStacking = () => {
     const [smoothRadius, setSmoothRadius] = useState(8);
     const [confidenceThreshold, setConfidenceThreshold] = useState(0.04);
     const [featherRadius, setFeatherRadius] = useState(1);
+    const [foregroundProtect, setForegroundProtect] = useState(8);
 
     useEffect(() => {
         return () => {
@@ -150,6 +151,7 @@ const FocusStacking = () => {
             smoothRadius,
             confidenceThreshold,
             featherRadius,
+            foregroundProtect,
         };
 
         try {
@@ -240,8 +242,8 @@ const FocusStacking = () => {
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <Badge variant="secondary">逐区域取最清晰来源</Badge>
-                        <Badge variant="secondary">接缝推离边缘去光晕</Badge>
-                        <Badge variant="secondary">全分辨率直接合成</Badge>
+                        <Badge variant="secondary">硬选择不混合不发糊</Badge>
+                        <Badge variant="secondary">全分辨率原像素合成</Badge>
                     </div>
                 </div>
 
@@ -476,6 +478,27 @@ const FocusStacking = () => {
                                         max={5}
                                         step={1}
                                     />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <Label>边缘光晕抑制</Label>
+                                        <span className="text-slate-500 dark:text-slate-400">
+                                            {foregroundProtect}px
+                                        </span>
+                                    </div>
+                                    <Slider
+                                        value={[foregroundProtect]}
+                                        onValueChange={(value) =>
+                                            setForegroundProtect(value[0])
+                                        }
+                                        min={0}
+                                        max={30}
+                                        step={1}
+                                    />
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        让清晰的一方认领紧贴自己的边缘：既消除玉璧内缘的溢出光晕，也用干净背景盖掉陶俑等主体轮廓外的一圈亮边。调大更干净，过大会吃掉紧贴的细节。
+                                    </p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3 pt-2">

@@ -7,6 +7,9 @@ export interface FocusStackOptions {
     smoothRadius: number;
     confidenceThreshold: number;
     featherRadius: number;
+    // 前景边缘保护半径（分析像素）：把“清晰前景边缘（如玉璧内缘）”向内扩张这么多，
+    // 用清晰那张覆盖失焦图在边缘外溢出的一圈亮边光晕。0 关闭。
+    foregroundProtect?: number;
     analysisMaxDimension?: number;
 }
 
@@ -33,7 +36,9 @@ export interface FocusStackResult {
 
 type LoadedImage = ImageBitmap | HTMLImageElement;
 
-const DEFAULT_ANALYSIS_MAX_DIMENSION = 1024;
+// 决策分析分辨率。两级规则下谷纹走“逐像素决定性”通道、不再依赖大连贯窗口，
+// 因此可以用较高分辨率来解析细特征（细手指/衣纹）而不会让谷纹重新长斑块。
+const DEFAULT_ANALYSIS_MAX_DIMENSION = 1536;
 // 融合处理的像素预算：超过则按比例下采样，防止大图爆内存导致浏览器崩溃。
 const MAX_PROCESS_PIXELS = 24_000_000;
 
@@ -419,19 +424,19 @@ function computeDecisionMask(
         focusRadius
     );
 
-    // B 相对 A 的“清晰度优势”，归一化到 [-1,1]（与绝对对比度无关）。
-    const advantage = new Float32Array(size);
+    // B 相对 A 的“细尺度清晰度优势”，归一化到 [-1,1]（与绝对对比度无关）。
+    // 这是逐像素“真相”：谁真的更清晰。它能分辨出细手指、衣纹等细特征。
+    const fine = new Float32Array(size);
     for (let i = 0; i < size; i += 1) {
-        advantage[i] = (focusB[i] - focusA[i]) / (focusB[i] + focusA[i] + 1e-3);
+        fine[i] = (focusB[i] - focusA[i]) / (focusB[i] + focusA[i] + 1e-3);
     }
 
-    // 连贯化：抹平细小抖动，避免逐像素翻转产生斑块；
-    // 较大窗口让强纹理区把“归属”扩散到相邻的平滑缝隙，使整块区域来自同一张。
+    // 大窗口连贯优势：抹平细小抖动，用于“细尺度暧昧”的平坦区做稳定的区域判定，
+    // 避免平坦/低纹理处逐像素翻转产生斑块。
     const coherenceRadius = Math.max(6, Math.round(options.smoothRadius * 2));
-    const coherent = boxBlurMap(advantage, width, height, coherenceRadius);
+    const coarse = boxBlurMap(fine, width, height, coherenceRadius);
 
-    // 置信度地板：区域清晰度太低（暗部/两张都平坦）时判定无意义，
-    // 直接归属参考图 A，避免背景出现无意义的碎斑。地板取全图 90 百分位的一小部分。
+    // 置信度地板：区域清晰度太低（暗部/两张都平坦）时判定无意义，直接归属参考图 A。
     const regionalA = boxBlurMap(focusA, width, height, coherenceRadius);
     const regionalB = boxBlurMap(focusB, width, height, coherenceRadius);
     const magnitudeSamples: number[] = [];
@@ -439,20 +444,62 @@ function computeDecisionMask(
         magnitudeSamples.push(Math.max(regionalA[i], regionalB[i]));
     }
     magnitudeSamples.sort((a, b) => a - b);
-    const confidenceFloor = percentile(magnitudeSamples, 0.9) * 0.06;
+    const confidenceFloor = percentile(magnitudeSamples, 0.9) * 0.04;
 
-    // 关键：只有当 B 明显比 A 更清晰（优势超过 margin）且该处清晰度可信时，
-    // 才切换到 B。否则稳定保留参考图 A —— 这样“两张都清晰/都模糊”的暧昧区
-    // （比如玉璧表面两张都在景深内）不会来回翻转 → 消除斑块糊。
-    const margin = Math.max(0.06, options.confidenceThreshold);
+    // 核心：细节决定性优先。
+    // 固定的连贯窗口无法同时“稳住谷纹”和“保留细手指”——窗口够大稳住纹理，就会吞掉细特征。
+    // 所以：某像素的细尺度优势足够决定性（|fine| 大，说明这里明确有一张更清晰，
+    // 如谷纹或陶俑手指）时，就直接采信逐像素真相；只有在细尺度暧昧（平坦/低纹理）
+    // 时才退回大窗口的稳定区域判定。这样谷纹稳定不长斑块，细特征也不被连贯吞掉。
+    const decisive = 0.2;
+
+    // 对称“结构归属”：消除深度突变处“一圈光晕”的关键。
+    // 失焦那张里，物体的虚化亮部会向外溢出、盖住边缘外一圈；而这圈溢出带梯度，
+    // 清晰度测量会被骗、把本应干净的邻域误判给模糊那张 —— 这正是顽固光晕的来源。
+    // 解法：让“清晰的一方”把紧贴自己的暧昧/被污染邻域认领过来，用自己那张的干净像素覆盖：
+    //  - 清晰前景（玉璧内缘，强 A）认领 → 消除失焦亮边向内溢出的“内缘光晕”。
+    //  - 清晰主体（对焦的陶俑，强 B）认领 → 用干净暗背景覆盖失焦图里陶俑向外溢出的“轮廓亮边”。
+    // 谷纹等本身就是强结构的像素其归属值≈1，不会被对方认领，因此清晰区不受影响。
+    // 光晕宽度大致占图像的固定比例，而决策在分析分辨率上进行，所以把滑杆值按
+    // 分析分辨率缩放（以 1024 为基准），滑杆的实际效果才不随图片尺寸变化。
+    const protectRadius = Math.max(
+        0,
+        Math.round((options.foregroundProtect ?? 8) * (Math.max(width, height) / 1024))
+    );
+    let dilatedA: Float32Array | null = null;
+    let dilatedB: Float32Array | null = null;
+    if (protectRadius > 0) {
+        const strongA = new Float32Array(size);
+        const strongB = new Float32Array(size);
+        for (let i = 0; i < size; i += 1) {
+            strongA[i] = fine[i] < -decisive ? 1 : 0;
+            strongB[i] = fine[i] > decisive ? 1 : 0;
+        }
+        dilatedA = boxBlurMap(strongA, width, height, protectRadius);
+        dilatedB = boxBlurMap(strongB, width, height, protectRadius);
+    }
+
+    const margin = Math.max(0.02, options.confidenceThreshold);
     const decisionMask = new Float32Array(size);
     for (let i = 0; i < size; i += 1) {
         const confident = Math.max(regionalA[i], regionalB[i]) > confidenceFloor;
-        decisionMask[i] = confident && coherent[i] > margin ? 1 : 0;
+        const advantage =
+            fine[i] > decisive || fine[i] < -decisive ? fine[i] : coarse[i];
+        let pick = confident && advantage > margin ? 1 : 0;
+        if (dilatedA && dilatedB) {
+            const claimA = dilatedA[i];
+            const claimB = dilatedB[i];
+            if (claimB > 0.12 && claimB >= claimA) {
+                pick = 1;
+            } else if (claimA > 0.12 && claimA > claimB) {
+                pick = 0;
+            }
+        }
+        decisionMask[i] = pick;
     }
 
-    // 窄羽化，仅消除接缝锯齿。
-    const feather = Math.max(1, Math.round(options.featherRadius) + 1);
+    // 极窄羽化，仅消除接缝锯齿；随后放大 + 二值化，边界仍紧贴真实清晰区。
+    const feather = Math.max(1, Math.round(options.featherRadius));
     return boxBlurMap(decisionMask, width, height, feather);
 }
 
@@ -688,6 +735,16 @@ export async function createFocusStackResult(
             outputWidth,
             outputHeight
         );
+
+        // 硬选择：这是“全图清晰”的关键。任何介于 0~1 的权重都会把“清晰那张”与
+        // “模糊那张”的像素做加权平均 —— 平均结果必然发糊。之前的柔性过渡/偏置反而
+        // 会把小而暗但清晰的主体（如左侧小陶俑）拉回模糊的一张。
+        // 掩膜已在 1024 上做过连贯与羽化、再双线性放大（边界因此平滑不锯齿），
+        // 这里按 0.5 二值化：每个输出像素完全取自 A 或完全取自 B，绝不混合，
+        // 因此只要归属正确，结果处处清晰。
+        for (let i = 0; i < maskWeights.length; i += 1) {
+            maskWeights[i] = maskWeights[i] >= 0.5 ? 1 : 0;
+        }
 
         await nextFrame();
 
