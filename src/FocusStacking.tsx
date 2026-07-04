@@ -89,6 +89,24 @@ interface SortableImageItemProps {
     onRemove: (index: number) => void;
 }
 
+interface InspectViewport {
+    x: number;
+    y: number;
+}
+
+interface InspectMetrics {
+    viewportWidth: number;
+    viewportHeight: number;
+}
+
+const MIN_INSPECT_ZOOM = 1;
+const MAX_INSPECT_ZOOM = 4;
+const DOUBLE_CLICK_ZOOM = 2;
+
+function clamp(value: number, min: number, max: number) {
+    return Math.min(max, Math.max(min, value));
+}
+
 function SortableImageItem({ image, index, onRemove }: SortableImageItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
         useSortable({
@@ -186,6 +204,14 @@ const FocusStacking = () => {
     const [progressLabel, setProgressLabel] = useState("等待开始");
     const [isInspectOpen, setIsInspectOpen] = useState(false);
     const [inspectZoom, setInspectZoom] = useState(1);
+    const [inspectViewport, setInspectViewport] = useState<InspectViewport>({
+        x: 0,
+        y: 0,
+    });
+    const [inspectMetrics, setInspectMetrics] = useState<InspectMetrics>({
+        viewportWidth: 0,
+        viewportHeight: 0,
+    });
 
     const [autoAlign, setAutoAlign] = useState(true);
     const [manualShiftX, setManualShiftX] = useState(0);
@@ -199,6 +225,16 @@ const FocusStacking = () => {
     const imagesRef = useRef<UploadState[]>([]);
     const resultRef = useRef<FocusStackResult | null>(null);
     const livePreviewRef = useRef<FocusStackLivePreview | null>(null);
+    const inspectContainersRef = useRef<Record<string, HTMLDivElement | null>>({});
+    const syncScrollRef = useRef(false);
+    const dragStateRef = useRef<{
+        pointerId: number;
+        panelKey: string;
+        startX: number;
+        startY: number;
+        startScrollLeft: number;
+        startScrollTop: number;
+    } | null>(null);
 
     useEffect(() => {
         imagesRef.current = images;
@@ -425,6 +461,10 @@ const FocusStacking = () => {
 
     const openInspectDialog = () => {
         setInspectZoom(1);
+        setInspectViewport({
+            x: 0,
+            y: 0,
+        });
         setIsInspectOpen(true);
     };
 
@@ -516,6 +556,303 @@ const FocusStacking = () => {
     const resultSecondaryPanels = result
         ? previewPanels.filter((panel) => !["result", "mask"].includes(panel.key))
         : [];
+
+    const inspectImageSize = useMemo(
+        () => ({
+            width: result?.width ?? 1,
+            height: result?.height ?? 1,
+        }),
+        [result]
+    );
+
+    const getInspectRenderScale = (container: HTMLDivElement, zoom: number) => {
+        const fitScale = Math.min(
+            container.clientWidth / Math.max(inspectImageSize.width, 1),
+            container.clientHeight / Math.max(inspectImageSize.height, 1)
+        );
+        return fitScale * zoom;
+    };
+
+    const getInspectBounds = (container: HTMLDivElement, zoom: number) => {
+        const renderScale = getInspectRenderScale(container, zoom);
+        const contentWidth = inspectImageSize.width * renderScale;
+        const contentHeight = inspectImageSize.height * renderScale;
+        const maxScrollLeft = Math.max(0, contentWidth - container.clientWidth);
+        const maxScrollTop = Math.max(0, contentHeight - container.clientHeight);
+        return {
+            renderScale,
+            contentWidth,
+            contentHeight,
+            maxScrollLeft,
+            maxScrollTop,
+        };
+    };
+
+    const updateInspectMetrics = () => {
+        const firstContainer = Object.values(inspectContainersRef.current).find(Boolean);
+        if (!firstContainer) {
+            return;
+        }
+        setInspectMetrics({
+            viewportWidth: firstContainer.clientWidth,
+            viewportHeight: firstContainer.clientHeight,
+        });
+    };
+
+    const getInspectLayout = (panelKey: string) => {
+        const container = inspectContainersRef.current[panelKey];
+        const viewportWidth = container?.clientWidth || inspectMetrics.viewportWidth || 1;
+        const viewportHeight = container?.clientHeight || inspectMetrics.viewportHeight || 1;
+        const fitScale = Math.min(
+            viewportWidth / Math.max(inspectImageSize.width, 1),
+            viewportHeight / Math.max(inspectImageSize.height, 1)
+        );
+        const renderScale = fitScale * inspectZoom;
+        const renderedWidth = inspectImageSize.width * renderScale;
+        const renderedHeight = inspectImageSize.height * renderScale;
+        return {
+            renderedWidth,
+            renderedHeight,
+            wrapperWidth: Math.max(viewportWidth, renderedWidth),
+            wrapperHeight: Math.max(viewportHeight, renderedHeight),
+        };
+    };
+
+    const syncInspectScroll = (viewport: InspectViewport) => {
+        syncScrollRef.current = true;
+        Object.values(inspectContainersRef.current).forEach((container) => {
+            if (!container) {
+                return;
+            }
+            const { maxScrollLeft, maxScrollTop } = getInspectBounds(container, inspectZoom);
+            container.scrollLeft = maxScrollLeft * viewport.x;
+            container.scrollTop = maxScrollTop * viewport.y;
+        });
+        requestAnimationFrame(() => {
+            syncScrollRef.current = false;
+        });
+        updateInspectMetrics();
+    };
+
+    const updateViewportFromScroll = (container: HTMLDivElement) => {
+        const { maxScrollLeft, maxScrollTop } = getInspectBounds(container, inspectZoom);
+        const nextViewport = {
+            x: maxScrollLeft > 0 ? container.scrollLeft / maxScrollLeft : 0,
+            y: maxScrollTop > 0 ? container.scrollTop / maxScrollTop : 0,
+        };
+        setInspectViewport(nextViewport);
+        setInspectMetrics({
+            viewportWidth: container.clientWidth,
+            viewportHeight: container.clientHeight,
+        });
+        return nextViewport;
+    };
+
+    const zoomToPoint = (
+        container: HTMLDivElement,
+        clientX: number,
+        clientY: number,
+        nextZoom: number
+    ) => {
+        const rect = container.getBoundingClientRect();
+        const offsetX = clientX - rect.left + container.scrollLeft;
+        const offsetY = clientY - rect.top + container.scrollTop;
+        const currentScale = getInspectRenderScale(container, inspectZoom);
+        const imageX = offsetX / currentScale;
+        const imageY = offsetY / currentScale;
+        const { renderScale: nextScale, maxScrollLeft, maxScrollTop } = getInspectBounds(
+            container,
+            nextZoom
+        );
+        const nextScrollLeft = clamp(
+            imageX * nextScale - (clientX - rect.left),
+            0,
+            maxScrollLeft
+        );
+        const nextScrollTop = clamp(
+            imageY * nextScale - (clientY - rect.top),
+            0,
+            maxScrollTop
+        );
+        const nextViewport = {
+            x: maxScrollLeft > 0 ? nextScrollLeft / maxScrollLeft : 0,
+            y: maxScrollTop > 0 ? nextScrollTop / maxScrollTop : 0,
+        };
+        setInspectZoom(nextZoom);
+        setInspectViewport(nextViewport);
+    };
+
+    const handleInspectScroll = (panelKey: string) => {
+        const container = inspectContainersRef.current[panelKey];
+        if (!container || syncScrollRef.current) {
+            return;
+        }
+        const nextViewport = updateViewportFromScroll(container);
+        syncScrollRef.current = true;
+        Object.entries(inspectContainersRef.current).forEach(([key, target]) => {
+            if (!target || key === panelKey) {
+                return;
+            }
+            const { maxScrollLeft, maxScrollTop } = getInspectBounds(target, inspectZoom);
+            target.scrollLeft = maxScrollLeft * nextViewport.x;
+            target.scrollTop = maxScrollTop * nextViewport.y;
+        });
+        requestAnimationFrame(() => {
+            syncScrollRef.current = false;
+        });
+    };
+
+    const handleInspectWheel = (panelKey: string, event: React.WheelEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        const container = inspectContainersRef.current[panelKey];
+        if (!container) {
+            return;
+        }
+        const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+        const nextZoom = clamp(inspectZoom * factor, MIN_INSPECT_ZOOM, MAX_INSPECT_ZOOM);
+        if (nextZoom === inspectZoom) {
+            return;
+        }
+        zoomToPoint(container, event.clientX, event.clientY, nextZoom);
+    };
+
+    const handleInspectDoubleClick = (
+        panelKey: string,
+        event: React.MouseEvent<HTMLDivElement>
+    ) => {
+        const container = inspectContainersRef.current[panelKey];
+        if (!container) {
+            return;
+        }
+        const nextZoom =
+            Math.abs(inspectZoom - DOUBLE_CLICK_ZOOM) < 0.05
+                ? MIN_INSPECT_ZOOM
+                : DOUBLE_CLICK_ZOOM;
+        zoomToPoint(container, event.clientX, event.clientY, nextZoom);
+    };
+
+    const handleInspectPointerDown = (
+        panelKey: string,
+        event: React.PointerEvent<HTMLDivElement>
+    ) => {
+        if (event.button !== 0) {
+            return;
+        }
+        const container = inspectContainersRef.current[panelKey];
+        if (!container) {
+            return;
+        }
+        dragStateRef.current = {
+            pointerId: event.pointerId,
+            panelKey,
+            startX: event.clientX,
+            startY: event.clientY,
+            startScrollLeft: container.scrollLeft,
+            startScrollTop: container.scrollTop,
+        };
+        container.setPointerCapture(event.pointerId);
+    };
+
+    const handleInspectPointerMove = (
+        panelKey: string,
+        event: React.PointerEvent<HTMLDivElement>
+    ) => {
+        const dragState = dragStateRef.current;
+        if (!dragState || dragState.panelKey !== panelKey || dragState.pointerId !== event.pointerId) {
+            return;
+        }
+        const container = inspectContainersRef.current[panelKey];
+        if (!container) {
+            return;
+        }
+        const { maxScrollLeft, maxScrollTop } = getInspectBounds(container, inspectZoom);
+        const nextScrollLeft = clamp(
+            dragState.startScrollLeft - (event.clientX - dragState.startX),
+            0,
+            maxScrollLeft
+        );
+        const nextScrollTop = clamp(
+            dragState.startScrollTop - (event.clientY - dragState.startY),
+            0,
+            maxScrollTop
+        );
+        const nextViewport = {
+            x: maxScrollLeft > 0 ? nextScrollLeft / maxScrollLeft : 0,
+            y: maxScrollTop > 0 ? nextScrollTop / maxScrollTop : 0,
+        };
+        setInspectViewport(nextViewport);
+        syncInspectScroll(nextViewport);
+    };
+
+    const handleInspectPointerUp = (
+        panelKey: string,
+        event: React.PointerEvent<HTMLDivElement>
+    ) => {
+        const dragState = dragStateRef.current;
+        if (!dragState || dragState.panelKey !== panelKey || dragState.pointerId !== event.pointerId) {
+            return;
+        }
+        const container = inspectContainersRef.current[panelKey];
+        if (container?.hasPointerCapture(event.pointerId)) {
+            container.releasePointerCapture(event.pointerId);
+        }
+        dragStateRef.current = null;
+    };
+
+    const handleMinimapJump = (panelKey: string, event: React.PointerEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const container = inspectContainersRef.current[panelKey];
+        if (!container) {
+            return;
+        }
+        const rect = event.currentTarget.getBoundingClientRect();
+        const { contentWidth, contentHeight } = getInspectBounds(container, inspectZoom);
+        const viewportRatioX = Math.min(1, container.clientWidth / contentWidth);
+        const viewportRatioY = Math.min(1, container.clientHeight / contentHeight);
+        const nextViewport = {
+            x: clamp(
+                ((event.clientX - rect.left) / rect.width - viewportRatioX / 2) /
+                    Math.max(1 - viewportRatioX, 0.0001),
+                0,
+                1
+            ),
+            y: clamp(
+                ((event.clientY - rect.top) / rect.height - viewportRatioY / 2) /
+                    Math.max(1 - viewportRatioY, 0.0001),
+                0,
+                1
+            ),
+        };
+        setInspectViewport(nextViewport);
+        syncInspectScroll(nextViewport);
+    };
+
+    useEffect(() => {
+        if (!isInspectOpen) {
+            return;
+        }
+        const frame = requestAnimationFrame(() => {
+            syncInspectScroll(inspectViewport);
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [inspectViewport, inspectZoom, isInspectOpen]);
+
+    useEffect(() => {
+        if (!isInspectOpen) {
+            return;
+        }
+        const handleResize = () => {
+            updateInspectMetrics();
+            syncInspectScroll(inspectViewport);
+        };
+        window.addEventListener("resize", handleResize);
+        const frame = requestAnimationFrame(handleResize);
+        return () => {
+            cancelAnimationFrame(frame);
+            window.removeEventListener("resize", handleResize);
+        };
+    }, [inspectViewport, isInspectOpen, inspectZoom]);
 
     return (
         <div className="min-h-screen w-full bg-stone-100 dark:bg-slate-950">
@@ -1229,47 +1566,158 @@ const FocusStacking = () => {
                                     <DialogHeader className="border-b border-slate-200 px-6 py-5 dark:border-slate-800">
                                         <DialogTitle>放大预览</DialogTitle>
                                         <DialogDescription>
-                                            合成结果和深度图同步查看。滚动容器可平移，缩放滑块会同时作用到两张图。
+                                            两张图同步缩放和平移。支持拖拽查看、鼠标滚轮缩放、双击切换到固定倍率，并带 minimap 视口指示。
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-800">
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex flex-wrap items-center gap-4">
                                             <Label className="shrink-0">缩放</Label>
                                             <Slider
                                                 value={[inspectZoom]}
                                                 onValueChange={(value) => setInspectZoom(value[0])}
-                                                min={1}
-                                                max={4}
+                                                min={MIN_INSPECT_ZOOM}
+                                                max={MAX_INSPECT_ZOOM}
                                                 step={0.1}
                                             />
                                             <span className="w-14 text-right text-sm text-slate-500 dark:text-slate-400">
                                                 {inspectZoom.toFixed(1)}x
                                             </span>
+                                            <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                                <Badge variant="outline">双击: {DOUBLE_CLICK_ZOOM.toFixed(1)}x</Badge>
+                                                <Badge variant="outline">拖拽: 联动平移</Badge>
+                                                <Badge variant="outline">滚轮: 联动缩放</Badge>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="grid min-h-0 flex-1 gap-4 p-4 xl:grid-cols-2">
-                                        {resultPrimaryPanels.map((panel) => (
-                                            <div
-                                                key={panel.key}
-                                                className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
-                                            >
-                                                <div className="border-b border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                                                    {panel.label}
-                                                </div>
-                                                <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950">
-                                                    <div className="flex min-h-full min-w-full items-center justify-center">
-                                                        <img
-                                                            src={panel.url}
-                                                            alt={panel.label}
-                                                            className="max-w-none rounded-xl object-contain"
+                                        {resultPrimaryPanels.map((panel) => {
+                                            const layout = getInspectLayout(panel.key);
+                                            return (
+                                                <div
+                                                    key={panel.key}
+                                                    className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
+                                                >
+                                                    <div className="border-b border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
+                                                        {panel.label}
+                                                    </div>
+                                                    <div
+                                                        ref={(node) => {
+                                                            inspectContainersRef.current[panel.key] = node;
+                                                        }}
+                                                        className={`relative min-h-0 flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950 ${
+                                                            dragStateRef.current?.panelKey === panel.key
+                                                                ? "cursor-grabbing"
+                                                                : "cursor-grab"
+                                                        }`}
+                                                        onScroll={() => handleInspectScroll(panel.key)}
+                                                        onWheel={(event) =>
+                                                            handleInspectWheel(panel.key, event)
+                                                        }
+                                                        onDoubleClick={(event) =>
+                                                            handleInspectDoubleClick(panel.key, event)
+                                                        }
+                                                        onPointerDown={(event) =>
+                                                            handleInspectPointerDown(panel.key, event)
+                                                        }
+                                                        onPointerMove={(event) =>
+                                                            handleInspectPointerMove(panel.key, event)
+                                                        }
+                                                        onPointerUp={(event) =>
+                                                            handleInspectPointerUp(panel.key, event)
+                                                        }
+                                                        onPointerCancel={(event) =>
+                                                            handleInspectPointerUp(panel.key, event)
+                                                        }
+                                                    >
+                                                        <div
+                                                            className="relative"
                                                             style={{
-                                                                width: `${inspectZoom * 100}%`,
+                                                                width: layout.wrapperWidth,
+                                                                height: layout.wrapperHeight,
                                                             }}
-                                                        />
+                                                        >
+                                                            <img
+                                                                src={panel.url}
+                                                                alt={panel.label}
+                                                                draggable={false}
+                                                                className="absolute left-0 top-0 rounded-xl object-contain select-none"
+                                                                style={{
+                                                                    width: layout.renderedWidth,
+                                                                    height: layout.renderedHeight,
+                                                                }}
+                                                            />
+
+                                                            <button
+                                                                type="button"
+                                                                className="absolute bottom-4 right-4 w-32 overflow-hidden rounded-xl border border-white/70 bg-white/90 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/90"
+                                                                style={{
+                                                                    aspectRatio: `${inspectImageSize.width} / ${inspectImageSize.height}`,
+                                                                }}
+                                                                onPointerDown={(event) =>
+                                                                    handleMinimapJump(panel.key, event)
+                                                                }
+                                                            >
+                                                                <img
+                                                                    src={panel.url}
+                                                                    alt={`${panel.label} minimap`}
+                                                                    draggable={false}
+                                                                    className="h-full w-full object-cover"
+                                                                />
+                                                                <div
+                                                                    className="pointer-events-none absolute border-2 border-blue-500 bg-blue-500/15"
+                                                                    style={{
+                                                                        left: `${
+                                                                            inspectViewport.x *
+                                                                            Math.max(
+                                                                                0,
+                                                                                100 -
+                                                                                    (inspectMetrics.viewportWidth /
+                                                                                        Math.max(
+                                                                                            layout.renderedWidth,
+                                                                                            1
+                                                                                        )) *
+                                                                                        100
+                                                                            )
+                                                                        }%`,
+                                                                        top: `${
+                                                                            inspectViewport.y *
+                                                                            Math.max(
+                                                                                0,
+                                                                                100 -
+                                                                                    (inspectMetrics.viewportHeight /
+                                                                                        Math.max(
+                                                                                            layout.renderedHeight,
+                                                                                            1
+                                                                                        )) *
+                                                                                        100
+                                                                            )
+                                                                        }%`,
+                                                                        width: `${Math.min(
+                                                                            100,
+                                                                            (inspectMetrics.viewportWidth /
+                                                                                Math.max(
+                                                                                    layout.renderedWidth,
+                                                                                    1
+                                                                                )) *
+                                                                                100
+                                                                        )}%`,
+                                                                        height: `${Math.min(
+                                                                            100,
+                                                                            (inspectMetrics.viewportHeight /
+                                                                                Math.max(
+                                                                                    layout.renderedHeight,
+                                                                                    1
+                                                                                )) *
+                                                                                100
+                                                                        )}%`,
+                                                                    }}
+                                                                />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </DialogContent>
