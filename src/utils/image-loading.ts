@@ -5,6 +5,10 @@ import * as UTIF from "utif";
 
 export type LoadedImage = ImageBitmap | HTMLImageElement | HTMLCanvasElement;
 
+interface PreviewOptions {
+    maxDimension?: number;
+}
+
 const TIFF_MIME_TYPES = new Set([
     "image/tiff",
     "image/tif",
@@ -17,6 +21,24 @@ function createCanvas(width: number, height: number): HTMLCanvasElement {
     canvas.width = Math.max(1, Math.round(width));
     canvas.height = Math.max(1, Math.round(height));
     return canvas;
+}
+
+function downscaleCanvas(
+    canvas: HTMLCanvasElement,
+    maxDimension: number
+): HTMLCanvasElement {
+    const longestSide = Math.max(canvas.width, canvas.height);
+    if (longestSide <= maxDimension) {
+        return canvas;
+    }
+
+    const scale = maxDimension / longestSide;
+    const resized = createCanvas(canvas.width * scale, canvas.height * scale);
+    const ctx = getCanvasContext(resized);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(canvas, 0, 0, resized.width, resized.height);
+    return resized;
 }
 
 function getCanvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
@@ -137,12 +159,16 @@ export async function loadImageSource(file: File): Promise<LoadedImage> {
     return loadImageElement(file);
 }
 
-export async function createPreviewUrl(file: File): Promise<string> {
+export async function createPreviewUrl(
+    file: File,
+    options?: PreviewOptions
+): Promise<string> {
     if (!isTiffFile(file)) {
         return URL.createObjectURL(file);
     }
     const canvas = await decodeTiffToCanvas(file);
-    return canvasToObjectUrl(canvas);
+    const previewCanvas = downscaleCanvas(canvas, options?.maxDimension ?? 1600);
+    return canvasToObjectUrl(previewCanvas);
 }
 
 export function disposeImageSource(source: LoadedImage) {

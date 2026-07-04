@@ -20,6 +20,22 @@ export interface FocusStackProgress {
     label: string;
 }
 
+export interface FocusStackLivePreview {
+    stepIndex: number;
+    totalSteps: number;
+    sourceCount: number;
+    stageLabel: string;
+    baseUrl: string;
+    candidateUrl: string;
+    maskUrl: string;
+    winnerOverlayUrl: string;
+    mergedUrl: string;
+    estimatedOffset: {
+        x: number;
+        y: number;
+    };
+}
+
 export interface FocusStackResult {
     resultUrl: string;
     maskUrl: string;
@@ -254,10 +270,20 @@ function winnerOverlayToCanvas(
     const imageData = ctx.createImageData(width, height);
     for (let i = 0, p = 0; p < mask.length; i += 4, p += 1) {
         const value = mask[p];
-        imageData.data[i] = Math.round((1 - value) * 255);
+        const distance = Math.abs(value - 0.5);
+        if (distance < 0.08) {
+            imageData.data[i] = 148;
+            imageData.data[i + 1] = 148;
+            imageData.data[i + 2] = 148;
+            imageData.data[i + 3] = 110;
+            continue;
+        }
+
+        const strength = Math.min(1, (distance - 0.08) / 0.42);
+        imageData.data[i] = Math.round((1 - value) * 255 * strength);
         imageData.data[i + 1] = 0;
-        imageData.data[i + 2] = Math.round(value * 255);
-        imageData.data[i + 3] = 180;
+        imageData.data[i + 2] = Math.round(value * 255 * strength);
+        imageData.data[i + 3] = Math.round(120 + strength * 80);
     }
     ctx.putImageData(imageData, 0, 0);
     return canvas;
@@ -367,18 +393,23 @@ function imageDataToChannelPlanes(
     return { r, g, b, lum, width, height };
 }
 
+interface DecisionArtifacts {
+    blendMask: Float32Array;
+    previewMask: Float32Array;
+}
+
 // 在“归一化分析分辨率”下计算归属掩膜。
 // 这是消除斑块的关键：清晰度/连贯窗口是绝对像素，若直接在原始高分辨率上计算，
 // 窗口相对纹理（如谷纹）太小，判定会在纹理尺度上来回翻转 → 斑块。
 // 固定在约 1024px 上决策，窗口相对纹理才够大，能把整块区域稳定归属同一张。
 // 掩膜随后被放大回原分辨率，最终像素仍取自全分辨率原图，清晰度不损失。
-function computeDecisionMask(
+function computeDecisionArtifacts(
     lumA: Float32Array,
     lumB: Float32Array,
     width: number,
     height: number,
     options: FocusStackOptions
-): Float32Array {
+): DecisionArtifacts {
     const size = width * height;
 
     // 局部清晰度度量：亮度拉普拉斯（越大越清晰），再做一次平滑消除噪声。
@@ -452,27 +483,44 @@ function computeDecisionMask(
     }
 
     const margin = Math.max(0.02, options.confidenceThreshold);
-    const decisionMask = new Float32Array(size);
+    const blendMask = new Float32Array(size);
+    const previewMask = new Float32Array(size);
     for (let i = 0; i < size; i += 1) {
         const confident = Math.max(regionalA[i], regionalB[i]) > confidenceFloor;
         const advantage =
             fine[i] > decisive || fine[i] < -decisive ? fine[i] : coarse[i];
         let pick = confident && advantage > margin ? 1 : 0;
+        let previewValue = 0.5;
+
+        if (confident) {
+            const normalizedAdvantage = Math.max(
+                -1,
+                Math.min(1, advantage / Math.max(margin * 2, 0.08))
+            );
+            previewValue = 0.5 + normalizedAdvantage * 0.5;
+        }
+
         if (dilatedA && dilatedB) {
             const claimA = dilatedA[i];
             const claimB = dilatedB[i];
             if (claimB > 0.12 && claimB >= claimA) {
                 pick = 1;
+                previewValue = Math.max(previewValue, 0.88);
             } else if (claimA > 0.12 && claimA > claimB) {
                 pick = 0;
+                previewValue = Math.min(previewValue, 0.12);
             }
         }
-        decisionMask[i] = pick;
+        blendMask[i] = pick;
+        previewMask[i] = previewValue;
     }
 
     // 极窄羽化，仅消除接缝锯齿；随后放大 + 二值化，边界仍紧贴真实清晰区。
     const feather = Math.max(1, Math.round(options.featherRadius));
-    return boxBlurMap(decisionMask, width, height, feather);
+    return {
+        blendMask: boxBlurMap(blendMask, width, height, feather),
+        previewMask: boxBlurMap(previewMask, width, height, feather),
+    };
 }
 
 // 把分析分辨率的掩膜用双线性放大到目标分辨率，返回 0..1 权重。
@@ -555,6 +603,13 @@ function reportProgress(
     callback?.({ percent, label });
 }
 
+function reportLivePreview(
+    callback: ((value: FocusStackLivePreview) => void) | undefined,
+    value: FocusStackLivePreview
+) {
+    callback?.(value);
+}
+
 function mergeChannelPlanes(
     base: ChannelPlanes,
     candidate: ChannelPlanes,
@@ -591,7 +646,8 @@ function mergeChannelPlanes(
 export async function createFocusStackResult(
     files: File[],
     options: FocusStackOptions,
-    onProgress?: (value: FocusStackProgress) => void
+    onProgress?: (value: FocusStackProgress) => void,
+    onLivePreview?: (value: FocusStackLivePreview) => void
 ): Promise<FocusStackResult> {
     if (files.length < 2) {
         throw new Error("至少需要两张图片");
@@ -640,7 +696,7 @@ export async function createFocusStackResult(
             analysisSize.height
         );
 
-        let finalMaskWeights = new Float32Array(outputWidth * outputHeight);
+        let finalPreviewWeights = new Float32Array(outputWidth * outputHeight).fill(0.5);
         let finalSharpnessBase = compositeOutput.lum;
         let finalSharpnessCandidate = compositeOutput.lum;
         let finalAutoOffset = { x: 0, y: 0 };
@@ -763,7 +819,7 @@ export async function createFocusStackResult(
                 progressBase + progressSpan * 0.55,
                 `${stepLabel} - 分析清晰区域`
             );
-            const analysisMask = computeDecisionMask(
+            const decisionArtifacts = computeDecisionArtifacts(
                 compositeAnalysis.lum,
                 candidateAnalysis.lum,
                 analysisSize.width,
@@ -771,7 +827,14 @@ export async function createFocusStackResult(
                 options
             );
             const maskWeights = upscaleMaskToWeights(
-                analysisMask,
+                decisionArtifacts.blendMask,
+                analysisSize.width,
+                analysisSize.height,
+                outputWidth,
+                outputHeight
+            );
+            const previewWeights = upscaleMaskToWeights(
+                decisionArtifacts.previewMask,
                 analysisSize.width,
                 analysisSize.height,
                 outputWidth,
@@ -781,7 +844,7 @@ export async function createFocusStackResult(
                 maskWeights[i] = maskWeights[i] >= 0.5 ? 1 : 0;
             }
 
-            const analysisWeights = new Float32Array(analysisMask);
+            const analysisWeights = new Float32Array(decisionArtifacts.blendMask);
             for (let i = 0; i < analysisWeights.length; i += 1) {
                 analysisWeights[i] = analysisWeights[i] >= 0.5 ? 1 : 0;
             }
@@ -795,18 +858,60 @@ export async function createFocusStackResult(
             );
             finalSharpnessBase = compositeOutput.lum;
             finalSharpnessCandidate = candidateOutput.lum;
+            const mergedAnalysis = mergeChannelPlanes(
+                compositeAnalysis,
+                candidateAnalysis,
+                analysisWeights
+            );
             compositeOutput = mergeChannelPlanes(
                 compositeOutput,
                 candidateOutput,
                 maskWeights
             );
-            compositeAnalysis = mergeChannelPlanes(
-                compositeAnalysis,
-                candidateAnalysis,
-                analysisWeights
-            );
+            compositeAnalysis = mergedAnalysis;
 
-            finalMaskWeights = new Float32Array(maskWeights);
+            const liveMaskCanvas = maskToCanvas(
+                decisionArtifacts.previewMask,
+                analysisSize.width,
+                analysisSize.height
+            );
+            const liveOverlayCanvas = winnerOverlayToCanvas(
+                decisionArtifacts.previewMask,
+                analysisSize.width,
+                analysisSize.height
+            );
+            const mergedPreviewCanvas = channelsToCanvas(
+                mergedAnalysis.r,
+                mergedAnalysis.g,
+                mergedAnalysis.b,
+                analysisSize.width,
+                analysisSize.height
+            );
+            const [baseUrl, candidateUrl, maskUrl, winnerOverlayUrl, mergedUrl] =
+                await Promise.all([
+                    canvasToObjectUrl(basePreviewCanvas),
+                    canvasToObjectUrl(alignedPreviewCanvas),
+                    canvasToObjectUrl(liveMaskCanvas),
+                    canvasToObjectUrl(liveOverlayCanvas),
+                    canvasToObjectUrl(mergedPreviewCanvas),
+                ]);
+            reportLivePreview(onLivePreview, {
+                stepIndex: index,
+                totalSteps: sources.length - 1,
+                sourceCount: files.length,
+                stageLabel: stepLabel,
+                baseUrl,
+                candidateUrl,
+                maskUrl,
+                winnerOverlayUrl,
+                mergedUrl,
+                estimatedOffset: {
+                    x: autoOffset.x,
+                    y: autoOffset.y,
+                },
+            });
+
+            finalPreviewWeights = new Float32Array(previewWeights);
             finalBasePreviewCanvas = basePreviewCanvas;
             finalAlignedPreviewCanvas = alignedPreviewCanvas;
 
@@ -822,12 +927,12 @@ export async function createFocusStackResult(
         );
 
         const maskPreviewCanvas = maskToCanvas(
-            finalMaskWeights,
+            finalPreviewWeights,
             outputWidth,
             outputHeight
         );
         const winnerOverlayCanvas = winnerOverlayToCanvas(
-            finalMaskWeights,
+            finalPreviewWeights,
             outputWidth,
             outputHeight
         );
