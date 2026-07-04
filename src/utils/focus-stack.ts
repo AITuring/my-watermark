@@ -67,7 +67,15 @@ function createCanvas(width: number, height: number): HTMLCanvasElement {
 }
 
 function nextFrame(): Promise<void> {
-    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    return new Promise((resolve) => {
+        // Hidden tabs pause requestAnimationFrame, so fall back to a timer to keep
+        // long-running stacking work advancing when the page is in the background.
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+            window.setTimeout(resolve, 0);
+            return;
+        }
+        requestAnimationFrame(() => resolve());
+    });
 }
 
 function getCanvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {

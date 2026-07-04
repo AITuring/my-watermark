@@ -107,6 +107,16 @@ function clamp(value: number, min: number, max: number) {
     return Math.min(max, Math.max(min, value));
 }
 
+function yieldToBrowser(): Promise<void> {
+    return new Promise((resolve) => {
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+            window.setTimeout(resolve, 0);
+            return;
+        }
+        requestAnimationFrame(() => resolve());
+    });
+}
+
 function SortableImageItem({ image, index, onRemove }: SortableImageItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
         useSortable({
@@ -317,9 +327,7 @@ const FocusStacking = () => {
 
         try {
             for (const item of pendingItems) {
-                await new Promise<void>((resolve) => {
-                    requestAnimationFrame(() => resolve());
-                });
+                await yieldToBrowser();
 
                 try {
                     const previewUrl = await createPreviewUrl(item.file, {
