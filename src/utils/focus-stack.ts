@@ -1,3 +1,5 @@
+import { disposeImageSource, loadImageSource } from "./image-loading";
+
 export interface FocusStackOptions {
     autoAlign: boolean;
     manualShiftX: number;
@@ -28,13 +30,12 @@ export interface FocusStackResult {
     sharpnessBUrl: string;
     width: number;
     height: number;
+    sourceCount: number;
     estimatedOffset: {
         x: number;
         y: number;
     };
 }
-
-type LoadedImage = ImageBitmap | HTMLImageElement;
 
 // 决策分析分辨率。两级规则下谷纹走“逐像素决定性”通道、不再依赖大连贯窗口，
 // 因此可以用较高分辨率来解析细特征（细手指/衣纹）而不会让谷纹重新长斑块。
@@ -51,35 +52,6 @@ function createCanvas(width: number, height: number): HTMLCanvasElement {
 
 function nextFrame(): Promise<void> {
     return new Promise((resolve) => requestAnimationFrame(() => resolve()));
-}
-
-function loadImageElement(file: File): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(file);
-        const image = new Image();
-        image.onload = () => {
-            URL.revokeObjectURL(url);
-            resolve(image);
-        };
-        image.onerror = () => {
-            URL.revokeObjectURL(url);
-            reject(new Error("图片加载失败"));
-        };
-        image.src = url;
-    });
-}
-
-async function loadImageSource(file: File): Promise<LoadedImage> {
-    if ("createImageBitmap" in window) {
-        return createImageBitmap(file);
-    }
-    return loadImageElement(file);
-}
-
-function disposeImageSource(source: LoadedImage) {
-    if ("close" in source && typeof source.close === "function") {
-        source.close();
-    }
 }
 
 function getCanvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
@@ -583,21 +555,54 @@ function reportProgress(
     callback?.({ percent, label });
 }
 
+function mergeChannelPlanes(
+    base: ChannelPlanes,
+    candidate: ChannelPlanes,
+    weights: Float32Array
+): ChannelPlanes {
+    const size = weights.length;
+    const r = new Float32Array(size);
+    const g = new Float32Array(size);
+    const b = new Float32Array(size);
+    const lum = new Float32Array(size);
+
+    for (let i = 0; i < size; i += 1) {
+        const w = weights[i];
+        const iw = 1 - w;
+        const rr = base.r[i] * iw + candidate.r[i] * w;
+        const gg = base.g[i] * iw + candidate.g[i] * w;
+        const bb = base.b[i] * iw + candidate.b[i] * w;
+        r[i] = rr;
+        g[i] = gg;
+        b[i] = bb;
+        lum[i] = rr * 0.299 + gg * 0.587 + bb * 0.114;
+    }
+
+    return {
+        r,
+        g,
+        b,
+        lum,
+        width: base.width,
+        height: base.height,
+    };
+}
+
 export async function createFocusStackResult(
-    firstFile: File,
-    secondFile: File,
+    files: File[],
     options: FocusStackOptions,
     onProgress?: (value: FocusStackProgress) => void
 ): Promise<FocusStackResult> {
+    if (files.length < 2) {
+        throw new Error("至少需要两张图片");
+    }
+
     reportProgress(onProgress, 5, "读取图片");
-    const [firstSource, secondSource] = await Promise.all([
-        loadImageSource(firstFile),
-        loadImageSource(secondFile),
-    ]);
+    const sources = await Promise.all(files.map((file) => loadImageSource(file)));
 
     try {
-        const nativeWidth = Math.min(firstSource.width, secondSource.width);
-        const nativeHeight = Math.min(firstSource.height, secondSource.height);
+        const nativeWidth = Math.min(...sources.map((source) => source.width));
+        const nativeHeight = Math.min(...sources.map((source) => source.height));
         const processSize = getProcessSize(nativeWidth, nativeHeight);
         const outputWidth = processSize.width;
         const outputHeight = processSize.height;
@@ -608,181 +613,235 @@ export async function createFocusStackResult(
             options.analysisMaxDimension ?? DEFAULT_ANALYSIS_MAX_DIMENSION
         );
 
-        // --- 低分辨率对齐分析 ---
-        const basePreviewCanvas = createCanvas(analysisSize.width, analysisSize.height);
-        const alignedPreviewCanvas = createCanvas(
+        const baseLayerCanvas = createCanvas(outputWidth, outputHeight);
+        const baseLayerCtx = getCanvasContext(baseLayerCanvas);
+        drawAlignedImage(baseLayerCtx, sources[0], outputWidth, outputHeight);
+        let compositeOutput = imageDataToChannelPlanes(
+            baseLayerCtx.getImageData(0, 0, outputWidth, outputHeight).data,
+            outputWidth,
+            outputHeight
+        );
+
+        const compositeAnalysisCanvas = createCanvas(
             analysisSize.width,
             analysisSize.height
         );
-        const basePreviewCtx = getCanvasContext(basePreviewCanvas);
-        const alignedPreviewCtx = getCanvasContext(alignedPreviewCanvas);
-
-        drawAlignedImage(basePreviewCtx, firstSource, analysisSize.width, analysisSize.height);
+        const compositeAnalysisCtx = getCanvasContext(compositeAnalysisCanvas);
         drawAlignedImage(
-            alignedPreviewCtx,
-            secondSource,
+            compositeAnalysisCtx,
+            sources[0],
+            analysisSize.width,
+            analysisSize.height
+        );
+        let compositeAnalysis = imageDataToChannelPlanes(
+            compositeAnalysisCtx.getImageData(0, 0, analysisSize.width, analysisSize.height)
+                .data,
             analysisSize.width,
             analysisSize.height
         );
 
-        reportProgress(onProgress, 18, "分析对齐");
-        const baseGray = rgbaToGrayscale(
-            basePreviewCtx.getImageData(0, 0, analysisSize.width, analysisSize.height).data
+        let finalMaskWeights = new Float32Array(outputWidth * outputHeight);
+        let finalSharpnessBase = compositeOutput.lum;
+        let finalSharpnessCandidate = compositeOutput.lum;
+        let finalAutoOffset = { x: 0, y: 0 };
+        let finalBasePreviewCanvas = channelsToCanvas(
+            compositeAnalysis.r,
+            compositeAnalysis.g,
+            compositeAnalysis.b,
+            analysisSize.width,
+            analysisSize.height
         );
-        const targetGray = rgbaToGrayscale(
-            alignedPreviewCtx.getImageData(0, 0, analysisSize.width, analysisSize.height)
-                .data
+        let finalAlignedPreviewCanvas = channelsToCanvas(
+            compositeAnalysis.r,
+            compositeAnalysis.g,
+            compositeAnalysis.b,
+            analysisSize.width,
+            analysisSize.height
         );
 
-        let autoOffset = { x: 0, y: 0 };
-        if (options.autoAlign) {
-            const baseEdges = computeLaplacianMap(
-                baseGray,
+        for (let index = 1; index < sources.length; index += 1) {
+            const source = sources[index];
+            const progressBase = 8 + ((index - 1) / (sources.length - 1)) * 78;
+            const progressSpan = 78 / (sources.length - 1);
+            const stepLabel = `合成第 ${index + 1} / ${sources.length} 张`;
+
+            const basePreviewCanvas = channelsToCanvas(
+                compositeAnalysis.r,
+                compositeAnalysis.g,
+                compositeAnalysis.b,
                 analysisSize.width,
                 analysisSize.height
             );
-            const targetEdges = computeLaplacianMap(
-                targetGray,
+            const alignedPreviewCanvas = createCanvas(
                 analysisSize.width,
                 analysisSize.height
             );
-            const scaledSearchRadius = Math.max(
-                1,
-                Math.round(options.searchRadius * analysisSize.scale)
+            const alignedPreviewCtx = getCanvasContext(alignedPreviewCanvas);
+            drawAlignedImage(
+                alignedPreviewCtx,
+                source,
+                analysisSize.width,
+                analysisSize.height
             );
-            const offset = estimateTranslation(
-                baseEdges,
-                targetEdges,
+
+            reportProgress(onProgress, progressBase, `${stepLabel} - 分析对齐`);
+            const targetGray = rgbaToGrayscale(
+                alignedPreviewCtx.getImageData(0, 0, analysisSize.width, analysisSize.height)
+                    .data
+            );
+            let autoOffset = { x: 0, y: 0 };
+            if (options.autoAlign) {
+                const baseEdges = computeLaplacianMap(
+                    compositeAnalysis.lum,
+                    analysisSize.width,
+                    analysisSize.height
+                );
+                const targetEdges = computeLaplacianMap(
+                    targetGray,
+                    analysisSize.width,
+                    analysisSize.height
+                );
+                const scaledSearchRadius = Math.max(
+                    1,
+                    Math.round(options.searchRadius * analysisSize.scale)
+                );
+                const offset = estimateTranslation(
+                    baseEdges,
+                    targetEdges,
+                    analysisSize.width,
+                    analysisSize.height,
+                    scaledSearchRadius
+                );
+                autoOffset = {
+                    x: offset.x / analysisSize.scale,
+                    y: offset.y / analysisSize.scale,
+                };
+            }
+
+            finalAutoOffset = autoOffset;
+            const effectiveShiftX = autoOffset.x + options.manualShiftX;
+            const effectiveShiftY = autoOffset.y + options.manualShiftY;
+
+            drawAlignedImage(
+                alignedPreviewCtx,
+                source,
                 analysisSize.width,
                 analysisSize.height,
-                scaledSearchRadius
+                effectiveShiftX * analysisSize.scale,
+                effectiveShiftY * analysisSize.scale,
+                options.scale
             );
-            autoOffset = {
-                x: offset.x / analysisSize.scale,
-                y: offset.y / analysisSize.scale,
-            };
-        }
 
-        const effectiveShiftX = autoOffset.x + options.manualShiftX;
-        const effectiveShiftY = autoOffset.y + options.manualShiftY;
-
-        // 更新对齐后的预览（低分辨率）。
-        drawAlignedImage(
-            alignedPreviewCtx,
-            secondSource,
-            analysisSize.width,
-            analysisSize.height,
-            effectiveShiftX * analysisSize.scale,
-            effectiveShiftY * analysisSize.scale,
-            options.scale
-        );
-
-        await nextFrame();
-
-        // --- 处理分辨率下的对齐渲染 ---
-        reportProgress(onProgress, 32, "渲染对齐图层");
-        const layerACanvas = createCanvas(outputWidth, outputHeight);
-        const layerBCanvas = createCanvas(outputWidth, outputHeight);
-        const layerACtx = getCanvasContext(layerACanvas);
-        const layerBCtx = getCanvasContext(layerBCanvas);
-
-        drawAlignedImage(layerACtx, firstSource, outputWidth, outputHeight);
-        drawAlignedImage(
-            layerBCtx,
-            secondSource,
-            outputWidth,
-            outputHeight,
-            effectiveShiftX,
-            effectiveShiftY,
-            options.scale
-        );
-
-        const imageA = imageDataToChannelPlanes(
-            layerACtx.getImageData(0, 0, outputWidth, outputHeight).data,
-            outputWidth,
-            outputHeight
-        );
-        const imageB = imageDataToChannelPlanes(
-            layerBCtx.getImageData(0, 0, outputWidth, outputHeight).data,
-            outputWidth,
-            outputHeight
-        );
-
-        await nextFrame();
-
-        // --- 归属决策（在归一化分析分辨率上进行，随后放大回原分辨率）---
-        reportProgress(onProgress, 55, "分析清晰区域");
-        const analysisLumA = baseGray;
-        const analysisLumB = rgbaToGrayscale(
-            alignedPreviewCtx.getImageData(
-                0,
-                0,
+            reportProgress(onProgress, progressBase + progressSpan * 0.25, `${stepLabel} - 渲染图层`);
+            const candidateOutputCanvas = createCanvas(outputWidth, outputHeight);
+            const candidateOutputCtx = getCanvasContext(candidateOutputCanvas);
+            drawAlignedImage(
+                candidateOutputCtx,
+                source,
+                outputWidth,
+                outputHeight,
+                effectiveShiftX,
+                effectiveShiftY,
+                options.scale
+            );
+            const candidateOutput = imageDataToChannelPlanes(
+                candidateOutputCtx.getImageData(0, 0, outputWidth, outputHeight).data,
+                outputWidth,
+                outputHeight
+            );
+            const candidateAnalysis = imageDataToChannelPlanes(
+                alignedPreviewCtx.getImageData(0, 0, analysisSize.width, analysisSize.height)
+                    .data,
                 analysisSize.width,
                 analysisSize.height
-            ).data
-        );
-        const analysisMask = computeDecisionMask(
-            analysisLumA,
-            analysisLumB,
-            analysisSize.width,
-            analysisSize.height,
-            options
-        );
-        const maskWeights = upscaleMaskToWeights(
-            analysisMask,
-            analysisSize.width,
-            analysisSize.height,
-            outputWidth,
-            outputHeight
-        );
+            );
 
-        // 硬选择：这是“全图清晰”的关键。任何介于 0~1 的权重都会把“清晰那张”与
-        // “模糊那张”的像素做加权平均 —— 平均结果必然发糊。之前的柔性过渡/偏置反而
-        // 会把小而暗但清晰的主体（如左侧小陶俑）拉回模糊的一张。
-        // 掩膜已在 1024 上做过连贯与羽化、再双线性放大（边界因此平滑不锯齿），
-        // 这里按 0.5 二值化：每个输出像素完全取自 A 或完全取自 B，绝不混合，
-        // 因此只要归属正确，结果处处清晰。
-        for (let i = 0; i < maskWeights.length; i += 1) {
-            maskWeights[i] = maskWeights[i] >= 0.5 ? 1 : 0;
+            await nextFrame();
+
+            reportProgress(
+                onProgress,
+                progressBase + progressSpan * 0.55,
+                `${stepLabel} - 分析清晰区域`
+            );
+            const analysisMask = computeDecisionMask(
+                compositeAnalysis.lum,
+                candidateAnalysis.lum,
+                analysisSize.width,
+                analysisSize.height,
+                options
+            );
+            const maskWeights = upscaleMaskToWeights(
+                analysisMask,
+                analysisSize.width,
+                analysisSize.height,
+                outputWidth,
+                outputHeight
+            );
+            for (let i = 0; i < maskWeights.length; i += 1) {
+                maskWeights[i] = maskWeights[i] >= 0.5 ? 1 : 0;
+            }
+
+            const analysisWeights = new Float32Array(analysisMask);
+            for (let i = 0; i < analysisWeights.length; i += 1) {
+                analysisWeights[i] = analysisWeights[i] >= 0.5 ? 1 : 0;
+            }
+
+            await nextFrame();
+
+            reportProgress(
+                onProgress,
+                progressBase + progressSpan * 0.8,
+                `${stepLabel} - 融合结果`
+            );
+            finalSharpnessBase = compositeOutput.lum;
+            finalSharpnessCandidate = candidateOutput.lum;
+            compositeOutput = mergeChannelPlanes(
+                compositeOutput,
+                candidateOutput,
+                maskWeights
+            );
+            compositeAnalysis = mergeChannelPlanes(
+                compositeAnalysis,
+                candidateAnalysis,
+                analysisWeights
+            );
+
+            finalMaskWeights = new Float32Array(maskWeights);
+            finalBasePreviewCanvas = basePreviewCanvas;
+            finalAlignedPreviewCanvas = alignedPreviewCanvas;
+
+            await nextFrame();
         }
 
-        await nextFrame();
-
-        // --- 全分辨率深度叠加：每像素取更清晰那张的原始像素 ---
-        reportProgress(onProgress, 78, "生成结果与掩膜");
-        const outputSize = outputWidth * outputHeight;
-        const rOut = new Float32Array(outputSize);
-        const gOut = new Float32Array(outputSize);
-        const bOut = new Float32Array(outputSize);
-        for (let i = 0; i < outputSize; i += 1) {
-            const w = maskWeights[i];
-            const iw = 1 - w;
-            rOut[i] = imageA.r[i] * iw + imageB.r[i] * w;
-            gOut[i] = imageA.g[i] * iw + imageB.g[i] * w;
-            bOut[i] = imageA.b[i] * iw + imageB.b[i] * w;
-        }
         const resultCanvas = channelsToCanvas(
-            rOut,
-            gOut,
-            bOut,
+            compositeOutput.r,
+            compositeOutput.g,
+            compositeOutput.b,
             outputWidth,
             outputHeight
         );
 
         const maskPreviewCanvas = maskToCanvas(
-            maskWeights,
+            finalMaskWeights,
             outputWidth,
             outputHeight
         );
         const winnerOverlayCanvas = winnerOverlayToCanvas(
-            maskWeights,
+            finalMaskWeights,
             outputWidth,
             outputHeight
         );
 
-        // 清晰度可视化：处理分辨率下各自的梯度能量。
-        const sharpRawA = computeLaplacianMap(imageA.lum, outputWidth, outputHeight);
-        const sharpRawB = computeLaplacianMap(imageB.lum, outputWidth, outputHeight);
+        const sharpRawA = computeLaplacianMap(
+            finalSharpnessBase,
+            outputWidth,
+            outputHeight
+        );
+        const sharpRawB = computeLaplacianMap(
+            finalSharpnessCandidate,
+            outputWidth,
+            outputHeight
+        );
         const sharpnessACanvas = normalizeMapToCanvas(
             normalizeScoreMap(
                 boxBlurMap(sharpRawA, outputWidth, outputHeight, Math.max(1, options.smoothRadius))
@@ -811,8 +870,8 @@ export async function createFocusStackResult(
             canvasToObjectUrl(resultCanvas),
             canvasToObjectUrl(maskPreviewCanvas),
             canvasToObjectUrl(winnerOverlayCanvas),
-            canvasToObjectUrl(basePreviewCanvas),
-            canvasToObjectUrl(alignedPreviewCanvas),
+            canvasToObjectUrl(finalBasePreviewCanvas),
+            canvasToObjectUrl(finalAlignedPreviewCanvas),
             canvasToObjectUrl(sharpnessACanvas),
             canvasToObjectUrl(sharpnessBCanvas),
         ]);
@@ -828,13 +887,13 @@ export async function createFocusStackResult(
             sharpnessBUrl,
             width: outputWidth,
             height: outputHeight,
+            sourceCount: files.length,
             estimatedOffset: {
-                x: autoOffset.x,
-                y: autoOffset.y,
+                x: finalAutoOffset.x,
+                y: finalAutoOffset.y,
             },
         };
     } finally {
-        disposeImageSource(firstSource);
-        disposeImageSource(secondSource);
+        sources.forEach((source) => disposeImageSource(source));
     }
 }

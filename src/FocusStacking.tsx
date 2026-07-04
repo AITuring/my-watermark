@@ -20,18 +20,12 @@ import {
     type FocusStackOptions,
     type FocusStackResult,
 } from "./utils/focus-stack";
-
-type UploadSide = "first" | "second";
+import { createPreviewUrl } from "./utils/image-loading";
 
 interface UploadState {
     file: File | null;
     previewUrl: string;
 }
-
-const emptyUploadState: UploadState = {
-    file: null,
-    previewUrl: "",
-};
 
 function revokeUploadPreview(state: UploadState) {
     if (state.previewUrl) {
@@ -53,8 +47,7 @@ function revokeFocusStackResult(result: FocusStackResult | null) {
 }
 
 const FocusStacking = () => {
-    const [firstImage, setFirstImage] = useState<UploadState>(emptyUploadState);
-    const [secondImage, setSecondImage] = useState<UploadState>(emptyUploadState);
+    const [images, setImages] = useState<UploadState[]>([]);
     const [result, setResult] = useState<FocusStackResult | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -72,13 +65,12 @@ const FocusStacking = () => {
 
     useEffect(() => {
         return () => {
-            revokeUploadPreview(firstImage);
-            revokeUploadPreview(secondImage);
+            images.forEach(revokeUploadPreview);
             revokeFocusStackResult(result);
         };
-    }, [firstImage, secondImage, result]);
+    }, [images, result]);
 
-    const canProcess = firstImage.file && secondImage.file && !isProcessing;
+    const canProcess = images.length >= 2 && !isProcessing;
 
     const effectiveOffset = useMemo(() => {
         if (!result) {
@@ -100,40 +92,67 @@ const FocusStacking = () => {
         });
     };
 
-    const updateUpload = (side: UploadSide, files: File[]) => {
-        const file = files[0];
-        if (!file) {
+    const appendUploads = async (files: File[]) => {
+        if (files.length === 0) {
             return;
         }
 
-        clearGeneratedResult();
-        const nextState: UploadState = {
-            file,
-            previewUrl: URL.createObjectURL(file),
-        };
-
-        if (side === "first") {
-            setFirstImage((current) => {
-                revokeUploadPreview(current);
-                return nextState;
-            });
-        } else {
-            setSecondImage((current) => {
-                revokeUploadPreview(current);
-                return nextState;
-            });
+        try {
+            const nextStates = await Promise.all(
+                files.map(async (file) => ({
+                    file,
+                    previewUrl: await createPreviewUrl(file),
+                }))
+            );
+            clearGeneratedResult();
+            setImages((current) => [...current, ...nextStates]);
+        } catch (error) {
+            console.error(error);
+            alert("图片预览生成失败，请确认文件未损坏，且 TIFF/TIFF 文件使用标准编码。");
         }
     };
 
-    const handleSwapImages = () => {
+    const handleRemoveImage = (index: number) => {
         clearGeneratedResult();
-        setFirstImage(secondImage);
-        setSecondImage(firstImage);
+        setImages((current) => {
+            const target = current[index];
+            if (target) {
+                revokeUploadPreview(target);
+            }
+            return current.filter((_, currentIndex) => currentIndex !== index);
+        });
+    };
+
+    const handleMoveImage = (from: number, to: number) => {
+        if (to < 0 || to >= images.length || from === to) {
+            return;
+        }
+        clearGeneratedResult();
+        setImages((current) => {
+            const next = [...current];
+            const [item] = next.splice(from, 1);
+            if (!item) {
+                return current;
+            }
+            next.splice(to, 0, item);
+            return next;
+        });
+    };
+
+    const handleClearImages = () => {
+        clearGeneratedResult();
+        setImages((current) => {
+            current.forEach(revokeUploadPreview);
+            return [];
+        });
     };
 
     const handleProcess = async () => {
-        if (!firstImage.file || !secondImage.file) {
-            alert("请先上传两张不同对焦点的图片。");
+        const files = images
+            .map((image) => image.file)
+            .filter((file): file is File => Boolean(file));
+        if (files.length < 2) {
+            alert("请至少上传两张不同对焦点的图片。");
             return;
         }
 
@@ -156,8 +175,7 @@ const FocusStacking = () => {
 
         try {
             const nextResult = await createFocusStackResult(
-                firstImage.file,
-                secondImage.file,
+                files,
                 options,
                 ({ percent, label }) => {
                     setProgress(percent);
@@ -201,23 +219,23 @@ const FocusStacking = () => {
                   url: result.winnerOverlayUrl,
               },
               {
-                  key: "first",
-                  label: "参考图",
+                  key: "base",
+                  label: result.sourceCount > 2 ? "上一轮结果" : "参考图",
                   url: result.basePreviewUrl,
               },
               {
-                  key: "second",
-                  label: "对齐后",
+                  key: "candidate",
+                  label: result.sourceCount > 2 ? "当前候选图" : "对齐后",
                   url: result.alignedPreviewUrl,
               },
               {
                   key: "sharp-a",
-                  label: "清晰度 A",
+                  label: result.sourceCount > 2 ? "基准清晰度" : "清晰度 A",
                   url: result.sharpnessAUrl,
               },
               {
                   key: "sharp-b",
-                  label: "清晰度 B",
+                  label: result.sourceCount > 2 ? "候选清晰度" : "清晰度 B",
                   url: result.sharpnessBUrl,
               },
           ]
@@ -236,7 +254,7 @@ const FocusStacking = () => {
                                 焦点合成
                             </h1>
                             <p className="text-sm text-slate-600 dark:text-slate-300">
-                                上传两张同机位、不同对焦点的照片，自动提取每个区域更清晰的部分。
+                                上传至少两张同机位、不同对焦点的照片，逐张提取每个区域更清晰的部分。
                             </p>
                         </div>
                     </div>
@@ -253,93 +271,121 @@ const FocusStacking = () => {
                             <CardHeader>
                                 <CardTitle>上传图片</CardTitle>
                                 <CardDescription>
-                                    第一张作为参考图，第二张会自动对齐并抽取清晰区域。
+                                    第一张作为初始参考图，后续图片会按顺序自动对齐并并入清晰区域。
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-200">
-                                    `选区叠色` 中红色代表 `图片 A`，蓝色代表 `图片 B`。如果圈是红的但结果仍然糊，通常说明当前上传到 `图片 A` 的就是那张前景模糊的图。
+                                    `选区叠色` 中红色代表当前基准图，蓝色代表正在并入的候选图。多张模式下，这些调试图显示的是最后一轮合成。
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>图片 A</Label>
+                                    <Label>焦点序列</Label>
                                     <ImageUploader
-                                        onUpload={(files) => updateUpload("first", files)}
-                                        fileType="图片 A"
+                                        onUpload={appendUploads}
+                                        fileType="焦点序列"
                                     >
                                         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 transition-colors hover:border-blue-400 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-blue-500 dark:hover:bg-slate-900">
-                                            {firstImage.previewUrl ? (
-                                                <img
-                                                    src={firstImage.previewUrl}
-                                                    alt="图片 A 预览"
-                                                    className="aspect-[4/3] w-full rounded-xl object-cover"
-                                                />
-                                            ) : (
-                                                <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-                                                    <Icon icon="mdi:image-plus" className="h-8 w-8" />
-                                                    <span className="text-sm">拖拽或点击上传第一张图</span>
-                                                </div>
-                                            )}
+                                            <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                                                <Icon icon="mdi:image-multiple-outline" className="h-8 w-8" />
+                                                <span className="text-sm">拖拽或点击添加一张或多张图</span>
+                                                <span className="text-xs text-slate-400 dark:text-slate-500">
+                                                    支持 JPG/PNG/WEBP/GIF/TIF/TIFF，第一张作为初始参考
+                                                </span>
+                                            </div>
                                         </div>
                                     </ImageUploader>
-                                    {firstImage.file && (
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                                            {firstImage.file.name}
-                                        </p>
-                                    )}
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label>图片 B</Label>
-                                    <ImageUploader
-                                        onUpload={(files) => updateUpload("second", files)}
-                                        fileType="图片 B"
-                                    >
-                                        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 transition-colors hover:border-blue-400 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-blue-500 dark:hover:bg-slate-900">
-                                            {secondImage.previewUrl ? (
-                                                <img
-                                                    src={secondImage.previewUrl}
-                                                    alt="图片 B 预览"
-                                                    className="aspect-[4/3] w-full rounded-xl object-cover"
-                                                />
-                                            ) : (
-                                                <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-                                                    <Icon icon="mdi:image-plus" className="h-8 w-8" />
-                                                    <span className="text-sm">拖拽或点击上传第二张图</span>
-                                                </div>
-                                            )}
+                                {images.length > 0 && (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                已添加 {images.length} 张图片
+                                            </p>
+                                            <Badge variant="secondary">
+                                                {images.length >= 2 ? "可开始合成" : "至少 2 张"}
+                                            </Badge>
                                         </div>
-                                    </ImageUploader>
-                                    {secondImage.file && (
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                                            {secondImage.file.name}
-                                        </p>
-                                    )}
-                                </div>
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            {images.map((image, index) => (
+                                                <div
+                                                    key={`${image.file?.name ?? "image"}-${index}`}
+                                                    className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950/60"
+                                                >
+                                                    <div className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900">
+                                                        {image.previewUrl ? (
+                                                            <img
+                                                                src={image.previewUrl}
+                                                                alt={`图片 ${index + 1} 预览`}
+                                                                className="aspect-[4/3] w-full object-cover"
+                                                            />
+                                                        ) : null}
+                                                        <div className="absolute left-2 top-2 flex gap-2">
+                                                            <Badge variant="secondary">
+                                                                #{index + 1}
+                                                            </Badge>
+                                                            {index === 0 && (
+                                                                <Badge variant="default">
+                                                                    初始参考
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                                                        {image.file?.name}
+                                                    </p>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                handleMoveImage(index, index - 1)
+                                                            }
+                                                            disabled={index === 0}
+                                                        >
+                                                            上移
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                handleMoveImage(index, index + 1)
+                                                            }
+                                                            disabled={index === images.length - 1}
+                                                        >
+                                                            下移
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            onClick={() => handleRemoveImage(index)}
+                                                        >
+                                                            移除
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <Button
-                                        variant="outline"
-                                        onClick={handleSwapImages}
-                                        disabled={!firstImage.file || !secondImage.file}
+                                        variant="ghost"
+                                        onClick={handleClearImages}
+                                        disabled={images.length === 0}
                                     >
-                                        交换 A / B
+                                        清空全部
                                     </Button>
                                     <Button
-                                        variant="ghost"
-                                        onClick={() => {
-                                            clearGeneratedResult();
-                                            setFirstImage(emptyUploadState);
-                                            setSecondImage(emptyUploadState);
-                                        }}
-                                        disabled={!firstImage.file && !secondImage.file}
+                                        variant="outline"
+                                        onClick={handleProcess}
+                                        disabled={!canProcess}
                                     >
-                                        清空两张图
+                                        {isProcessing ? "处理中..." : "开始合成"}
                                     </Button>
                                 </div>
 
                                 <div className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600 dark:bg-slate-950 dark:text-slate-300">
-                                    建议使用脚架和定时快门拍摄，曝光参数固定，仅改变对焦点，效果会更稳定。
+                                    建议使用脚架和定时快门拍摄，曝光参数固定，仅改变对焦点；多张序列建议按从前到后或从后到前的焦点顺序整理。
                                 </div>
                             </CardContent>
                         </Card>
@@ -348,7 +394,7 @@ const FocusStacking = () => {
                             <CardHeader>
                                 <CardTitle>合成参数</CardTitle>
                                 <CardDescription>
-                                    自动对齐负责消除轻微位移，微调参数负责压住边缘重影。
+                                    自动对齐负责消除轻微位移，以下参数会应用到每一张候选图。
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-5">
@@ -502,9 +548,6 @@ const FocusStacking = () => {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3 pt-2">
-                                    <Button onClick={handleProcess} disabled={!canProcess}>
-                                        {isProcessing ? "处理中..." : "开始合成"}
-                                    </Button>
                                     <Button
                                         variant="outline"
                                         onClick={handleDownload}
@@ -512,6 +555,9 @@ const FocusStacking = () => {
                                     >
                                         下载结果
                                     </Button>
+                                    <div className="rounded-xl border border-dashed border-slate-200 px-3 py-2 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                        当前按列表顺序依次合成
+                                    </div>
                                 </div>
 
                                 <Button
@@ -534,31 +580,37 @@ const FocusStacking = () => {
                             <CardHeader>
                                 <CardTitle>处理状态</CardTitle>
                                 <CardDescription>
-                                    先在低分辨率下对齐，再按局部清晰度逐区域取最清晰的来源合成。
+                                    先在低分辨率下逐张对齐，再按局部清晰度累计更清晰的来源。
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="flex flex-wrap gap-2">
                                     <Badge variant="outline">当前步骤: {progressLabel}</Badge>
+                                    <Badge variant="outline">已上传: {images.length} 张</Badge>
                                     {result && (
                                         <Badge variant="outline">
                                             输出尺寸: {result.width} × {result.height}
                                         </Badge>
                                     )}
+                                    {result && (
+                                        <Badge variant="outline">
+                                            来源数量: {result.sourceCount} 张
+                                        </Badge>
+                                    )}
                                     <Badge variant="outline">
-                                        有效偏移: {effectiveOffset.x.toFixed(1)}px /{" "}
+                                        最后一步偏移: {effectiveOffset.x.toFixed(1)}px /{" "}
                                         {effectiveOffset.y.toFixed(1)}px
                                     </Badge>
                                     {result && autoAlign && (
                                         <Badge variant="outline">
-                                            自动估计: {result.estimatedOffset.x.toFixed(1)}px /{" "}
+                                            最后一步自动估计: {result.estimatedOffset.x.toFixed(1)}px /{" "}
                                             {result.estimatedOffset.y.toFixed(1)}px
                                         </Badge>
                                     )}
                                 </div>
                                 <Progress value={progress} className="h-2.5" />
                                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                                    如果边缘仍有轻微重影，优先微调水平/垂直位移，其次再小范围调整缩放补偿。
+                                    如果边缘仍有轻微重影，优先微调水平/垂直位移，其次再小范围调整缩放补偿；多张时调试图显示最后一轮合成。
                                 </p>
                             </CardContent>
                         </Card>
@@ -567,7 +619,7 @@ const FocusStacking = () => {
                             <CardHeader>
                                 <CardTitle>预览结果</CardTitle>
                                 <CardDescription>
-                                    可切换查看掩膜和清晰度图，便于判断算法是不是选中了正确区域。
+                                    可切换查看最后一轮的掩膜和清晰度图，便于判断算法是不是选中了正确区域。
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -608,7 +660,7 @@ const FocusStacking = () => {
                                                 结果会显示在这里
                                             </p>
                                             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                                上传两张图后点击“开始合成”，即可查看清晰掩膜和最终输出。
+                                                上传至少两张图后点击“开始合成”，即可查看最后一轮掩膜和最终输出。
                                             </p>
                                         </div>
                                     </div>

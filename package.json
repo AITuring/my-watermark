@@ -90,6 +90,7 @@
     "three": "^0.165.0",
     "use-debounce": "^10.0.4",
     "use-image": "^1.1.1",
+    "utif": "^3.1.0",
     "vite-plugin-compression": "^0.5.1"
   },
   "devDependencies": {

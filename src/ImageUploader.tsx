@@ -23,7 +23,15 @@ const ImageUploader = forwardRef<HTMLDivElement, ImageUploaderProps>(
         const { getRootProps, getInputProps, isDragActive } = useDropzone({
             onDrop,
             accept: {
-                "image/*": [".jpeg", ".jpg", ".png", ".gif", ".webp"],
+                "image/*": [
+                    ".jpeg",
+                    ".jpg",
+                    ".png",
+                    ".gif",
+                    ".webp",
+                    ".tif",
+                    ".tiff",
+                ],
             },
         });
 
