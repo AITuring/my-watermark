@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderOpen,
@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import DarkToggle from '@/components/DarkToggle';
 
@@ -54,9 +56,42 @@ interface Rule {
   value: string;
 }
 
+const RULE_CONFIGS: Array<{
+  type: Rule['type'];
+  label: string;
+  placeholder: string;
+  id: string;
+}> = [
+  { type: 'delete', label: '删除文本', placeholder: '输入要删除的文本，点击 + 添加...', id: 'delete-input' },
+  { type: 'add_prefix', label: '添加前缀', placeholder: '输入前缀，点击 + 添加...', id: 'prefix-input' },
+  { type: 'add_suffix', label: '添加后缀', placeholder: '输入后缀，点击 + 添加...', id: 'suffix-input' }
+];
+
+const FileNameTooltip = ({
+  name,
+  className
+}: {
+  name: string;
+  className?: string;
+}) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <div className={className}>{name}</div>
+    </TooltipTrigger>
+    <TooltipContent className="max-w-[420px] break-all whitespace-pre-wrap">
+      {name}
+    </TooltipContent>
+  </Tooltip>
+);
+
 const FileRenamer: React.FC = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
+  const [ruleInputs, setRuleInputs] = useState<Record<Rule['type'], string>>({
+    delete: '',
+    add_prefix: '',
+    add_suffix: ''
+  });
   const [filterKeyword, setFilterKeyword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
@@ -153,6 +188,16 @@ const FileRenamer: React.FC = () => {
   const addRule = (type: Rule['type'], value: string) => {
     if (!value.trim()) return;
     setRules(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), type, value }]);
+  };
+
+  const updateRuleInput = (type: Rule['type'], value: string) => {
+    setRuleInputs(prev => ({ ...prev, [type]: value }));
+  };
+
+  const submitRule = (type: Rule['type']) => {
+    const value = ruleInputs[type];
+    addRule(type, value);
+    setRuleInputs(prev => ({ ...prev, [type]: '' }));
   };
 
   const removeRule = (id: string) => {
@@ -363,95 +408,44 @@ const FileRenamer: React.FC = () => {
               <div className="space-y-4">
                 {/* Add Rule Controls */}
                 <div className="space-y-3">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700">
-                    <label className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-1 block">删除文本</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        id="delete-input"
-                        placeholder="输入要删除的文本 (按回车添加)..."
-                        className="flex-1 bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6B9FF] dark:text-slate-200 dark:placeholder-slate-600"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            addRule('delete', e.currentTarget.value);
-                            e.currentTarget.value = '';
-                          }
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-[#8C7CF0] hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                        onClick={() => {
-                          const input = document.getElementById('delete-input') as HTMLInputElement;
-                          addRule('delete', input.value);
-                          input.value = '';
-                        }}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
+                  {RULE_CONFIGS.map(({ type, label, placeholder, id }) => (
+                    <div
+                      key={type}
+                      className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700"
+                    >
+                      <label className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-1 block" htmlFor={id}>
+                        {label}
+                      </label>
+                      <div className="flex gap-2 items-start">
+                        <Textarea
+                          id={id}
+                          rows={3}
+                          value={ruleInputs[type]}
+                          placeholder={placeholder}
+                          className="flex-1 min-h-[84px] resize-y bg-white dark:bg-black/20 border-slate-200 dark:border-slate-700/50 rounded-lg px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-[#C6B9FF] dark:text-slate-200 dark:placeholder-slate-600"
+                          onChange={(e) => updateRuleInput(type, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                              e.preventDefault();
+                              submitRule(type);
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-[#8C7CF0] hover:bg-purple-50 dark:hover:bg-purple-900/20 mt-1"
+                          onClick={() => submitRule(type)}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                        支持长文本输入，使用 `Cmd/Ctrl + Enter` 或点击 + 添加
+                      </p>
                     </div>
-                  </div>
-
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700">
-                    <label className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-1 block">添加前缀</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        id="prefix-input"
-                        placeholder="输入前缀 (按回车添加)..."
-                        className="flex-1 bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6B9FF] dark:text-slate-200 dark:placeholder-slate-600"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            addRule('add_prefix', e.currentTarget.value);
-                            e.currentTarget.value = '';
-                          }
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-[#8C7CF0] hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                        onClick={() => {
-                          const input = document.getElementById('prefix-input') as HTMLInputElement;
-                          addRule('add_prefix', input.value);
-                          input.value = '';
-                        }}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700">
-                    <label className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-1 block">添加后缀</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        id="suffix-input"
-                        placeholder="输入后缀 (按回车添加)..."
-                        className="flex-1 bg-white dark:bg-black/20 border border-slate-200 dark:border-slate-700/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C6B9FF] dark:text-slate-200 dark:placeholder-slate-600"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            addRule('add_suffix', e.currentTarget.value);
-                            e.currentTarget.value = '';
-                          }
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-[#8C7CF0] hover:bg-purple-50 dark:hover:bg-purple-900/20"
-                        onClick={() => {
-                          const input = document.getElementById('suffix-input') as HTMLInputElement;
-                          addRule('add_suffix', input.value);
-                          input.value = '';
-                        }}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 {/* Active Rules List */}
@@ -472,6 +466,8 @@ const FileRenamer: React.FC = () => {
                           <span className="text-sm font-medium text-slate-700">"{rule.value}"</span>
                         </div>
                         <button
+                          type="button"
+                          aria-label={`删除${rule.type === 'delete' ? '删除' : rule.type === 'add_prefix' ? '前缀' : '后缀'}规则`}
                           onClick={() => removeRule(rule.id)}
                           className="text-slate-300 hover:text-red-400 transition-colors"
                         >
@@ -501,6 +497,7 @@ const FileRenamer: React.FC = () => {
 
           {/* Right Panel: File List */}
           <div className="lg:col-span-8">
+            <TooltipProvider>
             <Card className="h-[600px] flex flex-col border-0 shadow-sm bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl overflow-hidden ring-1 ring-slate-100 dark:ring-slate-800">
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white/50 dark:bg-slate-900/50">
                 <div className="flex items-center gap-2">
@@ -550,16 +547,20 @@ const FileRenamer: React.FC = () => {
                           </div>
 
                           <div className="flex-1 min-w-0 grid grid-cols-2 gap-4">
-                            <div className="truncate text-slate-500 dark:text-slate-400 text-sm" title={file.originalName}>
-                              {file.originalName}
-                            </div>
+                            <FileNameTooltip
+                              name={file.originalName}
+                              className="truncate text-slate-500 dark:text-slate-400 text-sm"
+                            />
                             <div className="flex items-center gap-2 min-w-0">
                               <ArrowRight className="w-3 h-3 text-slate-300 dark:text-slate-600 shrink-0" />
-                              <div className={`truncate text-sm font-medium
-                                ${file.originalName !== file.newName ? 'text-[#8C7CF0] dark:text-[#A79AF5]' : 'text-slate-700 dark:text-slate-200'}
-                              `} title={file.newName}>
-                                {file.newName}
-                              </div>
+                              <FileNameTooltip
+                                name={file.newName}
+                                className={`truncate text-sm font-medium ${
+                                  file.originalName !== file.newName
+                                    ? 'text-[#8C7CF0] dark:text-[#A79AF5]'
+                                    : 'text-slate-700 dark:text-slate-200'
+                                }`}
+                              />
                             </div>
                           </div>
                         </div>
@@ -576,6 +577,7 @@ const FileRenamer: React.FC = () => {
                 </div>
               </ScrollArea>
             </Card>
+            </TooltipProvider>
           </div>
         </div>
       </div>
