@@ -38,6 +38,7 @@ export interface FocusStackLivePreview {
 
 export interface FocusStackResult {
     resultUrl: string;
+    ownershipMapUrl: string;
     maskUrl: string;
     winnerOverlayUrl: string;
     basePreviewUrl: string;
@@ -58,6 +59,36 @@ export interface FocusStackResult {
 const DEFAULT_ANALYSIS_MAX_DIMENSION = 1536;
 // 融合处理的像素预算：超过则按比例下采样，防止大图爆内存导致浏览器崩溃。
 const MAX_PROCESS_PIXELS = 24_000_000;
+const OWNERSHIP_COLOR_HEXES = [
+    "#ef4444",
+    "#3b82f6",
+    "#22c55e",
+    "#f59e0b",
+    "#a855f7",
+    "#06b6d4",
+    "#f97316",
+    "#84cc16",
+    "#ec4899",
+    "#14b8a6",
+];
+
+function hexToRgb(hex: string): [number, number, number] {
+    const normalized = hex.replace("#", "");
+    const value = Number.parseInt(normalized, 16);
+    return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
+}
+
+function getOwnershipColorHex(index: number): string {
+    return OWNERSHIP_COLOR_HEXES[index % OWNERSHIP_COLOR_HEXES.length];
+}
+
+function getOwnershipColorRgb(index: number): [number, number, number] {
+    return hexToRgb(getOwnershipColorHex(index));
+}
+
+export function getFocusStackOwnershipColor(index: number): string {
+    return getOwnershipColorHex(index);
+}
 
 function createCanvas(width: number, height: number): HTMLCanvasElement {
     const canvas = document.createElement("canvas");
@@ -292,6 +323,25 @@ function winnerOverlayToCanvas(
         imageData.data[i + 1] = 0;
         imageData.data[i + 2] = Math.round(value * 255 * strength);
         imageData.data[i + 3] = Math.round(120 + strength * 80);
+    }
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
+}
+
+function ownershipMapToCanvas(
+    ownership: Uint16Array,
+    width: number,
+    height: number
+): HTMLCanvasElement {
+    const canvas = createCanvas(width, height);
+    const ctx = getCanvasContext(canvas);
+    const imageData = ctx.createImageData(width, height);
+    for (let i = 0, p = 0; p < ownership.length; i += 4, p += 1) {
+        const [r, g, b] = getOwnershipColorRgb(ownership[p]);
+        imageData.data[i] = r;
+        imageData.data[i + 1] = g;
+        imageData.data[i + 2] = b;
+        imageData.data[i + 3] = 255;
     }
     ctx.putImageData(imageData, 0, 0);
     return canvas;
@@ -685,6 +735,7 @@ export async function createFocusStackResult(
             outputWidth,
             outputHeight
         );
+        const ownershipMap = new Uint16Array(outputWidth * outputHeight);
 
         const compositeAnalysisCanvas = createCanvas(
             analysisSize.width,
@@ -850,6 +901,9 @@ export async function createFocusStackResult(
             );
             for (let i = 0; i < maskWeights.length; i += 1) {
                 maskWeights[i] = maskWeights[i] >= 0.5 ? 1 : 0;
+                if (maskWeights[i] === 1) {
+                    ownershipMap[i] = index;
+                }
             }
 
             const analysisWeights = new Float32Array(decisionArtifacts.blendMask);
@@ -933,6 +987,11 @@ export async function createFocusStackResult(
             outputWidth,
             outputHeight
         );
+        const ownershipMapCanvas = ownershipMapToCanvas(
+            ownershipMap,
+            outputWidth,
+            outputHeight
+        );
 
         const maskPreviewCanvas = maskToCanvas(
             finalPreviewWeights,
@@ -973,6 +1032,7 @@ export async function createFocusStackResult(
         reportProgress(onProgress, 92, "导出预览");
         const [
             resultUrl,
+            ownershipMapUrl,
             maskUrl,
             winnerOverlayUrl,
             basePreviewUrl,
@@ -981,6 +1041,7 @@ export async function createFocusStackResult(
             sharpnessBUrl,
         ] = await Promise.all([
             canvasToObjectUrl(resultCanvas),
+            canvasToObjectUrl(ownershipMapCanvas),
             canvasToObjectUrl(maskPreviewCanvas),
             canvasToObjectUrl(winnerOverlayCanvas),
             canvasToObjectUrl(finalBasePreviewCanvas),
@@ -992,6 +1053,7 @@ export async function createFocusStackResult(
         reportProgress(onProgress, 100, "完成");
         return {
             resultUrl,
+            ownershipMapUrl,
             maskUrl,
             winnerOverlayUrl,
             basePreviewUrl,

@@ -39,6 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import ImageUploader from "./ImageUploader";
 import {
     createFocusStackResult,
+    getFocusStackOwnershipColor,
     type FocusStackLivePreview,
     type FocusStackOptions,
     type FocusStackResult,
@@ -64,6 +65,7 @@ function revokeFocusStackResult(result: FocusStackResult | null) {
         return;
     }
     URL.revokeObjectURL(result.resultUrl);
+    URL.revokeObjectURL(result.ownershipMapUrl);
     URL.revokeObjectURL(result.maskUrl);
     URL.revokeObjectURL(result.winnerOverlayUrl);
     URL.revokeObjectURL(result.basePreviewUrl);
@@ -484,13 +486,13 @@ const FocusStacking = () => {
                   url: result.resultUrl,
               },
               {
-                  key: "mask",
-                  label: "清晰掩膜",
-                  url: result.maskUrl,
+                  key: "ownership",
+                  label: result.sourceCount > 2 ? "累计来源图" : "来源分布",
+                  url: result.ownershipMapUrl,
               },
               {
                   key: "winner-overlay",
-                  label: "选区叠色",
+                  label: result.sourceCount > 2 ? "最后一轮叠色" : "选区叠色",
                   url: result.winnerOverlayUrl,
               },
               {
@@ -500,18 +502,23 @@ const FocusStacking = () => {
               },
               {
                   key: "candidate",
-                  label: result.sourceCount > 2 ? "当前候选图" : "对齐后",
+                  label: result.sourceCount > 2 ? "最后候选图" : "对齐后",
                   url: result.alignedPreviewUrl,
               },
               {
                   key: "sharp-a",
-                  label: result.sourceCount > 2 ? "基准清晰度" : "清晰度 A",
+                  label: result.sourceCount > 2 ? "最后一轮基准清晰度" : "清晰度 A",
                   url: result.sharpnessAUrl,
               },
               {
                   key: "sharp-b",
-                  label: result.sourceCount > 2 ? "候选清晰度" : "清晰度 B",
+                  label: result.sourceCount > 2 ? "最后一轮候选清晰度" : "清晰度 B",
                   url: result.sharpnessBUrl,
+              },
+              {
+                  key: "mask",
+                  label: result.sourceCount > 2 ? "最后一轮掩膜" : "清晰掩膜",
+                  url: result.maskUrl,
               },
           ]
         : [];
@@ -554,15 +561,15 @@ const FocusStacking = () => {
                   url: result.resultUrl,
               },
               {
-                  key: "depth-mask",
-                  label: "深度图",
-                  url: result.maskUrl,
+                  key: "ownership",
+                  label: result.sourceCount > 2 ? "累计来源图" : "来源分布",
+                  url: result.ownershipMapUrl,
               },
           ]
         : [];
 
     const resultSecondaryPanels = result
-        ? previewPanels.filter((panel) => !["result", "mask"].includes(panel.key))
+        ? previewPanels.filter((panel) => !["result", "ownership"].includes(panel.key))
         : [];
 
     const inspectImageSize = useMemo(
@@ -897,7 +904,7 @@ const FocusStacking = () => {
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-200">
-                                    `选区叠色` 中红色代表当前基准图，蓝色代表正在并入的候选图。多张模式下，这些调试图显示的是最后一轮合成。
+                                    多张模式下，主视图里的 `累计来源图` 表示最终每个像素来自哪一张原图；`最后一轮叠色/掩膜` 只用于调试最后一步，不代表整组图片的全局归属。
                                 </div>
 
                                 {images.length === 0 ? (
@@ -1415,7 +1422,7 @@ const FocusStacking = () => {
                                     </div>
                                 )}
                                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                                    如果边缘仍有轻微重影，优先微调水平/垂直位移，其次再小范围调整缩放补偿；多张时调试图显示最后一轮合成。
+                                    如果边缘仍有轻微重影，优先微调水平/垂直位移，其次再小范围调整缩放补偿；多张时请先看 `累计来源图` 判断全局归属，再用最后一轮调试图排查局部问题。
                                 </p>
                             </CardContent>
                         </Card>
@@ -1424,12 +1431,36 @@ const FocusStacking = () => {
                             <CardHeader>
                                 <CardTitle>预览结果</CardTitle>
                                 <CardDescription>
-                                    同步查看合成结果和深度图，点击主图可放大预览；其他调试图保留在下方辅助判断。
+                                    同步查看合成结果和累计来源图，点击主图可放大预览；其他调试图保留在下方辅助判断。
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {result ? (
                                     <div className="space-y-5">
+                                        {result.sourceCount > 2 && (
+                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+                                                <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                                                    累计来源图图例
+                                                </div>
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {Array.from({ length: result.sourceCount }, (_, index) => (
+                                                        <div
+                                                            key={`legend-${index + 1}`}
+                                                            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                                                        >
+                                                            <span
+                                                                className="h-3 w-3 rounded-full"
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        getFocusStackOwnershipColor(index),
+                                                                }}
+                                                            />
+                                                            <span>图片 {index + 1}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="grid gap-4 xl:grid-cols-2">
                                             {resultPrimaryPanels.map((panel) => (
                                                 <button
@@ -1560,7 +1591,7 @@ const FocusStacking = () => {
                                                 结果会显示在这里
                                             </p>
                                             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                                上传至少两张图后点击“开始合成”，即可查看最后一轮掩膜和最终输出。
+                                                上传至少两张图后点击“开始合成”，即可查看最终输出、累计来源图和最后一轮调试图。
                                             </p>
                                         </div>
                                     </div>
