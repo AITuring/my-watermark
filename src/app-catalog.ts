@@ -59,6 +59,14 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("./PhotoFrame"),
     },
     {
+        id: "photo-exif",
+        label: "照片 EXIF",
+        url: "/photo-exif",
+        icon: "material-symbols:info-outline-rounded",
+        description: "查看和批量修改照片 EXIF 信息，适合整理拍摄元数据",
+        component: () => import("./PhotoExifWorkbench"),
+    },
+    {
         id: "split",
         label: "图片分割",
         url: "/split",

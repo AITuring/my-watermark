@@ -1,0 +1,1723 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AMapLoader from "@amap/amap-jsapi-loader";
+import ExifReader from "exifreader";
+import piexif from "piexifjs";
+import { useDropzone } from "react-dropzone";
+import { saveAs } from "file-saver";
+import JSZip from "jszip";
+import {
+    AlertCircle,
+    Camera,
+    CheckCircle2,
+    Download,
+    ExternalLink,
+    FileImage,
+    Files,
+    FolderOpen,
+    Image as ImageIcon,
+    Info,
+    LocateFixed,
+    MapPin,
+    PencilLine,
+    RotateCcw,
+    Search,
+    Save,
+    Trash2,
+    Upload,
+} from "lucide-react";
+import { toast } from "sonner";
+import DarkToggle from "@/components/DarkToggle";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+type EditableExifKey =
+    | "make"
+    | "model"
+    | "lensModel"
+    | "software"
+    | "artist"
+    | "copyright"
+    | "imageDescription"
+    | "dateTimeOriginal"
+    | "dateTimeDigitized";
+
+interface EditableExif {
+    make: string;
+    model: string;
+    lensModel: string;
+    software: string;
+    artist: string;
+    copyright: string;
+    imageDescription: string;
+    dateTimeOriginal: string;
+    dateTimeDigitized: string;
+}
+
+interface ExifTagRow {
+    key: string;
+    label: string;
+    value: string;
+}
+
+interface GpsPoint {
+    lat: number;
+    lng: number;
+}
+
+interface EditableGps {
+    enabled: boolean;
+    lat: string;
+    lng: string;
+    locationName: string;
+}
+
+interface ExifSummary {
+    make: string;
+    model: string;
+    lensModel: string;
+    software: string;
+    dateTimeOriginal: string;
+    focalLength: string;
+    fNumber: string;
+    exposureTime: string;
+    iso: string;
+    gps: string;
+    resolution: string;
+}
+
+interface FileSystemPermissionDescriptor {
+    mode?: "read" | "readwrite";
+}
+
+interface FileSystemWritableFileStream {
+    write(data: Blob | BufferSource | string): Promise<void>;
+    close(): Promise<void>;
+}
+
+interface FileSystemHandle {
+    kind: "file" | "directory";
+    name: string;
+    queryPermission(descriptor?: FileSystemPermissionDescriptor): Promise<"granted" | "denied" | "prompt">;
+    requestPermission(descriptor?: FileSystemPermissionDescriptor): Promise<"granted" | "denied" | "prompt">;
+}
+
+interface FileSystemFileHandle extends FileSystemHandle {
+    kind: "file";
+    getFile(): Promise<File>;
+    createWritable(): Promise<FileSystemWritableFileStream>;
+}
+
+interface FileSystemDirectoryHandle extends FileSystemHandle {
+    kind: "directory";
+    values(): AsyncIterableIterator<FileSystemHandle>;
+}
+
+interface PickerWindow extends Window {
+    showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>;
+}
+
+interface PhotoExifItem {
+    id: string;
+    file: File;
+    previewUrl: string;
+    canWriteExif: boolean;
+    summary: ExifSummary;
+    editableOriginal: EditableExif;
+    editableCurrent: EditableExif;
+    tags: ExifTagRow[];
+    gpsPoint: GpsPoint | null;
+    gpsOriginal: EditableGps;
+    gpsCurrent: EditableGps;
+    fileHandle: FileSystemFileHandle | null;
+    source: "dropzone" | "directory";
+}
+
+interface PiexifData {
+    [key: string]: unknown;
+    "0th": Record<number, unknown>;
+    Exif: Record<number, unknown>;
+    GPS: Record<number, unknown>;
+    Interop: Record<number, unknown>;
+    "1st": Record<number, unknown>;
+    thumbnail: unknown;
+}
+
+interface MapSdkLike {
+    Map: new (container: HTMLDivElement, options: Record<string, unknown>) => MapInstanceLike;
+    Marker: new (options: Record<string, unknown>) => MarkerLike;
+    Geocoder: new (options?: Record<string, unknown>) => GeocoderLike;
+    PlaceSearch: new (options?: Record<string, unknown>) => PlaceSearchLike;
+}
+
+interface MapInstanceLike {
+    setZoomAndCenter(zoom: number, center: [number, number]): void;
+    add(marker: MarkerLike): void;
+    clearMap(): void;
+    on(eventName: string, handler: (event: any) => void): void;
+    destroy?: () => void;
+}
+
+interface MarkerLike {
+    setPosition(position: [number, number]): void;
+    on(eventName: string, handler: (event: any) => void): void;
+}
+
+interface GeocoderLike {
+    getAddress(location: [number, number], callback: (status: string, result: any) => void): void;
+    getLocation(address: string, callback: (status: string, result: any) => void): void;
+}
+
+interface PlaceSearchLike {
+    search(keyword: string, callback: (status: string, result: any) => void): void;
+}
+
+const EMPTY_EDITABLE: EditableExif = {
+    make: "",
+    model: "",
+    lensModel: "",
+    software: "",
+    artist: "",
+    copyright: "",
+    imageDescription: "",
+    dateTimeOriginal: "",
+    dateTimeDigitized: "",
+};
+
+const EMPTY_GPS: EditableGps = {
+    enabled: false,
+    lat: "",
+    lng: "",
+    locationName: "",
+};
+
+const EDITABLE_FIELDS: Array<{ key: EditableExifKey; label: string; placeholder: string }> = [
+    { key: "make", label: "品牌", placeholder: "例如 Sony / Fujifilm" },
+    { key: "model", label: "机型", placeholder: "例如 A7R5 / X100VI" },
+    { key: "lensModel", label: "镜头", placeholder: "例如 FE 35mm F1.4 GM" },
+    { key: "software", label: "软件", placeholder: "例如 Lightroom / Capture One" },
+    { key: "artist", label: "作者", placeholder: "摄影师或版权主体" },
+    { key: "copyright", label: "版权", placeholder: "例如 Copyright 2026 LSY" },
+    { key: "imageDescription", label: "描述", placeholder: "简短说明或拍摄主题" },
+    { key: "dateTimeOriginal", label: "拍摄时间", placeholder: "格式 2026:07:12 18:30:00" },
+    { key: "dateTimeDigitized", label: "数字化时间", placeholder: "格式 2026:07:12 18:30:00" },
+];
+
+const pickerWindow = window as PickerWindow;
+const IMAGE_FILE_PATTERN = /\.(jpg|jpeg|png|webp|heic|heif|tif|tiff)$/i;
+const DEFAULT_MAP_CENTER: GpsPoint = { lat: 39.90923, lng: 116.397428 };
+
+const formatTagValue = (value: unknown): string => {
+    if (value == null) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    if (Array.isArray(value)) return value.map((entry) => formatTagValue(entry)).join(", ");
+    if (typeof value === "object") {
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return String(value);
+        }
+    }
+    return String(value);
+};
+
+const getTagText = (tags: Record<string, unknown>, key: string): string => {
+    const tag = tags[key] as { description?: string; value?: unknown } | undefined;
+    if (!tag) return "";
+    return String(tag.description ?? formatTagValue(tag.value) ?? "").trim();
+};
+
+const toTagRows = (tags: Record<string, unknown>): ExifTagRow[] =>
+    Object.entries(tags)
+        .filter(([name]) => !["MakerNote", "Thumbnail", "PhotoshopThumbnail"].includes(name))
+        .map(([name, tag]) => {
+            const item = tag as { description?: string; value?: unknown } | undefined;
+            return {
+                key: name,
+                label: name,
+                value: String(item?.description ?? formatTagValue(item?.value) ?? ""),
+            };
+        })
+        .filter((tag) => tag.value)
+        .sort((a, b) => a.label.localeCompare(b.label));
+
+const isWritableJpeg = (file: File): boolean => /image\/jpeg/i.test(file.type) || /\.jpe?g$/i.test(file.name);
+
+const normalizeRational = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    if (value && typeof value === "object") {
+        const candidate = value as { numerator?: unknown; denominator?: unknown };
+        if (typeof candidate.numerator === "number" && typeof candidate.denominator === "number" && candidate.denominator !== 0) {
+            return candidate.numerator / candidate.denominator;
+        }
+    }
+    return null;
+};
+
+const parseGpsDescription = (description: unknown): number | null => {
+    const text = formatTagValue(description).trim();
+    if (!text) return null;
+    const matches = text.match(/-?\d+(?:\.\d+)?/g);
+    if (!matches?.length) return null;
+    const numbers = matches.map(Number).filter((value) => Number.isFinite(value));
+    if (!numbers.length) return null;
+    if (numbers.length >= 3) {
+        return numbers[0] + numbers[1] / 60 + numbers[2] / 3600;
+    }
+    return numbers[0];
+};
+
+const parseGpsCoordinate = (tagValue: unknown, tagDescription: unknown, ref: string): number | null => {
+    let degrees: number | null = null;
+
+    if (Array.isArray(tagValue)) {
+        const values = tagValue.map(normalizeRational).filter((value): value is number => value != null);
+        if (values.length >= 3) {
+            degrees = values[0] + values[1] / 60 + values[2] / 3600;
+        } else if (values.length === 1) {
+            degrees = values[0];
+        }
+    } else {
+        degrees = normalizeRational(tagValue);
+    }
+
+    if (degrees == null) {
+        degrees = parseGpsDescription(tagDescription);
+    }
+    if (degrees == null) return null;
+    if (["S", "W"].includes(ref.toUpperCase())) {
+        return -Math.abs(degrees);
+    }
+    return Math.abs(degrees);
+};
+
+const parseGpsPoint = (tags: Record<string, unknown>): GpsPoint | null => {
+    const latitudeTag = tags.GPSLatitude as { description?: unknown; value?: unknown } | undefined;
+    const longitudeTag = tags.GPSLongitude as { description?: unknown; value?: unknown } | undefined;
+    const latitudeRef = getTagText(tags, "GPSLatitudeRef");
+    const longitudeRef = getTagText(tags, "GPSLongitudeRef");
+    const lat = parseGpsCoordinate(latitudeTag?.value, latitudeTag?.description ?? "", latitudeRef);
+    const lng = parseGpsCoordinate(longitudeTag?.value, longitudeTag?.description ?? "", longitudeRef);
+
+    if (lat == null || lng == null) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+    return { lat, lng };
+};
+
+const formatGpsValue = (value: number): string => value.toFixed(6);
+
+const formatGpsText = (point: GpsPoint | null): string => (point ? `${formatGpsValue(point.lat)}, ${formatGpsValue(point.lng)}` : "");
+
+const buildEditableGps = (gpsPoint: GpsPoint | null): EditableGps => ({
+    enabled: Boolean(gpsPoint),
+    lat: gpsPoint ? formatGpsValue(gpsPoint.lat) : "",
+    lng: gpsPoint ? formatGpsValue(gpsPoint.lng) : "",
+    locationName: "",
+});
+
+const editableGpsToPoint = (gps: EditableGps): GpsPoint | null => {
+    if (!gps.enabled) return null;
+    const lat = Number(gps.lat);
+    const lng = Number(gps.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+    return { lat, lng };
+};
+
+const extractLngLat = (location: unknown): GpsPoint | null => {
+    if (!location) return null;
+    if (typeof location === "object") {
+        const candidate = location as {
+            lat?: unknown;
+            lng?: unknown;
+            getLat?: () => unknown;
+            getLng?: () => unknown;
+        };
+        if (typeof candidate.lat === "number" && typeof candidate.lng === "number") {
+            return { lat: candidate.lat, lng: candidate.lng };
+        }
+        if (typeof candidate.getLat === "function" && typeof candidate.getLng === "function") {
+            const lat = Number(candidate.getLat());
+            const lng = Number(candidate.getLng());
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return { lat, lng };
+            }
+        }
+    }
+    if (typeof location === "string" && location.includes(",")) {
+        const [lngValue, latValue] = location.split(",");
+        const lat = Number(latValue);
+        const lng = Number(lngValue);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            return { lat, lng };
+        }
+    }
+    return null;
+};
+
+const toExifRational = (value: number): [number, number] => [Math.round(value * 1000000), 1000000];
+
+const decimalToExifDms = (decimal: number): Array<[number, number]> => {
+    const absolute = Math.abs(decimal);
+    const degrees = Math.floor(absolute);
+    const minutesFloat = (absolute - degrees) * 60;
+    const minutes = Math.floor(minutesFloat);
+    const seconds = (minutesFloat - minutes) * 60;
+
+    return [
+        [degrees, 1],
+        [minutes, 1],
+        toExifRational(seconds),
+    ];
+};
+
+const buildSummary = (file: File, tags: Record<string, unknown>, gpsPoint: GpsPoint | null): ExifSummary => {
+    const width = getTagText(tags, "Image Width");
+    const height = getTagText(tags, "Image Height");
+    return {
+        make: getTagText(tags, "Make"),
+        model: getTagText(tags, "Model"),
+        lensModel: getTagText(tags, "LensModel"),
+        software: getTagText(tags, "Software"),
+        dateTimeOriginal: getTagText(tags, "DateTimeOriginal"),
+        focalLength: getTagText(tags, "FocalLength"),
+        fNumber: getTagText(tags, "FNumber"),
+        exposureTime: getTagText(tags, "ExposureTime"),
+        iso: getTagText(tags, "ISOSpeedRatings"),
+        gps: formatGpsText(gpsPoint),
+        resolution: width && height ? `${width} x ${height}` : file.type || "未知格式",
+    };
+};
+
+const buildEditable = (tags: Record<string, unknown>): EditableExif => ({
+    make: getTagText(tags, "Make"),
+    model: getTagText(tags, "Model"),
+    lensModel: getTagText(tags, "LensModel"),
+    software: getTagText(tags, "Software"),
+    artist: getTagText(tags, "Artist"),
+    copyright: getTagText(tags, "Copyright"),
+    imageDescription: getTagText(tags, "ImageDescription"),
+    dateTimeOriginal: getTagText(tags, "DateTimeOriginal"),
+    dateTimeDigitized: getTagText(tags, "DateTimeDigitized"),
+});
+
+const createEmptyExifObject = (): PiexifData => ({
+    "0th": {},
+    Exif: {},
+    GPS: {},
+    Interop: {},
+    "1st": {},
+    thumbnail: null,
+});
+
+const readAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error ?? new Error("读取图片失败"));
+        reader.readAsDataURL(file);
+    });
+
+const dataUrlToFile = (dataUrl: string, fileName: string): File => {
+    const [header, base64] = dataUrl.split(",");
+    const mimeMatch = header.match(/data:(.*?);base64/);
+    const mime = mimeMatch?.[1] ?? "image/jpeg";
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+
+    return new File([bytes], fileName, { type: mime });
+};
+
+const getExportName = (name: string): string => {
+    const dotIndex = name.lastIndexOf(".");
+    if (dotIndex === -1) return `${name}-exif.jpg`;
+    return `${name.slice(0, dotIndex)}-exif${name.slice(dotIndex)}`;
+};
+
+const setOrDelete = (target: Record<number, unknown>, key: number, value: string) => {
+    if (value.trim()) {
+        target[key] = value.trim();
+        return;
+    }
+    delete target[key];
+};
+
+const applyEditableToExif = (source: PiexifData, editable: EditableExif, gps: EditableGps): PiexifData => {
+    const exifObject: PiexifData = {
+        "0th": { ...((source["0th"] ?? {}) as Record<number, unknown>) },
+        Exif: { ...((source.Exif ?? {}) as Record<number, unknown>) },
+        GPS: { ...((source.GPS ?? {}) as Record<number, unknown>) },
+        Interop: { ...((source.Interop ?? {}) as Record<number, unknown>) },
+        "1st": { ...((source["1st"] ?? {}) as Record<number, unknown>) },
+        thumbnail: source.thumbnail ?? null,
+    };
+
+    setOrDelete(exifObject["0th"], piexif.ImageIFD.Make, editable.make);
+    setOrDelete(exifObject["0th"], piexif.ImageIFD.Model, editable.model);
+    setOrDelete(exifObject["0th"], piexif.ImageIFD.Software, editable.software);
+    setOrDelete(exifObject["0th"], piexif.ImageIFD.Artist, editable.artist);
+    setOrDelete(exifObject["0th"], piexif.ImageIFD.Copyright, editable.copyright);
+    setOrDelete(exifObject["0th"], piexif.ImageIFD.ImageDescription, editable.imageDescription);
+    setOrDelete(exifObject["0th"], piexif.ImageIFD.DateTime, editable.dateTimeOriginal || editable.dateTimeDigitized);
+    setOrDelete(exifObject.Exif, piexif.ExifIFD.LensModel, editable.lensModel);
+    setOrDelete(exifObject.Exif, piexif.ExifIFD.DateTimeOriginal, editable.dateTimeOriginal);
+    setOrDelete(exifObject.Exif, piexif.ExifIFD.DateTimeDigitized, editable.dateTimeDigitized);
+
+    const gpsPoint = editableGpsToPoint(gps);
+    if (gpsPoint) {
+        exifObject.GPS[piexif.GPSIFD.GPSLatitudeRef] = gpsPoint.lat >= 0 ? "N" : "S";
+        exifObject.GPS[piexif.GPSIFD.GPSLatitude] = decimalToExifDms(gpsPoint.lat);
+        exifObject.GPS[piexif.GPSIFD.GPSLongitudeRef] = gpsPoint.lng >= 0 ? "E" : "W";
+        exifObject.GPS[piexif.GPSIFD.GPSLongitude] = decimalToExifDms(gpsPoint.lng);
+        exifObject.GPS[piexif.GPSIFD.GPSVersionID] = [2, 3, 0, 0];
+    } else {
+        delete exifObject.GPS[piexif.GPSIFD.GPSLatitudeRef];
+        delete exifObject.GPS[piexif.GPSIFD.GPSLatitude];
+        delete exifObject.GPS[piexif.GPSIFD.GPSLongitudeRef];
+        delete exifObject.GPS[piexif.GPSIFD.GPSLongitude];
+        delete exifObject.GPS[piexif.GPSIFD.GPSVersionID];
+    }
+
+    return exifObject;
+};
+
+const isDirty = (item: PhotoExifItem): boolean =>
+    EDITABLE_FIELDS.some(({ key }) => item.editableCurrent[key] !== item.editableOriginal[key]) ||
+    item.gpsCurrent.enabled !== item.gpsOriginal.enabled ||
+    item.gpsCurrent.lat !== item.gpsOriginal.lat ||
+    item.gpsCurrent.lng !== item.gpsOriginal.lng ||
+    item.gpsCurrent.locationName !== item.gpsOriginal.locationName;
+
+const verifyPermission = async (handle: FileSystemHandle, readWrite: boolean): Promise<boolean> => {
+    const descriptor: FileSystemPermissionDescriptor = readWrite ? { mode: "readwrite" } : { mode: "read" };
+    try {
+        if ((await handle.queryPermission(descriptor)) === "granted") return true;
+        if ((await handle.requestPermission(descriptor)) === "granted") return true;
+    } catch (error) {
+        console.error("Permission request failed", error);
+    }
+    return false;
+};
+
+const buildPhotoExifItem = async (
+    file: File,
+    options?: {
+        id?: string;
+        fileHandle?: FileSystemFileHandle | null;
+        source?: "dropzone" | "directory";
+    },
+): Promise<PhotoExifItem> => {
+    let tags: Record<string, unknown> = {};
+    try {
+        tags = await ExifReader.load(file);
+    } catch (error) {
+        console.warn("读取 EXIF 失败", file.name, error);
+    }
+
+    const gpsPoint = parseGpsPoint(tags);
+    const editable = buildEditable(tags);
+    const editableGps = buildEditableGps(gpsPoint);
+
+    return {
+        id: options?.id ?? crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        canWriteExif: isWritableJpeg(file),
+        summary: buildSummary(file, tags, gpsPoint),
+        editableOriginal: editable,
+        editableCurrent: { ...editable },
+        tags: toTagRows(tags),
+        gpsPoint,
+        gpsOriginal: editableGps,
+        gpsCurrent: { ...editableGps },
+        fileHandle: options?.fileHandle ?? null,
+        source: options?.source ?? "dropzone",
+    };
+};
+
+const PhotoExifWorkbench: React.FC = () => {
+    const [items, setItems] = useState<PhotoExifItem[]>([]);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [batchEditable, setBatchEditable] = useState<EditableExif>(EMPTY_EDITABLE);
+    const [batchOverwriteEmpty, setBatchOverwriteEmpty] = useState(false);
+    const [isExportingSingle, setIsExportingSingle] = useState(false);
+    const [isExportingBatch, setIsExportingBatch] = useState(false);
+    const [isImportingDirectory, setIsImportingDirectory] = useState(false);
+    const [isOverwritingInPlace, setIsOverwritingInPlace] = useState(false);
+    const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+    const [locationSearchQuery, setLocationSearchQuery] = useState("");
+    const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
+    const [mapState, setMapState] = useState<{ loading: boolean; error: string | null }>({
+        loading: false,
+        error: null,
+    });
+    const itemsRef = useRef<PhotoExifItem[]>([]);
+    const selectedItemRef = useRef<PhotoExifItem | null>(null);
+    const mapContainerRef = useRef<HTMLDivElement>(null);
+    const mapSdkRef = useRef<MapSdkLike | null>(null);
+    const mapRef = useRef<MapInstanceLike | null>(null);
+    const markerRef = useRef<MarkerLike | null>(null);
+
+    useEffect(() => {
+        itemsRef.current = items;
+    }, [items]);
+
+    useEffect(() => () => {
+        itemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+        mapRef.current?.destroy?.();
+    }, []);
+
+    const selectedItem = useMemo(
+        () => items.find((item) => item.id === selectedId) ?? null,
+        [items, selectedId],
+    );
+
+    useEffect(() => {
+        selectedItemRef.current = selectedItem;
+        setLocationSearchQuery(selectedItem?.gpsCurrent.locationName ?? "");
+    }, [selectedItem]);
+
+    const writableCount = useMemo(() => items.filter((item) => item.canWriteExif).length, [items]);
+    const dirtyCount = useMemo(() => items.filter((item) => item.canWriteExif && isDirty(item)).length, [items]);
+    const gpsCount = useMemo(() => items.filter((item) => editableGpsToPoint(item.gpsCurrent)).length, [items]);
+    const inplaceCount = useMemo(
+        () => items.filter((item) => item.canWriteExif && item.fileHandle && isDirty(item)).length,
+        [items],
+    );
+
+    const loadAMap = useCallback(async (): Promise<MapSdkLike> => {
+        if (mapSdkRef.current) return mapSdkRef.current;
+        (window as Window & { _AMapSecurityConfig?: Record<string, string> })._AMapSecurityConfig = {
+            securityJsCode: "8d5961ba4c131a09904cab742029ca42",
+        };
+        const sdk = await AMapLoader.load({
+            key: "55b6c2fbb0875490d011d74ad99aac31",
+            version: "2.0",
+            plugins: ["AMap.Geocoder", "AMap.PlaceSearch"],
+        });
+        mapSdkRef.current = sdk as unknown as MapSdkLike;
+        return mapSdkRef.current;
+    }, []);
+
+    const updateItemGps = useCallback((itemId: string, updater: (current: EditableGps) => EditableGps) => {
+        setItems((previous) =>
+            previous.map((item) => {
+                if (item.id !== itemId) return item;
+                const nextGps = updater(item.gpsCurrent);
+                return {
+                    ...item,
+                    gpsCurrent: nextGps,
+                    gpsPoint: editableGpsToPoint(nextGps),
+                    summary: {
+                        ...item.summary,
+                        gps: formatGpsText(editableGpsToPoint(nextGps)),
+                    },
+                };
+            }),
+        );
+    }, []);
+
+    const reverseGeocodePoint = useCallback(async (point: GpsPoint): Promise<string> => {
+        const sdk = await loadAMap();
+        return new Promise((resolve) => {
+            const geocoder = new sdk.Geocoder({});
+            geocoder.getAddress([point.lng, point.lat], (status, result) => {
+                if (status === "complete") {
+                    const formattedAddress = String(result?.regeocode?.formattedAddress ?? "").trim();
+                    resolve(formattedAddress);
+                    return;
+                }
+                resolve("");
+            });
+        });
+    }, [loadAMap]);
+
+    const applySelectedGpsPoint = useCallback(async (point: GpsPoint, resolveAddress = false) => {
+        const activeItem = selectedItemRef.current;
+        if (!activeItem || !activeItem.canWriteExif) return;
+
+        let locationName = activeItem.gpsCurrent.locationName;
+        if (resolveAddress) {
+            try {
+                const resolved = await reverseGeocodePoint(point);
+                if (resolved) {
+                    locationName = resolved;
+                    setLocationSearchQuery(resolved);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        updateItemGps(activeItem.id, () => ({
+            enabled: true,
+            lat: formatGpsValue(point.lat),
+            lng: formatGpsValue(point.lng),
+            locationName,
+        }));
+    }, [reverseGeocodePoint, updateItemGps]);
+
+    useEffect(() => {
+        const gpsPoint = selectedItem ? editableGpsToPoint(selectedItem.gpsCurrent) : null;
+        if (!mapContainerRef.current) return;
+
+        let cancelled = false;
+        const renderMap = async () => {
+            setMapState({ loading: true, error: null });
+            try {
+                const sdk = await loadAMap();
+                if (cancelled || !mapContainerRef.current) return;
+
+                if (!mapRef.current) {
+                    mapRef.current = new sdk.Map(mapContainerRef.current, {
+                        zoom: 15,
+                        center: [gpsPoint?.lng ?? DEFAULT_MAP_CENTER.lng, gpsPoint?.lat ?? DEFAULT_MAP_CENTER.lat],
+                    });
+                    mapRef.current.on("click", (event: any) => {
+                        const activeItem = selectedItemRef.current;
+                        if (!activeItem?.canWriteExif) return;
+                        const point = extractLngLat(event?.lnglat);
+                        if (point) {
+                            void applySelectedGpsPoint(point, true);
+                        }
+                    });
+                }
+
+                mapRef.current.clearMap();
+                markerRef.current = null;
+                mapRef.current.setZoomAndCenter(15, [gpsPoint?.lng ?? DEFAULT_MAP_CENTER.lng, gpsPoint?.lat ?? DEFAULT_MAP_CENTER.lat]);
+                if (gpsPoint) {
+                    const marker = new sdk.Marker({
+                        position: [gpsPoint.lng, gpsPoint.lat],
+                        title: selectedItem?.file.name ?? "拍摄位置",
+                        draggable: selectedItem?.canWriteExif,
+                    } as Record<string, unknown>);
+                    marker.on("dragend", (event: any) => {
+                        const point = extractLngLat(event?.lnglat ?? event?.target?.getPosition?.());
+                        if (point) {
+                            void applySelectedGpsPoint(point, true);
+                        }
+                    });
+                    markerRef.current = marker;
+                    mapRef.current.add(marker);
+                }
+                if (!cancelled) {
+                    setMapState({ loading: false, error: null });
+                }
+            } catch (error) {
+                console.error(error);
+                if (!cancelled) {
+                    setMapState({ loading: false, error: "地图加载失败，请稍后重试" });
+                }
+            }
+        };
+
+        void renderMap();
+        return () => {
+            cancelled = true;
+        };
+    }, [applySelectedGpsPoint, loadAMap, selectedItem]);
+
+    const appendItems = useCallback((nextItems: PhotoExifItem[]) => {
+        if (!nextItems.length) return;
+        setItems((previous) => [...previous, ...nextItems]);
+        setSelectedId((previous) => previous ?? nextItems[0]?.id ?? null);
+    }, []);
+
+    const handleFiles = useCallback(async (files: File[]) => {
+        if (!files.length) return;
+        try {
+            const nextItems = await Promise.all(files.map((file) => buildPhotoExifItem(file)));
+            appendItems(nextItems);
+            toast.success(`已读取 ${nextItems.length} 张图片的 EXIF 信息`);
+        } catch (error) {
+            console.error(error);
+            toast.error("读取图片失败，请重试");
+        }
+    }, [appendItems]);
+
+    const handleSelectDirectory = useCallback(async () => {
+        if (!pickerWindow.showDirectoryPicker) {
+            toast.error("当前浏览器不支持文件夹授权，请使用 Chrome 或 Edge");
+            return;
+        }
+
+        setIsImportingDirectory(true);
+        try {
+            const handle = await pickerWindow.showDirectoryPicker({ mode: "readwrite" });
+            const hasPermission = await verifyPermission(handle, true);
+            if (!hasPermission) {
+                toast.error("请授予文件夹读写权限后再试");
+                return;
+            }
+
+            const nextItems: PhotoExifItem[] = [];
+            for await (const entry of handle.values()) {
+                if (entry.kind !== "file" || !IMAGE_FILE_PATTERN.test(entry.name)) continue;
+                const fileHandle = entry as FileSystemFileHandle;
+                const file = await fileHandle.getFile();
+                nextItems.push(await buildPhotoExifItem(file, { fileHandle, source: "directory" }));
+            }
+
+            setDirectoryHandle(handle);
+            appendItems(nextItems);
+            toast.success(`已从文件夹载入 ${nextItems.length} 张图片，可直接原地改写 JPEG EXIF`);
+        } catch (error) {
+            console.error(error);
+            if ((error as Error).name !== "AbortError") {
+                toast.error("读取文件夹失败，请重试");
+            }
+        } finally {
+            setIsImportingDirectory(false);
+        }
+    }, [appendItems]);
+
+    const onDrop = useCallback((acceptedFiles: File[]) => {
+        void handleFiles(acceptedFiles);
+    }, [handleFiles]);
+
+    const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+        onDrop,
+        multiple: true,
+        noClick: true,
+        accept: {
+            "image/*": [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".tif", ".tiff"],
+        },
+    });
+
+    const removeItem = (id: string) => {
+        setItems((previous) => {
+            const item = previous.find((entry) => entry.id === id);
+            if (item) {
+                URL.revokeObjectURL(item.previewUrl);
+            }
+            const nextItems = previous.filter((entry) => entry.id !== id);
+            if (selectedId === id) {
+                setSelectedId(nextItems[0]?.id ?? null);
+            }
+            return nextItems;
+        });
+    };
+
+    const clearAll = () => {
+        items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+        setItems([]);
+        setSelectedId(null);
+        setBatchEditable(EMPTY_EDITABLE);
+        setDirectoryHandle(null);
+        toast.success("已清空图片列表");
+    };
+
+    const updateSelectedField = (key: EditableExifKey, value: string) => {
+        if (!selectedItem) return;
+        setItems((previous) =>
+            previous.map((item) =>
+                item.id === selectedItem.id
+                    ? {
+                        ...item,
+                        editableCurrent: {
+                            ...item.editableCurrent,
+                            [key]: value,
+                        },
+                    }
+                    : item,
+            ),
+        );
+    };
+
+    const resetSelected = () => {
+        if (!selectedItem) return;
+        setItems((previous) =>
+            previous.map((item) =>
+                item.id === selectedItem.id
+                    ? {
+                        ...item,
+                        editableCurrent: { ...item.editableOriginal },
+                        gpsCurrent: { ...item.gpsOriginal },
+                        gpsPoint: editableGpsToPoint(item.gpsOriginal),
+                        summary: {
+                            ...item.summary,
+                            gps: formatGpsText(editableGpsToPoint(item.gpsOriginal)),
+                        },
+                    }
+                    : item,
+            ),
+        );
+        toast.success("已恢复该图片的原始可编辑字段");
+    };
+
+    const applyBatchChanges = () => {
+        const activeFields = EDITABLE_FIELDS.filter(({ key }) => batchOverwriteEmpty || batchEditable[key].trim());
+        if (!activeFields.length) {
+            toast.error("请至少填写一个批量修改字段");
+            return;
+        }
+
+        let affected = 0;
+        setItems((previous) =>
+            previous.map((item) => {
+                if (!item.canWriteExif) return item;
+                affected += 1;
+                const nextEditable = { ...item.editableCurrent };
+                activeFields.forEach(({ key }) => {
+                    nextEditable[key] = batchEditable[key];
+                });
+                return {
+                    ...item,
+                    editableCurrent: nextEditable,
+                };
+            }),
+        );
+        toast.success(`已把批量修改应用到 ${affected} 张 JPEG 图片`);
+    };
+
+    const resetAllEditable = () => {
+        setItems((previous) =>
+            previous.map((item) => ({
+                ...item,
+                editableCurrent: { ...item.editableOriginal },
+                gpsCurrent: { ...item.gpsOriginal },
+                gpsPoint: editableGpsToPoint(item.gpsOriginal),
+                summary: {
+                    ...item.summary,
+                    gps: formatGpsText(editableGpsToPoint(item.gpsOriginal)),
+                },
+            })),
+        );
+        toast.success("已恢复全部图片的原始可编辑字段");
+    };
+
+    const updateSelectedGpsField = (key: "lat" | "lng" | "locationName", value: string) => {
+        if (!selectedItem) return;
+        updateItemGps(selectedItem.id, (current) => {
+            const nextGps = {
+                ...current,
+                enabled: key === "locationName" ? current.enabled : true,
+                [key]: value,
+            };
+            return nextGps;
+        });
+    };
+
+    const clearSelectedGps = () => {
+        if (!selectedItem) return;
+        updateItemGps(selectedItem.id, () => ({ ...EMPTY_GPS }));
+        setLocationSearchQuery("");
+        toast.success("已清除当前图片的 GPS 信息");
+    };
+
+    const searchSelectedLocation = async () => {
+        const keyword = locationSearchQuery.trim();
+        const activeItem = selectedItemRef.current;
+        if (!activeItem) {
+            toast.error("请先选择图片");
+            return;
+        }
+        if (!activeItem.canWriteExif) {
+            toast.error("当前图片格式只支持查看，不能写入 GPS");
+            return;
+        }
+        if (!keyword) {
+            toast.error("请输入地点名称");
+            return;
+        }
+
+        setIsSearchingLocation(true);
+        try {
+            const sdk = await loadAMap();
+            const point = await new Promise<{ point: GpsPoint; title: string } | null>((resolve) => {
+                const placeSearch = new sdk.PlaceSearch({
+                    pageSize: 8,
+                    extensions: "base",
+                } as Record<string, unknown>);
+                placeSearch.search(keyword, (status, result) => {
+                    if (status === "complete" && result?.poiList?.pois?.length) {
+                        const poi = result.poiList.pois[0];
+                        const pointValue = extractLngLat(poi?.location);
+                        if (pointValue) {
+                            resolve({
+                                point: pointValue,
+                                title: String(poi?.name ?? keyword).trim() || keyword,
+                            });
+                            return;
+                        }
+                    }
+
+                    const geocoder = new sdk.Geocoder({});
+                    geocoder.getLocation(keyword, (geoStatus, geoResult) => {
+                        if (geoStatus === "complete" && geoResult?.geocodes?.length) {
+                            const geoPoint = extractLngLat(geoResult.geocodes[0]?.location);
+                            if (geoPoint) {
+                                resolve({ point: geoPoint, title: keyword });
+                                return;
+                            }
+                        }
+                        resolve(null);
+                    });
+                });
+            });
+
+            if (!point) {
+                toast.error("未找到该地点，请尝试更精确的名称");
+                return;
+            }
+
+            updateItemGps(activeItem.id, () => ({
+                enabled: true,
+                lat: formatGpsValue(point.point.lat),
+                lng: formatGpsValue(point.point.lng),
+                locationName: point.title,
+            }));
+            setLocationSearchQuery(point.title);
+            toast.success("已根据地点名称更新 GPS 坐标");
+        } catch (error) {
+            console.error(error);
+            toast.error("地点搜索失败，请稍后重试");
+        } finally {
+            setIsSearchingLocation(false);
+        }
+    };
+
+    const generateUpdatedFile = useCallback(async (item: PhotoExifItem, exportName?: string): Promise<File> => {
+        if (!item.canWriteExif) {
+            throw new Error("当前仅支持为 JPEG/JPG 写回 EXIF");
+        }
+
+        const originalDataUrl = await readAsDataUrl(item.file);
+        let sourceExif = createEmptyExifObject();
+        try {
+            sourceExif = {
+                ...createEmptyExifObject(),
+                ...(piexif.load(originalDataUrl) as Record<string, unknown>),
+            };
+        } catch (error) {
+            console.warn("原图 EXIF 不可读，将创建新的 EXIF 块", item.file.name, error);
+        }
+
+        const outputExif = applyEditableToExif(sourceExif, item.editableCurrent, item.gpsCurrent);
+        const exifString = piexif.dump(outputExif as Record<string, unknown>);
+
+        let jpegData = originalDataUrl;
+        try {
+            jpegData = piexif.remove(originalDataUrl);
+        } catch {
+            jpegData = originalDataUrl;
+        }
+
+        const updatedDataUrl = piexif.insert(exifString, jpegData);
+        return dataUrlToFile(updatedDataUrl, exportName ?? getExportName(item.file.name));
+    }, []);
+
+    const refreshItemFromHandle = useCallback(async (item: PhotoExifItem): Promise<PhotoExifItem> => {
+        if (!item.fileHandle) return item;
+        const refreshedFile = await item.fileHandle.getFile();
+        const refreshedItem = await buildPhotoExifItem(refreshedFile, {
+            id: item.id,
+            fileHandle: item.fileHandle,
+            source: item.source,
+        });
+        URL.revokeObjectURL(item.previewUrl);
+        return refreshedItem;
+    }, []);
+
+    const exportSelected = async () => {
+        if (!selectedItem) {
+            toast.error("请先选择图片");
+            return;
+        }
+        if (!selectedItem.canWriteExif) {
+            toast.error("当前仅支持导出修改后的 JPEG/JPG");
+            return;
+        }
+
+        setIsExportingSingle(true);
+        try {
+            const output = await generateUpdatedFile(selectedItem);
+            saveAs(output, output.name);
+            toast.success("已导出修改后的图片");
+        } catch (error) {
+            console.error(error);
+            toast.error("导出失败，请检查图片格式或重试");
+        } finally {
+            setIsExportingSingle(false);
+        }
+    };
+
+    const exportBatch = async () => {
+        const writableDirtyItems = items.filter((item) => item.canWriteExif && isDirty(item));
+        if (!writableDirtyItems.length) {
+            toast.error("没有可导出的已修改 JPEG 图片");
+            return;
+        }
+
+        setIsExportingBatch(true);
+        try {
+            if (writableDirtyItems.length === 1) {
+                const output = await generateUpdatedFile(writableDirtyItems[0]);
+                saveAs(output, output.name);
+            } else {
+                const zip = new JSZip();
+                for (const item of writableDirtyItems) {
+                    const output = await generateUpdatedFile(item);
+                    zip.file(output.name, output);
+                }
+                const content = await zip.generateAsync({ type: "blob" });
+                saveAs(content, "photo-exif-updated.zip");
+            }
+            toast.success(`已导出 ${writableDirtyItems.length} 张修改后的图片`);
+        } catch (error) {
+            console.error(error);
+            toast.error("批量导出失败，请重试");
+        } finally {
+            setIsExportingBatch(false);
+        }
+    };
+
+    const overwriteBatchInPlace = async () => {
+        const writableDirtyItems = items.filter((item) => item.canWriteExif && item.fileHandle && isDirty(item));
+        if (!writableDirtyItems.length) {
+            toast.error("没有可原地改写的已修改 JPEG，请先从文件夹载入图片");
+            return;
+        }
+
+        setIsOverwritingInPlace(true);
+        try {
+            if (directoryHandle) {
+                const hasDirectoryPermission = await verifyPermission(directoryHandle, true);
+                if (!hasDirectoryPermission) {
+                    toast.error("缺少文件夹读写权限，无法原地改写");
+                    return;
+                }
+            }
+
+            const refreshedItems = new Map<string, PhotoExifItem>();
+            for (const item of writableDirtyItems) {
+                const handle = item.fileHandle;
+                if (!handle) continue;
+                const hasPermission = await verifyPermission(handle, true);
+                if (!hasPermission) {
+                    throw new Error(`缺少 ${item.file.name} 的写入权限`);
+                }
+                const output = await generateUpdatedFile(item, item.file.name);
+                const writable = await handle.createWritable();
+                await writable.write(output);
+                await writable.close();
+                const refreshed = await refreshItemFromHandle(item);
+                refreshedItems.set(item.id, refreshed);
+            }
+
+            setItems((previous) => previous.map((item) => refreshedItems.get(item.id) ?? item));
+            toast.success(`已原地改写 ${refreshedItems.size} 张 JPEG 图片的 EXIF`);
+        } catch (error) {
+            console.error(error);
+            toast.error(error instanceof Error ? error.message : "原地改写失败，请重试");
+        } finally {
+            setIsOverwritingInPlace(false);
+        }
+    };
+
+    const selectedGpsPoint = selectedItem ? editableGpsToPoint(selectedItem.gpsCurrent) : null;
+
+    const amapLink = selectedGpsPoint
+        ? `https://uri.amap.com/marker?position=${selectedGpsPoint.lng},${selectedGpsPoint.lat}&name=${encodeURIComponent(selectedItem?.file.name ?? "拍摄位置")}`
+        : "#";
+    const googleLink = selectedGpsPoint
+        ? `https://www.google.com/maps?q=${selectedGpsPoint.lat},${selectedGpsPoint.lng}`
+        : "#";
+
+    return (
+        <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 p-6">
+            <div className="max-w-7xl mx-auto space-y-6">
+                <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">照片 EXIF 查看与修改</h1>
+                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                            支持单图详情查看、GPS 地图预览、批量概览与统一修改；从文件夹授权导入后，可对 JPEG 直接原地批量改写。
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <DarkToggle />
+                        {items.length > 0 && (
+                            <Button variant="outline" onClick={clearAll}>
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                清空全部
+                            </Button>
+                        )}
+                    </div>
+                </header>
+
+                <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                    <CardContent className="p-6 space-y-4">
+                        <div
+                            {...getRootProps()}
+                            className={`border-2 border-dashed rounded-2xl p-10 text-center ${
+                                isDragActive
+                                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+                                    : "border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500"
+                            }`}
+                        >
+                            <input {...getInputProps()} />
+                            <Upload className="w-12 h-12 mx-auto text-slate-400 mb-4" />
+                            <div className="space-y-2">
+                                <p className="text-lg font-medium">{isDragActive ? "释放图片开始读取" : "拖拽图片到这里"}</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    支持查看 JPEG / PNG / WebP / HEIC / TIFF 等格式；如需原地改写，请使用文件夹授权导入
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            <Button variant="outline" onClick={open}>
+                                <ImageIcon className="w-4 h-4 mr-2" />
+                                选择图片
+                            </Button>
+                            <Button variant="outline" onClick={() => void handleSelectDirectory()} disabled={isImportingDirectory}>
+                                <FolderOpen className="w-4 h-4 mr-2" />
+                                {isImportingDirectory ? "读取文件夹中..." : "选择文件夹并授权写入"}
+                            </Button>
+                            {directoryHandle && (
+                                <Badge variant="outline" className="px-3 py-1">
+                                    已授权文件夹：{directoryHandle.name}
+                                </Badge>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {items.length > 0 && (
+                    <>
+                        <div className="grid gap-4 md:grid-cols-5">
+                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                <CardContent className="p-5 flex items-center gap-4">
+                                    <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300 flex items-center justify-center">
+                                        <Files className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">已加载图片</p>
+                                        <p className="text-2xl font-semibold">{items.length}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                <CardContent className="p-5 flex items-center gap-4">
+                                    <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300 flex items-center justify-center">
+                                        <PencilLine className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">可写回 JPEG</p>
+                                        <p className="text-2xl font-semibold">{writableCount}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                <CardContent className="p-5 flex items-center gap-4">
+                                    <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300 flex items-center justify-center">
+                                        <CheckCircle2 className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">待导出修改</p>
+                                        <p className="text-2xl font-semibold">{dirtyCount}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                <CardContent className="p-5 flex items-center gap-4">
+                                    <div className="w-11 h-11 rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300 flex items-center justify-center">
+                                        <MapPin className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">含 GPS 信息</p>
+                                        <p className="text-2xl font-semibold">{gpsCount}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                <CardContent className="p-5 flex items-center gap-4">
+                                    <div className="w-11 h-11 rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300 flex items-center justify-center">
+                                        <Save className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400">可原地改写</p>
+                                        <p className="text-2xl font-semibold">{inplaceCount}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        <div className="grid gap-6 lg:grid-cols-12">
+                            <Card className="lg:col-span-4 border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <ImageIcon className="w-5 h-5" />
+                                        图片列表
+                                    </CardTitle>
+                                    <CardDescription>
+                                        从文件夹导入的图片支持原地改写，其余方式默认只支持导出新文件
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="pt-0">
+                                    <ScrollArea className="h-[780px] pr-3">
+                                        <div className="space-y-3">
+                                            {items.map((item) => (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedId(item.id)}
+                                                    className={`w-full text-left rounded-2xl border p-3 ${
+                                                        item.id === selectedId
+                                                            ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+                                                            : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                                                    }`}
+                                                >
+                                                    <div className="flex gap-3">
+                                                        <img
+                                                            src={item.previewUrl}
+                                                            alt={item.file.name}
+                                                            className="w-20 h-20 rounded-xl object-cover bg-slate-100 dark:bg-slate-800"
+                                                        />
+                                                        <div className="min-w-0 flex-1 space-y-2">
+                                                            <div className="flex items-start justify-between gap-2">
+                                                                <p className="font-medium text-sm break-all">{item.file.name}</p>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        removeItem(item.id);
+                                                                    }}
+                                                                    className="text-slate-400 hover:text-red-500"
+                                                                    aria-label={`删除 ${item.file.name}`}
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <Badge variant="outline">{item.canWriteExif ? "可修改" : "只读"}</Badge>
+                                                                <Badge variant="outline">{item.source === "directory" ? "文件夹授权" : "普通导入"}</Badge>
+                                                                {isDirty(item) && (
+                                                                    <Badge className="bg-amber-500 text-white hover:bg-amber-500">已修改</Badge>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                                                                <p>{item.summary.make || "未知品牌"} {item.summary.model || ""}</p>
+                                                                <p>{item.summary.dateTimeOriginal || "未读取到拍摄时间"}</p>
+                                                                <p>{item.summary.gps || "无 GPS"}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                </CardContent>
+                            </Card>
+
+                            <div className="lg:col-span-8 space-y-6">
+                                <Tabs defaultValue="viewer" className="space-y-4">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="viewer">单图查看与修改</TabsTrigger>
+                                        <TabsTrigger value="batch">批量处理</TabsTrigger>
+                                    </TabsList>
+
+                                    <TabsContent value="viewer" className="space-y-6">
+                                        {selectedItem ? (
+                                            <>
+                                                <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                                    <CardContent className="p-6 grid gap-6 md:grid-cols-[320px_1fr]">
+                                                        <div className="space-y-4">
+                                                            <img
+                                                                src={selectedItem.previewUrl}
+                                                                alt={selectedItem.file.name}
+                                                                className="w-full rounded-2xl object-cover bg-slate-100 dark:bg-slate-800"
+                                                            />
+                                                            <div className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
+                                                                <p className="break-all">{selectedItem.file.name}</p>
+                                                                <p>{(selectedItem.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                                <p>{selectedItem.summary.resolution}</p>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <Badge variant={selectedItem.canWriteExif ? "default" : "secondary"}>
+                                                                    {selectedItem.canWriteExif ? "JPEG 可写回" : "当前格式只读"}
+                                                                </Badge>
+                                                                <Badge variant="outline">
+                                                                    {selectedItem.source === "directory" ? "文件夹授权导入" : "普通导入"}
+                                                                </Badge>
+                                                                {selectedGpsPoint && <Badge variant="outline">含 GPS</Badge>}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-6">
+                                                            <div>
+                                                                <h2 className="text-xl font-semibold flex items-center gap-2">
+                                                                    <Camera className="w-5 h-5" />
+                                                                    核心信息
+                                                                </h2>
+                                                                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                                                    {[
+                                                                        { label: "品牌", value: selectedItem.summary.make || "-" },
+                                                                        { label: "机型", value: selectedItem.summary.model || "-" },
+                                                                        { label: "镜头", value: selectedItem.summary.lensModel || "-" },
+                                                                        { label: "ISO", value: selectedItem.summary.iso || "-" },
+                                                                        { label: "光圈", value: selectedItem.summary.fNumber || "-" },
+                                                                        { label: "快门", value: selectedItem.summary.exposureTime || "-" },
+                                                                        { label: "焦距", value: selectedItem.summary.focalLength || "-" },
+                                                                        { label: "拍摄时间", value: selectedItem.summary.dateTimeOriginal || "-" },
+                                                                        { label: "软件", value: selectedItem.summary.software || "-" },
+                                                                        { label: "GPS", value: selectedItem.summary.gps || "-" },
+                                                                    ].map((entry) => (
+                                                                        <div key={entry.label} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                                                            <p className="text-xs text-slate-500 dark:text-slate-400">{entry.label}</p>
+                                                                            <p className="mt-1 text-sm font-medium break-words">{entry.value}</p>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+                                                            {(selectedGpsPoint || selectedItem.canWriteExif) && (
+                                                                <>
+                                                                    <Separator />
+                                                                    <div className="space-y-4">
+                                                                        <div className="flex items-center justify-between gap-4">
+                                                                            <div>
+                                                                                <h3 className="text-lg font-semibold flex items-center gap-2">
+                                                                                    <LocateFixed className="w-5 h-5" />
+                                                                                    GPS 编辑
+                                                                                </h3>
+                                                                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                                                    {selectedGpsPoint
+                                                                                        ? `经纬度：${selectedGpsPoint.lat.toFixed(6)}, ${selectedGpsPoint.lng.toFixed(6)}`
+                                                                                        : "可搜索地点、点击地图或拖拽标记设置 GPS"}
+                                                                                </p>
+                                                                            </div>
+                                                                            <div className="flex gap-2 flex-wrap justify-end">
+                                                                                <a href={amapLink} target="_blank" rel="noreferrer">
+                                                                                    <Button variant="outline" disabled={!selectedGpsPoint}>
+                                                                                        <ExternalLink className="w-4 h-4 mr-2" />
+                                                                                        高德打开
+                                                                                    </Button>
+                                                                                </a>
+                                                                                <a href={googleLink} target="_blank" rel="noreferrer">
+                                                                                    <Button variant="outline" disabled={!selectedGpsPoint}>
+                                                                                        <ExternalLink className="w-4 h-4 mr-2" />
+                                                                                        Google 打开
+                                                                                    </Button>
+                                                                                </a>
+                                                                                <Button variant="outline" onClick={clearSelectedGps} disabled={!selectedItem.canWriteExif}>
+                                                                                    <Trash2 className="w-4 h-4 mr-2" />
+                                                                                    清除 GPS
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                                                                            <div className="flex gap-3">
+                                                                                <Input
+                                                                                    value={locationSearchQuery}
+                                                                                    placeholder="搜索地点，例如 上海外滩 / 故宫博物院"
+                                                                                    disabled={!selectedItem.canWriteExif || isSearchingLocation}
+                                                                                    onChange={(event) => setLocationSearchQuery(event.target.value)}
+                                                                                    onKeyDown={(event) => {
+                                                                                        if (event.key === "Enter") {
+                                                                                            event.preventDefault();
+                                                                                            void searchSelectedLocation();
+                                                                                        }
+                                                                                    }}
+                                                                                />
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    onClick={() => void searchSelectedLocation()}
+                                                                                    disabled={!selectedItem.canWriteExif || isSearchingLocation}
+                                                                                >
+                                                                                    <Search className="w-4 h-4 mr-2" />
+                                                                                    {isSearchingLocation ? "搜索中..." : "搜索地点"}
+                                                                                </Button>
+                                                                            </div>
+                                                                            <div className="text-sm text-slate-500 dark:text-slate-400 flex items-center">
+                                                                                {selectedItem.gpsCurrent.locationName || "未设置地点名称"}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="grid gap-4 sm:grid-cols-2">
+                                                                            <div className="space-y-2">
+                                                                                <Label htmlFor="selected-gps-lat">纬度</Label>
+                                                                                <Input
+                                                                                    id="selected-gps-lat"
+                                                                                    value={selectedItem.gpsCurrent.lat}
+                                                                                    placeholder="例如 31.230416"
+                                                                                    disabled={!selectedItem.canWriteExif}
+                                                                                    onChange={(event) => updateSelectedGpsField("lat", event.target.value)}
+                                                                                />
+                                                                            </div>
+                                                                            <div className="space-y-2">
+                                                                                <Label htmlFor="selected-gps-lng">经度</Label>
+                                                                                <Input
+                                                                                    id="selected-gps-lng"
+                                                                                    value={selectedItem.gpsCurrent.lng}
+                                                                                    placeholder="例如 121.473701"
+                                                                                    disabled={!selectedItem.canWriteExif}
+                                                                                    onChange={(event) => updateSelectedGpsField("lng", event.target.value)}
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                                                                            <div ref={mapContainerRef} className="h-[280px] w-full bg-slate-100 dark:bg-slate-900" />
+                                                                        </div>
+                                                                        {mapState.loading && (
+                                                                            <p className="text-sm text-slate-500 dark:text-slate-400">地图加载中...</p>
+                                                                        )}
+                                                                        {mapState.error && (
+                                                                            <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20 p-4 text-sm text-amber-800 dark:text-amber-200 flex gap-3">
+                                                                                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                                                                {mapState.error}
+                                                                            </div>
+                                                                        )}
+                                                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                            可直接拖拽地图上的标记到目标位置；如果当前还没有 GPS，可先搜索地点，或直接点击地图落点。
+                                                                        </p>
+                                                                    </div>
+                                                                </>
+                                                            )}
+
+                                                            <Separator />
+
+                                                            <div className="space-y-4">
+                                                                <div className="flex items-center justify-between gap-4">
+                                                                    <div>
+                                                                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                                                                            <PencilLine className="w-5 h-5" />
+                                                                            可写回字段
+                                                                        </h3>
+                                                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                                            修改后可导出新文件；若来自已授权文件夹，也可在批量页直接原地改写
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="flex gap-2">
+                                                                        <Button variant="outline" onClick={resetSelected}>
+                                                                            <RotateCcw className="w-4 h-4 mr-2" />
+                                                                            恢复本图
+                                                                        </Button>
+                                                                        <Button onClick={() => void exportSelected()} disabled={!selectedItem.canWriteExif || isExportingSingle}>
+                                                                            <Download className="w-4 h-4 mr-2" />
+                                                                            {isExportingSingle ? "导出中..." : "导出本图"}
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+
+                                                                {!selectedItem.canWriteExif && (
+                                                                    <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20 p-4 text-sm text-amber-800 dark:text-amber-200 flex gap-3">
+                                                                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                                                        当前图片格式不是 JPEG/JPG，因此先支持 EXIF 查看，不支持直接写回导出。
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                                    {EDITABLE_FIELDS.map((field) => (
+                                                                        <div key={field.key} className="space-y-2">
+                                                                            <Label htmlFor={`selected-${field.key}`}>{field.label}</Label>
+                                                                            <Input
+                                                                                id={`selected-${field.key}`}
+                                                                                value={selectedItem.editableCurrent[field.key]}
+                                                                                placeholder={field.placeholder}
+                                                                                disabled={!selectedItem.canWriteExif}
+                                                                                onChange={(event) => updateSelectedField(field.key, event.target.value)}
+                                                                            />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+
+                                                <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                                    <CardHeader>
+                                                        <CardTitle className="flex items-center gap-2">
+                                                            <Info className="w-5 h-5" />
+                                                            全量 EXIF 标签
+                                                        </CardTitle>
+                                                        <CardDescription>
+                                                            展示从文件里解析到的原始标签文本，方便排查或核对
+                                                        </CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent className="pt-0">
+                                                        <ScrollArea className="h-[380px] pr-3">
+                                                            {selectedItem.tags.length > 0 ? (
+                                                                <div className="space-y-2">
+                                                                    {selectedItem.tags.map((tag) => (
+                                                                        <div key={tag.key} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                                                            <p className="text-xs text-slate-500 dark:text-slate-400">{tag.label}</p>
+                                                                            <p className="mt-1 text-sm break-words">{tag.value}</p>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                                                                    这张图片没有读取到可展示的 EXIF 标签
+                                                                </div>
+                                                            )}
+                                                        </ScrollArea>
+                                                    </CardContent>
+                                                </Card>
+                                            </>
+                                        ) : (
+                                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                                <CardContent className="p-16 text-center text-slate-500 dark:text-slate-400">
+                                                    请选择左侧图片开始查看
+                                                </CardContent>
+                                            </Card>
+                                        )}
+                                    </TabsContent>
+
+                                    <TabsContent value="batch" className="space-y-6">
+                                        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2">
+                                                    <Files className="w-5 h-5" />
+                                                    批量统一修改
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    默认只覆盖你填写的字段；打开“空值也覆盖”后，留空字段会清空原有值
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="pt-0 space-y-6">
+                                                <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                                                    <div className="space-y-1">
+                                                        <p className="text-sm font-medium">空值也覆盖</p>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                            打开后，批量表单里未填写的字段也会写成空值
+                                                        </p>
+                                                    </div>
+                                                    <Switch checked={batchOverwriteEmpty} onCheckedChange={setBatchOverwriteEmpty} />
+                                                </div>
+
+                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                    {EDITABLE_FIELDS.map((field) => (
+                                                        <div key={field.key} className="space-y-2">
+                                                            <Label htmlFor={`batch-${field.key}`}>{field.label}</Label>
+                                                            <Input
+                                                                id={`batch-${field.key}`}
+                                                                value={batchEditable[field.key]}
+                                                                placeholder={field.placeholder}
+                                                                onChange={(event) =>
+                                                                    setBatchEditable((previous) => ({
+                                                                        ...previous,
+                                                                        [field.key]: event.target.value,
+                                                                    }))
+                                                                }
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-3">
+                                                    <Button onClick={applyBatchChanges}>
+                                                        <PencilLine className="w-4 h-4 mr-2" />
+                                                        应用到全部 JPEG
+                                                    </Button>
+                                                    <Button variant="outline" onClick={resetAllEditable}>
+                                                        <RotateCcw className="w-4 h-4 mr-2" />
+                                                        恢复全部修改
+                                                    </Button>
+                                                    <Button variant="outline" onClick={() => void exportBatch()} disabled={isExportingBatch}>
+                                                        <Download className="w-4 h-4 mr-2" />
+                                                        {isExportingBatch ? "导出中..." : "导出已修改图片"}
+                                                    </Button>
+                                                    <Button variant="outline" onClick={() => void overwriteBatchInPlace()} disabled={isOverwritingInPlace}>
+                                                        <Save className="w-4 h-4 mr-2" />
+                                                        {isOverwritingInPlace ? "原地改写中..." : "原地改写已修改 JPEG"}
+                                                    </Button>
+                                                </div>
+
+                                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-sm text-slate-600 dark:text-slate-300 space-y-2">
+                                                    <p>原地改写说明：</p>
+                                                    <p>1. 仅对从“选择文件夹并授权写入”导入的 JPEG 生效。</p>
+                                                    <p>2. 会直接覆盖原文件，请先确认字段修改无误。</p>
+                                                    <p>3. 原地写回后，列表会自动刷新为最新 EXIF 状态。</p>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2">
+                                                    <FileImage className="w-5 h-5" />
+                                                    批量概览
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    方便快速筛出可写回文件、已修改文件、已授权目录文件和包含位置信息的图片
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="pt-0">
+                                                <ScrollArea className="h-[560px] pr-3">
+                                                    <div className="space-y-3">
+                                                        {items.map((item) => (
+                                                            <div key={item.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                                                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                                                    <div className="space-y-2 min-w-0">
+                                                                        <p className="font-medium break-all">{item.file.name}</p>
+                                                                        <div className="flex flex-wrap gap-2">
+                                                                            <Badge variant={item.canWriteExif ? "default" : "secondary"}>
+                                                                                {item.canWriteExif ? "JPEG 可写回" : "只读"}
+                                                                            </Badge>
+                                                                            <Badge variant="outline">
+                                                                                {item.source === "directory" ? "文件夹授权" : "普通导入"}
+                                                                            </Badge>
+                                                                            {isDirty(item) && (
+                                                                                <Badge className="bg-amber-500 text-white hover:bg-amber-500">
+                                                                                    已修改待处理
+                                                                                </Badge>
+                                                                            )}
+                                                                            {editableGpsToPoint(item.gpsCurrent) && <Badge variant="outline">含 GPS</Badge>}
+                                                                        </div>
+                                                                    </div>
+                                                                    <Button variant="outline" onClick={() => setSelectedId(item.id)}>
+                                                                        查看详情
+                                                                    </Button>
+                                                                </div>
+                                                                <div className="mt-4 grid gap-3 sm:grid-cols-4 text-sm">
+                                                                    <div>
+                                                                        <p className="text-slate-500 dark:text-slate-400">设备</p>
+                                                                        <p className="mt-1 break-words">{`${item.summary.make || "-"} ${item.summary.model || ""}`.trim() || "-"}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-slate-500 dark:text-slate-400">拍摄时间</p>
+                                                                        <p className="mt-1 break-words">{item.summary.dateTimeOriginal || "-"}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-slate-500 dark:text-slate-400">GPS</p>
+                                                                        <p className="mt-1 break-words">{item.summary.gps || "-"}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-slate-500 dark:text-slate-400">原地改写</p>
+                                                                        <p className="mt-1 break-words">{item.fileHandle && item.canWriteExif ? "支持" : "不支持"}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </ScrollArea>
+                                            </CardContent>
+                                        </Card>
+                                    </TabsContent>
+                                </Tabs>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+};
+
+export default PhotoExifWorkbench;
