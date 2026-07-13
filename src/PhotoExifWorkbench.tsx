@@ -265,6 +265,16 @@ const EDITABLE_FIELDS: Array<{ key: EditableExifKey; label: string; placeholder:
 const pickerWindow = window as PickerWindow;
 const IMAGE_FILE_PATTERN = /\.(jpg|jpeg|png|webp|heic|heif|tif|tiff)$/i;
 const DEFAULT_MAP_CENTER: GpsPoint = { lat: 39.90923, lng: 116.397428 };
+const secondaryButtonClass =
+    "rounded-xl border-slate-300 bg-white px-4 text-slate-700 hover:border-slate-400 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900";
+const primaryButtonClass =
+    "rounded-xl bg-slate-900 px-4 text-white shadow-sm hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white";
+const accentButtonClass =
+    "rounded-xl bg-blue-600 px-4 text-white shadow-sm hover:bg-blue-500 dark:bg-blue-500 dark:hover:bg-blue-400";
+const dangerButtonClass =
+    "rounded-xl bg-rose-600 px-4 text-white shadow-sm hover:bg-rose-500 dark:bg-rose-500 dark:hover:bg-rose-400";
+const dangerSubtleButtonClass =
+    "rounded-xl border-rose-200 bg-rose-50 px-4 text-rose-700 hover:border-rose-300 hover:bg-rose-100 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/50";
 
 const formatTagValue = (value: unknown): string => {
     if (value == null) return "";
@@ -777,8 +787,6 @@ const listDirectoryImageEntries = async (handle: FileSystemDirectoryHandle): Pro
     }
     return entries;
 };
-
-const getWriteAccessLabel = (item: PhotoExifItem): string => (item.fileHandle ? "已授权原文件" : "未授权原文件");
 
 const buildPhotoExifItem = async (
     file: File,
@@ -1732,7 +1740,7 @@ const PhotoExifWorkbench: React.FC = () => {
                     <div className="flex items-center gap-3">
                         <DarkToggle />
                         {items.length > 0 && (
-                            <Button variant="outline" onClick={clearAll}>
+                            <Button variant="outline" className={dangerSubtleButtonClass} onClick={clearAll}>
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 清空全部
                             </Button>
@@ -1744,32 +1752,56 @@ const PhotoExifWorkbench: React.FC = () => {
                     <CardContent className="space-y-3 p-5">
                         <div
                             {...getRootProps()}
-                            className={`border-2 border-dashed rounded-2xl p-8 text-center md:p-9 ${
+                            className={`border-2 border-dashed rounded-2xl text-center transition-all ${
+                                items.length > 0
+                                    ? "px-5 py-4"
+                                    : "p-8 md:p-9"
+                            } ${
                                 isDragActive
                                     ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
                                     : "border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500"
                             }`}
                         >
                             <input {...getInputProps()} />
-                            <Upload className="w-12 h-12 mx-auto text-slate-400 mb-4" />
-                            <div className="space-y-2">
-                                <p className="text-lg font-medium">{isDragActive ? "释放图片开始读取" : "拖拽图片到这里"}</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    先上传图片查看和修改；上传完成后，如需直接写回原文件，再继续授权原文件
-                                </p>
+                            <div className={`flex items-center justify-center gap-3 ${items.length > 0 ? "min-h-[56px]" : "flex-col"}`}>
+                                <Upload className={`text-slate-400 ${items.length > 0 ? "h-8 w-8 shrink-0" : "mb-4 h-12 w-12"}`} />
+                                <div className={`space-y-1 ${items.length > 0 ? "text-left" : "space-y-2"}`}>
+                                    <p className={`${items.length > 0 ? "text-base font-medium" : "text-lg font-medium"}`}>
+                                        {isDragActive ? "释放图片开始读取" : items.length > 0 ? "继续拖拽添加图片" : "拖拽图片到这里"}
+                                    </p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                                        {items.length > 0
+                                            ? "可继续补充图片，或直接使用下方按钮进行选择与授权"
+                                            : "先上传图片查看和修改；上传完成后，如需直接写回原文件，再继续授权原文件"}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex flex-wrap gap-3">
-                            <Button variant="outline" onClick={open}>
+                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                            <Button
+                                size="sm"
+                                onClick={open}
+                                className={primaryButtonClass}
+                            >
                                 <ImageIcon className="w-4 h-4 mr-2" />
                                 选择图片
                             </Button>
-                            <Button variant="outline" onClick={() => void handleSelectDirectory()} disabled={isImportingDirectory}>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className={secondaryButtonClass}
+                                onClick={() => void handleSelectDirectory()}
+                                disabled={isImportingDirectory}
+                            >
                                 <FolderOpen className="w-4 h-4 mr-2" />
                                 {isImportingDirectory ? "读取文件夹中..." : "选择文件夹并授权写入"}
                             </Button>
                             <Button
-                                variant="outline"
+                                size="sm"
+                                variant={items.length > 0 ? "default" : "outline"}
+                                className={items.length > 0
+                                    ? accentButtonClass
+                                    : secondaryButtonClass}
                                 onClick={() => void handleBindUploadedItemsToDirectory()}
                                 disabled={!items.length || isBindingDirectory}
                             >
@@ -1777,7 +1809,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                 {isBindingDirectory ? "授权中..." : "授权文件夹读取权限"}
                             </Button>
                             {directoryHandle && (
-                                <Badge variant="outline" className="px-3 py-1">
+                                <Badge variant="outline" className="rounded-xl border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300">
                                     已授权文件夹：{directoryHandle.name}
                                 </Badge>
                             )}
@@ -1904,8 +1936,6 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                 </button>
                                                             </div>
                                                             <div className="flex flex-wrap gap-2">
-                                                                <Badge variant="outline">{item.canWriteExif ? "支持保存修改" : "仅查看"}</Badge>
-                                                                <Badge variant="outline">{getWriteAccessLabel(item)}</Badge>
                                                                 {item.id === selectedId && <Badge className="bg-blue-600 text-white hover:bg-blue-600">当前目标图</Badge>}
                                                                 {item.id === selectedImportSourceId && (
                                                                     <Badge className="bg-violet-600 text-white hover:bg-violet-600">当前来源图</Badge>
@@ -1929,6 +1959,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                     type="button"
                                                                     variant="outline"
                                                                     size="sm"
+                                                                    className={secondaryButtonClass}
                                                                     onClick={(event) => {
                                                                         event.stopPropagation();
                                                                         toggleImportSource(item.id);
@@ -1971,10 +2002,6 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                 )}
                                                             </div>
                                                             <div className="flex flex-wrap gap-2">
-                                                                <Badge variant={selectedItem.canWriteExif ? "default" : "secondary"}>
-                                                                    {selectedItem.canWriteExif ? "支持保存修改" : "仅查看"}
-                                                                </Badge>
-                                                                <Badge variant="outline">{getWriteAccessLabel(selectedItem)}</Badge>
                                                                 {selectedGpsPoint && <Badge variant="outline">含 GPS</Badge>}
                                                             </div>
                                                         </div>
@@ -2011,6 +2038,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                 <div className="flex flex-wrap gap-2">
                                                                     <Button
                                                                         variant="outline"
+                                                                        className={secondaryButtonClass}
                                                                         onClick={() => void exportSelected()}
                                                                         disabled={!selectedItem.canWriteExif || isExportingSingle}
                                                                     >
@@ -2018,10 +2046,11 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                         {isExportingSingle ? "导出中..." : "导出修改后图片"}
                                                                     </Button>
                                                                     <Button
-                                                                        variant="outline"
+                                                                        className={dangerButtonClass}
                                                                         onClick={() => void overwriteSelectedInPlace()}
                                                                         disabled={!selectedItem.canWriteExif || !selectedItem.fileHandle || !isDirty(selectedItem) || isOverwritingSelected}
                                                                     >
+                                                                        <AlertCircle className="w-4 h-4 mr-1" />
                                                                         <Save className="w-4 h-4 mr-2" />
                                                                         {isOverwritingSelected ? "写回中..." : "写回原文件"}
                                                                     </Button>
@@ -2081,7 +2110,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                             </p>
                                                                         </div>
                                                                         <div className="flex flex-wrap gap-2">
-                                                                            <Button variant="outline" onClick={clearSelectedGps} disabled={!selectedItem.canWriteExif}>
+                                                                            <Button variant="outline" className={dangerSubtleButtonClass} onClick={clearSelectedGps} disabled={!selectedItem.canWriteExif}>
                                                                                 <Trash2 className="w-4 h-4 mr-2" />
                                                                                 清除 GPS
                                                                             </Button>
@@ -2102,7 +2131,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                                 }}
                                                                             />
                                                                             <Button
-                                                                                variant="outline"
+                                                                                className={primaryButtonClass}
                                                                                 onClick={() => void searchSelectedLocation()}
                                                                                 disabled={!selectedItem.canWriteExif || isSearchingLocation}
                                                                             >
@@ -2187,16 +2216,18 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                     <div className="flex flex-wrap gap-2">
                                                                         <Button
                                                                             variant="outline"
+                                                                            className={secondaryButtonClass}
                                                                             onClick={() => void importSelectedSourceMetadata(false)}
                                                                             disabled={!selectedItem.canWriteExif || !singleImportSourceOptions.length}
                                                                         >
                                                                             导入到当前
                                                                         </Button>
                                                                         <Button
-                                                                            variant="outline"
+                                                                            className={dangerButtonClass}
                                                                             onClick={() => void importSelectedSourceMetadata(true)}
                                                                             disabled={!selectedItem.canWriteExif || !selectedItem.fileHandle || !singleImportSourceOptions.length || isOverwritingSelected}
                                                                         >
+                                                                            <AlertCircle className="w-4 h-4 mr-1" />
                                                                             <Save className="w-4 h-4 mr-2" />
                                                                             {isOverwritingSelected ? "写回中..." : "导入并原地写回"}
                                                                         </Button>
@@ -2213,7 +2244,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                         </p>
                                                                     </div>
                                                                     <div className="flex flex-wrap gap-2">
-                                                                        <Button variant="outline" onClick={applyCopyrightPresetToAll} disabled={!copyrightPresetEnabled}>
+                                                                        <Button variant="outline" className={secondaryButtonClass} onClick={applyCopyrightPresetToAll} disabled={!copyrightPresetEnabled}>
                                                                             填充到全部图片
                                                                         </Button>
                                                                     </div>
@@ -2358,10 +2389,10 @@ const PhotoExifWorkbench: React.FC = () => {
                                                             </p>
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
-                                                            <Button variant="outline" onClick={syncBatchGpsFromSelected}>
+                                                            <Button variant="outline" className={secondaryButtonClass} onClick={syncBatchGpsFromSelected}>
                                                                 从当前图片同步
                                                             </Button>
-                                                            <Button variant="outline" onClick={clearBatchGpsConfig}>
+                                                            <Button variant="outline" className={dangerSubtleButtonClass} onClick={clearBatchGpsConfig}>
                                                                 清空 GPS 配置
                                                             </Button>
                                                         </div>
@@ -2430,20 +2461,21 @@ const PhotoExifWorkbench: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex flex-wrap gap-3">
-                                                    <Button onClick={applyBatchChanges}>
+                                                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                                                    <Button onClick={applyBatchChanges} size="sm" className={primaryButtonClass}>
                                                         <PencilLine className="w-4 h-4 mr-2" />
                                                         应用到全部 JPEG
                                                     </Button>
-                                                    <Button variant="outline" onClick={resetAllEditable}>
+                                                    <Button variant="outline" size="sm" className={dangerSubtleButtonClass} onClick={resetAllEditable}>
                                                         <RotateCcw className="w-4 h-4 mr-2" />
                                                         恢复全部修改
                                                     </Button>
-                                                    <Button variant="outline" onClick={() => void exportBatch()} disabled={isExportingBatch}>
+                                                    <Button variant="outline" size="sm" className={secondaryButtonClass} onClick={() => void exportBatch()} disabled={isExportingBatch}>
                                                         <Download className="w-4 h-4 mr-2" />
                                                         {isExportingBatch ? "导出中..." : "导出已修改图片"}
                                                     </Button>
-                                                    <Button variant="outline" onClick={() => void overwriteBatchInPlace()} disabled={isOverwritingInPlace}>
+                                                    <Button className={dangerButtonClass} size="sm" onClick={() => void overwriteBatchInPlace()} disabled={isOverwritingInPlace}>
+                                                        <AlertCircle className="w-4 h-4 mr-1" />
                                                         <Save className="w-4 h-4 mr-2" />
                                                         {isOverwritingInPlace ? "原地改写中..." : "原地改写已修改 JPEG"}
                                                     </Button>
@@ -2477,12 +2509,6 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                     <div className="space-y-2 min-w-0">
                                                                         <p className="font-medium break-all">{getEffectiveFileName(item)}</p>
                                                                         <div className="flex flex-wrap gap-2">
-                                                                            <Badge variant={item.canWriteExif ? "default" : "secondary"}>
-                                                                                {item.canWriteExif ? "支持保存修改" : "仅查看"}
-                                                                            </Badge>
-                                                                            <Badge variant="outline">
-                                                                                {getWriteAccessLabel(item)}
-                                                                            </Badge>
                                                                             {isDirty(item) && (
                                                                                 <Badge className="bg-amber-500 text-white hover:bg-amber-500">
                                                                                     已修改待处理
@@ -2494,7 +2520,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                             )}
                                                                         </div>
                                                                     </div>
-                                                                    <Button variant="outline" onClick={() => setSelectedId(item.id)}>
+                                                                    <Button variant="outline" className={secondaryButtonClass} onClick={() => setSelectedId(item.id)}>
                                                                         查看详情
                                                                     </Button>
                                                                 </div>
@@ -2545,10 +2571,11 @@ const PhotoExifWorkbench: React.FC = () => {
                         授权后，已上传的 JPEG 图片就可以直接写回原文件；不授权也可以继续查看和导出修改后图片。
                     </div>
                     <DialogFooter className="gap-2 sm:justify-end">
-                        <Button variant="outline" onClick={() => setIsUploadPermissionDialogOpen(false)}>
+                        <Button variant="outline" className={secondaryButtonClass} onClick={() => setIsUploadPermissionDialogOpen(false)}>
                             稍后再说
                         </Button>
                         <Button
+                            className={accentButtonClass}
                             onClick={() => {
                                 setIsUploadPermissionDialogOpen(false);
                                 void handleBindUploadedItemsToDirectory();
