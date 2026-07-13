@@ -9,13 +9,14 @@ import {
     AlertCircle,
     Camera,
     CheckCircle2,
+    ChevronDown,
+    ChevronRight,
     Download,
     ExternalLink,
     FileImage,
     Files,
     FolderOpen,
     Image as ImageIcon,
-    Info,
     LocateFixed,
     MapPin,
     PencilLine,
@@ -30,6 +31,7 @@ import DarkToggle from "@/components/DarkToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -260,8 +262,6 @@ const EDITABLE_FIELDS: Array<{ key: EditableExifKey; label: string; placeholder:
     { key: "dateTimeDigitized", label: "数字化时间", placeholder: "格式 2026:07:12 18:30:00" },
 ];
 
-const GENERAL_EDITABLE_FIELDS = EDITABLE_FIELDS.filter((field) => !["artist", "copyright"].includes(field.key));
-
 const pickerWindow = window as PickerWindow;
 const IMAGE_FILE_PATTERN = /\.(jpg|jpeg|png|webp|heic|heif|tif|tiff)$/i;
 const DEFAULT_MAP_CENTER: GpsPoint = { lat: 39.90923, lng: 116.397428 };
@@ -311,19 +311,11 @@ const toTagRows = (tags: Record<string, unknown>): ExifTagRow[] =>
 
 const isWritableJpeg = (file: File): boolean => /image\/jpeg/i.test(file.type) || /\.jpe?g$/i.test(file.name);
 
-const getFileExtension = (name: string): string => {
-    const dotIndex = name.lastIndexOf(".");
-    if (dotIndex <= 0) return "";
-    return name.slice(dotIndex);
-};
-
 const getFileBaseName = (name: string): string => {
     const dotIndex = name.lastIndexOf(".");
     if (dotIndex <= 0) return name;
     return name.slice(0, dotIndex);
 };
-
-const buildFileName = (baseName: string, originalName: string): string => `${baseName}${getFileExtension(originalName)}`;
 
 const getFileNameValidationError = (baseName: string): string => {
     const normalized = baseName.trim();
@@ -786,11 +778,7 @@ const listDirectoryImageEntries = async (handle: FileSystemDirectoryHandle): Pro
     return entries;
 };
 
-const getPhotoSourceLabel = (source: PhotoExifItem["source"]): string => {
-    if (source === "directory") return "文件夹授权";
-    if (source === "linked") return "后置授权";
-    return "普通导入";
-};
+const getWriteAccessLabel = (item: PhotoExifItem): string => (item.fileHandle ? "已授权原文件" : "未授权原文件");
 
 const buildPhotoExifItem = async (
     file: File,
@@ -812,12 +800,6 @@ const buildPhotoExifItem = async (
     const gpsPoint = parseGpsPoint(tags);
     const editable = buildEditable(tags);
     const editableGps = buildEditableGps(gpsPoint);
-    const currentEditable = applyCopyrightPresetToEditable(
-        editable,
-        options?.copyrightPreset ?? DEFAULT_COPYRIGHT_PRESET,
-        options?.copyrightPresetEnabled ?? true,
-    );
-
     return {
         id: options?.id ?? crypto.randomUUID(),
         file,
@@ -827,7 +809,7 @@ const buildPhotoExifItem = async (
         canWriteExif: isWritableJpeg(file),
         summary: buildSummary(file, tags, gpsPoint),
         editableOriginal: editable,
-        editableCurrent: currentEditable,
+        editableCurrent: editable,
         tags: toTagRows(tags),
         gpsPoint,
         gpsOriginal: editableGps,
@@ -845,6 +827,7 @@ const PhotoExifWorkbench: React.FC = () => {
     const [batchGps, setBatchGps] = useState<EditableGps>(EMPTY_GPS);
     const [batchGpsSourceId, setBatchGpsSourceId] = useState("");
     const [batchOverwriteEmpty, setBatchOverwriteEmpty] = useState(false);
+    const [isCopyrightPresetExpanded, setIsCopyrightPresetExpanded] = useState(false);
     const [copyrightPreset, setCopyrightPreset] = useState<CopyrightPreset>(() => readStoredCopyrightPreset());
     const [copyrightPresetEnabled, setCopyrightPresetEnabled] = useState<boolean>(() => readStoredCopyrightPresetEnabled());
     const [isExportingSingle, setIsExportingSingle] = useState(false);
@@ -854,6 +837,8 @@ const PhotoExifWorkbench: React.FC = () => {
     const [isBindingDirectory, setIsBindingDirectory] = useState(false);
     const [isOverwritingInPlace, setIsOverwritingInPlace] = useState(false);
     const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+    const [isUploadPermissionDialogOpen, setIsUploadPermissionDialogOpen] = useState(false);
+    const [recentUploadedCount, setRecentUploadedCount] = useState(0);
     const [locationSearchQuery, setLocationSearchQuery] = useState("");
     const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
     const [mapState, setMapState] = useState<{ loading: boolean; error: string | null }>({
@@ -925,17 +910,6 @@ const PhotoExifWorkbench: React.FC = () => {
         () => items.find((item) => item.id === selectedImportSourceId) ?? null,
         [items, selectedImportSourceId],
     );
-    const selectedOverwriteDisabledReason = useMemo(() => {
-        if (!selectedItem) return "";
-        if (!selectedItem.canWriteExif) return "当前图片格式不是 JPEG/JPG，暂不支持原地写回。";
-        const fileNameError = getFileNameValidationError(getFileBaseName(selectedItem.currentFileName));
-        if (fileNameError) return `${fileNameError}，请先修正文件名。`;
-        if (!selectedItem.fileHandle) return "当前图片是普通上传，可先点上方“授权并绑定已上传图片”，绑定原文件后再原地改写。";
-        if (!isDirty(selectedItem)) return "当前图片没有待写回的修改。";
-        if (isOverwritingSelected) return "当前图片正在原地改写中。";
-        return "";
-    }, [isOverwritingSelected, selectedItem]);
-
     const loadAMap = useCallback(async (): Promise<MapSdkLike> => {
         if (mapSdkRef.current) return mapSdkRef.current;
         (window as Window & { _AMapSecurityConfig?: Record<string, string> })._AMapSecurityConfig = {
@@ -1077,6 +1051,10 @@ const PhotoExifWorkbench: React.FC = () => {
                 })),
             );
             appendItems(nextItems);
+            if (nextItems.some((item) => item.canWriteExif)) {
+                setRecentUploadedCount(nextItems.length);
+                setIsUploadPermissionDialogOpen(true);
+            }
             toast.success(`已读取 ${nextItems.length} 张图片的 EXIF 信息`);
         } catch (error) {
             console.error(error);
@@ -1254,20 +1232,6 @@ const PhotoExifWorkbench: React.FC = () => {
         setSelectedImportSourceId((previous) => (previous === itemId ? "" : itemId));
     };
 
-    const updateSelectedFileNameBase = (value: string) => {
-        if (!selectedItem) return;
-        setItems((previous) =>
-            previous.map((item) =>
-                item.id === selectedItem.id
-                    ? {
-                        ...item,
-                        currentFileName: buildFileName(value, item.originalFileName),
-                    }
-                    : item,
-            ),
-        );
-    };
-
     const clearAll = () => {
         items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
         setItems([]);
@@ -1277,45 +1241,11 @@ const PhotoExifWorkbench: React.FC = () => {
         toast.success("已清空图片列表");
     };
 
-    const updateSelectedField = (key: EditableExifKey, value: string) => {
-        if (!selectedItem) return;
-        setItems((previous) =>
-            previous.map((item) =>
-                item.id === selectedItem.id
-                    ? applyEditableStateToItem(item, {
-                        ...item.editableCurrent,
-                        [key]: value,
-                    })
-                    : item,
-            ),
-        );
-    };
-
     const updateCopyrightPresetField = (key: keyof CopyrightPreset, value: string) => {
         setCopyrightPreset((previous) => ({
             ...previous,
             [key]: value,
         }));
-    };
-
-    const applyCopyrightPresetToSelected = () => {
-        if (!selectedItem) return;
-        if (!copyrightPresetEnabled) {
-            toast.error("请先打开默认应用开关");
-            return;
-        }
-        setItems((previous) =>
-            previous.map((item) =>
-                item.id === selectedItem.id
-                    ? applyEditableStateToItem(item, {
-                        ...item.editableCurrent,
-                        artist: copyrightPreset.artist,
-                        copyright: copyrightPreset.copyright,
-                    })
-                    : item,
-            ),
-        );
-        toast.success("已将默认版权应用到当前图片");
     };
 
     const applyCopyrightPresetToAll = () => {
@@ -1336,27 +1266,6 @@ const PhotoExifWorkbench: React.FC = () => {
             }),
         );
         toast.success(`已将默认版权应用到 ${affected} 张 JPEG 图片`);
-    };
-
-    const resetSelected = () => {
-        if (!selectedItem) return;
-        setItems((previous) =>
-            previous.map((item) =>
-                item.id === selectedItem.id
-                    ? applyGpsStateToItem(
-                        {
-                            ...applyEditableStateToItem(
-                                item,
-                                applyCopyrightPresetToEditable(item.editableOriginal, copyrightPreset, copyrightPresetEnabled),
-                            ),
-                            currentFileName: item.originalFileName,
-                        },
-                        item.gpsOriginal,
-                    )
-                    : item,
-            ),
-        );
-        toast.success("已恢复该图片的原始可编辑字段");
     };
 
     const applyBatchChanges = () => {
@@ -1418,10 +1327,7 @@ const PhotoExifWorkbench: React.FC = () => {
             previous.map((item) =>
                 applyGpsStateToItem(
                     {
-                        ...applyEditableStateToItem(
-                            item,
-                            applyCopyrightPresetToEditable(item.editableOriginal, copyrightPreset, copyrightPresetEnabled),
-                        ),
+                        ...applyEditableStateToItem(item, item.editableOriginal),
                         currentFileName: item.originalFileName,
                     },
                     item.gpsOriginal,
@@ -1575,7 +1481,8 @@ const PhotoExifWorkbench: React.FC = () => {
             console.warn("原图 EXIF 不可读，将创建新的 EXIF 块", item.file.name, error);
         }
 
-        const outputExif = applyEditableToExif(sourceExif, item.editableCurrent, item.gpsCurrent);
+        const editableToSave = applyCopyrightPresetToEditable(item.editableCurrent, copyrightPreset, copyrightPresetEnabled);
+        const outputExif = applyEditableToExif(sourceExif, editableToSave, item.gpsCurrent);
         const exifString = piexif.dump(outputExif as Record<string, unknown>);
 
         let jpegData = originalDataUrl;
@@ -1590,7 +1497,7 @@ const PhotoExifWorkbench: React.FC = () => {
             updatedDataUrl,
             nextFileName === item.originalFileName ? getExportName(item.file.name) : nextFileName,
         );
-    }, []);
+    }, [copyrightPreset, copyrightPresetEnabled]);
 
     const refreshItemFromHandle = useCallback(async (item: PhotoExifItem): Promise<PhotoExifItem> => {
         if (!item.fileHandle) return item;
@@ -1813,12 +1720,12 @@ const PhotoExifWorkbench: React.FC = () => {
         : "#";
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 p-6">
-            <div className="max-w-7xl mx-auto space-y-6">
-                <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 px-4 py-4 lg:px-5">
+            <div className="mx-auto max-w-[1680px] space-y-5">
+                <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">照片 EXIF 查看与修改</h1>
-                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                        <h1 className="text-2xl font-bold tracking-tight lg:text-[28px]">照片 EXIF 查看与修改</h1>
+                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
                             支持单图详情查看、GPS 地图预览、批量概览与统一修改；可先上传筛图，再授权文件夹绑定原文件后对 JPEG 原地改写。
                         </p>
                     </div>
@@ -1834,10 +1741,10 @@ const PhotoExifWorkbench: React.FC = () => {
                 </header>
 
                 <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                    <CardContent className="p-6 space-y-4">
+                    <CardContent className="space-y-3 p-5">
                         <div
                             {...getRootProps()}
-                            className={`border-2 border-dashed rounded-2xl p-10 text-center ${
+                            className={`border-2 border-dashed rounded-2xl p-8 text-center md:p-9 ${
                                 isDragActive
                                     ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
                                     : "border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500"
@@ -1848,7 +1755,7 @@ const PhotoExifWorkbench: React.FC = () => {
                             <div className="space-y-2">
                                 <p className="text-lg font-medium">{isDragActive ? "释放图片开始读取" : "拖拽图片到这里"}</p>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    支持先上传筛图再做 EXIF 修改；如需原地改写，可后续再授权文件夹并绑定当前图片
+                                    先上传图片查看和修改；上传完成后，如需直接写回原文件，再继续授权原文件
                                 </p>
                             </div>
                         </div>
@@ -1867,7 +1774,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                 disabled={!items.length || isBindingDirectory}
                             >
                                 <FolderOpen className="w-4 h-4 mr-2" />
-                                {isBindingDirectory ? "绑定授权中..." : "授权并绑定已上传图片"}
+                                {isBindingDirectory ? "授权中..." : "授权文件夹读取权限"}
                             </Button>
                             {directoryHandle && (
                                 <Badge variant="outline" className="px-3 py-1">
@@ -1877,7 +1784,7 @@ const PhotoExifWorkbench: React.FC = () => {
                         </div>
                         {items.length > 0 && (
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                已绑定原文件 {linkedCount} 张；还有 {bindableCount} 张 JPEG 可通过“授权并绑定已上传图片”开启原地改写。
+                                已上传 {items.length} 张图片。想直接写回原文件？下一步请点击“授权文件夹读取权限”。目前已授权 {linkedCount} 张，还有 {bindableCount} 张可继续授权。
                             </p>
                         )}
                     </CardContent>
@@ -1885,77 +1792,77 @@ const PhotoExifWorkbench: React.FC = () => {
 
                 {items.length > 0 && (
                     <>
-                        <div className="grid gap-4 md:grid-cols-5">
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                             <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="p-5 flex items-center gap-4">
-                                    <div className="w-11 h-11 rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300 flex items-center justify-center">
-                                        <Files className="w-5 h-5" />
+                                <CardContent className="flex items-center gap-3 p-4">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300">
+                                        <Files className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">已加载图片</p>
-                                        <p className="text-2xl font-semibold">{items.length}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">已加载图片</p>
+                                        <p className="text-xl font-semibold">{items.length}</p>
                                     </div>
                                 </CardContent>
                             </Card>
                             <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="p-5 flex items-center gap-4">
-                                    <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300 flex items-center justify-center">
-                                        <PencilLine className="w-5 h-5" />
+                                <CardContent className="flex items-center gap-3 p-4">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300">
+                                        <PencilLine className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">可写回 JPEG</p>
-                                        <p className="text-2xl font-semibold">{writableCount}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">可写回 JPEG</p>
+                                        <p className="text-xl font-semibold">{writableCount}</p>
                                     </div>
                                 </CardContent>
                             </Card>
                             <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="p-5 flex items-center gap-4">
-                                    <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300 flex items-center justify-center">
-                                        <CheckCircle2 className="w-5 h-5" />
+                                <CardContent className="flex items-center gap-3 p-4">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300">
+                                        <CheckCircle2 className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">待导出修改</p>
-                                        <p className="text-2xl font-semibold">{dirtyCount}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">待导出修改</p>
+                                        <p className="text-xl font-semibold">{dirtyCount}</p>
                                     </div>
                                 </CardContent>
                             </Card>
                             <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="p-5 flex items-center gap-4">
-                                    <div className="w-11 h-11 rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300 flex items-center justify-center">
-                                        <MapPin className="w-5 h-5" />
+                                <CardContent className="flex items-center gap-3 p-4">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
+                                        <MapPin className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">含 GPS 信息</p>
-                                        <p className="text-2xl font-semibold">{gpsCount}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">含 GPS 信息</p>
+                                        <p className="text-xl font-semibold">{gpsCount}</p>
                                     </div>
                                 </CardContent>
                             </Card>
                             <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="p-5 flex items-center gap-4">
-                                    <div className="w-11 h-11 rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300 flex items-center justify-center">
-                                        <Save className="w-5 h-5" />
+                                <CardContent className="flex items-center gap-3 p-4">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300">
+                                        <Save className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400">可原地改写</p>
-                                        <p className="text-2xl font-semibold">{inplaceCount}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">可原地改写</p>
+                                        <p className="text-xl font-semibold">{inplaceCount}</p>
                                     </div>
                                 </CardContent>
                             </Card>
                         </div>
 
-                        <div className="grid gap-6 lg:grid-cols-12">
-                            <Card className="lg:col-span-4 border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                        <div className="grid gap-5 xl:grid-cols-12">
+                            <Card className="xl:col-span-3 border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
                                         <ImageIcon className="w-5 h-5" />
                                         图片列表
                                     </CardTitle>
                                     <CardDescription>
-                                        可先普通上传筛图，再通过后置授权绑定原文件；绑定成功的 JPEG 支持直接原地改写
+                                        先上传图片筛选与查看；如需直接写回原文件，再补一步授权原文件
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="pt-0">
-                                    <ScrollArea className="h-[780px] pr-3">
+                                    <ScrollArea className="h-[calc(100vh-15rem)] min-h-[520px] pr-2">
                                         <div className="space-y-3">
                                             {items.map((item) => (
                                                 <button
@@ -1997,8 +1904,8 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                 </button>
                                                             </div>
                                                             <div className="flex flex-wrap gap-2">
-                                                                <Badge variant="outline">{item.canWriteExif ? "可修改" : "只读"}</Badge>
-                                                                <Badge variant="outline">{getPhotoSourceLabel(item.source)}</Badge>
+                                                                <Badge variant="outline">{item.canWriteExif ? "支持保存修改" : "仅查看"}</Badge>
+                                                                <Badge variant="outline">{getWriteAccessLabel(item)}</Badge>
                                                                 {item.id === selectedId && <Badge className="bg-blue-600 text-white hover:bg-blue-600">当前目标图</Badge>}
                                                                 {item.id === selectedImportSourceId && (
                                                                     <Badge className="bg-violet-600 text-white hover:bg-violet-600">当前来源图</Badge>
@@ -2039,428 +1946,353 @@ const PhotoExifWorkbench: React.FC = () => {
                                 </CardContent>
                             </Card>
 
-                            <div className="lg:col-span-8 space-y-6">
-                                <Tabs defaultValue="viewer" className="space-y-4">
+                            <div className="xl:col-span-9 space-y-5">
+                                <Tabs defaultValue="viewer" className="space-y-3">
                                     <TabsList className="grid w-full grid-cols-2">
                                         <TabsTrigger value="viewer">单图查看与修改</TabsTrigger>
                                         <TabsTrigger value="batch">批量处理</TabsTrigger>
                                     </TabsList>
 
-                                    <TabsContent value="viewer" className="space-y-6">
+                                    <TabsContent value="viewer" className="space-y-4">
                                         {selectedItem ? (
                                             <>
                                                 <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                                    <CardContent className="p-6 grid gap-6 md:grid-cols-[320px_1fr]">
-                                                        <div className="space-y-4">
-                                                            <img
-                                                                src={selectedItem.previewUrl}
-                                                                alt={getEffectiveFileName(selectedItem)}
-                                                                className="w-full rounded-2xl object-cover bg-slate-100 dark:bg-slate-800"
-                                                            />
-                                                            <div className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
-                                                                <p className="break-all">{getEffectiveFileName(selectedItem)}</p>
+                                                    <CardContent className="space-y-5 p-5">
+                                                        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                                                            <div className="min-w-0">
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">当前图片</p>
+                                                                <h2 className="mt-1 text-lg font-semibold break-all">
+                                                                    {getEffectiveFileName(selectedItem)}
+                                                                </h2>
                                                                 {getEffectiveFileName(selectedItem) !== selectedItem.originalFileName && (
-                                                                    <p className="text-xs text-slate-500 dark:text-slate-400 break-all">
+                                                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 break-all">
                                                                         原名: {selectedItem.originalFileName}
                                                                     </p>
                                                                 )}
-                                                                <p>{(selectedItem.file.size / 1024 / 1024).toFixed(2)} MB</p>
-                                                                <p>{selectedItem.summary.resolution}</p>
                                                             </div>
                                                             <div className="flex flex-wrap gap-2">
                                                                 <Badge variant={selectedItem.canWriteExif ? "default" : "secondary"}>
-                                                                    {selectedItem.canWriteExif ? "JPEG 可写回" : "当前格式只读"}
+                                                                    {selectedItem.canWriteExif ? "支持保存修改" : "仅查看"}
                                                                 </Badge>
-                                                                <Badge variant="outline">
-                                                                    {getPhotoSourceLabel(selectedItem.source)}
-                                                                </Badge>
+                                                                <Badge variant="outline">{getWriteAccessLabel(selectedItem)}</Badge>
                                                                 {selectedGpsPoint && <Badge variant="outline">含 GPS</Badge>}
                                                             </div>
                                                         </div>
 
-                                                        <div className="space-y-6">
-                                                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 grid gap-3 md:grid-cols-2">
-                                                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">当前目标图</p>
-                                                                    <p className="mt-1 text-sm font-medium break-all">{getEffectiveFileName(selectedItem)}</p>
-                                                                </div>
-                                                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">当前来源图</p>
-                                                                    <p className="mt-1 text-sm font-medium break-all">
-                                                                        {selectedImportSourceItem ? getEffectiveFileName(selectedImportSourceItem) : "未设置来源图"}
+                                                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">当前来源图</p>
+                                                                <p className="mt-1 text-sm font-medium break-all">
+                                                                    {selectedImportSourceItem ? getEffectiveFileName(selectedImportSourceItem) : "未设置来源图"}
+                                                                </p>
+                                                            </div>
+                                                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">文件大小</p>
+                                                                <p className="mt-1 text-sm font-medium">{(selectedItem.file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                            </div>
+                                                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">分辨率</p>
+                                                                <p className="mt-1 text-sm font-medium break-words">{selectedItem.summary.resolution}</p>
+                                                            </div>
+                                                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">当前 GPS</p>
+                                                                <p className="mt-1 text-sm font-medium break-words">{selectedItem.summary.gps || "-"}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                                                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                                                <div>
+                                                                    <h3 className="text-sm font-semibold">保存当前修改</h3>
+                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                        GPS、版权或导入的整套信息修改后，可导出新图或直接写回原文件；开启默认版权后会在保存时自动补齐
                                                                     </p>
                                                                 </div>
-                                                            </div>
-
-                                                            <div>
-                                                                <h2 className="text-xl font-semibold flex items-center gap-2">
-                                                                    <Camera className="w-5 h-5" />
-                                                                    核心信息
-                                                                </h2>
-                                                                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                                                                    {[
-                                                                        { label: "品牌", value: selectedItem.summary.make || "-" },
-                                                                        { label: "机型", value: selectedItem.summary.model || "-" },
-                                                                        { label: "镜头", value: selectedItem.summary.lensModel || "-" },
-                                                                        { label: "ISO", value: selectedItem.summary.iso || "-" },
-                                                                        { label: "光圈", value: selectedItem.summary.fNumber || "-" },
-                                                                        { label: "快门", value: selectedItem.summary.exposureTime || "-" },
-                                                                        { label: "焦距", value: selectedItem.summary.focalLength || "-" },
-                                                                        { label: "拍摄时间", value: selectedItem.summary.dateTimeOriginal || "-" },
-                                                                        { label: "软件", value: selectedItem.summary.software || "-" },
-                                                                        { label: "GPS", value: selectedItem.summary.gps || "-" },
-                                                                    ].map((entry) => (
-                                                                        <div key={entry.label} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                                                                            <p className="text-xs text-slate-500 dark:text-slate-400">{entry.label}</p>
-                                                                            <p className="mt-1 text-sm font-medium break-words">{entry.value}</p>
-                                                                        </div>
-                                                                    ))}
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        onClick={() => void exportSelected()}
+                                                                        disabled={!selectedItem.canWriteExif || isExportingSingle}
+                                                                    >
+                                                                        <Download className="w-4 h-4 mr-2" />
+                                                                        {isExportingSingle ? "导出中..." : "导出修改后图片"}
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        onClick={() => void overwriteSelectedInPlace()}
+                                                                        disabled={!selectedItem.canWriteExif || !selectedItem.fileHandle || !isDirty(selectedItem) || isOverwritingSelected}
+                                                                    >
+                                                                        <Save className="w-4 h-4 mr-2" />
+                                                                        {isOverwritingSelected ? "写回中..." : "写回原文件"}
+                                                                    </Button>
                                                                 </div>
                                                             </div>
+                                                            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                                                                {!selectedItem.canWriteExif
+                                                                    ? "当前图片格式不是 JPEG/JPG，仅支持查看，不支持导出或写回。"
+                                                                    : !selectedItem.fileHandle
+                                                                      ? "当前图片还没授权原文件，可先导出修改后图片；如需直接写回，请先点击“授权原文件”。"
+                                                                      : !isDirty(selectedItem)
+                                                                        ? "当前图片还没有待保存的修改。"
+                                                                        : "已授权原文件，可直接原地写回。"}
+                                                            </p>
+                                                        </div>
 
-                                                            {(selectedGpsPoint || selectedItem.canWriteExif) && (
-                                                                <>
-                                                                    <Separator />
-                                                                    <div className="space-y-4">
-                                                                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                                                                            <div>
-                                                                                <h3 className="text-lg font-semibold flex items-center gap-2">
-                                                                                    <LocateFixed className="w-5 h-5" />
-                                                                                    GPS 编辑
-                                                                                </h3>
-                                                                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                                                    {selectedGpsPoint
-                                                                                        ? `经纬度：${selectedGpsPoint.lat.toFixed(6)}, ${selectedGpsPoint.lng.toFixed(6)}`
-                                                                                        : "可搜索地点、点击地图或拖拽标记设置 GPS"}
-                                                                                </p>
-                                                                            </div>
-                                                                            <div className="flex gap-2 flex-wrap">
-                                                                                <a href={amapLink} target="_blank" rel="noreferrer">
-                                                                                    <Button variant="outline" disabled={!selectedGpsPoint}>
-                                                                                        <ExternalLink className="w-4 h-4 mr-2" />
-                                                                                        高德打开
-                                                                                    </Button>
-                                                                                </a>
-                                                                                <a href={googleLink} target="_blank" rel="noreferrer">
-                                                                                    <Button variant="outline" disabled={!selectedGpsPoint}>
-                                                                                        <ExternalLink className="w-4 h-4 mr-2" />
-                                                                                        Google 打开
-                                                                                    </Button>
-                                                                                </a>
-                                                                                <Button variant="outline" onClick={clearSelectedGps} disabled={!selectedItem.canWriteExif}>
-                                                                                    <Trash2 className="w-4 h-4 mr-2" />
-                                                                                    清除 GPS
-                                                                                </Button>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                                                                            <div className="flex flex-col gap-3 sm:flex-row">
-                                                                                <Input
-                                                                                    value={locationSearchQuery}
-                                                                                    placeholder="搜索地点，例如 上海外滩 / 故宫博物院"
-                                                                                    disabled={!selectedItem.canWriteExif || isSearchingLocation}
-                                                                                    onChange={(event) => setLocationSearchQuery(event.target.value)}
-                                                                                    onKeyDown={(event) => {
-                                                                                        if (event.key === "Enter") {
-                                                                                            event.preventDefault();
-                                                                                            void searchSelectedLocation();
-                                                                                        }
-                                                                                    }}
-                                                                                />
-                                                                                <Button
-                                                                                    variant="outline"
-                                                                                    onClick={() => void searchSelectedLocation()}
-                                                                                    disabled={!selectedItem.canWriteExif || isSearchingLocation}
-                                                                                >
-                                                                                    <Search className="w-4 h-4 mr-2" />
-                                                                                    {isSearchingLocation ? "搜索中..." : "搜索地点"}
-                                                                                </Button>
-                                                                            </div>
-                                                                            <div className="text-sm text-slate-500 dark:text-slate-400 flex items-center lg:justify-end">
-                                                                                {selectedItem.gpsCurrent.locationName || "未设置地点名称"}
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="grid gap-4 sm:grid-cols-2">
-                                                                            <div className="space-y-2">
-                                                                                <Label htmlFor="selected-gps-lat">纬度</Label>
-                                                                                <Input
-                                                                                    id="selected-gps-lat"
-                                                                                    value={selectedItem.gpsCurrent.lat}
-                                                                                    placeholder="例如 31.230416"
-                                                                                    disabled={!selectedItem.canWriteExif}
-                                                                                    onChange={(event) => updateSelectedGpsField("lat", event.target.value)}
-                                                                                />
-                                                                            </div>
-                                                                            <div className="space-y-2">
-                                                                                <Label htmlFor="selected-gps-lng">经度</Label>
-                                                                                <Input
-                                                                                    id="selected-gps-lng"
-                                                                                    value={selectedItem.gpsCurrent.lng}
-                                                                                    placeholder="例如 121.473701"
-                                                                                    disabled={!selectedItem.canWriteExif}
-                                                                                    onChange={(event) => updateSelectedGpsField("lng", event.target.value)}
-                                                                                />
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                                                                            <div ref={mapContainerRef} className="h-[280px] w-full bg-slate-100 dark:bg-slate-900" />
-                                                                        </div>
-                                                                        {mapState.loading && (
-                                                                            <p className="text-sm text-slate-500 dark:text-slate-400">地图加载中...</p>
-                                                                        )}
-                                                                        {mapState.error && (
-                                                                            <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20 p-4 text-sm text-amber-800 dark:text-amber-200 flex gap-3">
-                                                                                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                                                                                {mapState.error}
-                                                                            </div>
-                                                                        )}
-                                                                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                            可直接拖拽地图上的标记到目标位置；如果当前还没有 GPS，可先搜索地点，或直接点击地图落点。
-                                                                        </p>
+                                                        <div>
+                                                            <h2 className="flex items-center gap-2 text-lg font-semibold">
+                                                                <Camera className="w-5 h-5" />
+                                                                核心信息
+                                                            </h2>
+                                                            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                                                {[
+                                                                    { label: "品牌", value: selectedItem.summary.make || "-" },
+                                                                    { label: "机型", value: selectedItem.summary.model || "-" },
+                                                                    { label: "镜头", value: selectedItem.summary.lensModel || "-" },
+                                                                    { label: "ISO", value: selectedItem.summary.iso || "-" },
+                                                                    { label: "光圈", value: selectedItem.summary.fNumber || "-" },
+                                                                    { label: "快门", value: selectedItem.summary.exposureTime || "-" },
+                                                                    { label: "焦距", value: selectedItem.summary.focalLength || "-" },
+                                                                    { label: "拍摄时间", value: selectedItem.summary.dateTimeOriginal || "-" },
+                                                                    { label: "软件", value: selectedItem.summary.software || "-" },
+                                                                    { label: "GPS", value: selectedItem.summary.gps || "-" },
+                                                                ].map((entry) => (
+                                                                    <div key={entry.label} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                                                        <p className="text-xs text-slate-500 dark:text-slate-400">{entry.label}</p>
+                                                                        <p className="mt-1 text-sm font-medium break-words">{entry.value}</p>
                                                                     </div>
-                                                                </>
-                                                            )}
+                                                                ))}
+                                                            </div>
+                                                        </div>
 
-                                                            <Separator />
-
-                                                            <div className="space-y-4">
-                                                                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
-                                                                    <div>
-                                                                        <h3 className="text-lg font-semibold">整套信息导入</h3>
-                                                                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                                            适合 A 图信息被清空、但 B 图与它是同一张照片的情况，可直接把 B 的可写 EXIF 字段和 GPS 整体导入到当前图片
-                                                                        </p>
-                                                                    </div>
-                                                                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                                                                        <div className="space-y-2">
-                                                                            <Label htmlFor="selected-import-source">来源图片</Label>
-                                                                            <select
-                                                                                id="selected-import-source"
-                                                                                title="选择整套信息导入的来源图片"
-                                                                                aria-label="选择整套信息导入的来源图片"
-                                                                                value={selectedImportSourceId}
-                                                                                onChange={(event) => setSelectedImportSourceId(event.target.value)}
-                                                                                className="flex h-10 w-full rounded-md border border-slate-200 dark:border-slate-800 bg-transparent px-3 py-2 text-sm ring-offset-background"
-                                                                            >
-                                                                                <option value="">请选择来源图片</option>
-                                                                                {singleImportSourceOptions.map((item) => (
-                                                                                    <option key={item.id} value={item.id}>
-                                                                                        {getEffectiveFileName(item)}
-                                                                                    </option>
-                                                                                ))}
-                                                                            </select>
-                                                                        </div>
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                onClick={() => void importSelectedSourceMetadata(false)}
-                                                                                disabled={!selectedItem.canWriteExif || !singleImportSourceOptions.length}
-                                                                            >
-                                                                                导入到当前
-                                                                            </Button>
-                                                                            <Button
-                                                                                variant="outline"
-                                                                                onClick={() => void importSelectedSourceMetadata(true)}
-                                                                                disabled={!selectedItem.canWriteExif || !selectedItem.fileHandle || !singleImportSourceOptions.length || isOverwritingSelected}
-                                                                            >
-                                                                                <Save className="w-4 h-4 mr-2" />
-                                                                                {isOverwritingSelected ? "写回中..." : "导入并原地写回"}
-                                                                            </Button>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
-                                                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                                        {(selectedGpsPoint || selectedItem.canWriteExif) && (
+                                                            <>
+                                                                <Separator />
+                                                                <div className="space-y-4">
+                                                                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                                                                         <div>
-                                                                            <h3 className="text-lg font-semibold">版权模块</h3>
+                                                                            <h3 className="flex items-center gap-2 text-lg font-semibold">
+                                                                                <LocateFixed className="w-5 h-5" />
+                                                                                GPS 编辑
+                                                                            </h3>
                                                                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                                                固定显示，默认开启时会自动应用到新导入图片；关闭后不自动应用
+                                                                                {selectedGpsPoint
+                                                                                    ? `经纬度：${selectedGpsPoint.lat.toFixed(6)}, ${selectedGpsPoint.lng.toFixed(6)}`
+                                                                                    : "可搜索地点、点击地图或拖拽标记设置 GPS"}
                                                                             </p>
                                                                         </div>
                                                                         <div className="flex flex-wrap gap-2">
+                                                                            <Button variant="outline" onClick={clearSelectedGps} disabled={!selectedItem.canWriteExif}>
+                                                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                                                清除 GPS
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                                                                        <div className="flex flex-col gap-3 sm:flex-row">
+                                                                            <Input
+                                                                                value={locationSearchQuery}
+                                                                                placeholder="搜索地点，例如 上海外滩 / 故宫博物院"
+                                                                                disabled={!selectedItem.canWriteExif || isSearchingLocation}
+                                                                                onChange={(event) => setLocationSearchQuery(event.target.value)}
+                                                                                onKeyDown={(event) => {
+                                                                                    if (event.key === "Enter") {
+                                                                                        event.preventDefault();
+                                                                                        void searchSelectedLocation();
+                                                                                    }
+                                                                                }}
+                                                                            />
                                                                             <Button
                                                                                 variant="outline"
-                                                                                onClick={applyCopyrightPresetToSelected}
-                                                                                disabled={!selectedItem.canWriteExif || !copyrightPresetEnabled}
+                                                                                onClick={() => void searchSelectedLocation()}
+                                                                                disabled={!selectedItem.canWriteExif || isSearchingLocation}
                                                                             >
-                                                                                应用到当前
-                                                                            </Button>
-                                                                            <Button variant="outline" onClick={applyCopyrightPresetToAll} disabled={!copyrightPresetEnabled}>
-                                                                                应用到全部
+                                                                                <Search className="w-4 h-4 mr-2" />
+                                                                                {isSearchingLocation ? "搜索中..." : "搜索地点"}
                                                                             </Button>
                                                                         </div>
-                                                                    </div>
-                                                                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-800 p-4">
-                                                                        <div className="space-y-1">
-                                                                            <p className="text-sm font-medium">默认应用版权预设</p>
-                                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                                打开后，新导入和恢复操作都会自动带上默认作者与版权
-                                                                            </p>
-                                                                        </div>
-                                                                        <Switch
-                                                                            checked={copyrightPresetEnabled}
-                                                                            onCheckedChange={setCopyrightPresetEnabled}
-                                                                        />
-                                                                    </div>
-                                                                    <div className="grid gap-4 sm:grid-cols-2">
-                                                                        <div className="space-y-2">
-                                                                            <Label htmlFor="copyright-preset-artist">默认作者</Label>
-                                                                            <Input
-                                                                                id="copyright-preset-artist"
-                                                                                value={copyrightPreset.artist}
-                                                                                placeholder="例如 笑谈间气吐霓虹"
-                                                                                onChange={(event) => updateCopyrightPresetField("artist", event.target.value)}
-                                                                            />
-                                                                        </div>
-                                                                        <div className="space-y-2">
-                                                                            <Label htmlFor="copyright-preset-text">默认版权</Label>
-                                                                            <Input
-                                                                                id="copyright-preset-text"
-                                                                                value={copyrightPreset.copyright}
-                                                                                placeholder="例如 Copyright 2026 笑谈间气吐霓虹. All Rights Reserved."
-                                                                                onChange={(event) => updateCopyrightPresetField("copyright", event.target.value)}
-                                                                            />
+                                                                        <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 lg:justify-end">
+                                                                            {selectedItem.gpsCurrent.locationName || "未设置地点名称"}
                                                                         </div>
                                                                     </div>
                                                                     <div className="grid gap-4 sm:grid-cols-2">
                                                                         <div className="space-y-2">
-                                                                            <Label htmlFor="selected-artist">当前图片作者</Label>
+                                                                            <Label htmlFor="selected-gps-lat">纬度</Label>
                                                                             <Input
-                                                                                id="selected-artist"
-                                                                                value={selectedItem.editableCurrent.artist}
-                                                                                placeholder="摄影师或版权主体"
+                                                                                id="selected-gps-lat"
+                                                                                value={selectedItem.gpsCurrent.lat}
+                                                                                placeholder="例如 31.230416"
                                                                                 disabled={!selectedItem.canWriteExif}
-                                                                                onChange={(event) => updateSelectedField("artist", event.target.value)}
+                                                                                onChange={(event) => updateSelectedGpsField("lat", event.target.value)}
                                                                             />
                                                                         </div>
                                                                         <div className="space-y-2">
-                                                                            <Label htmlFor="selected-copyright">当前图片版权</Label>
+                                                                            <Label htmlFor="selected-gps-lng">经度</Label>
                                                                             <Input
-                                                                                id="selected-copyright"
-                                                                                value={selectedItem.editableCurrent.copyright}
-                                                                                placeholder="版权声明"
+                                                                                id="selected-gps-lng"
+                                                                                value={selectedItem.gpsCurrent.lng}
+                                                                                placeholder="例如 121.473701"
                                                                                 disabled={!selectedItem.canWriteExif}
-                                                                                onChange={(event) => updateSelectedField("copyright", event.target.value)}
+                                                                                onChange={(event) => updateSelectedGpsField("lng", event.target.value)}
                                                                             />
                                                                         </div>
                                                                     </div>
+                                                                    <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                                                                        <div ref={mapContainerRef} className="h-[280px] w-full bg-slate-100 dark:bg-slate-900" />
+                                                                    </div>
+                                                                    {mapState.loading && (
+                                                                        <p className="text-sm text-slate-500 dark:text-slate-400">地图加载中...</p>
+                                                                    )}
+                                                                    {mapState.error && (
+                                                                        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                                                                            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                                                            {mapState.error}
+                                                                        </div>
+                                                                    )}
+                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                        可直接拖拽地图上的标记到目标位置；如果当前还没有 GPS，可先搜索地点，或直接点击地图落点。
+                                                                    </p>
                                                                 </div>
+                                                            </>
+                                                        )}
 
-                                                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                                                    <div>
-                                                                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                                                                            <PencilLine className="w-5 h-5" />
-                                                                            可写回字段
-                                                                        </h3>
-                                                                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                                            修改后可导出新文件；若来自已授权文件夹，也可直接原地改写当前图片
-                                                                        </p>
+                                                        <Separator />
+
+                                                        <div className="space-y-4">
+                                                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                                <div>
+                                                                    <h3 className="text-lg font-semibold">整套信息导入</h3>
+                                                                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                                        适合 A 图信息被清空、但 B 图与它是同一张照片的情况，可直接把 B 的可写 EXIF 字段和 GPS 整体导入到当前图片
+                                                                    </p>
+                                                                </div>
+                                                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                                                                    <div className="space-y-2">
+                                                                        <Label htmlFor="selected-import-source">来源图片</Label>
+                                                                        <select
+                                                                            id="selected-import-source"
+                                                                            title="选择整套信息导入的来源图片"
+                                                                            aria-label="选择整套信息导入的来源图片"
+                                                                            value={selectedImportSourceId}
+                                                                            onChange={(event) => setSelectedImportSourceId(event.target.value)}
+                                                                            className="flex h-10 w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm ring-offset-background dark:border-slate-800"
+                                                                        >
+                                                                            <option value="">请选择来源图片</option>
+                                                                            {singleImportSourceOptions.map((item) => (
+                                                                                <option key={item.id} value={item.id}>
+                                                                                    {getEffectiveFileName(item)}
+                                                                                </option>
+                                                                            ))}
+                                                                        </select>
                                                                     </div>
                                                                     <div className="flex flex-wrap gap-2">
-                                                                        <Button variant="outline" onClick={resetSelected}>
-                                                                            <RotateCcw className="w-4 h-4 mr-2" />
-                                                                            恢复本图
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            onClick={() => void importSelectedSourceMetadata(false)}
+                                                                            disabled={!selectedItem.canWriteExif || !singleImportSourceOptions.length}
+                                                                        >
+                                                                            导入到当前
                                                                         </Button>
                                                                         <Button
                                                                             variant="outline"
-                                                                            onClick={() => void overwriteSelectedInPlace()}
-                                                                            disabled={!selectedItem.canWriteExif || !selectedItem.fileHandle || !isDirty(selectedItem) || isOverwritingSelected}
+                                                                            onClick={() => void importSelectedSourceMetadata(true)}
+                                                                            disabled={!selectedItem.canWriteExif || !selectedItem.fileHandle || !singleImportSourceOptions.length || isOverwritingSelected}
                                                                         >
                                                                             <Save className="w-4 h-4 mr-2" />
-                                                                            {isOverwritingSelected ? "原地改写中..." : "原地改写本图"}
-                                                                        </Button>
-                                                                        <Button onClick={() => void exportSelected()} disabled={!selectedItem.canWriteExif || isExportingSingle}>
-                                                                            <Download className="w-4 h-4 mr-2" />
-                                                                            {isExportingSingle ? "导出中..." : "导出本图"}
+                                                                            {isOverwritingSelected ? "写回中..." : "导入并原地写回"}
                                                                         </Button>
                                                                     </div>
                                                                 </div>
-                                                                {selectedOverwriteDisabledReason && (
-                                                                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                                        {selectedOverwriteDisabledReason}
-                                                                    </p>
-                                                                )}
+                                                            </div>
 
-                                                                {!selectedItem.canWriteExif && (
-                                                                    <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20 p-4 text-sm text-amber-800 dark:text-amber-200 flex gap-3">
-                                                                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                                                                        当前图片格式不是 JPEG/JPG，因此先支持 EXIF 查看，不支持直接写回导出。
+                                                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                                                    <div>
+                                                                        <h3 className="text-lg font-semibold">版权</h3>
+                                                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                                            当前图片版权仅展示；默认预设会在保存时自动补齐缺失的作者与版权
+                                                                        </p>
                                                                     </div>
-                                                                )}
-
-                                                                <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_140px]">
-                                                                    <div className="space-y-2">
-                                                                        <Label htmlFor="selected-file-name">图片名称</Label>
-                                                                        <Input
-                                                                            id="selected-file-name"
-                                                                            value={getFileBaseName(selectedItem.currentFileName)}
-                                                                            placeholder="输入导出或原地改名后的图片名称"
-                                                                            disabled={!selectedItem.canWriteExif}
-                                                                            onChange={(event) => updateSelectedFileNameBase(event.target.value)}
-                                                                        />
-                                                                        {getFileNameValidationError(getFileBaseName(selectedItem.currentFileName)) ? (
-                                                                            <p className="text-xs text-red-500">
-                                                                                {getFileNameValidationError(getFileBaseName(selectedItem.currentFileName))}
-                                                                            </p>
-                                                                        ) : (
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        <Button variant="outline" onClick={applyCopyrightPresetToAll} disabled={!copyrightPresetEnabled}>
+                                                                            填充到全部图片
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                                    <div className="flex flex-wrap items-center justify-between gap-4">
+                                                                        <div className="space-y-1">
+                                                                            <p className="text-sm font-medium">保存时自动补齐默认版权</p>
                                                                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                                扩展名固定为 {getFileExtension(selectedItem.originalFileName) || "原文件扩展名"}，导出和原地写回都会使用该名称
+                                                                                打开后，保存当前图片或批量导出/写回时，会自动补齐缺失的默认作者与版权
                                                                             </p>
-                                                                        )}
+                                                                        </div>
+                                                                        <Switch checked={copyrightPresetEnabled} onCheckedChange={setCopyrightPresetEnabled} />
+                                                                    </div>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="flex w-full items-start justify-between gap-4 text-left"
+                                                                        onClick={() => setIsCopyrightPresetExpanded((previous) => !previous)}
+                                                                        aria-expanded={isCopyrightPresetExpanded}
+                                                                        aria-controls="copyright-preset-panel"
+                                                                    >
+                                                                        <div className="min-w-0 space-y-1">
+                                                                            <div className="flex items-center gap-2">
+                                                                                {isCopyrightPresetExpanded ? (
+                                                                                    <ChevronDown className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                                                                ) : (
+                                                                                    <ChevronRight className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                                                                )}
+                                                                                <p className="text-sm font-medium">默认版权预设</p>
+                                                                            </div>
+                                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                                {isCopyrightPresetExpanded ? "编辑默认作者与默认版权" : "点击展开编辑默认作者与默认版权"}
+                                                                            </p>
+                                                                        </div>
+                                                                    </button>
+                                                                    {isCopyrightPresetExpanded && (
+                                                                        <div
+                                                                            id="copyright-preset-panel"
+                                                                            className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-800"
+                                                                        >
+                                                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                                                <div className="space-y-2">
+                                                                                    <Label htmlFor="copyright-preset-artist">默认作者</Label>
+                                                                                    <Input
+                                                                                        id="copyright-preset-artist"
+                                                                                        value={copyrightPreset.artist}
+                                                                                        placeholder="例如 笑谈间气吐霓虹"
+                                                                                        onChange={(event) => updateCopyrightPresetField("artist", event.target.value)}
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="space-y-2">
+                                                                                    <Label htmlFor="copyright-preset-text">默认版权</Label>
+                                                                                    <Input
+                                                                                        id="copyright-preset-text"
+                                                                                        value={copyrightPreset.copyright}
+                                                                                        placeholder="例如 Copyright 2026 笑谈间气吐霓虹. All Rights Reserved."
+                                                                                        onChange={(event) => updateCopyrightPresetField("copyright", event.target.value)}
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                                    <div className="space-y-2">
+                                                                        <p className="text-sm font-medium">当前图片作者</p>
+                                                                        <div className="rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 min-h-10">
+                                                                            {selectedItem.editableCurrent.artist || "未读取到作者"}
+                                                                        </div>
                                                                     </div>
                                                                     <div className="space-y-2">
-                                                                        <Label>扩展名</Label>
-                                                                        <Input value={getFileExtension(selectedItem.originalFileName) || "(无扩展名)"} disabled />
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="grid gap-4 sm:grid-cols-2">
-                                                                    {GENERAL_EDITABLE_FIELDS.map((field) => (
-                                                                        <div key={field.key} className="space-y-2">
-                                                                            <Label htmlFor={`selected-${field.key}`}>{field.label}</Label>
-                                                                            <Input
-                                                                                id={`selected-${field.key}`}
-                                                                                value={selectedItem.editableCurrent[field.key]}
-                                                                                placeholder={field.placeholder}
-                                                                                disabled={!selectedItem.canWriteExif}
-                                                                                onChange={(event) => updateSelectedField(field.key, event.target.value)}
-                                                                            />
+                                                                        <p className="text-sm font-medium">当前图片版权</p>
+                                                                        <div className="rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 min-h-10 break-words">
+                                                                            {selectedItem.editableCurrent.copyright || "未读取到版权声明"}
                                                                         </div>
-                                                                    ))}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </CardContent>
-                                                </Card>
-
-                                                <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                                    <CardHeader>
-                                                        <CardTitle className="flex items-center gap-2">
-                                                            <Info className="w-5 h-5" />
-                                                            全量 EXIF 标签
-                                                        </CardTitle>
-                                                        <CardDescription>
-                                                            展示从文件里解析到的原始标签文本，方便排查或核对
-                                                        </CardDescription>
-                                                    </CardHeader>
-                                                    <CardContent className="pt-0">
-                                                        <ScrollArea className="h-[380px] pr-3">
-                                                            {selectedItem.tags.length > 0 ? (
-                                                                <div className="space-y-2">
-                                                                    {selectedItem.tags.map((tag) => (
-                                                                        <div key={tag.key} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                                                                            <p className="text-xs text-slate-500 dark:text-slate-400">{tag.label}</p>
-                                                                            <p className="mt-1 text-sm break-words">{tag.value}</p>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                                                                    这张图片没有读取到可展示的 EXIF 标签
-                                                                </div>
-                                                            )}
-                                                        </ScrollArea>
                                                     </CardContent>
                                                 </Card>
                                             </>
@@ -2646,10 +2478,10 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                         <p className="font-medium break-all">{getEffectiveFileName(item)}</p>
                                                                         <div className="flex flex-wrap gap-2">
                                                                             <Badge variant={item.canWriteExif ? "default" : "secondary"}>
-                                                                                {item.canWriteExif ? "JPEG 可写回" : "只读"}
+                                                                                {item.canWriteExif ? "支持保存修改" : "仅查看"}
                                                                             </Badge>
                                                                             <Badge variant="outline">
-                                                                                {getPhotoSourceLabel(item.source)}
+                                                                                {getWriteAccessLabel(item)}
                                                                             </Badge>
                                                                             {isDirty(item) && (
                                                                                 <Badge className="bg-amber-500 text-white hover:bg-amber-500">
@@ -2701,6 +2533,32 @@ const PhotoExifWorkbench: React.FC = () => {
                     </>
                 )}
             </div>
+            <Dialog open={isUploadPermissionDialogOpen} onOpenChange={setIsUploadPermissionDialogOpen}>
+                <DialogContent className="max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+                    <DialogHeader>
+                        <DialogTitle>已上传图片</DialogTitle>
+                        <DialogDescription className="text-slate-600 dark:text-slate-400">
+                            已读取 {recentUploadedCount} 张图片。若要后续直接写回原文件，现在请继续授权图片所在文件夹的读取与写入权限。
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                        授权后，已上传的 JPEG 图片就可以直接写回原文件；不授权也可以继续查看和导出修改后图片。
+                    </div>
+                    <DialogFooter className="gap-2 sm:justify-end">
+                        <Button variant="outline" onClick={() => setIsUploadPermissionDialogOpen(false)}>
+                            稍后再说
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setIsUploadPermissionDialogOpen(false);
+                                void handleBindUploadedItemsToDirectory();
+                            }}
+                        >
+                            授权文件夹读取权限
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
