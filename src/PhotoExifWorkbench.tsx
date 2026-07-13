@@ -35,7 +35,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -91,6 +90,18 @@ interface EditableGps {
     lat: string;
     lng: string;
     locationName: string;
+}
+
+type ImportScopeKey = "gps" | "core" | "time" | "copyright" | "description";
+
+type ImportScopeSelection = Record<ImportScopeKey, boolean>;
+
+interface ImportDiffRow {
+    fieldLabel: string;
+    targetValue: string;
+    sourceValue: string;
+    changed: boolean;
+    willClearTarget: boolean;
 }
 
 const cloneEditableExif = (editable: EditableExif): EditableExif => ({
@@ -275,6 +286,93 @@ const dangerButtonClass =
     "rounded-xl bg-rose-600 px-4 text-white shadow-sm hover:bg-rose-500 dark:bg-rose-500 dark:hover:bg-rose-400";
 const dangerSubtleButtonClass =
     "rounded-xl border-rose-200 bg-rose-50 px-4 text-rose-700 hover:border-rose-300 hover:bg-rose-100 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/50";
+const DEFAULT_IMPORT_SCOPE_SELECTION: ImportScopeSelection = {
+    gps: true,
+    core: true,
+    time: true,
+    copyright: true,
+    description: true,
+};
+const IMPORT_SCOPE_DEFINITIONS: Array<{ key: ImportScopeKey; label: string; description: string }> = [
+    { key: "gps", label: "GPS", description: "导入经纬度和地点名称" },
+    { key: "core", label: "核心信息", description: "导入品牌、机型、镜头、软件、焦距、光圈、快门和 ISO" },
+    { key: "time", label: "时间", description: "导入拍摄时间和数字化时间" },
+    { key: "copyright", label: "版权", description: "导入作者和版权声明" },
+    { key: "description", label: "图片说明", description: "导入图片描述" },
+];
+const IMPORT_SCOPE_EDITABLE_FIELDS: Record<Exclude<ImportScopeKey, "gps">, EditableExifKey[]> = {
+    core: ["make", "model", "lensModel", "software", "focalLength", "fNumber", "exposureTime", "iso"],
+    time: ["dateTimeOriginal", "dateTimeDigitized"],
+    copyright: ["artist", "copyright"],
+    description: ["imageDescription"],
+};
+
+const formatDiffDisplayValue = (value: string): string => value.trim() || "未设置";
+
+const hasMeaningfulDiffValue = (value: string): boolean => value.trim().length > 0;
+
+const createImportScopeSelection = (selectedKeys: ImportScopeKey[]): ImportScopeSelection => ({
+    gps: selectedKeys.includes("gps"),
+    core: selectedKeys.includes("core"),
+    time: selectedKeys.includes("time"),
+    copyright: selectedKeys.includes("copyright"),
+    description: selectedKeys.includes("description"),
+});
+
+const buildImportDiffRows = (target: PhotoExifItem, source: PhotoExifItem, scopeKey: ImportScopeKey): ImportDiffRow[] => {
+    if (scopeKey === "gps") {
+        const targetGps = editableGpsToPoint(target.gpsCurrent);
+        const sourceGps = editableGpsToPoint(source.gpsCurrent);
+        const targetGpsValue = targetGps ? formatGpsText(targetGps) : "";
+        const sourceGpsValue = sourceGps ? formatGpsText(sourceGps) : "";
+        const targetLocationValue = target.gpsCurrent.locationName.trim();
+        const sourceLocationValue = source.gpsCurrent.locationName.trim();
+        return [
+            {
+                fieldLabel: "GPS 坐标",
+                targetValue: formatDiffDisplayValue(targetGpsValue),
+                sourceValue: formatDiffDisplayValue(sourceGpsValue),
+                changed: targetGpsValue !== sourceGpsValue,
+                willClearTarget: hasMeaningfulDiffValue(targetGpsValue) && !hasMeaningfulDiffValue(sourceGpsValue),
+            },
+            {
+                fieldLabel: "地点名称",
+                targetValue: formatDiffDisplayValue(targetLocationValue),
+                sourceValue: formatDiffDisplayValue(sourceLocationValue),
+                changed: targetLocationValue !== sourceLocationValue,
+                willClearTarget: hasMeaningfulDiffValue(targetLocationValue) && !hasMeaningfulDiffValue(sourceLocationValue),
+            },
+        ];
+    }
+
+    const editableFieldLabels: Record<EditableExifKey, string> = {
+        make: "品牌",
+        model: "机型",
+        lensModel: "镜头",
+        software: "软件",
+        focalLength: "焦距",
+        fNumber: "光圈",
+        exposureTime: "快门",
+        iso: "感光度",
+        artist: "作者",
+        copyright: "版权",
+        imageDescription: "图片描述",
+        dateTimeOriginal: "拍摄时间",
+        dateTimeDigitized: "数字化时间",
+    };
+
+    return IMPORT_SCOPE_EDITABLE_FIELDS[scopeKey].map((fieldKey) => {
+        const targetValue = target.editableCurrent[fieldKey].trim();
+        const sourceValue = source.editableCurrent[fieldKey].trim();
+        return {
+            fieldLabel: editableFieldLabels[fieldKey],
+            targetValue: formatDiffDisplayValue(targetValue),
+            sourceValue: formatDiffDisplayValue(sourceValue),
+            changed: targetValue !== sourceValue,
+            willClearTarget: hasMeaningfulDiffValue(targetValue) && !hasMeaningfulDiffValue(sourceValue),
+        };
+    });
+};
 
 const formatTagValue = (value: unknown): string => {
     if (value == null) return "";
@@ -459,11 +557,28 @@ const applyGpsStateToItem = (item: PhotoExifItem, nextGps: EditableGps): PhotoEx
     };
 };
 
-const applySourceMetadataToItem = (target: PhotoExifItem, source: PhotoExifItem): PhotoExifItem =>
-    applyGpsStateToItem(
-        applyEditableStateToItem(target, source.editableCurrent),
-        cloneEditableGps(source.gpsCurrent),
-    );
+const applySourceMetadataToItem = (
+    target: PhotoExifItem,
+    source: PhotoExifItem,
+    selection: ImportScopeSelection,
+): PhotoExifItem => {
+    let nextItem = target;
+
+    const nextEditable = cloneEditableExif(target.editableCurrent);
+    (Object.keys(IMPORT_SCOPE_EDITABLE_FIELDS) as Array<Exclude<ImportScopeKey, "gps">>).forEach((scopeKey) => {
+        if (!selection[scopeKey]) return;
+        IMPORT_SCOPE_EDITABLE_FIELDS[scopeKey].forEach((fieldKey) => {
+            nextEditable[fieldKey] = source.editableCurrent[fieldKey];
+        });
+    });
+    nextItem = applyEditableStateToItem(nextItem, nextEditable);
+
+    if (selection.gps) {
+        nextItem = applyGpsStateToItem(nextItem, cloneEditableGps(source.gpsCurrent));
+    }
+
+    return nextItem;
+};
 
 const extractLngLat = (location: unknown): GpsPoint | null => {
     if (!location) return null;
@@ -847,6 +962,9 @@ const PhotoExifWorkbench: React.FC = () => {
     const [isSearchingLocation, setIsSearchingLocation] = useState(false);
     const [isUploadPermissionDialogOpen, setIsUploadPermissionDialogOpen] = useState(false);
     const [recentUploadedCount, setRecentUploadedCount] = useState(0);
+    const [isImportConfirmDialogOpen, setIsImportConfirmDialogOpen] = useState(false);
+    const [pendingImportPersistInPlace, setPendingImportPersistInPlace] = useState(false);
+    const [importScopeSelection, setImportScopeSelection] = useState<ImportScopeSelection>(DEFAULT_IMPORT_SCOPE_SELECTION);
     const [locationSearchQuery, setLocationSearchQuery] = useState("");
     const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
     const [mapState, setMapState] = useState<{ loading: boolean; error: string | null }>({
@@ -855,6 +973,7 @@ const PhotoExifWorkbench: React.FC = () => {
     });
     const itemsRef = useRef<PhotoExifItem[]>([]);
     const selectedItemRef = useRef<PhotoExifItem | null>(null);
+    const importSourceInputRef = useRef<HTMLInputElement>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapSdkRef = useRef<MapSdkLike | null>(null);
     const mapRef = useRef<MapInstanceLike | null>(null);
@@ -918,6 +1037,24 @@ const PhotoExifWorkbench: React.FC = () => {
         () => items.find((item) => item.id === selectedImportSourceId) ?? null,
         [items, selectedImportSourceId],
     );
+    const importScopeSummaries = useMemo(
+        () =>
+            IMPORT_SCOPE_DEFINITIONS.map((scope) => {
+                const diffRows = selectedItem && selectedImportSourceItem ? buildImportDiffRows(selectedItem, selectedImportSourceItem, scope.key) : [];
+                return {
+                    ...scope,
+                    diffRows,
+                    diffCount: diffRows.filter((row) => row.changed).length,
+                };
+            }),
+        [selectedItem, selectedImportSourceItem],
+    );
+    const defaultImportScopeSelection = useMemo(() => {
+        const changedScopeKeys = importScopeSummaries
+            .filter((scope) => scope.diffCount > 0)
+            .map((scope) => scope.key);
+        return createImportScopeSelection(changedScopeKeys.length ? changedScopeKeys : IMPORT_SCOPE_DEFINITIONS.map((scope) => scope.key));
+    }, [importScopeSummaries]);
     const loadAMap = useCallback(async (): Promise<MapSdkLike> => {
         if (mapSdkRef.current) return mapSdkRef.current;
         (window as Window & { _AMapSecurityConfig?: Record<string, string> })._AMapSecurityConfig = {
@@ -1049,7 +1186,7 @@ const PhotoExifWorkbench: React.FC = () => {
         setSelectedId((previous) => previous ?? nextItems[0]?.id ?? null);
     }, []);
 
-    const handleFiles = useCallback(async (files: File[]) => {
+    const handleFiles = useCallback(async (files: File[], options?: { selectAsImportSource?: boolean }) => {
         if (!files.length) return;
         try {
             const nextItems = await Promise.all(
@@ -1059,6 +1196,13 @@ const PhotoExifWorkbench: React.FC = () => {
                 })),
             );
             appendItems(nextItems);
+            if (options?.selectAsImportSource) {
+                const activeItem = selectedItemRef.current;
+                const preferredSourceItem = nextItems.find((item) => item.id !== activeItem?.id) ?? nextItems[0];
+                if (preferredSourceItem) {
+                    setSelectedImportSourceId(preferredSourceItem.id);
+                }
+            }
             if (nextItems.some((item) => item.canWriteExif)) {
                 setRecentUploadedCount(nextItems.length);
                 setIsUploadPermissionDialogOpen(true);
@@ -1211,6 +1355,12 @@ const PhotoExifWorkbench: React.FC = () => {
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         void handleFiles(acceptedFiles);
+    }, [handleFiles]);
+
+    const handleImportSourceFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files ?? []);
+        event.target.value = "";
+        void handleFiles(files, { selectAsImportSource: true });
     }, [handleFiles]);
 
     const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -1573,13 +1723,13 @@ const PhotoExifWorkbench: React.FC = () => {
         return refreshedItems;
     }, [directoryHandle, generateUpdatedFile, refreshItemFromHandle]);
 
-    const importSelectedSourceMetadata = async (persistInPlace = false) => {
+    const openImportConfirmDialog = (persistInPlace = false) => {
         if (!selectedItem) {
             toast.error("请先选择目标图片");
             return;
         }
         if (!selectedItem.canWriteExif) {
-            toast.error("当前目标图片不是 JPEG/JPG，无法导入后写回");
+            toast.error("当前目标图片不是 JPEG/JPG，无法导入可写信息");
             return;
         }
         if (!selectedImportSourceId) {
@@ -1593,10 +1743,37 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
 
-        const stagedItem = applySourceMetadataToItem(selectedItem, sourceItem);
-        if (!persistInPlace) {
+        setPendingImportPersistInPlace(persistInPlace);
+        setImportScopeSelection(defaultImportScopeSelection);
+        setIsImportConfirmDialogOpen(true);
+    };
+
+    const confirmImportSelectedSourceMetadata = async () => {
+        if (!selectedItem) {
+            toast.error("请先选择目标图片");
+            return;
+        }
+        if (!selectedItem.canWriteExif) {
+            toast.error("当前目标图片不是 JPEG/JPG，无法导入可写信息");
+            return;
+        }
+        if (!Object.values(importScopeSelection).some(Boolean)) {
+            toast.error("请至少选择一类要导入的信息");
+            return;
+        }
+
+        const sourceItem = items.find((item) => item.id === selectedImportSourceId);
+        if (!sourceItem) {
+            toast.error("来源图片不存在，请重新选择");
+            return;
+        }
+
+        const stagedItem = applySourceMetadataToItem(selectedItem, sourceItem, importScopeSelection);
+        setIsImportConfirmDialogOpen(false);
+
+        if (!pendingImportPersistInPlace) {
             setItems((previous) => previous.map((item) => (item.id === stagedItem.id ? stagedItem : item)));
-            toast.success("已把来源图片的整套可写信息导入到当前图片");
+            toast.success("已按所选范围导入来源图片信息到当前图片");
             return;
         }
 
@@ -1609,7 +1786,7 @@ const PhotoExifWorkbench: React.FC = () => {
         try {
             const refreshedItems = await overwriteItemsInPlace([stagedItem]);
             setItems((previous) => previous.map((item) => refreshedItems.get(item.id) ?? item));
-            toast.success("已导入来源图片信息并原地改写当前图片");
+            toast.success("已按所选范围导入并原地改写当前图片");
         } catch (error) {
             console.error(error);
             toast.error(error instanceof Error ? error.message : "原地改写失败，请重试");
@@ -2006,32 +2183,11 @@ const PhotoExifWorkbench: React.FC = () => {
                                                             </div>
                                                         </div>
 
-                                                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                                                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                                                                <p className="text-xs text-slate-500 dark:text-slate-400">当前来源图</p>
-                                                                <p className="mt-1 text-sm font-medium break-all">
-                                                                    {selectedImportSourceItem ? getEffectiveFileName(selectedImportSourceItem) : "未设置来源图"}
-                                                                </p>
-                                                            </div>
-                                                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                                                                <p className="text-xs text-slate-500 dark:text-slate-400">文件大小</p>
-                                                                <p className="mt-1 text-sm font-medium">{(selectedItem.file.size / 1024 / 1024).toFixed(2)} MB</p>
-                                                            </div>
-                                                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                                                                <p className="text-xs text-slate-500 dark:text-slate-400">分辨率</p>
-                                                                <p className="mt-1 text-sm font-medium break-words">{selectedItem.summary.resolution}</p>
-                                                            </div>
-                                                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                                                                <p className="text-xs text-slate-500 dark:text-slate-400">当前 GPS</p>
-                                                                <p className="mt-1 text-sm font-medium break-words">{selectedItem.summary.gps || "-"}</p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                                                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                                                 <div>
-                                                                    <h3 className="text-sm font-semibold">保存当前修改</h3>
-                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                    <h3 className="text-lg font-semibold">保存当前修改</h3>
+                                                                    <p className="text-sm text-slate-500 dark:text-slate-400">
                                                                         GPS、版权或导入的整套信息修改后，可导出新图或直接写回原文件；开启默认版权后会在保存时自动补齐
                                                                     </p>
                                                                 </div>
@@ -2056,7 +2212,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                     </Button>
                                                                 </div>
                                                             </div>
-                                                            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                                                            <p className="text-sm text-slate-500 dark:text-slate-400">
                                                                 {!selectedItem.canWriteExif
                                                                     ? "当前图片格式不是 JPEG/JPG，仅支持查看，不支持导出或写回。"
                                                                     : !selectedItem.fileHandle
@@ -2067,12 +2223,82 @@ const PhotoExifWorkbench: React.FC = () => {
                                                             </p>
                                                         </div>
 
-                                                        <div>
-                                                            <h2 className="flex items-center gap-2 text-lg font-semibold">
-                                                                <Camera className="w-5 h-5" />
-                                                                核心信息
-                                                            </h2>
-                                                            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                            <input
+                                                                ref={importSourceInputRef}
+                                                                type="file"
+                                                                accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.tif,.tiff"
+                                                                multiple
+                                                                aria-label="继续上传来源图片"
+                                                                title="继续上传来源图片"
+                                                                className="hidden"
+                                                                onChange={handleImportSourceFileChange}
+                                                            />
+                                                            <div>
+                                                                <h3 className="text-lg font-semibold">整套信息导入</h3>
+                                                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                                    适合 A 图信息被清空、但 B 图与它是同一张照片的情况，可直接把 B 的可写 EXIF 字段和 GPS 整体导入到当前图片
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 p-3 dark:border-slate-800">
+                                                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                                    {singleImportSourceOptions.length
+                                                                        ? "如果来源图还没在列表里，可继续上传；新上传的图片会自动设为当前来源图。"
+                                                                        : "当前还没有可选来源图，可继续上传一张同场景照片作为来源图。"}
+                                                                </p>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    className={secondaryButtonClass}
+                                                                    onClick={() => importSourceInputRef.current?.click()}
+                                                                >
+                                                                    <Upload className="w-4 h-4 mr-2" />
+                                                                    继续上传来源图
+                                                                </Button>
+                                                            </div>
+                                                            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="selected-import-source">来源图片</Label>
+                                                                    <select
+                                                                        id="selected-import-source"
+                                                                        title="选择整套信息导入的来源图片"
+                                                                        aria-label="选择整套信息导入的来源图片"
+                                                                        value={selectedImportSourceId}
+                                                                        onChange={(event) => setSelectedImportSourceId(event.target.value)}
+                                                                        className="flex h-10 w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm ring-offset-background dark:border-slate-800"
+                                                                    >
+                                                                        <option value="">请选择来源图片</option>
+                                                                        {singleImportSourceOptions.map((item) => (
+                                                                            <option key={item.id} value={item.id}>
+                                                                                {getEffectiveFileName(item)}
+                                                                            </option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        className={secondaryButtonClass}
+                                                                        onClick={() => openImportConfirmDialog(false)}
+                                                                        disabled={!selectedItem.canWriteExif || !singleImportSourceOptions.length}
+                                                                    >
+                                                                        导入到当前
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                            <div>
+                                                                <h3 className="flex items-center gap-2 text-lg font-semibold">
+                                                                    <Camera className="w-5 h-5" />
+                                                                    核心信息
+                                                                </h3>
+                                                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                                    汇总展示当前图片的主要 EXIF 信息，便于快速核对机身、镜头、时间和 GPS。
+                                                                </p>
+                                                            </div>
+                                                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                                                 {[
                                                                     { label: "品牌", value: selectedItem.summary.make || "-" },
                                                                     { label: "机型", value: selectedItem.summary.model || "-" },
@@ -2094,29 +2320,28 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         </div>
 
                                                         {(selectedGpsPoint || selectedItem.canWriteExif) && (
-                                                            <>
-                                                                <Separator />
-                                                                <div className="space-y-4">
-                                                                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                                                                        <div>
-                                                                            <h3 className="flex items-center gap-2 text-lg font-semibold">
-                                                                                <LocateFixed className="w-5 h-5" />
-                                                                                GPS 编辑
-                                                                            </h3>
-                                                                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                                                {selectedGpsPoint
-                                                                                    ? `经纬度：${selectedGpsPoint.lat.toFixed(6)}, ${selectedGpsPoint.lng.toFixed(6)}`
-                                                                                    : "可搜索地点、点击地图或拖拽标记设置 GPS"}
-                                                                            </p>
-                                                                        </div>
-                                                                        <div className="flex flex-wrap gap-2">
-                                                                            <Button variant="outline" className={dangerSubtleButtonClass} onClick={clearSelectedGps} disabled={!selectedItem.canWriteExif}>
-                                                                                <Trash2 className="w-4 h-4 mr-2" />
-                                                                                清除 GPS
-                                                                            </Button>
-                                                                        </div>
+                                                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                                                                    <div>
+                                                                        <h3 className="flex items-center gap-2 text-lg font-semibold">
+                                                                            <LocateFixed className="w-5 h-5" />
+                                                                            GPS 编辑
+                                                                        </h3>
+                                                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                                            {selectedGpsPoint
+                                                                                ? `经纬度：${selectedGpsPoint.lat.toFixed(6)}, ${selectedGpsPoint.lng.toFixed(6)}`
+                                                                                : "可搜索地点、点击地图或拖拽标记设置 GPS"}
+                                                                        </p>
                                                                     </div>
-                                                                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                                                                    <div className="flex flex-wrap gap-2">
+                                                                        <Button variant="outline" className={dangerSubtleButtonClass} onClick={clearSelectedGps} disabled={!selectedItem.canWriteExif}>
+                                                                            <Trash2 className="w-4 h-4 mr-2" />
+                                                                            清除 GPS
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                                                                    <div>
                                                                         <div className="flex flex-col gap-3 sm:flex-row">
                                                                             <Input
                                                                                 value={locationSearchQuery}
@@ -2139,102 +2364,52 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                                 {isSearchingLocation ? "搜索中..." : "搜索地点"}
                                                                             </Button>
                                                                         </div>
-                                                                        <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 lg:justify-end">
-                                                                            {selectedItem.gpsCurrent.locationName || "未设置地点名称"}
-                                                                        </div>
                                                                     </div>
-                                                                    <div className="grid gap-4 sm:grid-cols-2">
-                                                                        <div className="space-y-2">
-                                                                            <Label htmlFor="selected-gps-lat">纬度</Label>
-                                                                            <Input
-                                                                                id="selected-gps-lat"
-                                                                                value={selectedItem.gpsCurrent.lat}
-                                                                                placeholder="例如 31.230416"
-                                                                                disabled={!selectedItem.canWriteExif}
-                                                                                onChange={(event) => updateSelectedGpsField("lat", event.target.value)}
-                                                                            />
-                                                                        </div>
-                                                                        <div className="space-y-2">
-                                                                            <Label htmlFor="selected-gps-lng">经度</Label>
-                                                                            <Input
-                                                                                id="selected-gps-lng"
-                                                                                value={selectedItem.gpsCurrent.lng}
-                                                                                placeholder="例如 121.473701"
-                                                                                disabled={!selectedItem.canWriteExif}
-                                                                                onChange={(event) => updateSelectedGpsField("lng", event.target.value)}
-                                                                            />
-                                                                        </div>
+                                                                    <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 lg:justify-end">
+                                                                        {selectedItem.gpsCurrent.locationName || "未设置地点名称"}
                                                                     </div>
-                                                                    <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                                                                        <div ref={mapContainerRef} className="h-[280px] w-full bg-slate-100 dark:bg-slate-900" />
-                                                                    </div>
-                                                                    {mapState.loading && (
-                                                                        <p className="text-sm text-slate-500 dark:text-slate-400">地图加载中...</p>
-                                                                    )}
-                                                                    {mapState.error && (
-                                                                        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
-                                                                            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                                                                            {mapState.error}
-                                                                        </div>
-                                                                    )}
-                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                        可直接拖拽地图上的标记到目标位置；如果当前还没有 GPS，可先搜索地点，或直接点击地图落点。
-                                                                    </p>
                                                                 </div>
-                                                            </>
+                                                                <div className="grid gap-4 sm:grid-cols-2">
+                                                                    <div className="space-y-2">
+                                                                        <Label htmlFor="selected-gps-lat">纬度</Label>
+                                                                        <Input
+                                                                            id="selected-gps-lat"
+                                                                            value={selectedItem.gpsCurrent.lat}
+                                                                            placeholder="例如 31.230416"
+                                                                            disabled={!selectedItem.canWriteExif}
+                                                                            onChange={(event) => updateSelectedGpsField("lat", event.target.value)}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label htmlFor="selected-gps-lng">经度</Label>
+                                                                        <Input
+                                                                            id="selected-gps-lng"
+                                                                            value={selectedItem.gpsCurrent.lng}
+                                                                            placeholder="例如 121.473701"
+                                                                            disabled={!selectedItem.canWriteExif}
+                                                                            onChange={(event) => updateSelectedGpsField("lng", event.target.value)}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                                                                    <div ref={mapContainerRef} className="h-[280px] w-full bg-slate-100 dark:bg-slate-900" />
+                                                                </div>
+                                                                {mapState.loading && (
+                                                                    <p className="text-sm text-slate-500 dark:text-slate-400">地图加载中...</p>
+                                                                )}
+                                                                {mapState.error && (
+                                                                    <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                                                                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                                                        {mapState.error}
+                                                                    </div>
+                                                                )}
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                    可直接拖拽地图上的标记到目标位置；如果当前还没有 GPS，可先搜索地点，或直接点击地图落点。
+                                                                </p>
+                                                            </div>
                                                         )}
 
-                                                        <Separator />
-
                                                         <div className="space-y-4">
-                                                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
-                                                                <div>
-                                                                    <h3 className="text-lg font-semibold">整套信息导入</h3>
-                                                                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                                        适合 A 图信息被清空、但 B 图与它是同一张照片的情况，可直接把 B 的可写 EXIF 字段和 GPS 整体导入到当前图片
-                                                                    </p>
-                                                                </div>
-                                                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                                                                    <div className="space-y-2">
-                                                                        <Label htmlFor="selected-import-source">来源图片</Label>
-                                                                        <select
-                                                                            id="selected-import-source"
-                                                                            title="选择整套信息导入的来源图片"
-                                                                            aria-label="选择整套信息导入的来源图片"
-                                                                            value={selectedImportSourceId}
-                                                                            onChange={(event) => setSelectedImportSourceId(event.target.value)}
-                                                                            className="flex h-10 w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm ring-offset-background dark:border-slate-800"
-                                                                        >
-                                                                            <option value="">请选择来源图片</option>
-                                                                            {singleImportSourceOptions.map((item) => (
-                                                                                <option key={item.id} value={item.id}>
-                                                                                    {getEffectiveFileName(item)}
-                                                                                </option>
-                                                                            ))}
-                                                                        </select>
-                                                                    </div>
-                                                                    <div className="flex flex-wrap gap-2">
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            className={secondaryButtonClass}
-                                                                            onClick={() => void importSelectedSourceMetadata(false)}
-                                                                            disabled={!selectedItem.canWriteExif || !singleImportSourceOptions.length}
-                                                                        >
-                                                                            导入到当前
-                                                                        </Button>
-                                                                        <Button
-                                                                            className={dangerButtonClass}
-                                                                            onClick={() => void importSelectedSourceMetadata(true)}
-                                                                            disabled={!selectedItem.canWriteExif || !selectedItem.fileHandle || !singleImportSourceOptions.length || isOverwritingSelected}
-                                                                        >
-                                                                            <AlertCircle className="w-4 h-4 mr-1" />
-                                                                            <Save className="w-4 h-4 mr-2" />
-                                                                            {isOverwritingSelected ? "写回中..." : "导入并原地写回"}
-                                                                        </Button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
                                                             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
                                                                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                                                     <div>
@@ -2263,7 +2438,6 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                         type="button"
                                                                         className="flex w-full items-start justify-between gap-4 text-left"
                                                                         onClick={() => setIsCopyrightPresetExpanded((previous) => !previous)}
-                                                                        aria-expanded={isCopyrightPresetExpanded}
                                                                         aria-controls="copyright-preset-panel"
                                                                     >
                                                                         <div className="min-w-0 space-y-1">
@@ -2559,6 +2733,192 @@ const PhotoExifWorkbench: React.FC = () => {
                     </>
                 )}
             </div>
+            <Dialog open={isImportConfirmDialogOpen} onOpenChange={setIsImportConfirmDialogOpen}>
+                <DialogContent className="max-w-5xl rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+                    <DialogHeader>
+                        <DialogTitle>选择要导入的信息</DialogTitle>
+                        <DialogDescription className="text-slate-600 dark:text-slate-400">
+                            {pendingImportPersistInPlace
+                                ? "先勾选需要从 B 图导入到 A 图的内容，再根据右侧差异确认是否执行。确认后会直接写回原文件。"
+                                : "先勾选需要从 B 图导入到 A 图的内容，再根据右侧差异确认是否执行。"}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedItem && selectedImportSourceItem && (
+                        <div className="space-y-4">
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">A 图（目标图）</p>
+                                    <p className="mt-1 text-sm font-medium break-all">{getEffectiveFileName(selectedItem)}</p>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">B 图（来源图）</p>
+                                    <p className="mt-1 text-sm font-medium break-all">{getEffectiveFileName(selectedImportSourceItem)}</p>
+                                </div>
+                            </div>
+                            <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className={secondaryButtonClass}
+                                            onClick={() => setImportScopeSelection(createImportScopeSelection(["gps"]))}
+                                        >
+                                            只导入GPS
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className={secondaryButtonClass}
+                                            onClick={() => setImportScopeSelection(createImportScopeSelection(["time"]))}
+                                        >
+                                            只导入时间
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className={secondaryButtonClass}
+                                            onClick={() => setImportScopeSelection(defaultImportScopeSelection)}
+                                        >
+                                            恢复默认勾选
+                                        </Button>
+                                    </div>
+                                    {importScopeSummaries.map((scope) => (
+                                        <label
+                                            key={scope.key}
+                                            className={`flex cursor-pointer gap-3 rounded-2xl border p-4 transition-colors ${
+                                                importScopeSelection[scope.key]
+                                                    ? "border-blue-500 bg-blue-50/70 dark:border-blue-500/70 dark:bg-blue-950/20"
+                                                    : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                checked={importScopeSelection[scope.key]}
+                                                onChange={(event) =>
+                                                    setImportScopeSelection((previous) => ({
+                                                        ...previous,
+                                                        [scope.key]: event.target.checked,
+                                                    }))
+                                                }
+                                            />
+                                            <div className="min-w-0 space-y-1">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <p className="text-sm font-medium">{scope.label}</p>
+                                                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                                                        {scope.diffCount ? `${scope.diffCount} 处差异` : "无差异"}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">{scope.description}</p>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3 dark:border-slate-800">
+                                        <div>
+                                            <p className="text-sm font-medium">A / B 差异预览</p>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                仅展示当前勾选分类；左侧是 A 图当前值，右侧是 B 图来源值
+                                            </p>
+                                        </div>
+                                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                                            {Object.values(importScopeSelection).filter(Boolean).length} 类已选
+                                        </span>
+                                    </div>
+                                    <ScrollArea className="h-[360px] pr-4">
+                                        <div className="space-y-4 pt-4">
+                                            {importScopeSummaries.filter((scope) => importScopeSelection[scope.key]).length > 0 ? (
+                                                importScopeSummaries
+                                                    .filter((scope) => importScopeSelection[scope.key])
+                                                    .map((scope) => {
+                                                        const changedRows = scope.diffRows.filter((row) => row.changed);
+                                                        return (
+                                                            <div key={scope.key} className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                                                                <div className="flex items-center justify-between gap-3">
+                                                                    <p className="text-sm font-medium">{scope.label}</p>
+                                                                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                                                                        {changedRows.length ? `${changedRows.length} 处将被覆盖` : "当前无差异"}
+                                                                    </span>
+                                                                </div>
+                                                                {changedRows.length ? (
+                                                                    <div className="space-y-2">
+                                                                        {changedRows.map((row) => (
+                                                                            <div
+                                                                                key={`${scope.key}-${row.fieldLabel}`}
+                                                                                className={`grid gap-2 rounded-xl p-3 ${
+                                                                                    row.willClearTarget
+                                                                                        ? "border border-amber-300 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/20"
+                                                                                        : "bg-slate-50/70 dark:bg-slate-900/50"
+                                                                                }`}
+                                                                            >
+                                                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{row.fieldLabel}</p>
+                                                                                    {row.willClearTarget && (
+                                                                                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950/60 dark:text-amber-200">
+                                                                                            导入后将清空
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="grid gap-2 md:grid-cols-2">
+                                                                                    <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
+                                                                                        <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">A 图当前值</p>
+                                                                                        <p className="mt-1 text-sm break-words">{row.targetValue}</p>
+                                                                                    </div>
+                                                                                    <div
+                                                                                        className={`rounded-lg border p-3 ${
+                                                                                            row.willClearTarget
+                                                                                                ? "border-amber-300 bg-amber-100/80 dark:border-amber-900/60 dark:bg-amber-950/40"
+                                                                                                : "border-blue-200 bg-blue-50/80 dark:border-blue-900/60 dark:bg-blue-950/30"
+                                                                                        }`}
+                                                                                    >
+                                                                                        <p
+                                                                                            className={`text-[11px] uppercase tracking-wide ${
+                                                                                                row.willClearTarget
+                                                                                                    ? "text-amber-700 dark:text-amber-200"
+                                                                                                    : "text-blue-600 dark:text-blue-300"
+                                                                                            }`}
+                                                                                        >
+                                                                                            B 图来源值
+                                                                                        </p>
+                                                                                        <p className="mt-1 text-sm break-words">{row.sourceValue}</p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="text-sm text-slate-500 dark:text-slate-400">该分类下 A / B 当前没有差异，导入后不会有可见变化。</p>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })
+                                            ) : (
+                                                <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                                                    请至少勾选一类要导入的信息。
+                                                </div>
+                                            )}
+                                        </div>
+                                    </ScrollArea>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter className="gap-2 sm:justify-end">
+                        <Button variant="outline" className={secondaryButtonClass} onClick={() => setIsImportConfirmDialogOpen(false)}>
+                            取消
+                        </Button>
+                        <Button
+                            className={pendingImportPersistInPlace ? dangerButtonClass : accentButtonClass}
+                            disabled={!selectedItem || !selectedImportSourceItem || !Object.values(importScopeSelection).some(Boolean)}
+                            onClick={() => void confirmImportSelectedSourceMetadata()}
+                        >
+                            {pendingImportPersistInPlace ? "确认导入并原地写回" : "确认导入到当前"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             <Dialog open={isUploadPermissionDialogOpen} onOpenChange={setIsUploadPermissionDialogOpen}>
                 <DialogContent className="max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
                     <DialogHeader>
