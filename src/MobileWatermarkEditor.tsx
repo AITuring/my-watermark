@@ -122,10 +122,6 @@ interface MobileWatermarkEditorProps {
     setWatermarkBlur: (val: boolean) => void;
     quality: number;
     setQuality: (val: number) => void;
-    darkWatermarkEnabled: boolean;
-    setDarkWatermarkEnabled: (val: boolean) => void;
-    darkWatermarkStrength: number;
-    setDarkWatermarkStrength: (val: number) => void;
     watermarkMode: "image" | "mixed";
     setWatermarkMode: (mode: "image" | "mixed") => void;
     mixedWatermarkConfig: MixedWatermarkConfig;
@@ -155,10 +151,6 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     setWatermarkBlur,
     quality,
     setQuality,
-    darkWatermarkEnabled,
-    setDarkWatermarkEnabled,
-    darkWatermarkStrength,
-    setDarkWatermarkStrength,
     watermarkMode,
     setWatermarkMode,
     mixedWatermarkConfig,

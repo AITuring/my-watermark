@@ -16,7 +16,6 @@ import {
     debounce,
     processImage,
     adjustBatchSizeAndConcurrency,
-    detectDarkWatermark,
     createMixedWatermark,
 } from "./utils";
 import { useDeviceDetect } from "@/hooks";
@@ -143,10 +142,6 @@ const Watermark: React.FC = () => {
     const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
     // 水印透明度
     const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.8);
-    // 新增：暗水印开关与强度
-    const [darkWatermarkEnabled, setDarkWatermarkEnabled] = useState<boolean>(false);
-    const [darkWatermarkStrength, setDarkWatermarkStrength] = useState<number>(0.08);
-
     // 移动端当前视图（编辑器/图库）
     const [mobileView, setMobileView] = useState<"editor" | "gallery">(
         "editor"
@@ -493,14 +488,6 @@ const Watermark: React.FC = () => {
                             (progress) => {
                                 console.log(`图片 ${img.id} 处理进度: ${progress}%`);
                             },
-                            {
-                                enabled: darkWatermarkEnabled,
-                                opacity: darkWatermarkStrength, // 0.02 ~ 0.25 推荐区间
-                                scale: 0.06,                    // 瓦片尺寸占短边 6%
-                                gap: 0.5,                       // 每个瓦片之间留 50% 间隙
-                                angle: -30,                     // 斜向平铺
-                                blendMode: "multiply",          // 乘法混合，低调但有效
-                            },
                             mixedConfig
                         );
 
@@ -611,34 +598,6 @@ const Watermark: React.FC = () => {
 
     // 使用 debounce 包裹你的事件处理函数
     const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
-
-    const handleDetectDarkWatermark = async () => {
-        if (!currentImg) {
-            alert("请先选择图片进行检测。");
-            return;
-        }
-        try {
-            const wmSrc = watermarkColorUrls[currentImg.id] || watermarkUrl;
-            const { present, score } = await detectDarkWatermark(
-                currentImg.file,
-                wmSrc,
-                {
-                    opacity: darkWatermarkStrength,
-                    scale: 0.06,
-                    gap: 0.5,
-                    angle: -30,
-                }
-            );
-            alert(
-                `暗水印检测：${
-                    present ? "检测到" : "未检测到"
-                }，score=${score.toFixed(3)}`
-            );
-        } catch (e) {
-            console.error("检测失败:", e);
-            alert("检测失败，请重试或更换图片。");
-        }
-    };
 
     // 渲染移动端界面
     const renderMobileUI = () => {
@@ -806,10 +765,6 @@ const Watermark: React.FC = () => {
                             setWatermarkBlur={setWatermarkBlur}
                             quality={quality}
                             setQuality={setQuality}
-                            darkWatermarkEnabled={darkWatermarkEnabled}
-                            setDarkWatermarkEnabled={setDarkWatermarkEnabled}
-                            darkWatermarkStrength={darkWatermarkStrength}
-                            setDarkWatermarkStrength={setDarkWatermarkStrength}
                             watermarkMode={watermarkMode}
                             setWatermarkMode={setWatermarkMode}
                             mixedWatermarkConfig={mixedWatermarkConfig}
@@ -1131,64 +1086,6 @@ const Watermark: React.FC = () => {
                                 />
                             </div>
 
-                            {/* 暗水印 - 仅在非混合模式下显示 */}
-                            {watermarkMode !== "mixed" && (
-                                <div className="flex-1 min-w-[220px] max-w-[300px] flex flex-col gap-2 p-2 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
-                                                <Icon
-                                                    icon="mdi:shield-check-outline"
-                                                    className={`transition-colors ${
-                                                        darkWatermarkEnabled
-                                                            ? "text-blue-500"
-                                                            : "text-slate-400 dark:text-slate-500"
-                                                    }`}
-                                                />
-                                                暗水印
-                                            </div>
-                                            <Switch
-                                                checked={darkWatermarkEnabled}
-                                                onCheckedChange={
-                                                    setDarkWatermarkEnabled
-                                                }
-                                                className="scale-75 data-[state=checked]:bg-blue-600"
-                                            />
-                                        </div>
-                                        <span
-                                            className={`text-xs font-mono px-1.5 py-0.5 rounded transition-colors ${
-                                                darkWatermarkEnabled
-                                                    ? "text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-700 shadow-sm"
-                                                    : "text-slate-300 dark:text-slate-600 bg-transparent"
-                                            }`}
-                                        >
-                                            {Math.round(
-                                                darkWatermarkStrength * 100
-                                            )}
-                                            %
-                                        </span>
-                                    </div>
-                                    <div
-                                        className={`transition-opacity duration-200 ${
-                                            darkWatermarkEnabled
-                                                ? "opacity-100"
-                                                : "opacity-40 pointer-events-none"
-                                        }`}
-                                    >
-                                        <Slider
-                                            value={[darkWatermarkStrength]}
-                                            onValueChange={(value) =>
-                                                setDarkWatermarkStrength(value[0])
-                                            }
-                                            max={0.25}
-                                            min={0.02}
-                                            step={0.01}
-                                            className="w-full py-1"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
                             {/* 混合水印配置 controls */}
                             {watermarkMode === "mixed" && (
                                 <div className="flex items-center gap-4 border-l pl-4 border-slate-200 dark:border-slate-700">
@@ -1309,31 +1206,6 @@ const Watermark: React.FC = () => {
 
                         {/* 右侧：操作按钮 */}
                         <div className="flex items-center gap-4 shrink-0">
-                            {/* 检测暗水印按钮 - 只有开启且有图时显示，且不在混合模式下 */}
-                            {darkWatermarkEnabled && watermarkMode !== "mixed" && (
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={handleDetectDarkWatermark}
-                                                disabled={!currentImg}
-                                                className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800"
-                                            >
-                                                <Icon
-                                                    icon="mdi:shield-search"
-                                                    className="h-5 w-5"
-                                                />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>检测当前图片的暗水印</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            )}
-
                             <ProgressButton
                                 onClick={handleApplyWatermarkDebounced}
                                 loading={loading}
