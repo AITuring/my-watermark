@@ -98,7 +98,7 @@ const FloatingButtons = () => {
         { path: "/puzzle", icon: "tabler:layout-board-split", label: "图片拼接" },
         { path: "/crop", icon: "material-symbols:crop", label: "图片裁切" },
         { path: "/photo-exif", icon: "material-symbols:info-outline-rounded", label: "照片 EXIF" },
-          { path: "/focus-stack", icon: "mdi:image-filter-hdr", label: "焦点合成" },
+        { path: "/focus-stack", icon: "mdi:image-filter-hdr", label: "焦点合成" },
         // { path: "/restaurant", icon: "ri:restaurant-2-line", label: "美食推荐" },
         // { path: "/news", icon: "ri:news-line", label: "新闻" },
         { path: "/google-photo", icon: "logos:google-photos", label: "Google 相册" },

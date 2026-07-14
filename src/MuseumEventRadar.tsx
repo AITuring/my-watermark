@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowRight, CalendarDays, Clock3, ExternalLink, Heart, Info, MapPin, RefreshCw, Sparkles } from "lucide-react";
+import { CalendarDays, Clock3, ExternalLink, Info, MapPin, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 interface MuseumEvent {
@@ -272,6 +272,53 @@ function getEndUrgencyLabel(endDate: string) {
   return null;
 }
 
+function truncateText(value: string, maxLength = 48) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength).trim()}...`;
+}
+
+function getEventDateRangeLabel(event: MuseumEvent) {
+  if (event.start_date === event.end_date) return "常设展";
+  return `${formatDateLabel(event.start_date)} - ${formatDateLabel(event.end_date)}`;
+}
+
+function getEventQuickNote(event: MuseumEvent) {
+  const highlight = (event.highlights || []).find((item) => item && item.trim());
+  if (highlight) return truncateText(highlight.trim());
+  const excerpt = (event.raw_excerpt || "")
+    .replace(/\s+/g, " ")
+    .split(/[。；!?？！\n]/)
+    .map((item) => item.trim())
+    .find(Boolean);
+  if (excerpt) return truncateText(excerpt);
+  return "暂无结构化要点";
+}
+
+function getPrimaryEventSignal(event: MuseumEvent) {
+  if (event.start_date === event.end_date) {
+    return { label: "常设展", tone: "bg-purple-100 text-purple-700", summary: "长期可看" };
+  }
+  const endUrgency = getEndUrgencyLabel(event.end_date);
+  if (endUrgency) {
+    return { label: endUrgency.label, tone: endUrgency.tone, summary: "建议优先安排" };
+  }
+  const phase = getProgressState(event.start_date, event.end_date);
+  if (phase.state === "pre") {
+    return {
+      label: `${getRelativeDayLabel(event.start_date)} 开展`,
+      tone: "bg-indigo-100 text-indigo-700",
+      summary: "适合提前规划",
+    };
+  }
+  if (phase.state === "hot") {
+    return { label: "进行中", tone: "bg-emerald-100 text-emerald-700", summary: "现在就能看" };
+  }
+  if (phase.state === "ended") {
+    return { label: "已结束", tone: "bg-slate-100 text-slate-600", summary: "仅供回看" };
+  }
+  return { label: "展期待确认", tone: "bg-slate-100 text-slate-600", summary: "请核对信息" };
+}
+
 function buildCityBrief(cityName: string, events: MuseumEvent[], caiScore?: number) {
   const now = new Date();
   const in7 = new Date(now.getTime() + 7 * 24 * 3600 * 1000);
@@ -385,8 +432,6 @@ const MuseumEventRadar: React.FC = () => {
   const [showMapDialog, setShowMapDialog] = useState(false);
   const [listFilter, setListFilter] = useState<"all" | "latest" | "hot" | "ending" | "upcoming" | "ended" | "permanent">("all");
   const [orderedListEvents, setOrderedListEvents] = useState<MuseumEvent[] | null>(null);
-  const [highlightPage, setHighlightPage] = useState(0);
-  const [showSourceSummary, setShowSourceSummary] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem("museum_favorites");
@@ -928,6 +973,57 @@ const MuseumEventRadar: React.FC = () => {
       .slice(0, 14);
   }, [cityEvents]);
 
+  const openingSoonCityEvents = useMemo(() => {
+    const now = new Date();
+    const in14 = new Date(now.getTime() + 14 * 24 * 3600 * 1000);
+    return cityEvents
+      .filter((event) => {
+        if (event.start_date === event.end_date) return false;
+        const start = new Date(event.start_date);
+        return start >= now && start <= in14;
+      })
+      .sort((a, b) => (a.start_date > b.start_date ? 1 : -1));
+  }, [cityEvents]);
+
+  const cityPriorityCards = useMemo(() => {
+    return [
+      {
+        key: "ending",
+        label: "最该先看",
+        emptyLabel: "暂无临期展",
+        helper: "先解决快结束的展，避免错过",
+        accent: "border-red-200 bg-red-50/70 text-red-700",
+        quiet: "text-red-600/80",
+        event: endingSoonCityEvents[0] || null,
+        meta: endingSoonCityEvents[0]
+          ? `${endingSoonCityEvents.length} 场 14 天内结束`
+          : "近 14 天没有闭幕压力",
+      },
+      {
+        key: "hot",
+        label: "本周值得去",
+        emptyLabel: "暂无进行中重点",
+        helper: "优先看正在展出的高关注展",
+        accent: "border-emerald-200 bg-emerald-50/70 text-emerald-700",
+        quiet: "text-emerald-700/80",
+        event: hotCityEvents.find((event) => getProgressState(event.start_date, event.end_date).state === "hot") || null,
+        meta: `${activeCityInsight.active} 场正在进行中`,
+      },
+      {
+        key: "opening",
+        label: "接下来可约",
+        emptyLabel: "暂无待开幕重点",
+        helper: "提前锁定近期新开幕展",
+        accent: "border-indigo-200 bg-indigo-50/70 text-indigo-700",
+        quiet: "text-indigo-700/80",
+        event: openingSoonCityEvents[0] || null,
+        meta: openingSoonCityEvents[0]
+          ? `${openingSoonCityEvents.length} 场即将开始`
+          : "未来两周暂无新开展提醒",
+      },
+    ];
+  }, [activeCityInsight.active, endingSoonCityEvents, hotCityEvents, openingSoonCityEvents]);
+
   const listOrder = useMemo(() => {
     if (listFilter === "all") return "all";
     if (listFilter === "latest") return "latest";
@@ -1004,20 +1100,6 @@ const MuseumEventRadar: React.FC = () => {
     }
     return sortedByDate;
   }, [cityEvents, hotCityEvents, listFilter, orderedListEvents]);
-
-  const ganttWindow = useMemo(() => {
-    const today = new Date();
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    start.setDate(start.getDate() - 30);
-    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    end.setDate(end.getDate() + 30);
-    return {
-      startMs: start.getTime(),
-      endMs: end.getTime(),
-      totalMs: Math.max(1, end.getTime() - start.getTime()),
-      todayMs: today.getTime(),
-    };
-  }, []);
 
   const selectedEvent = useMemo(() => {
     return filteredListEvents.find((event) => event.id === selectedEventId) || filteredListEvents[0] || null;
@@ -1178,11 +1260,6 @@ const MuseumEventRadar: React.FC = () => {
   }, [itinerary, travelMode]);
 
   useEffect(() => {
-    setHighlightPage(0);
-    setShowSourceSummary(false);
-  }, [selectedEventId]);
-
-  useEffect(() => {
     setDetailAccent(getFallbackAccent(selectedEvent));
     if (!selectedEvent?.poster_url && !selectedEvent?.cover_url) return;
     let cancelled = false;
@@ -1277,7 +1354,7 @@ const MuseumEventRadar: React.FC = () => {
                 <div className="text-[11px] uppercase tracking-[0.34em] text-slate-500">当前城市 / 临期提醒</div>
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">{city || "北京"}</h1>
                 <p className="text-sm leading-6 text-slate-600">
-                  先看哪些展快结束，再看热门展期，最后点开详情决定什么时候去最合适。
+                  先告诉你这座城市现在最值得优先处理的展，再决定这周去哪看。
                 </p>
               </div>
               <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-12">
@@ -1320,31 +1397,64 @@ const MuseumEventRadar: React.FC = () => {
                   应用筛选
                 </button>
               </div>
-              <div className="mt-5 rounded-2xl border border-red-100 bg-red-50/60 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="text-sm font-semibold text-red-700">本城市即将结束（14天内）</div>
-                  <div className="text-xs text-red-500">{endingSoonCityEvents.length} 场</div>
+              <div className="mt-5 grid gap-3 lg:grid-cols-3">
+                {cityPriorityCards.map((item) => (
+                  <button
+                    type="button"
+                    key={item.key}
+                    onClick={() => item.event && setSelectedEventId(item.event.id)}
+                    className={`rounded-[24px] border p-4 text-left transition ${
+                      item.event ? "hover:-translate-y-0.5 hover:shadow-sm" : ""
+                    } ${item.accent}`}
+                  >
+                    <div className="text-[11px] uppercase tracking-[0.24em]">{item.label}</div>
+                    {item.event ? (
+                      <>
+                        <div className="mt-3 line-clamp-2 text-lg font-semibold text-slate-900">{item.event.title}</div>
+                        <div className="mt-1 text-sm text-slate-700">{item.event.museum}</div>
+                        <div className={`mt-3 text-xs font-medium ${item.quiet}`}>{getPrimaryEventSignal(item.event).label}</div>
+                        <div className="mt-2 text-sm leading-6 text-slate-700">{getEventQuickNote(item.event)}</div>
+                        <div className="mt-3 text-xs text-slate-500">{item.meta}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mt-3 text-base font-semibold text-slate-900">{item.emptyLabel}</div>
+                        <div className="mt-2 text-sm leading-6 text-slate-600">{item.helper}</div>
+                        <div className="mt-3 text-xs text-slate-500">{item.meta}</div>
+                      </>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">临期清单</div>
+                    <div className="mt-1 text-xs text-slate-500">只保留最近 14 天要闭幕的展，帮助你先做决定。</div>
+                  </div>
+                  <div className="text-xs text-slate-500">{endingSoonCityEvents.length} 场</div>
                 </div>
                 {endingSoonCityEvents.length ? (
-                  <div className="space-y-2">
-                    {endingSoonCityEvents.map((event) => (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {endingSoonCityEvents.slice(0, 6).map((event) => (
                       <button
                         type="button"
                         key={`ending-${event.id}`}
                         onClick={() => setSelectedEventId(event.id)}
-                        className="flex w-full items-center justify-between rounded-xl bg-white px-3 py-2 text-left text-sm transition hover:bg-red-100/60"
+                        className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700 transition hover:border-red-300 hover:bg-red-100"
                       >
-                        <span className="mr-3 truncate text-slate-800">{event.title}</span>
-                        <span className="shrink-0 text-xs font-medium text-red-600">{formatDateLabel(event.end_date)} 截止</span>
+                        {formatDateLabel(event.end_date)} 截止 · {event.title}
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-sm text-slate-600">近 14 天暂无即将结束展览。</div>
+                  <div className="mt-3 text-sm text-slate-600">近 14 天暂无即将结束展览。</div>
                 )}
               </div>
               <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
                 <span>进行中：{activeCityInsight.active}</span>
+                <span>即将开始：{activeCityInsight.openingSoon}</span>
+                <span>即将结束：{activeCityInsight.endingSoon}</span>
                 <span>数据源：{dataSource}</span>
                 <span>最近同步：{data?.last_refresh || "暂无"}</span>
               </div>
@@ -1408,7 +1518,7 @@ const MuseumEventRadar: React.FC = () => {
         )}
 
         <Card className="border-0 bg-white/90 p-4 shadow-sm">
-          <div className="mb-3 text-sm text-slate-700">当前筛选共 {cityEvents.length} 场展览。展期条已融合在列表内，点击任一展览即可查看要点。</div>
+          <div className="mb-3 text-sm text-slate-700">当前筛选共 {cityEvents.length} 场展览。左侧先看优先级，右侧再判断值不值得专门去。</div>
           {loading ? (
             <div className="flex h-48 items-center justify-center text-slate-500">
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -1448,25 +1558,9 @@ const MuseumEventRadar: React.FC = () => {
                     {filteredListEvents.map((event) => {
                       const status = getEventStatus(event.start_date, event.end_date);
                       const active = selectedEvent?.id === event.id;
-                      const permanent = event.start_date === event.end_date;
-                      const phase = getProgressState(event.start_date, event.end_date);
-                      const endHint = permanent ? null : getEndUrgencyLabel(event.end_date);
-                      const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
-                      const startMs = new Date(event.start_date).getTime();
-                      const endMs = new Date(event.end_date).getTime();
-                      const clippedStart = Math.max(startMs, ganttWindow.startMs);
-                      const clippedEnd = Math.min(endMs, ganttWindow.endMs);
-                      const hasOverlap = clippedEnd >= clippedStart;
-                      const left = hasOverlap
-                        ? clampPercent(((clippedStart - ganttWindow.startMs) / ganttWindow.totalMs) * 100)
-                        : startMs > ganttWindow.endMs
-                        ? 98
-                        : 0;
-                      const width = hasOverlap
-                        ? Math.max(2, ((clippedEnd - clippedStart) / ganttWindow.totalMs) * 100)
-                        : 2;
-                      const todayPos = clampPercent(((ganttWindow.todayMs - ganttWindow.startMs) / ganttWindow.totalMs) * 100);
-                      const endPos = clampPercent(((endMs - ganttWindow.startMs) / ganttWindow.totalMs) * 100);
+                      const signal = getPrimaryEventSignal(event);
+                      const quickNote = getEventQuickNote(event);
+                      const openState = computeOpenStatus(event.open_hours);
                       return (
                         <button
                           type="button"
@@ -1488,52 +1582,20 @@ const MuseumEventRadar: React.FC = () => {
                               <div className="h-16 w-12 shrink-0 rounded bg-slate-100" />
                             )}
                             <div className="min-w-0 flex-1">
-                              <div className={`line-clamp-2 text-[17px] font-semibold ${active ? "text-white" : "text-slate-900"}`}>{event.title}</div>
-                              <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{event.museum}</div>
-                              <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
-                                {formatDateLabel(event.start_date)} - {formatDateLabel(event.end_date)}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${active ? "bg-white/15 text-white" : signal.tone}`}>
+                                  {signal.label}
+                                </span>
+                                <span className={`text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>{status.label}</span>
                               </div>
-                              {permanent ? (
-                                <div className={`mt-2 text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>常设展</div>
-                              ) : (
-                                <div className="relative mt-2 h-8">
-                                  <div className={`absolute left-0 right-0 top-3 h-2.5 rounded-full ${active ? "bg-white/10" : "bg-slate-100"}`} />
-                                  <div
-                                    className={`absolute top-3 h-2.5 rounded-full ${
-                                      phase.state === "lastcall" ? "bg-red-600" : phase.state === "hot" ? "bg-blue-700" : "bg-slate-500"
-                                    }`}
-                                    style={{ marginLeft: `${left}%`, width: `${width}%` }}
-                                  />
-                                  <span
-                                    className={`absolute top-1 h-6 w-px ${active ? "bg-white/60" : "bg-slate-400/70"}`}
-                                    style={{ left: `${todayPos}%` }}
-                                  />
-                                  <span
-                                    className={`absolute top-3 h-2.5 w-2.5 -translate-x-1/2 rounded-full border-2 ${
-                                      active ? "border-white bg-slate-900" : "border-white bg-slate-700"
-                                    }`}
-                                    style={{ left: `${endPos}%` }}
-                                  />
-                                  {endHint?.level === "urgent" ? (
-                                    <span
-                                      className={`absolute top-2.5 h-3.5 w-3.5 -translate-x-1/2 rounded-full border ${
-                                        active ? "border-red-200/80" : "border-red-500/70"
-                                      } animate-ping`}
-                                      style={{ left: `${endPos}%` }}
-                                    />
-                                  ) : null}
-                                  {endHint ? (
-                                    <span
-                                      className={`absolute top-0 -translate-x-1/2 rounded px-1.5 py-[1px] text-[10px] font-semibold ${
-                                        active ? "bg-red-500/30 text-red-100" : endHint.tone
-                                      }`}
-                                      style={{ left: `${endPos}%` }}
-                                    >
-                                      {endHint.label}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              )}
+                              <div className={`mt-2 line-clamp-2 text-[17px] font-semibold ${active ? "text-white" : "text-slate-900"}`}>{event.title}</div>
+                              <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{event.museum}</div>
+                              <div className={`mt-3 text-sm leading-6 ${active ? "text-slate-200" : "text-slate-700"}`}>{quickNote}</div>
+                              <div className={`mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>
+                                <span>{getEventDateRangeLabel(event)}</span>
+                                <span>{openState.label.replace(/[●○⏰]\s*/, "")}</span>
+                                <span>{signal.summary}</span>
+                              </div>
                             </div>
                             <Badge className={status.color}>{status.label}</Badge>
                           </div>
@@ -1547,40 +1609,112 @@ const MuseumEventRadar: React.FC = () => {
               <div className="xl:sticky xl:top-6">
                 {selectedEvent ? (
                   <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-sm xl:max-h-[78vh]">
-                    <div
-                      className="relative min-h-[280px] p-5 text-white"
-                      style={{
-                        backgroundImage: `linear-gradient(180deg, rgba(15,23,42,0.12), rgba(15,23,42,0.82)), linear-gradient(135deg, ${detailAccent}, rgba(15,23,42,0.96)), url(${selectedEvent.poster_url || selectedEvent.cover_url})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="max-w-xl">
-                          <h2 className="text-2xl font-semibold leading-tight">{selectedEvent.title}</h2>
-                          <div className="mt-2 text-xs text-white/85">{selectedEvent.museum} · {selectedEvent.city}</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowMapDialog(true)}
-                          className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs"
-                        >
-                          去地图导航
-                        </button>
-                      </div>
-                      <div className="mt-4 rounded-xl border border-white/20 bg-black/20 p-3 text-sm leading-6">
-                        {(selectedEvent.highlights || []).length ? selectedEvent.highlights[Math.min(highlightPage, selectedEvent.highlights.length - 1)] : "暂无结构化要点"}
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/85">
-                        <span>{selectedEvent.start_date} 至 {selectedEvent.end_date}</span>
-                        <span>{computeOpenStatus(selectedEvent.open_hours).label}</span>
-                      </div>
-                    </div>
-                    {selectedEvent.raw_excerpt ? (
-                      <div className="max-h-[36vh] overflow-y-auto border-t border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-600">
-                        {selectedEvent.raw_excerpt}
-                      </div>
-                    ) : null}
+                    {(() => {
+                      const signal = getPrimaryEventSignal(selectedEvent);
+                      const openState = computeOpenStatus(selectedEvent.open_hours);
+                      const highlights = (selectedEvent.highlights || []).filter(Boolean).slice(0, 3);
+                      const quickNote = getEventQuickNote(selectedEvent);
+                      return (
+                        <>
+                          <div
+                            className="relative min-h-[280px] p-5 text-white"
+                            style={{
+                              backgroundImage: `linear-gradient(180deg, rgba(15,23,42,0.12), rgba(15,23,42,0.82)), linear-gradient(135deg, ${detailAccent}, rgba(15,23,42,0.96)), url(${selectedEvent.poster_url || selectedEvent.cover_url})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="max-w-xl">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${signal.tone}`}>{signal.label}</span>
+                                  <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white/85">
+                                    {openState.label}
+                                  </span>
+                                </div>
+                                <h2 className="mt-4 text-2xl font-semibold leading-tight">{selectedEvent.title}</h2>
+                                <div className="mt-2 text-xs text-white/85">{selectedEvent.museum} · {selectedEvent.city}</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setShowMapDialog(true)}
+                                className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs"
+                              >
+                                去地图导航
+                              </button>
+                            </div>
+                            <div className="mt-5 rounded-2xl border border-white/20 bg-black/20 p-4">
+                              <div className="text-[11px] uppercase tracking-[0.24em] text-white/60">为什么现在看</div>
+                              <div className="mt-2 text-base font-medium leading-7 text-white">{quickNote}</div>
+                            </div>
+                            <div className="mt-4 grid gap-3 text-sm text-white/90 md:grid-cols-2">
+                              <div className="rounded-xl border border-white/15 bg-white/10 p-3">
+                                <div className="text-[11px] uppercase tracking-[0.22em] text-white/55">展期</div>
+                                <div className="mt-2 flex items-center gap-2"><CalendarDays className="h-4 w-4" />{selectedEvent.start_date} 至 {selectedEvent.end_date}</div>
+                              </div>
+                              <div className="rounded-xl border border-white/15 bg-white/10 p-3">
+                                <div className="text-[11px] uppercase tracking-[0.22em] text-white/55">开放</div>
+                                <div className="mt-2 flex items-center gap-2"><Clock3 className="h-4 w-4" />{selectedEvent.open_hours || "时间待确认"}</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-5 border-t border-slate-200 bg-white px-5 py-5">
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">去之前先确认</div>
+                                <div className="mt-3 space-y-3 text-sm text-slate-700">
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                                    <span>{selectedEvent.address || "地址待确认"}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                                    <span>{openState.label} · {selectedEvent.open_hours || "开放时间待确认"}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                                    <span>{getEventDateRangeLabel(selectedEvent)} · {selectedEvent.fee || "票务待确认"}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">看点</div>
+                                {highlights.length ? (
+                                  <div className="mt-3 space-y-2">
+                                    {highlights.map((item, index) => (
+                                      <div key={`${selectedEvent.id}-highlight-${index}`} className="rounded-xl bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700">
+                                        {item}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600">暂无结构化看点，可直接看下方原文摘要。</div>
+                                )}
+                              </div>
+                            </div>
+                            {selectedEvent.raw_excerpt ? (
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">原文摘要</div>
+                                  {selectedEvent.source_url ? (
+                                    <a
+                                      href={selectedEvent.source_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900"
+                                    >
+                                      查看来源
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </a>
+                                  ) : null}
+                                </div>
+                                <div className="mt-3 max-h-[28vh] overflow-y-auto text-sm leading-7 text-slate-600">{selectedEvent.raw_excerpt}</div>
+                              </div>
+                            ) : null}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </Card>
                   ) : (
                     <Card className="border border-slate-200/80 bg-white p-6 text-sm text-slate-500 shadow-sm">
