@@ -1,6 +1,7 @@
 interface ImageType {
     id: string;
     file: File;
+    previewUrl?: string;
     width: number;
     height: number;
 }

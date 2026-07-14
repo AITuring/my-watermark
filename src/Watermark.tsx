@@ -8,16 +8,14 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import BackgroundGradientAnimation from "@/components/BackgroundGradientAnimation";
 import ChineseWaveBackground from "./components/ChineseWaveBackground";
-import { Menu, ChevronLeft, Edit } from "lucide-react";
+import { Edit } from "lucide-react";
 import { Icon } from "@iconify/react";
 import {
     loadImageData,
     debounce,
     processImage,
     adjustBatchSizeAndConcurrency,
-    detectDarkWatermark,
     createMixedWatermark,
 } from "./utils";
 import { useDeviceDetect } from "@/hooks";
@@ -135,8 +133,6 @@ const Watermark: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [downloadFinalizing, setDownloadFinalizing] = useState(false);
-    // 图片处理进度
-    const [imgProgress, setImgProgress] = useState<number>(0);
     // 第一步：上传图片
     const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
 
@@ -146,12 +142,6 @@ const Watermark: React.FC = () => {
     const [watermarkBlur, setWatermarkBlur] = useState<boolean>(true);
     // 水印透明度
     const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.8);
-    // 新增：暗水印开关与强度
-    const [darkWatermarkEnabled, setDarkWatermarkEnabled] = useState<boolean>(false);
-    const [darkWatermarkStrength, setDarkWatermarkStrength] = useState<number>(0.08);
-
-    // 移动端菜单状态
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     // 移动端当前视图（编辑器/图库）
     const [mobileView, setMobileView] = useState<"editor" | "gallery">(
         "editor"
@@ -159,6 +149,32 @@ const Watermark: React.FC = () => {
 
     // Stack preview URLs for mobile gallery header
     const [stackPreviews, setStackPreviews] = useState<{id: string, url: string}[]>([]);
+    const managedPreviewUrlsRef = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        const nextUrls = new Set(
+            images
+                .map((img) => img.previewUrl)
+                .filter((url): url is string => Boolean(url))
+        );
+
+        managedPreviewUrlsRef.current.forEach((url) => {
+            if (!nextUrls.has(url)) {
+                URL.revokeObjectURL(url);
+            }
+        });
+
+        managedPreviewUrlsRef.current = nextUrls;
+    }, [images]);
+
+    useEffect(() => {
+        return () => {
+            managedPreviewUrlsRef.current.forEach((url) => {
+                URL.revokeObjectURL(url);
+            });
+            managedPreviewUrlsRef.current.clear();
+        };
+    }, []);
 
     useEffect(() => {
         if (images.length === 0) {
@@ -168,15 +184,13 @@ const Watermark: React.FC = () => {
 
         // Only take top 3 for stack
         const topImages = images.slice(0, 3);
-        const urls = topImages.map(img => ({
+        const urls = topImages
+            .filter((img) => img.previewUrl)
+            .map((img) => ({
             id: img.id,
-            url: URL.createObjectURL(img.file)
+            url: img.previewUrl!,
         }));
         setStackPreviews(urls);
-
-        return () => {
-            urls.forEach(u => URL.revokeObjectURL(u.url));
-        };
     }, [images]);
 
     // 添加平滑进度状态
@@ -230,7 +244,11 @@ const Watermark: React.FC = () => {
     const handleImagesUpload = async (files: File[]) => {
         setUploading(true);
         try {
-            const uploadImages = await loadImageData(files);
+            const { images: uploadImages, failedFiles } = await loadImageData(files);
+            if (uploadImages.length === 0) {
+                alert("没有可用的图片被读取，请检查文件格式后重试。");
+                return;
+            }
             setImages((prevImages) => {
                 // 如果之前没有图片，直接设置
                 if (prevImages.length === 0) {
@@ -283,6 +301,22 @@ const Watermark: React.FC = () => {
                     return newImages;
                 }
             });
+            if (failedFiles.length > 0) {
+                const summary =
+                    failedFiles.length > 3
+                        ? `${failedFiles.slice(0, 3).join("、")} 等 ${failedFiles.length} 张`
+                        : failedFiles.join("、");
+                alert(
+                    `已导入 ${uploadImages.length} 张图片，跳过 ${failedFiles.length} 张不支持或读取失败的图片：${summary}`
+                );
+            }
+        } catch (error) {
+            console.error("批量上传图片失败:", error);
+            alert(
+                error instanceof Error
+                    ? error.message
+                    : "批量上传失败，请检查图片文件后重试。"
+            );
         } finally {
             setUploading(false);
         }
@@ -320,7 +354,7 @@ const Watermark: React.FC = () => {
     };
 
     const handleWatermarkTransform = (
-        imageId,
+        imageId: string,
         position: {
             x: number;
             y: number;
@@ -354,19 +388,20 @@ const Watermark: React.FC = () => {
     // console.log("watermarkPosition", watermarkPositions);
 
     async function downloadImagesWithWatermarkBatch(
-        imgPostionList,
+        imgPostionList: ImgWithPosition[],
         batchSize = 5,
         globalConcurrency = 10,
-        textConfig?: TextWatermarkConfig,
+        _textConfig?: TextWatermarkConfig,
         mixedConfig?: MixedWatermarkConfig
     ) {
         const limit = pLimit(globalConcurrency);
         const downloadLink = document.createElement("a");
+        const generatedDownloadUrls: string[] = [];
+        const watermarkImageCache = new Map<string, Promise<HTMLImageElement>>();
         downloadLink.style.display = "none";
         document.body.appendChild(downloadLink);
 
         // 重置进度
-        setImgProgress(0);
         progressRef.current = 0;
         setSmoothProgress(0);
 
@@ -379,124 +414,131 @@ const Watermark: React.FC = () => {
             imgPostionListLength: imgPostionList.length
         });
 
-        // 按照 batchSize 分批处理
-        for (let i = 0; i < imgPostionList.length; i += batchSize) {
-            const batch = imgPostionList.slice(i, i + batchSize);
+        const getWatermarkImage = (src: string): Promise<HTMLImageElement> => {
+            const cached = watermarkImageCache.get(src);
+            if (cached) {
+                return cached;
+            }
 
-            const tasks = batch.map((img, index) =>
-                limit(async () => {
-                    console.log(
-                        `开始处理图片 ${img.id}`,
-                        {
-                            watermarkColorUrl: watermarkColorUrls[img.id],
-                            position: img.position,
-                            watermarkOpacity,
-                            watermarkBlur,
-                            quality
+            const promise = new Promise<HTMLImageElement>((resolve, reject) => {
+                const image = new Image();
+                image.onload = () => resolve(image);
+                image.onerror = (error) => {
+                    watermarkImageCache.delete(src);
+                    reject(error);
+                };
+                image.src = src;
+            });
+
+            watermarkImageCache.set(src, promise);
+            return promise;
+        };
+
+        let completed = false;
+
+        try {
+            // 按照 batchSize 分批处理
+            for (let i = 0; i < imgPostionList.length; i += batchSize) {
+                const batch = imgPostionList.slice(i, i + batchSize);
+
+                const tasks = batch.map((img, index) =>
+                    limit(async () => {
+                        console.log(
+                            `开始处理图片 ${img.id}`,
+                            {
+                                watermarkColorUrl: watermarkColorUrls[img.id],
+                                position: img.position,
+                                watermarkOpacity,
+                                watermarkBlur,
+                                quality
+                            }
+                        );
+                        const { file, position } = img;
+                        const watermarkSrc =
+                            watermarkColorUrls[img.id] || watermarkUrl;
+
+                        let watermarkImg: HTMLImageElement;
+                        try {
+                            watermarkImg = await getWatermarkImage(watermarkSrc);
+                            console.log(`水印图像加载成功: ${img.id}`, {
+                                width: watermarkImg.width,
+                                height: watermarkImg.height,
+                                src: watermarkImg.src
+                            });
+                        } catch (error) {
+                            console.error(`图片 ${img.id} 的水印加载失败:`, error);
+                            throw new Error(`图片 ${img.id} 的水印加载失败`);
                         }
-                    );
-                    const { file, position } = img;
 
-                    // 创建并加载水印图像
-                    const watermarkImg = new Image();
-                    try {
-                        await new Promise((resolve, reject) => {
-                            watermarkImg.onload = () => {
-                                console.log(`水印图像加载成功: ${img.id}`, {
-                                    width: watermarkImg.width,
-                                    height: watermarkImg.height,
-                                    src: watermarkImg.src
-                                });
-                                resolve(watermarkImg);
-                            };
-                            watermarkImg.onerror = (e) => {
-                                console.error("水印图像加载失败:", e);
-                                reject(new Error("水印图像加载失败"));
-                            };
-                            watermarkImg.src =
-                                watermarkColorUrls[img.id] || watermarkUrl;
+                        console.log(`调用 processImage，参数：`, {
+                            fileName: file.name,
+                            position,
+                            watermarkBlur,
+                            quality,
+                            watermarkOpacity
                         });
-                    } catch (error) {
-                        console.error(`图片 ${img.id} 的水印加载失败:`, error);
-                        throw new Error(`图片 ${img.id} 的水印加载失败`);
-                    }
 
-                    // 开始处理图片时先更新一个中间进度状态
-                    const startProgress =
-                        ((i + index) / imgPostionList.length) * 100;
+                        const { url, name } = await processImage(
+                            file,
+                            watermarkImg,
+                            position,
+                            watermarkBlur,
+                            quality,
+                            watermarkOpacity,
+                            (progress) => {
+                                console.log(`图片 ${img.id} 处理进度: ${progress}%`);
+                            },
+                            mixedConfig
+                        );
 
-                    console.log(`调用 processImage，参数：`, {
-                        fileName: file.name,
-                        position,
-                        watermarkBlur,
-                        quality,
-                        watermarkOpacity
-                    });
+                        console.log(`图片 ${img.id} 处理完成`, { url: url.substring(0, 50) + '...', name });
 
-                    const { url, name } = await processImage(
-                        file,
-                        watermarkImg,
-                        position,
-                        watermarkBlur,
-                        quality,
-                        watermarkOpacity,
-                        (progress) => {
-                            // 单个图片的进度回调
-                            const overallProgress =
-                                ((i + index + progress / 100) / imgPostionList.length) * 100;
-                            console.log(`图片 ${img.id} 处理进度: ${progress}%`);
-                        },
-                        {
-                            enabled: darkWatermarkEnabled,
-                            opacity: darkWatermarkStrength, // 0.02 ~ 0.25 推荐区间
-                            scale: 0.06,                    // 瓦片尺寸占短边 6%
-                            gap: 0.5,                       // 每个瓦片之间留 50% 间隙
-                            angle: -30,                     // 斜向平铺
-                            blendMode: "multiply",          // 乘法混合，低调但有效
-                        },
-                        mixedConfig
-                    );
+                        const sliceName = name.split(".")[0];
+                        downloadLink.href = url;
+                        downloadLink.download = `${sliceName}-mark.jpeg`;
+                        downloadLink.click();
+                        generatedDownloadUrls.push(url);
 
-                    console.log(`图片 ${img.id} 处理完成`, { url: url.substring(0, 50) + '...', name });
+                        // 图片处理完成后更新最终进度
+                        const progress =
+                            ((i + index + 1) / imgPostionList.length) * 100;
+                        updateProgressSmoothly(Math.min(progress, 100));
+                    })
+                );
 
-                    const sliceName = name.split(".")[0];
-                    downloadLink.href = url;
-                    downloadLink.download = `${sliceName}-mark.jpeg`;
-                    downloadLink.click();
-                    URL.revokeObjectURL(url);
+                // 等待当前批次完成
+                await Promise.all(tasks);
 
-                    // 图片处理完成后更新最终进度
-                    const progress =
-                        ((i + index + 1) / imgPostionList.length) * 100;
-                    setImgProgress(Math.min(progress, 100));
-                    updateProgressSmoothly(Math.min(progress, 100));
-                })
-            );
+                // 加一点延时，避免占用过高资源
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
 
-            // 等待当前批次完成
-            await Promise.all(tasks);
+            setDownloadFinalizing(true);
+            const finalizeDelay = Math.min(10000, Math.max(1200, imgPostionList.length * 25));
+            await new Promise((resolve) => setTimeout(resolve, finalizeDelay));
+            completed = true;
+        } finally {
+            setDownloadFinalizing(false);
+            if (downloadLink.parentNode) {
+                downloadLink.parentNode.removeChild(downloadLink);
+            }
+            generatedDownloadUrls.forEach((url) => URL.revokeObjectURL(url));
+            watermarkImageCache.clear();
+            setLoading(false);
 
-            // 加一点延时，避免占用过高资源
-            await new Promise((resolve) => setTimeout(resolve, 100));
+            // 确保进度条完成后再重置
+            setTimeout(() => {
+                setSmoothProgress(0);
+                progressRef.current = 0;
+            }, 500);
         }
 
-        setDownloadFinalizing(true);
-        const finalizeDelay = Math.min(10000, Math.max(1200, imgPostionList.length * 25));
-        await new Promise((resolve) => setTimeout(resolve, finalizeDelay));
-        setDownloadFinalizing(false);
-        document.body.removeChild(downloadLink);
-        setLoading(false);
-        confetti({
-            particleCount: 600,
-            spread: 360,
-        });
-
-        // 确保进度条完成后再重置
-        setTimeout(() => {
-            setImgProgress(0);
-            setSmoothProgress(0);
-            progressRef.current = 0;
-        }, 500);
+        if (completed) {
+            confetti({
+                particleCount: 600,
+                spread: 360,
+            });
+        }
     }
 
     const handleApplyWatermark = async () => {
@@ -551,84 +593,11 @@ const Watermark: React.FC = () => {
         } catch (error) {
             console.error("处理水印失败:", error);
             alert("处理水印失败，请重试。");
-            setDownloadFinalizing(false);
-            setLoading(false);
         }
     };
 
     // 使用 debounce 包裹你的事件处理函数
     const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
-
-    // 暗水印检测（增强可视化预览）
-    const visualizeDarkWatermark = async (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            const objUrl = URL.createObjectURL(file);
-            img.onload = () => {
-                try {
-                    const canvas = document.createElement("canvas");
-                    const ctx = canvas.getContext("2d");
-                    if (!ctx) throw new Error("Canvas not supported");
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const data = imageData.data;
-                    const factor = 1.6;
-                    for (let i = 0; i < data.length; i += 4) {
-                        const r = 255 - data[i];
-                        const g = 255 - data[i + 1];
-                        const b = 255 - data[i + 2];
-                        let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-                        gray = Math.max(0, Math.min(255, (gray - 128) * factor + 128));
-                        data[i] = gray;
-                        data[i + 1] = gray;
-                        data[i + 2] = gray;
-                    }
-                    ctx.putImageData(imageData, 0, 0);
-                    const resultUrl = canvas.toDataURL("image/png");
-                    URL.revokeObjectURL(objUrl);
-                    resolve(resultUrl);
-                } catch (err) {
-                    URL.revokeObjectURL(objUrl);
-                    reject(err);
-                }
-            };
-            img.onerror = () => {
-                URL.revokeObjectURL(objUrl);
-                reject(new Error("图片加载失败"));
-            };
-            img.src = objUrl;
-        });
-    };
-
-    const handleDetectDarkWatermark = async () => {
-        if (!currentImg) {
-            alert("请先选择图片进行检测。");
-            return;
-        }
-        try {
-            const previewUrl = await visualizeDarkWatermark(currentImg.file);
-            const w = window.open();
-            if (w) {
-                w.document.title = "暗水印检测预览";
-                const imgEl = w.document.createElement("img");
-                imgEl.src = previewUrl;
-                imgEl.style.maxWidth = "100%";
-                imgEl.style.height = "auto";
-                w.document.body.style.margin = "0";
-                w.document.body.appendChild(imgEl);
-            } else {
-                const link = document.createElement("a");
-                link.href = previewUrl;
-                link.download = "dark-watermark-detect.png";
-                link.click();
-            }
-        } catch (e) {
-            console.error("检测失败:", e);
-            alert("检测失败，请重试或更换图片。");
-        }
-    };
 
     // 渲染移动端界面
     const renderMobileUI = () => {
@@ -716,7 +685,7 @@ const Watermark: React.FC = () => {
                                     上传背景图片
                                 </span>
                                 <span className="text-xs md:text-sm text-slate-600/70 dark:text-slate-400/70 mt-1 md:mt-2 text-center group-hover:text-slate-700/80 dark:group-hover:text-slate-300/80 transition-colors duration-300">
-                                    支持 JPG、PNG 格式
+                                    支持 JPG、PNG、TIFF 格式
                                 </span>
 
                                 {/* 移动端优化的触摸提示 */}
@@ -757,7 +726,7 @@ const Watermark: React.FC = () => {
                     {mobileView === "editor" && currentImg ? (
                         <MobileWatermarkEditor
                             watermarkUrl={watermarkUrl}
-                            backgroundImageFile={currentImg.file}
+                            backgroundPreviewUrl={currentImg.previewUrl || ""}
                             currentWatermarkPosition={watermarkPositions.find(
                                 (pos) => pos.id === currentImg.id
                             )}
@@ -796,10 +765,6 @@ const Watermark: React.FC = () => {
                             setWatermarkBlur={setWatermarkBlur}
                             quality={quality}
                             setQuality={setQuality}
-                            darkWatermarkEnabled={darkWatermarkEnabled}
-                            setDarkWatermarkEnabled={setDarkWatermarkEnabled}
-                            darkWatermarkStrength={darkWatermarkStrength}
-                            setDarkWatermarkStrength={setDarkWatermarkStrength}
                             watermarkMode={watermarkMode}
                             setWatermarkMode={setWatermarkMode}
                             mixedWatermarkConfig={mixedWatermarkConfig}
@@ -950,7 +915,7 @@ const Watermark: React.FC = () => {
                                     上传背景图片
                                 </span>
                                 <span className="text-xs md:text-sm text-slate-600/70 mt-1 md:mt-2 text-center group-hover:text-slate-700/80 transition-colors duration-300">
-                                    支持 JPG、PNG 格式
+                                    支持 JPG、PNG、TIFF 格式
                                 </span>
                             </div>
                         </ImageUploader>
@@ -974,7 +939,7 @@ const Watermark: React.FC = () => {
                     {watermarkUrl && currentImg && (
                         <WatermarkEditor
                             watermarkUrl={watermarkUrl}
-                            backgroundImageFile={currentImg.file}
+                            backgroundPreviewUrl={currentImg.previewUrl || ""}
                             currentWatermarkPosition={watermarkPositions.find(
                                 (pos) => pos.id === currentImg.id
                             )}
@@ -1121,64 +1086,6 @@ const Watermark: React.FC = () => {
                                 />
                             </div>
 
-                            {/* 暗水印 - 仅在非混合模式下显示 */}
-                            {watermarkMode !== "mixed" && (
-                                <div className="flex-1 min-w-[220px] max-w-[300px] flex flex-col gap-2 p-2 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
-                                    <div className="flex justify-between items-center">
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
-                                                <Icon
-                                                    icon="mdi:shield-check-outline"
-                                                    className={`transition-colors ${
-                                                        darkWatermarkEnabled
-                                                            ? "text-blue-500"
-                                                            : "text-slate-400 dark:text-slate-500"
-                                                    }`}
-                                                />
-                                                暗水印
-                                            </div>
-                                            <Switch
-                                                checked={darkWatermarkEnabled}
-                                                onCheckedChange={
-                                                    setDarkWatermarkEnabled
-                                                }
-                                                className="scale-75 data-[state=checked]:bg-blue-600"
-                                            />
-                                        </div>
-                                        <span
-                                            className={`text-xs font-mono px-1.5 py-0.5 rounded transition-colors ${
-                                                darkWatermarkEnabled
-                                                    ? "text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-700 shadow-sm"
-                                                    : "text-slate-300 dark:text-slate-600 bg-transparent"
-                                            }`}
-                                        >
-                                            {Math.round(
-                                                darkWatermarkStrength * 100
-                                            )}
-                                            %
-                                        </span>
-                                    </div>
-                                    <div
-                                        className={`transition-opacity duration-200 ${
-                                            darkWatermarkEnabled
-                                                ? "opacity-100"
-                                                : "opacity-40 pointer-events-none"
-                                        }`}
-                                    >
-                                        <Slider
-                                            value={[darkWatermarkStrength]}
-                                            onValueChange={(value) =>
-                                                setDarkWatermarkStrength(value[0])
-                                            }
-                                            max={0.25}
-                                            min={0.02}
-                                            step={0.01}
-                                            className="w-full py-1"
-                                        />
-                                    </div>
-                                </div>
-                            )}
-
                             {/* 混合水印配置 controls */}
                             {watermarkMode === "mixed" && (
                                 <div className="flex items-center gap-4 border-l pl-4 border-slate-200 dark:border-slate-700">
@@ -1299,57 +1206,6 @@ const Watermark: React.FC = () => {
 
                         {/* 右侧：操作按钮 */}
                         <div className="flex items-center gap-4 shrink-0">
-                            {/* 检测暗水印按钮 - 只有开启且有图时显示，且不在混合模式下 */}
-                            {darkWatermarkEnabled && watermarkMode !== "mixed" && (
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={async () => {
-                                                    if (!currentImg) return;
-                                                    const wmSrc =
-                                                        watermarkColorUrls[
-                                                            currentImg.id
-                                                        ] || watermarkUrl;
-                                                    const { present, score } =
-                                                        await detectDarkWatermark(
-                                                            currentImg.file,
-                                                            wmSrc,
-                                                            {
-                                                                opacity: darkWatermarkStrength,
-                                                                scale: 0.06,
-                                                                gap: 0.5,
-                                                                angle: -30,
-                                                            }
-                                                        );
-                                                    alert(
-                                                        `暗水印检测：${
-                                                            present
-                                                                ? "检测到"
-                                                                : "未检测到"
-                                                        }，score=${score.toFixed(
-                                                            3
-                                                        )}`
-                                                    );
-                                                }}
-                                                disabled={!currentImg}
-                                                className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800"
-                                            >
-                                                <Icon
-                                                    icon="mdi:shield-search"
-                                                    className="h-5 w-5"
-                                                />
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>检测当前图片的暗水印</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            )}
-
                             <ProgressButton
                                 onClick={handleApplyWatermarkDebounced}
                                 loading={loading}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -28,42 +28,8 @@ const MobileImageGallery: React.FC<MobileImageGalleryProps> = ({
 }) => {
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewIndex, setPreviewIndex] = useState(0);
-    const [imageUrls, setImageUrls] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
-
-    // 优化图片URL生成，使用懒加载方式
-    useEffect(() => {
-        // 清理旧的URLs
-        imageUrls.forEach((url) => URL.revokeObjectURL(url));
-
-        // 只为可见的图片创建URL
-        const urls: string[] = [];
-        const createUrls = async () => {
-            // 每次处理10张图片，避免一次性处理太多导致卡顿
-            for (let i = 0; i < images.length; i += 10) {
-                const batch = images.slice(i, i + 10);
-                const batchUrls = batch.map((image) =>
-                    URL.createObjectURL(image.file)
-                );
-                urls.push(...batchUrls);
-
-                // 更新状态，让UI能够逐步显示图片
-                setImageUrls([...urls]);
-
-                // 如果不是最后一批，等待一小段时间再处理下一批
-                if (i + 10 < images.length) {
-                    await new Promise((resolve) => setTimeout(resolve, 50));
-                }
-            }
-        };
-
-        createUrls();
-
-        // 清理函数
-        return () => {
-            urls.forEach((url) => URL.revokeObjectURL(url));
-        };
-    }, [images]);
+    const imageUrls = images.map((image) => image.previewUrl || "");
 
     const handleImageClick = (image: ImageType) => {
         setCurrentImg(image);

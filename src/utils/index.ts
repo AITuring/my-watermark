@@ -1,4 +1,10 @@
-import { ImageType, TextWatermarkConfig, MixedWatermarkConfig } from "@/types";
+import { ImageType, MixedWatermarkConfig } from "@/types";
+import {
+    createPreviewUrl,
+    disposeImageSource,
+    loadImageSource,
+    type LoadedImage,
+} from "./image-loading";
 import * as StackBlur from "stackblur-canvas";
 
 // ===== 性能优化：内存管理 =====
@@ -286,23 +292,48 @@ async function preprocessImage(file: File): Promise<PreprocessedImage> {
 }
 
 // 加载图片辅助函数
-const loadImage = (src: string | File): Promise<HTMLImageElement> =>
+const loadImage = (src: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = "Anonymous";
         img.onload = () => resolve(img);
         img.onerror = reject;
-        if (typeof src === "string") {
-            img.src = src;
-        } else {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                img.src = e.target?.result as string;
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(src);
-        }
+        img.src = src;
     });
+
+type RenderableImageSource = LoadedImage | HTMLImageElement;
+
+function getRenderableImageDimensions(source: RenderableImageSource) {
+    if ("naturalWidth" in source) {
+        return {
+            width: source.naturalWidth,
+            height: source.naturalHeight,
+        };
+    }
+
+    return {
+        width: source.width,
+        height: source.height,
+    };
+}
+
+async function loadRenderableImageSource(src: string | File): Promise<{
+    image: RenderableImageSource;
+    dispose: () => void;
+}> {
+    if (typeof src === "string") {
+        return {
+            image: await loadImage(src),
+            dispose: () => {},
+        };
+    }
+
+    const image = await loadImageSource(src);
+    return {
+        image,
+        dispose: () => disposeImageSource(image),
+    };
+}
 
 // 生成混合水印图片（图标 + 文字）
 export async function createMixedWatermark(config: MixedWatermarkConfig): Promise<string> {
@@ -440,150 +471,6 @@ export async function createMixedWatermark(config: MixedWatermarkConfig): Promis
     memoryManager.releaseCanvas(canvas);
 
     return dataUrl;
-}
-
-// 基于归一化互相关（NCC）的暗水印检测
-async function detectDarkWatermark(
-    imageInput: File | string,
-    watermarkInput: string | HTMLImageElement,
-    options: Partial<DarkWatermarkOptions> = {}
-): Promise<{ present: boolean; score: number }> {
-    const memoryManager = MemoryManager.getInstance();
-
-    // 加载图片
-    // const loadImage = (src: string | File): Promise<HTMLImageElement> =>
-    //    new Promise((resolve, reject) => { ... }) // Moved to top level
-
-
-    const loadWatermarkImage = async (
-        wm: string | HTMLImageElement
-    ): Promise<HTMLImageElement> => {
-        if (typeof wm !== "string") return wm;
-        return loadImage(wm);
-    };
-
-    const [image, watermarkImg] = await Promise.all([
-        loadImage(imageInput),
-        loadWatermarkImage(watermarkInput),
-    ]);
-
-    // 构造与嵌入一致的平铺参数
-    const angle = options.angle ?? -30;
-    const tileScale = options.scale ?? 0.06;
-    const gapRatio = options.gap ?? 0.5;
-    const tileOpacity = Math.max(0.01, Math.min(0.5, options.opacity ?? 0.08));
-
-    const w = image.width;
-    const h = image.height;
-
-    // 瓦片尺寸与间隔
-    const minDim = Math.min(w, h);
-    const tileSize = Math.max(32, Math.floor(minDim * tileScale));
-    const gap = Math.floor(tileSize * gapRatio);
-    const patternSize = tileSize + gap;
-
-    // 构造单个瓦片
-    const patternTile = memoryManager.getCanvas();
-    const pctx = patternTile.getContext("2d")!;
-    patternTile.width = patternSize;
-    patternTile.height = patternSize;
-    pctx.clearRect(0, 0, patternSize, patternSize);
-
-    const wmAspect = watermarkImg.width / watermarkImg.height;
-    let drawW = tileSize;
-    let drawH = tileSize;
-    if (wmAspect > 1) {
-        drawH = Math.floor(tileSize / wmAspect);
-    } else {
-        drawW = Math.floor(tileSize * wmAspect);
-    }
-    const dx = Math.floor((patternSize - drawW) / 2);
-    const dy = Math.floor((patternSize - drawH) / 2);
-    pctx.drawImage(watermarkImg, dx, dy, drawW, drawH);
-
-    // 平铺到整图并旋转
-    const patternFull = memoryManager.getCanvas();
-    const pfctx = patternFull.getContext("2d")!;
-    patternFull.width = w;
-    patternFull.height = h;
-    pfctx.save();
-    const pattern = pfctx.createPattern(patternTile, "repeat")!;
-    pfctx.translate(w / 2, h / 2);
-    pfctx.rotate((angle * Math.PI) / 180);
-    pfctx.translate(-w / 2, -h / 2);
-    pfctx.fillStyle = pattern;
-    pfctx.fillRect(0, 0, w, h);
-    pfctx.restore();
-
-    // 转为灰度
-    const toGray = (canvas: HTMLCanvasElement, srcImg: HTMLImageElement) => {
-        const ctx = canvas.getContext("2d")!;
-        canvas.width = srcImg.width;
-        canvas.height = srcImg.height;
-        ctx.drawImage(srcImg, 0, 0);
-        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        const out = new Float32Array(canvas.width * canvas.height);
-        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
-            out[j] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        }
-        return out;
-    };
-
-    const imgCanvas = memoryManager.getCanvas();
-    const imgGray = toGray(imgCanvas, image);
-
-    const patGray = (() => {
-        const data = pfctx.getImageData(0, 0, w, h).data;
-        const out = new Float32Array(w * h);
-        for (let i = 0, j = 0; i < data.length; i += 4, j++) {
-            out[j] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        }
-        return out;
-    })();
-
-    // 归一化互相关（NCC）
-    const ncc = (a: Float32Array, b: Float32Array): number => {
-        const n = a.length;
-        let meanA = 0,
-            meanB = 0;
-        for (let i = 0; i < n; i++) {
-            meanA += a[i];
-            meanB += b[i];
-        }
-        meanA /= n;
-        meanB /= n;
-
-        let num = 0,
-            denA = 0,
-            denB = 0;
-        for (let i = 0; i < n; i++) {
-            const da = a[i] - meanA;
-            const db = b[i] - meanB;
-            num += da * db;
-            denA += da * da;
-            denB += db * db;
-        }
-        const denom = Math.sqrt(denA * denB) || 1;
-        return num / denom;
-    };
-
-    // 模式灰度乘以透明度权重，近似 multiply+alpha 的影响
-    for (let i = 0; i < patGray.length; i++) {
-        patGray[i] *= tileOpacity;
-    }
-
-    const score = ncc(imgGray, patGray);
-
-    // 简单阈值：透明度越低阈值越低
-    const threshold = Math.max(0.01, 0.5 * tileOpacity);
-    const present = score >= threshold;
-
-    // 释放资源
-    memoryManager.releaseCanvas(patternTile);
-    memoryManager.releaseCanvas(patternFull);
-    memoryManager.releaseCanvas(imgCanvas);
-
-    return { present, score };
 }
 
 // ===== 性能优化：批处理优化 =====
@@ -740,32 +627,68 @@ function uuid(): string {
     return idStr;
 }
 
+interface LoadImageDataResult {
+    images: ImageType[];
+    failedFiles: string[];
+}
+
 // 加载图片数据
-async function loadImageData(files: File[]): Promise<ImageType[]> {
-    // 注意Promise<ImageType>[]和Promise<ImageType[]>
-    const promises: Promise<ImageType>[] = files.map(
-        (file): Promise<ImageType> => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = function (e) {
-                    const img = new Image();
-                    img.onload = function () {
-                        resolve({
-                            id: uuid(),
-                            width: img.width,
-                            height: img.height,
-                            file: file,
-                        });
-                    };
-                    img.onerror = reject;
-                    img.src = e.target.result as string;
+async function loadImageData(files: File[]): Promise<LoadImageDataResult> {
+    const results = await Promise.allSettled(
+        files.map(async (file): Promise<ImageType> => {
+            let source: LoadedImage | null = null;
+            let previewUrl: string | null = null;
+            try {
+                previewUrl = await createPreviewUrl(file);
+                source = await loadImageSource(file);
+                return {
+                    id: uuid(),
+                    width: source.width,
+                    height: source.height,
+                    file,
+                    previewUrl,
                 };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
+            } catch (error) {
+                if (previewUrl) {
+                    URL.revokeObjectURL(previewUrl);
+                }
+                throw error;
+            } finally {
+                if (source) {
+                    disposeImageSource(source);
+                }
+            }
+        })
     );
-    return Promise.all(promises);
+
+    const loadedImages: ImageType[] = [];
+    const failedFiles: string[] = [];
+
+    results.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+            loadedImages.push(result.value);
+            return;
+        }
+
+        const fileName = files[index]?.name || `第 ${index + 1} 个文件`;
+        const reason =
+            result.reason instanceof Error ? result.reason.message : "图片加载失败";
+        console.error(`读取图片失败: ${fileName}`, result.reason);
+        failedFiles.push(`${fileName}（${reason}）`);
+    });
+
+    if (loadedImages.length === 0) {
+        throw new Error(`读取图片失败：${failedFiles.join("、")}`);
+    }
+
+    if (failedFiles.length > 0) {
+        console.warn(`部分图片读取失败，已跳过：${failedFiles.join("、")}`);
+    }
+
+    return {
+        images: loadedImages,
+        failedFiles,
+    };
 }
 
 const WATERMARK_BASE_RATIO = 0.1;
@@ -945,16 +868,6 @@ function debounce(func, wait) {
     };
 }
 
-// 在 processImage 前，添加可选参数类型（暗水印配置）
-interface DarkWatermarkOptions {
-    enabled?: boolean;
-    opacity?: number; // 0..1
-    scale?: number; // 瓦片尺寸相对图片短边的比例，默认 0.06
-    gap?: number; // 瓦片间隔比例（相对瓦片尺寸），默认 0.5
-    angle?: number; // 填充角度（度），默认 -30
-    blendMode?: GlobalCompositeOperation; // 例如 'multiply' | 'soft-light'
-}
-
 // 图片处理
 async function processImage(
     file: File,
@@ -964,111 +877,96 @@ async function processImage(
     quality: number,
     watermarkOpacity: number = 1,
     onProgress?: (progress: number) => void,
-    darkOptions?: DarkWatermarkOptions,
     mixedConfig?: MixedWatermarkConfig
 ): Promise<{ url: string; name: string }> {
     const memoryManager = MemoryManager.getInstance();
     const startTime = performance.now();
 
     return new Promise((resolve, reject) => {
-        // 输入验证
-        if (!file || !watermarkImage) {
-            reject(new Error("缺少必要的文件或水印图片"));
-            return;
-        }
-        // 不限制大小
-        // if (file.size > 50 * 1024 * 1024) {
-        //     // 50MB限制
-        //     reject(
-        //         new Error(
-        //             `文件大小超过限制（50MB），当前大小：${(
-        //                 file.size /
-        //                 1024 /
-        //                 1024
-        //             ).toFixed(2)}MB`
-        //         )
-        //     );
-        //     return;
-        // }
+        void (async () => {
+            // 输入验证
+            if (!file || !watermarkImage) {
+                reject(new Error("缺少必要的文件或水印图片"));
+                return;
+            }
 
-        onProgress?.(10);
+            onProgress?.(10);
 
-        const reader = new FileReader();
-        reader.onload = async (e) => {
+            const { image, dispose } = await loadRenderableImageSource(file);
             onProgress?.(30);
 
-            const image = new Image();
-            image.onload = async () => {
-                let canvas: HTMLCanvasElement | null = null;
-                let tempCanvas: HTMLCanvasElement | null = null;
-                let patternCanvas: HTMLCanvasElement | null = null; // 暗水印用到的临时画布
-                let exportStarted = false;
+            let canvas: HTMLCanvasElement | null = null;
+            let tempCanvas: HTMLCanvasElement | null = null;
+            let exportStarted = false;
 
-                try {
-                    onProgress?.(50);
+            try {
+                const { width: imageWidth, height: imageHeight } =
+                    getRenderableImageDimensions(image);
 
-                    // 取消检查图片尺寸
-                    // if (image.width > 8000 || image.height > 8000) {
-                    //     throw new Error(`图片尺寸过大：${image.width}x${image.height}，最大支持8000x8000`);
-                    // }
+                onProgress?.(50);
 
-                    // 使用内存池中的canvas
-                    canvas = memoryManager.getCanvas();
-                    const ctx = canvas.getContext("2d");
+                canvas = memoryManager.getCanvas();
+                const ctx = canvas.getContext("2d");
 
-                    if (!ctx) {
-                        throw new Error("无法创建Canvas上下文");
-                    }
+                if (!ctx) {
+                    throw new Error("无法创建Canvas上下文");
+                }
 
-                    canvas.width = image.width;
-                    canvas.height = image.height;
+                canvas.width = imageWidth;
+                canvas.height = imageHeight;
 
-                    // 绘制原始图片
-                    ctx.drawImage(image, 0, 0, image.width, image.height);
+                // 绘制原始图片
+                ctx.drawImage(
+                    image as CanvasImageSource,
+                    0,
+                    0,
+                    imageWidth,
+                    imageHeight
+                );
 
-                    onProgress?.(60);
+                onProgress?.(60);
 
-                    // 应用水印位置和变换
-                    const watermarkPosition = calculateWatermarkPosition(
-                        watermarkImage,
-                        image.width,
-                        image.height,
-                        position
-                    );
-                    const watermarkX = watermarkPosition.x;
-                    const watermarkY = watermarkPosition.y;
-                    const watermarkWidth = watermarkPosition.width;
-                    const watermarkHeight = watermarkPosition.height;
-                    const watermarkCrop = watermarkPosition.crop;
+                // 应用水印位置和变换
+                const watermarkPosition = calculateWatermarkPosition(
+                    watermarkImage,
+                    imageWidth,
+                    imageHeight,
+                    position
+                );
+                const watermarkX = watermarkPosition.x;
+                const watermarkY = watermarkPosition.y;
+                const watermarkWidth = watermarkPosition.width;
+                const watermarkHeight = watermarkPosition.height;
+                const watermarkCrop = watermarkPosition.crop;
 
                     // 文字水印绘制逻辑已移至下方，与图片水印互斥
 
 
-                    onProgress?.(70);
+                onProgress?.(70);
 
-                    if (watermarkBlur) {
-                        // 使用另一个canvas处理模糊效果
-                        tempCanvas = memoryManager.getCanvas();
-                        const tempCtx = tempCanvas.getContext("2d")!;
-                        tempCanvas.width = image.width;
-                        tempCanvas.height = image.height;
-                        tempCtx.drawImage(
-                            image,
-                            0,
-                            0,
-                            image.width,
-                            image.height
-                        );
+                if (watermarkBlur) {
+                    // 使用另一个canvas处理模糊效果
+                    tempCanvas = memoryManager.getCanvas();
+                    const tempCtx = tempCanvas.getContext("2d")!;
+                    tempCanvas.width = imageWidth;
+                    tempCanvas.height = imageHeight;
+                    tempCtx.drawImage(
+                        image as CanvasImageSource,
+                        0,
+                        0,
+                        imageWidth,
+                        imageHeight
+                    );
 
-                        // 应用全图高斯模糊
-                        StackBlur.canvasRGBA(
-                            tempCanvas,
-                            0,
-                            0,
-                            image.width,
-                            image.height,
-                            20
-                        );
+                    // 应用全图高斯模糊
+                    StackBlur.canvasRGBA(
+                        tempCanvas,
+                        0,
+                        0,
+                        imageWidth,
+                        imageHeight,
+                        20
+                    );
 
                         // 创建径向渐变
                         const centerX = watermarkX + watermarkWidth / 2;
@@ -1103,45 +1001,45 @@ async function processImage(
                         // 绘制模糊的背景图片
                         ctx.globalCompositeOperation = "destination-over";
                         ctx.drawImage(tempCanvas, 0, 0);
-                    }
+                }
 
-                    onProgress?.(80);
+                onProgress?.(80);
 
-                    // 绘制清晰的水印
-                    ctx.globalCompositeOperation = "source-over";
-                    ctx.save();
+                // 绘制清晰的水印
+                ctx.globalCompositeOperation = "source-over";
+                ctx.save();
 
-                    // 设置水印透明度
-                    ctx.globalAlpha = watermarkOpacity;
+                // 设置水印透明度
+                ctx.globalAlpha = watermarkOpacity;
 
-                    // 添加调试日志
-                    console.log('水印绘制参数:', {
-                        watermarkOpacity,
-                        watermarkX,
-                        watermarkY,
-                        watermarkWidth,
-                        watermarkHeight,
-                        imageWidth: canvas.width,
-                        imageHeight: canvas.height,
-                        position,
-                        watermarkImageSize: {
-                            width: watermarkImage.width,
-                            height: watermarkImage.height
-                        },
-                        textOptions: mixedConfig
-                    });
+                // 添加调试日志
+                console.log('水印绘制参数:', {
+                    watermarkOpacity,
+                    watermarkX,
+                    watermarkY,
+                    watermarkWidth,
+                    watermarkHeight,
+                    imageWidth: canvas.width,
+                    imageHeight: canvas.height,
+                    position,
+                    watermarkImageSize: {
+                        width: watermarkImage.width,
+                        height: watermarkImage.height
+                    },
+                    textOptions: mixedConfig
+                });
 
-                    // 将canvas的原点移动到水印的中心位置
-                    ctx.translate(
-                        watermarkX + watermarkWidth / 2,
-                        watermarkY + watermarkHeight / 2
-                    );
+                // 将canvas的原点移动到水印的中心位置
+                ctx.translate(
+                    watermarkX + watermarkWidth / 2,
+                    watermarkY + watermarkHeight / 2
+                );
 
-                    // 绕原点旋转画布
-                    ctx.rotate((position.rotation * Math.PI) / 180);
+                // 绕原点旋转画布
+                ctx.rotate((position.rotation * Math.PI) / 180);
 
-                    // 绘制水印
-                    if (mixedConfig && mixedConfig.enabled) {
+                // 绘制水印
+                if (mixedConfig && mixedConfig.enabled) {
                          // 混合水印：直接在主画布上绘制矢量文字和图标
                          const { textLine1, textLine2, color, fontSize, gap, layout = 'horizontal' } = mixedConfig;
 
@@ -1276,155 +1174,66 @@ async function processImage(
                              ctx.fillText(textLine1, textX, textCenterY - realLineHeight / 2);
                              ctx.fillText(textLine2, textX, textCenterY + realLineHeight / 2);
                          }
-                    } else {
-                        // 普通图片水印
-                        ctx.drawImage(
-                            watermarkImage,
-                            watermarkCrop.x,
-                            watermarkCrop.y,
-                            watermarkCrop.width,
-                            watermarkCrop.height,
-                            -watermarkWidth / 2,
-                            -watermarkHeight / 2,
-                            watermarkWidth,
-                            watermarkHeight
-                        );
-                    }
-
-                    console.log('水印绘制完成');
-
-                    ctx.restore();
-
-                    // 在导出前绘制“暗水印”平铺（可选）
-                    // 混合水印模式下强制不使用暗水印
-                    if (darkOptions?.enabled && !mixedConfig?.enabled) {
-                        try {
-                            const blendMode = darkOptions.blendMode ?? "multiply";
-                            const tileScale = darkOptions.scale ?? 0.06;
-                            const tileOpacity = Math.max(0.02, Math.min(0.25, darkOptions.opacity ?? 0.08));
-                            const gapRatio = darkOptions.gap ?? 0.5;
-                            const angleRad = ((darkOptions.angle ?? -30) * Math.PI) / 180;
-
-                            // 计算瓦片尺寸与间隔
-                            const minDim = Math.min(canvas.width, canvas.height);
-                            const tileSize = Math.max(32, Math.floor(minDim * tileScale));
-                            const gap = Math.floor(tileSize * gapRatio);
-                            const patternSize = tileSize + gap;
-
-                            // 制作瓦片图案
-                            patternCanvas = memoryManager.getCanvas();
-                            const pctx = patternCanvas.getContext("2d")!;
-                            patternCanvas.width = patternSize;
-                            patternCanvas.height = patternSize;
-                            pctx.clearRect(0, 0, patternSize, patternSize);
-
-                            // 保持水印图案的宽高比
-                            const tileSourceBounds = getImageOpaqueBounds(watermarkImage);
-                            const wmAspect = tileSourceBounds.width / tileSourceBounds.height;
-                            let drawW = tileSize;
-                            let drawH = tileSize;
-                            if (wmAspect > 1) {
-                                drawH = Math.floor(tileSize / wmAspect);
-                            } else {
-                                drawW = Math.floor(tileSize * wmAspect);
-                            }
-                            const dx = Math.floor((patternSize - drawW) / 2);
-                            const dy = Math.floor((patternSize - drawH) / 2);
-
-                            // 将水印图案绘制到瓦片中
-                            pctx.save();
-                            pctx.globalAlpha = 1; // 在主画布控制总体透明度
-                            pctx.drawImage(
-                                watermarkImage,
-                                tileSourceBounds.x,
-                                tileSourceBounds.y,
-                                tileSourceBounds.width,
-                                tileSourceBounds.height,
-                                dx,
-                                dy,
-                                drawW,
-                                drawH
-                            );
-                            pctx.restore();
-
-                            const pattern = ctx.createPattern(patternCanvas, "repeat");
-                            if (pattern) {
-                                ctx.save();
-                                // 选择混合模式与透明度
-                                ctx.globalCompositeOperation = blendMode as GlobalCompositeOperation;
-                                ctx.globalAlpha = tileOpacity;
-
-                                // 旋转填充，减少直线平铺的可见性
-                                ctx.translate(canvas.width / 2, canvas.height / 2);
-                                ctx.rotate(angleRad);
-                                ctx.translate(-canvas.width / 2, -canvas.height / 2);
-
-                                ctx.fillStyle = pattern;
-                                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                                ctx.restore();
-                            }
-
-                            onProgress?.(95);
-                        } catch (e) {
-                            console.warn("暗水印绘制失败，已跳过：", e);
-                        }
-                    }
-
-                    onProgress?.(90);
-
-                    // 导出最终的图片
-                    exportStarted = true;
-                    canvas.toBlob(
-                        (blob) => {
-                            try {
-                                if (blob) {
-                                    const url = memoryManager.createObjectURL(blob);
-                                    onProgress?.(100);
-
-                                    const endTime = performance.now();
-                                    console.log(
-                                        `处理图片耗时: ${(
-                                            endTime - startTime
-                                        ).toFixed(2)} ms`
-                                    );
-
-                                    resolve({ url, name: file.name });
-                                } else {
-                                    reject(new Error("图片导出失败"));
-                                }
-                            } finally {
-                                if (canvas) {
-                                    memoryManager.releaseCanvas(canvas);
-                                }
-                            }
-                        },
-                        "image/jpeg",
-                        quality
+                } else {
+                    // 普通图片水印
+                    ctx.drawImage(
+                        watermarkImage,
+                        watermarkCrop.x,
+                        watermarkCrop.y,
+                        watermarkCrop.width,
+                        watermarkCrop.height,
+                        -watermarkWidth / 2,
+                        -watermarkHeight / 2,
+                        watermarkWidth,
+                        watermarkHeight
                     );
-                } catch (error) {
-                    if (canvas && !exportStarted) {
-                        memoryManager.releaseCanvas(canvas);
-                    }
-                    reject(error);
-                } finally {
-                    // 清理资源
-                    if (tempCanvas) memoryManager.releaseCanvas(tempCanvas);
-                    if (patternCanvas) memoryManager.releaseCanvas(patternCanvas); // 释放暗水印临时画布
                 }
-            };
 
-            image.onerror = () => {
-                reject(new Error("图片加载失败"));
-            };
+                console.log('水印绘制完成');
 
-            image.src = e.target?.result as string;
-        };
+                ctx.restore();
 
-        reader.onerror = () => {
-            reject(new Error("文件读取失败"));
-        };
+                onProgress?.(90);
 
-        reader.readAsDataURL(file);
+                // 导出最终的图片
+                exportStarted = true;
+                canvas.toBlob(
+                    (blob) => {
+                        try {
+                            if (blob) {
+                                const url = memoryManager.createObjectURL(blob);
+                                onProgress?.(100);
+
+                                const endTime = performance.now();
+                                console.log(
+                                    `处理图片耗时: ${(
+                                        endTime - startTime
+                                    ).toFixed(2)} ms`
+                                );
+
+                                resolve({ url, name: file.name });
+                            } else {
+                                reject(new Error("图片导出失败"));
+                            }
+                        } finally {
+                            if (canvas) {
+                                memoryManager.releaseCanvas(canvas);
+                            }
+                        }
+                    },
+                    "image/jpeg",
+                    quality
+                );
+            } catch (error) {
+                if (canvas && !exportStarted) {
+                    memoryManager.releaseCanvas(canvas);
+                }
+                reject(error);
+            } finally {
+                dispose();
+                if (tempCanvas) memoryManager.releaseCanvas(tempCanvas);
+            }
+        })().catch(reject);
     });
 }
 
@@ -1702,5 +1511,4 @@ export {
     adjustBatchSizeAndConcurrency,
     extractDominantColors,
     applyColorToWatermark,
-    detectDarkWatermark,
 };

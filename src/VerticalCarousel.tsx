@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -33,18 +33,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     );
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewIndex, setPreviewIndex] = useState(0);
-    const [imageUrls, setImageUrls] = useState<string[]>([]);
-
-    // 生成图片URL列表
-    useEffect(() => {
-        const urls = images.map(image => URL.createObjectURL(image.file));
-        setImageUrls(urls);
-
-        // 清理函数
-        return () => {
-            urls.forEach(url => URL.revokeObjectURL(url));
-        };
-    }, [images]);
+    const imageUrls = images.map((image) => image.previewUrl || "");
 
     const handleImageClick = (image: ImageType) => {
         setSelectedImageId(image.id);
@@ -69,7 +58,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
         try {
             // 导入 loadImageData 函数
             const { loadImageData } = await import('./utils');
-            const newImages = await loadImageData(files);
+            const { images: newImages, failedFiles } = await loadImageData(files);
 
             // 合并新上传的图片和现有图片
             setImages(prevImages => [...prevImages, ...newImages]);
@@ -80,6 +69,15 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
             }
 
             console.log("上传新图片成功", newImages);
+            if (failedFiles.length > 0) {
+                const summary =
+                    failedFiles.length > 3
+                        ? `${failedFiles.slice(0, 3).join("、")} 等 ${failedFiles.length} 张`
+                        : failedFiles.join("、");
+                alert(
+                    `已添加 ${newImages.length} 张图片，跳过 ${failedFiles.length} 张不支持或读取失败的图片：${summary}`
+                );
+            }
         } catch (error) {
             console.error("上传图片失败", error);
         }

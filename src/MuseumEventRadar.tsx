@@ -4,8 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowRight, CalendarDays, Clock3, ExternalLink, Heart, Info, MapPin, RefreshCw, Sparkles } from "lucide-react";
+import { CalendarDays, Clock3, Download, ExternalLink, Heart, Images, Info, Map as MapIcon, MapPin, RefreshCw, Route, Share2, Sparkles, Star } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 interface MuseumEvent {
@@ -28,6 +27,8 @@ interface MuseumEvent {
   updated_at: string;
   raw_excerpt: string;
   rating?: number;
+  rating_stars?: number;
+  likes_count?: number;
 }
 
 interface OverviewCity {
@@ -69,16 +70,26 @@ interface RouteStep {
   address: string;
 }
 
+interface ItineraryPoint {
+  event: MuseumEvent;
+  coord: MapCoord;
+  day: number;
+  order: number;
+}
+
+interface EventRecommendation {
+  event: MuseumEvent;
+  popularity: number;
+  score: number;
+  reasons: string[];
+}
+
 type TravelMode = "driving" | "walking" | "transfer";
 
 const DEFAULT_BACKEND_URL = "http://localhost:8000";
 
 function getBackendUrl() {
   return localStorage.getItem("museum_backend_url") || DEFAULT_BACKEND_URL;
-}
-
-function normalizeDateInput(value: string) {
-  return value ? value : "";
 }
 
 function toISODate(dt: Date) {
@@ -92,24 +103,38 @@ function normalizeCityName(value: string) {
   return (value || "").replace(/市$/, "").trim();
 }
 
+function isPermanentEvent(event: MuseumEvent) {
+  if (event.start_date === event.end_date) return true;
+  const text = `${event.title} ${event.open_hours} ${event.raw_excerpt || ""}`;
+  return /常设展|常设陈列|长期展出|长期陈列|永久展/i.test(text);
+}
+
+function parseEventDate(value: string, endOfDay = false) {
+  const date = new Date(value);
+  if (endOfDay && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(date.getTime())) {
+    date.setHours(23, 59, 59, 999);
+  }
+  return date;
+}
+
 function getEventStatus(startDate: string, endDate: string) {
   if (startDate && endDate && startDate === endDate) {
     return { label: "常设展", color: "bg-purple-100 text-purple-700" };
   }
   const today = new Date();
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = parseEventDate(startDate);
+  const end = parseEventDate(endDate, true);
   if (today < start) return { label: "即将开始", color: "bg-indigo-100 text-indigo-700" };
   if (today > end) return { label: "已结束", color: "bg-slate-100 text-slate-600" };
   return { label: "进行中", color: "bg-emerald-100 text-emerald-700" };
 }
 
-function dateOverlaps(eventStart: string, eventEnd: string, queryStart: string, queryEnd: string) {
+function dateOverlaps(eventStart: string, eventEnd: string, queryStart: string, queryEnd: string, permanent = false) {
   if (!queryStart && !queryEnd) return true;
   const es = new Date(eventStart).getTime();
   const ee = new Date(eventEnd).getTime();
   if (Number.isNaN(es) || Number.isNaN(ee)) return true;
-  const effectiveEnd = eventStart === eventEnd ? Number.POSITIVE_INFINITY : ee;
+  const effectiveEnd = permanent || eventStart === eventEnd ? Number.POSITIVE_INFINITY : ee;
   const qs = queryStart ? new Date(queryStart).getTime() : null;
   const qe = queryEnd ? new Date(queryEnd).getTime() : null;
   if (qs !== null && effectiveEnd < qs) return false;
@@ -162,8 +187,8 @@ function computeCityCAI(events: MuseumEvent[]) {
   for (const e of events) {
     if (!e.city || e.city === "未知城市") continue;
     const start = new Date(e.start_date);
-    const end = new Date(e.end_date);
-    const permanent = e.start_date === e.end_date;
+    const end = parseEventDate(e.end_date, true);
+    const permanent = isPermanentEvent(e);
     const ongoing = permanent || (start <= today && end >= today);
     const endingSoon = !permanent && end >= today && end <= in7;
     const key = e.city || "未知城市";
@@ -191,8 +216,8 @@ function computeCityCAI(events: MuseumEvent[]) {
 
 function getProgressState(start_date: string, end_date: string) {
   const now = new Date().getTime();
-  const start = new Date(start_date).getTime();
-  const end = new Date(end_date).getTime();
+  const start = parseEventDate(start_date).getTime();
+  const end = parseEventDate(end_date, true).getTime();
   const permanent = start_date === end_date;
   if (Number.isNaN(start) || Number.isNaN(end)) return { progress: 0, state: "unknown", ended: false };
   if (permanent) return { progress: 0.5, state: "permanent", ended: false };
@@ -272,6 +297,142 @@ function getEndUrgencyLabel(endDate: string) {
   return null;
 }
 
+function truncateText(value: string, maxLength = 48) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength).trim()}...`;
+}
+
+function getEventDateRangeLabel(event: MuseumEvent) {
+  if (isPermanentEvent(event)) return "常设展";
+  return `${formatDateLabel(event.start_date)} - ${formatDateLabel(event.end_date)}`;
+}
+
+function getEventQuickNote(event: MuseumEvent) {
+  const highlight = (event.highlights || []).find((item) => item && item.trim());
+  if (highlight) return truncateText(highlight.trim());
+  const excerpt = (event.raw_excerpt || "")
+    .replace(/\s+/g, " ")
+    .split(/[。；!?？！\n]/)
+    .map((item) => item.trim())
+    .find(Boolean);
+  if (excerpt) return truncateText(excerpt);
+  return "暂无结构化要点";
+}
+
+function getPrimaryEventSignal(event: MuseumEvent) {
+  if (isPermanentEvent(event)) {
+    return { label: "常设展", tone: "bg-purple-100 text-purple-700", summary: "长期可看" };
+  }
+  const endUrgency = getEndUrgencyLabel(event.end_date);
+  if (endUrgency) {
+    return { label: endUrgency.label, tone: endUrgency.tone, summary: "建议优先安排" };
+  }
+  const phase = getProgressState(event.start_date, event.end_date);
+  if (phase.state === "pre") {
+    return {
+      label: `${getRelativeDayLabel(event.start_date)} 开展`,
+      tone: "bg-indigo-100 text-indigo-700",
+      summary: "适合提前规划",
+    };
+  }
+  if (phase.state === "hot") {
+    return { label: "进行中", tone: "bg-emerald-100 text-emerald-700", summary: "现在就能看" };
+  }
+  if (phase.state === "ended") {
+    return { label: "已结束", tone: "bg-slate-100 text-slate-600", summary: "仅供回看" };
+  }
+  return { label: "展期待确认", tone: "bg-slate-100 text-slate-600", summary: "请核对信息" };
+}
+
+function formatCompactCount(value: number) {
+  if (value >= 10000) return `${(value / 10000).toFixed(value >= 100000 ? 0 : 1)} 万`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+  return String(value);
+}
+
+function getShareImageUrl(value: string) {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    if (url.hostname === "icity-static.icitycdn.com") {
+      return `/icity-image${url.pathname}${url.search}`;
+    }
+  } catch {
+    return value;
+  }
+  return value;
+}
+
+function rankCityEvents(events: MuseumEvent[]): EventRecommendation[] {
+  const today = new Date();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const maxLikes = Math.max(1, ...events.map((event) => event.likes_count || 0));
+
+  return events
+    .filter((event) => isPermanentEvent(event) || !getProgressState(event.start_date, event.end_date).ended)
+    .map((event) => {
+      const rating = event.rating_stars ?? event.rating ?? 0;
+      const likes = Math.max(0, event.likes_count || 0);
+      const permanent = isPermanentEvent(event);
+      const phase = permanent
+        ? { progress: 0.5, state: "permanent", ended: false }
+        : getProgressState(event.start_date, event.end_date);
+      const end = parseEventDate(event.end_date, true);
+      const start = parseEventDate(event.start_date);
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+      const daysToEnd = Number.isNaN(end.getTime()) ? null : Math.round((new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime() - todayStart) / dayMs);
+      const daysToStart = Number.isNaN(start.getTime()) ? null : Math.round((new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime() - todayStart) / dayMs);
+      // 评分决定口碑，关注人数决定可信度与大众热度；对数归一化避免头部展览完全淹没其他展览。
+      const likesRatio = likes > 0 ? Math.log1p(likes) / Math.log1p(maxLikes) : 0;
+      const ratingConfidence = Math.min(1, Math.log1p(likes) / Math.log1p(1000));
+      const ratingQuality = rating > 0 ? (rating / 5) * (0.75 + ratingConfidence * 0.25) : 0;
+      const popularity = Math.round(Math.min(1, ratingQuality * 0.65 + likesRatio * 0.35) * 100);
+      const contentPoints =
+        Math.min(10, (event.highlights?.filter(Boolean).length || 0) * 1.7) +
+        (event.poster_url || event.cover_url ? 3 : 0);
+      const practicalPoints = (event.address ? 2 : 0) + (event.open_hours ? 2 : 0) + (event.fee ? 1 : 0);
+
+      let timingPoints = 0;
+      if (phase.state === "lastcall") timingPoints = 18;
+      else if (phase.state === "hot") timingPoints = 12;
+      else if (phase.state === "pre" && daysToStart !== null && daysToStart <= 14) timingPoints = 8;
+      else if (phase.state === "permanent") timingPoints = 6;
+      if (!permanent && daysToEnd !== null && daysToEnd >= 0 && daysToEnd <= 7) {
+        timingPoints += Math.max(3, 9 - daysToEnd);
+      }
+
+      const reasons: string[] = [];
+      if (rating > 0) {
+        reasons.push(`${rating.toFixed(1)} 分${likes ? ` · ${formatCompactCount(likes)} 人关注` : ""}`);
+      } else if (likes > 0) {
+        reasons.push(`${formatCompactCount(likes)} 人关注`);
+      }
+      if (!permanent && daysToEnd !== null && daysToEnd >= 0 && daysToEnd <= 14) {
+        reasons.push(daysToEnd <= 1 ? "即将闭幕" : `${daysToEnd} 天后闭幕`);
+      } else if (phase.state === "hot") {
+        reasons.push("正在展出");
+      } else if (phase.state === "pre" && daysToStart !== null) {
+        reasons.push(`${Math.max(0, daysToStart)} 天后开展`);
+      }
+      if ((event.highlights?.filter(Boolean).length || 0) >= 3) {
+        reasons.push(`${event.highlights.filter(Boolean).length} 条展览看点`);
+      }
+      if (/free|免费|免票/i.test(event.fee || "")) reasons.push("免费或免票");
+      if (!reasons.length) reasons.push("信息完整，可直接规划");
+
+      return {
+        event,
+        popularity,
+        score: Math.min(
+          99,
+          Math.round(popularity * 0.7 + Math.min(20, timingPoints) + Math.min(6, contentPoints * 0.45) + Math.min(4, practicalPoints))
+        ),
+        reasons: reasons.slice(0, 3),
+      };
+    })
+    .sort((a, b) => b.score - a.score || b.popularity - a.popularity || (b.event.likes_count || 0) - (a.event.likes_count || 0));
+}
+
 function buildCityBrief(cityName: string, events: MuseumEvent[], caiScore?: number) {
   const now = new Date();
   const in7 = new Date(now.getTime() + 7 * 24 * 3600 * 1000);
@@ -281,14 +442,14 @@ function buildCityBrief(cityName: string, events: MuseumEvent[], caiScore?: numb
     return start >= now && start <= in7;
   }).length;
   const endingSoon = cityEvents.filter((event) => {
-    if (event.start_date === event.end_date) return false;
-    const end = new Date(event.end_date);
+    if (isPermanentEvent(event)) return false;
+    const end = parseEventDate(event.end_date, true);
     return end >= now && end <= in7;
   }).length;
   const active = cityEvents.filter((event) => {
     const start = new Date(event.start_date);
-    const end = new Date(event.end_date);
-    return event.start_date === event.end_date || (start <= now && end >= now);
+    const end = parseEventDate(event.end_date, true);
+    return isPermanentEvent(event) || (start <= now && end >= now);
   }).length;
   const featured = cityEvents
     .slice()
@@ -383,10 +544,15 @@ const MuseumEventRadar: React.FC = () => {
   const [travelMode, setTravelMode] = useState<TravelMode>("driving");
   const [routeSteps, setRouteSteps] = useState<RouteStep[]>([]);
   const [showMapDialog, setShowMapDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareMode, setShareMode] = useState<"map" | "poster">("map");
+  const [exportingShare, setExportingShare] = useState(false);
+  const [itineraryPoints, setItineraryPoints] = useState<ItineraryPoint[]>([]);
+  const sharePreviewRef = useRef<HTMLDivElement | null>(null);
+  const shareMapContainerRef = useRef<HTMLDivElement | null>(null);
+  const shareMapRef = useRef<any>(null);
+  const [showAllEvents, setShowAllEvents] = useState(false);
   const [listFilter, setListFilter] = useState<"all" | "latest" | "hot" | "ending" | "upcoming" | "ended" | "permanent">("all");
-  const [orderedListEvents, setOrderedListEvents] = useState<MuseumEvent[] | null>(null);
-  const [highlightPage, setHighlightPage] = useState(0);
-  const [showSourceSummary, setShowSourceSummary] = useState(false);
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem("museum_favorites");
@@ -395,15 +561,7 @@ const MuseumEventRadar: React.FC = () => {
       return [];
     }
   });
-  const [itinerary, setItinerary] = useState<MuseumEvent[]>(() => {
-    try {
-      const raw = localStorage.getItem("museum_itinerary");
-      const ids: string[] = raw ? JSON.parse(raw) : [];
-      return [];
-    } catch {
-      return [];
-    }
-  });
+  const [itinerary, setItinerary] = useState<MuseumEvent[]>([]);
 
   const fetchOverview = useCallback(
     async (options?: { forceRefresh?: boolean }) => {
@@ -411,6 +569,7 @@ const MuseumEventRadar: React.FC = () => {
       setError("");
       try {
         const fallbackUrls = [
+          new URL("./exhibitions_latest.json", import.meta.url).href,
           "/museum-events/exhibitions_latest.json",
           "/backend/backend/data/exhibitions_latest.json",
           "/backend/data/exhibitions_latest.json",
@@ -441,9 +600,6 @@ const MuseumEventRadar: React.FC = () => {
             });
           }
           const url = new URL(`${backendUrl}/api/museum/events/overview`);
-          if (city.trim()) url.searchParams.set("city", city.trim());
-          if (startDate) url.searchParams.set("start_date", normalizeDateInput(startDate));
-          if (endDate) url.searchParams.set("end_date", normalizeDateInput(endDate));
           url.searchParams.set("event_limit", "1200");
           const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) });
           if (resp.ok) {
@@ -465,7 +621,7 @@ const MuseumEventRadar: React.FC = () => {
         setLoading(false);
       }
     },
-    [backendUrl, city, endDate, startDate]
+    [backendUrl]
   );
 
   useEffect(() => {
@@ -653,16 +809,60 @@ const MuseumEventRadar: React.FC = () => {
     };
   }, [detectCityByLocation]);
 
+  const citySlugAliases = useMemo(() => {
+    const aliases = new Map<string, Set<string>>();
+    for (const event of data?.events || []) {
+      const cityName = normalizeCityName(event.city).toLowerCase();
+      if (!cityName || cityName === "未知城市" || !event.city_slug) continue;
+      const slugs = aliases.get(cityName) || new Set<string>();
+      slugs.add(event.city_slug.toLowerCase());
+      aliases.set(cityName, slugs);
+    }
+    return aliases;
+  }, [data]);
+
+  const resolveEventCity = useCallback(
+    (event: MuseumEvent) => {
+      const directCity = normalizeCityName(event.city);
+      if (directCity && directCity !== "未知城市") return directCity;
+      const slug = event.city_slug.toLowerCase();
+      for (const [cityName, slugs] of citySlugAliases) {
+        if (slugs.has(slug)) return cityName;
+      }
+      return event.city_slug || "未知城市";
+    },
+    [citySlugAliases]
+  );
+
   const cityEvents = useMemo(() => {
     const cityKeyword = city.trim().toLowerCase();
+    const normalizedKeyword = normalizeCityName(cityKeyword);
+    const matchingSlugs = citySlugAliases.get(normalizedKeyword) || new Set<string>();
     return (data?.events || []).filter((item) => {
-      const passCity = !cityKeyword || `${item.city} ${item.city_slug}`.toLowerCase().includes(cityKeyword);
+      const passCity =
+        !cityKeyword ||
+        normalizeCityName(item.city).toLowerCase().includes(normalizedKeyword) ||
+        item.city_slug.toLowerCase().includes(cityKeyword) ||
+        matchingSlugs.has(item.city_slug.toLowerCase());
       if (!passCity) return false;
-      const passDate = dateOverlaps(item.start_date, item.end_date, startDate, endDate);
+      const passDate = dateOverlaps(item.start_date, item.end_date, startDate, endDate, isPermanentEvent(item));
       if (!passDate) return false;
       return true;
     });
-  }, [city, data, endDate, startDate]);
+  }, [city, citySlugAliases, data, endDate, startDate]);
+
+  const recommendedEvents = useMemo(() => {
+    const ranked = rankCityEvents(cityEvents);
+    const museumCount = new Map<string, number>();
+    return ranked
+      .filter((item) => {
+        const count = museumCount.get(item.event.museum) || 0;
+        if (count >= 2) return false;
+        museumCount.set(item.event.museum, count + 1);
+        return true;
+      })
+      .slice(0, 10);
+  }, [cityEvents]);
 
   const cityMuseums = useMemo(() => {
     const dedup = new Map<string, OverviewMuseum>();
@@ -682,81 +882,6 @@ const MuseumEventRadar: React.FC = () => {
       }
     }
     return Array.from(dedup.values()).sort((a, b) => b.event_count - a.event_count);
-  }, [cityEvents]);
-
-  const timelineRange = useMemo(() => {
-    const dates = cityEvents.flatMap((item) => [new Date(item.start_date), new Date(item.end_date)]).filter((d) => !Number.isNaN(d.getTime()));
-    if (!dates.length) return null;
-    const min = new Date(Math.min(...dates.map((d) => d.getTime())));
-    const max = new Date(Math.max(...dates.map((d) => d.getTime())));
-    return { min, max };
-  }, [cityEvents]);
-
-  const ganttItems = useMemo(() => {
-    if (!timelineRange) return [];
-    const totalMs = Math.max(24 * 3600 * 1000, timelineRange.max.getTime() - timelineRange.min.getTime());
-    return cityEvents
-      .slice()
-      .sort((a, b) => {
-        const aPermanent = a.start_date === a.end_date;
-        const bPermanent = b.start_date === b.end_date;
-        if (aPermanent !== bPermanent) {
-          return aPermanent ? 1 : -1;
-        }
-        if (a.start_date === b.start_date) {
-          return a.museum.localeCompare(b.museum, "zh-CN");
-        }
-        return a.start_date > b.start_date ? 1 : -1;
-      })
-      .slice(0, 120)
-      .map((event, index) => {
-        const start = new Date(event.start_date).getTime();
-        const end = new Date(event.end_date).getTime();
-        const left = Math.max(0, ((start - timelineRange.min.getTime()) / totalMs) * 100);
-        const permanent = event.start_date === event.end_date;
-        const phase = getProgressState(event.start_date, event.end_date);
-        const width = permanent
-          ? Math.max(100 - left, 10)
-          : Math.max(2.4, ((Math.max(end, start) - start) / totalMs) * 100);
-        return {
-          event,
-          left,
-          width,
-          permanent,
-          colorClass:
-            phase.state === "pre"
-              ? "bg-[repeating-linear-gradient(90deg,#c7cddc_0_8px,transparent_8px_16px)]"
-              : phase.state === "lastcall"
-              ? "bg-red-600"
-              : phase.state === "hot"
-              ? "bg-blue-700"
-              : "bg-slate-400",
-          label: `${event.museum}｜${event.title}`,
-        };
-      });
-  }, [cityEvents, timelineRange]);
-
-  const museumGroups = useMemo(() => {
-    const map = new Map<string, { museum: string; address: string; events: MuseumEvent[] }>();
-    for (const event of cityEvents) {
-      const key = `${event.museum}|${event.address}`;
-      const existing = map.get(key);
-      if (existing) {
-        existing.events.push(event);
-      } else {
-        map.set(key, {
-          museum: event.museum,
-          address: event.address,
-          events: [event],
-        });
-      }
-    }
-    return Array.from(map.values())
-      .map((group) => ({
-        ...group,
-        events: group.events.sort((a, b) => (a.start_date > b.start_date ? 1 : -1)),
-      }))
-      .sort((a, b) => a.museum.localeCompare(b.museum, "zh-CN"));
   }, [cityEvents]);
 
   const updateMap = useCallback(async () => {
@@ -901,8 +1026,8 @@ const MuseumEventRadar: React.FC = () => {
     const in14 = new Date(now.getTime() + 14 * 24 * 3600 * 1000);
     return cityEvents
       .filter((event) => {
-        if (event.start_date === event.end_date) return false;
-        const end = new Date(event.end_date);
+        if (isPermanentEvent(event)) return false;
+        const end = parseEventDate(event.end_date, true);
         return end >= now && end <= in14;
       })
       .sort((a, b) => (a.end_date > b.end_date ? 1 : -1))
@@ -915,11 +1040,11 @@ const MuseumEventRadar: React.FC = () => {
       .slice()
       .sort((a, b) => {
         const aStart = new Date(a.start_date);
-        const aEnd = new Date(a.end_date);
+        const aEnd = parseEventDate(a.end_date, true);
         const bStart = new Date(b.start_date);
-        const bEnd = new Date(b.end_date);
-        const aOngoing = a.start_date === a.end_date || (aStart <= now && aEnd >= now) ? 1 : 0;
-        const bOngoing = b.start_date === b.end_date || (bStart <= now && bEnd >= now) ? 1 : 0;
+        const bEnd = parseEventDate(b.end_date, true);
+        const aOngoing = isPermanentEvent(a) || (aStart <= now && aEnd >= now) ? 1 : 0;
+        const bOngoing = isPermanentEvent(b) || (bStart <= now && bEnd >= now) ? 1 : 0;
         const aScore = (a.rating || 0) * 4 + (a.highlights?.length || 0) + aOngoing * 5;
         const bScore = (b.rating || 0) * 4 + (b.highlights?.length || 0) + bOngoing * 5;
         if (aScore !== bScore) return bScore - aScore;
@@ -928,59 +1053,62 @@ const MuseumEventRadar: React.FC = () => {
       .slice(0, 14);
   }, [cityEvents]);
 
-  const listOrder = useMemo(() => {
-    if (listFilter === "all") return "all";
-    if (listFilter === "latest") return "latest";
-    if (listFilter === "hot") return "hot";
-    if (listFilter === "ending") return "ending";
-    if (listFilter === "upcoming") return "upcoming";
-    if (listFilter === "ended") return "ended";
-    return "";
-  }, [listFilter]);
+  const openingSoonCityEvents = useMemo(() => {
+    const now = new Date();
+    const in14 = new Date(now.getTime() + 14 * 24 * 3600 * 1000);
+    return cityEvents
+      .filter((event) => {
+        if (isPermanentEvent(event)) return false;
+        const start = new Date(event.start_date);
+        return start >= now && start <= in14;
+      })
+      .sort((a, b) => (a.start_date > b.start_date ? 1 : -1));
+  }, [cityEvents]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchOrderedTabEvents = async () => {
-      if (listFilter === "permanent") {
-        setOrderedListEvents(null);
-        return;
-      }
-      try {
-        const url = new URL(`${backendUrl}/api/museum/events`);
-        // iCity tab需要与原站order结果一致，不能叠加本地城市/日期二次过滤
-        url.searchParams.set("order", listOrder || "all");
-        url.searchParams.set("page", "1");
-        url.searchParams.set("size", "1200");
-        const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(12000) });
-        if (resp.ok) {
-          const json = await resp.json();
-          const items = Array.isArray(json?.items) ? (json.items as MuseumEvent[]) : [];
-          if (!cancelled) {
-            setOrderedListEvents(items);
-          }
-          return;
-        }
-      } catch {
-        void 0;
-      }
-      if (!cancelled) {
-        setOrderedListEvents(null);
-      }
-    };
-    void fetchOrderedTabEvents();
-    return () => {
-      cancelled = true;
-    };
-  }, [backendUrl, listFilter, listOrder]);
+  const cityPriorityCards = useMemo(() => {
+    return [
+      {
+        key: "ending",
+        label: "最该先看",
+        emptyLabel: "暂无临期展",
+        helper: "先解决快结束的展，避免错过",
+        accent: "border-red-200 bg-red-50/70 text-red-700",
+        quiet: "text-red-600/80",
+        event: endingSoonCityEvents[0] || null,
+        meta: endingSoonCityEvents[0]
+          ? `${endingSoonCityEvents.length} 场 14 天内结束`
+          : "近 14 天没有闭幕压力",
+      },
+      {
+        key: "hot",
+        label: "本周值得去",
+        emptyLabel: "暂无进行中重点",
+        helper: "优先看正在展出的高关注展",
+        accent: "border-emerald-200 bg-emerald-50/70 text-emerald-700",
+        quiet: "text-emerald-700/80",
+        event: hotCityEvents.find((event) => getProgressState(event.start_date, event.end_date).state === "hot") || null,
+        meta: `${activeCityInsight.active} 场正在进行中`,
+      },
+      {
+        key: "opening",
+        label: "接下来可约",
+        emptyLabel: "暂无待开幕重点",
+        helper: "提前锁定近期新开幕展",
+        accent: "border-indigo-200 bg-indigo-50/70 text-indigo-700",
+        quiet: "text-indigo-700/80",
+        event: openingSoonCityEvents[0] || null,
+        meta: openingSoonCityEvents[0]
+          ? `${openingSoonCityEvents.length} 场即将开始`
+          : "未来两周暂无新开展提醒",
+      },
+    ];
+  }, [activeCityInsight.active, endingSoonCityEvents, hotCityEvents, openingSoonCityEvents]);
 
   const filteredListEvents = useMemo(() => {
-    const temporaryEvents = cityEvents.filter((event) => event.start_date !== event.end_date);
-    const permanentEvents = cityEvents.filter((event) => event.start_date === event.end_date);
+    const temporaryEvents = cityEvents.filter((event) => !isPermanentEvent(event));
+    const permanentEvents = cityEvents.filter(isPermanentEvent);
     if (listFilter === "permanent") {
       return permanentEvents;
-    }
-    if (orderedListEvents && orderedListEvents.length) {
-      return orderedListEvents;
     }
     const sortedByDate = temporaryEvents.slice().sort((a, b) => (a.end_date > b.end_date ? 1 : -1));
     if (listFilter === "latest") {
@@ -991,7 +1119,7 @@ const MuseumEventRadar: React.FC = () => {
       });
     }
     if (listFilter === "hot") {
-      return hotCityEvents.filter((event) => event.start_date !== event.end_date);
+      return hotCityEvents.filter((event) => !isPermanentEvent(event));
     }
     if (listFilter === "ending") {
       return sortedByDate.filter((event) => getProgressState(event.start_date, event.end_date).state === "lastcall");
@@ -1002,42 +1130,50 @@ const MuseumEventRadar: React.FC = () => {
     if (listFilter === "ended") {
       return sortedByDate.filter((event) => getProgressState(event.start_date, event.end_date).ended);
     }
-    return sortedByDate;
-  }, [cityEvents, hotCityEvents, listFilter, orderedListEvents]);
-
-  const ganttWindow = useMemo(() => {
-    const today = new Date();
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    start.setDate(start.getDate() - 30);
-    const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    end.setDate(end.getDate() + 30);
-    return {
-      startMs: start.getTime(),
-      endMs: end.getTime(),
-      totalMs: Math.max(1, end.getTime() - start.getTime()),
-      todayMs: today.getTime(),
-    };
-  }, []);
+    return cityEvents.slice().sort((a, b) => {
+      const permanentDelta = Number(isPermanentEvent(b)) - Number(isPermanentEvent(a));
+      if (permanentDelta) return permanentDelta;
+      return a.end_date > b.end_date ? 1 : -1;
+    });
+  }, [cityEvents, hotCityEvents, listFilter]);
 
   const selectedEvent = useMemo(() => {
-    return filteredListEvents.find((event) => event.id === selectedEventId) || filteredListEvents[0] || null;
-  }, [filteredListEvents, selectedEventId]);
+    return (
+      cityEvents.find((event) => event.id === selectedEventId) ||
+      filteredListEvents.find((event) => event.id === selectedEventId) ||
+      null
+    );
+  }, [cityEvents, filteredListEvents, selectedEventId]);
 
   useEffect(() => {
-    if (!filteredListEvents.length) {
+    if (
+      selectedEventId &&
+      !cityEvents.some((event) => event.id === selectedEventId) &&
+      !filteredListEvents.some((event) => event.id === selectedEventId)
+    ) {
       setSelectedEventId("");
-      return;
     }
-    const exists = filteredListEvents.some((event) => event.id === selectedEventId);
-    if (!exists) {
-      setSelectedEventId(filteredListEvents[0].id);
-    }
-  }, [filteredListEvents, selectedEventId]);
+  }, [cityEvents, filteredListEvents, selectedEventId]);
 
   const favoriteEvents = useMemo(() => {
     const set = new Set(favorites);
     return (data?.events || []).filter((e) => set.has(e.id));
   }, [data, favorites]);
+
+  const toggleFavorite = useCallback((eventId: string) => {
+    setRouteSteps([]);
+    setItineraryPoints([]);
+    setItinerary([]);
+    setFavorites((current) => {
+      const next = current.includes(eventId) ? current.filter((id) => id !== eventId) : [...current, eventId];
+      try {
+        localStorage.setItem("museum_favorites", JSON.stringify(next));
+      } catch {
+        void 0;
+      }
+      return next;
+    });
+  }, []);
 
   const getClosingMinute = useCallback((open_hours: string) => {
     const text = open_hours || "";
@@ -1049,17 +1185,17 @@ const MuseumEventRadar: React.FC = () => {
   }, []);
 
   const favoriteTimelineGroups = useMemo(() => {
-    const scoped = favoriteEvents.filter((event) => normalizeCityName(event.city) === normalizeCityName(city));
+    const scoped = favoriteEvents;
     return {
       rescue: scoped.filter((event) => getProgressState(event.start_date, event.end_date).state === "lastcall"),
       active: scoped.filter((event) => getProgressState(event.start_date, event.end_date).state === "hot"),
       upcoming: scoped.filter((event) => getProgressState(event.start_date, event.end_date).state === "pre"),
     };
-  }, [city, favoriteEvents]);
+  }, [favoriteEvents]);
 
   const planItinerary = useCallback(async () => {
-    const selected = favoriteEvents.filter((e) => normalizeCityName(e.city) === normalizeCityName(city));
-    if (selected.length < 3) return;
+    const selected = favoriteEvents;
+    if (!selected.length) return;
     setPlanningRoute(true);
     try {
       const enriched = (
@@ -1077,25 +1213,58 @@ const MuseumEventRadar: React.FC = () => {
       let currentMinute = 9 * 60 + 30;
       const remaining = [...enriched];
       const steps: RouteStep[] = [];
+      const plannedPoints: ItineraryPoint[] = [];
+      let activeCity = resolveEventCity(remaining[0].event);
+      let day = 1;
+      steps.push({
+        type: "travel",
+        id: `day-${day}-${activeCity}`,
+        time: `第 ${day} 天`,
+        endTime: "",
+        title: `${activeCity}行程`,
+        subtitle: "跨城展览按城市分日安排",
+        address: "",
+      });
       while (remaining.length) {
+        let cityCandidates = remaining.filter((item) => resolveEventCity(item.event) === activeCity);
+        if (!cityCandidates.length) {
+          activeCity = resolveEventCity(remaining[0].event);
+          day += 1;
+          currentMinute = 9 * 60 + 30;
+          currentPoint = remaining[0].coord!;
+          cityCandidates = remaining.filter((item) => resolveEventCity(item.event) === activeCity);
+          steps.push({
+            type: "travel",
+            id: `day-${day}-${activeCity}`,
+            time: `第 ${day} 天`,
+            endTime: "",
+            title: `${activeCity}行程`,
+            subtitle: "城际交通时间请根据实际班次安排",
+            address: "",
+          });
+        }
+        const firstStopOfDay = !ordered.some((item) => resolveEventCity(item.event) === activeCity);
         const options = await Promise.all(
-          remaining.map(async (item) => ({
+          cityCandidates.map(async (item) => ({
             ...item,
-            driveMinutes: await estimateTravelMinutes(currentPoint, item.coord!, travelMode),
+            driveMinutes:
+              firstStopOfDay && (day > 1 || !currentCoords)
+                ? 0
+                : await estimateTravelMinutes(currentPoint, item.coord!, travelMode),
           }))
         );
         const feasible = options
           .filter((item) => currentMinute + item.driveMinutes + 90 <= item.closingMinute + 30)
           .sort((a, b) => a.closingMinute - (currentMinute + a.driveMinutes + 90) - (b.closingMinute - (currentMinute + b.driveMinutes + 90)));
         const next = (feasible[0] || options.sort((a, b) => a.closingMinute - b.closingMinute || a.driveMinutes - b.driveMinutes)[0])!;
-        if (steps.length) {
+        if (!firstStopOfDay && next.driveMinutes > 0) {
           steps.push({
             type: "travel",
             id: `travel-${next.event.id}-${steps.length}`,
             time: minutesToClock(currentMinute),
             endTime: minutesToClock(currentMinute + next.driveMinutes),
             title: `路程 ${next.driveMinutes} 分钟`,
-            subtitle: "高德驾车耗时估算",
+            subtitle: travelMode === "walking" ? "步行耗时估算" : travelMode === "transfer" ? "公共交通耗时估算" : "驾车耗时估算",
             address: next.event.address,
           });
         }
@@ -1108,15 +1277,22 @@ const MuseumEventRadar: React.FC = () => {
           time: minutesToClock(visitStart),
           endTime: minutesToClock(visitEnd),
           title: next.event.title,
-          subtitle: next.event.museum,
+          subtitle: `${activeCity} · ${next.event.museum}`,
           address: next.event.address,
         });
         currentMinute = visitEnd;
         currentPoint = next.coord!;
         ordered.push(next);
+        plannedPoints.push({
+          event: next.event,
+          coord: next.coord!,
+          day,
+          order: plannedPoints.length + 1,
+        });
         const removeIndex = remaining.findIndex((item) => item.event.id === next.event.id);
         remaining.splice(removeIndex, 1);
-        if (remaining.length && currentMinute <= 13 * 60) {
+        const hasMoreInCity = remaining.some((item) => resolveEventCity(item.event) === activeCity);
+        if (hasMoreInCity && currentMinute <= 13 * 60) {
           const breakStart = currentMinute + 10;
           const breakEnd = breakStart + 60;
           steps.push({
@@ -1133,6 +1309,7 @@ const MuseumEventRadar: React.FC = () => {
       }
       const sorted = ordered.map((item) => item.event);
       setItinerary(sorted);
+      setItineraryPoints(plannedPoints);
       setRouteSteps(steps.length ? steps : buildRoutePlan(sorted));
       try {
         localStorage.setItem("museum_itinerary", JSON.stringify(sorted.map((e) => e.id)));
@@ -1140,17 +1317,7 @@ const MuseumEventRadar: React.FC = () => {
     } finally {
       setPlanningRoute(false);
     }
-  }, [city, currentCoords, estimateTravelMinutes, favoriteEvents, geocodeLocation, getClosingMinute, travelMode]);
-
-  useEffect(() => {
-    if (!cityEvents.length) {
-      setSelectedEventId("");
-      return;
-    }
-    if (!cityEvents.some((event) => event.id === selectedEventId)) {
-      setSelectedEventId(cityEvents[0].id);
-    }
-  }, [cityEvents, selectedEventId]);
+  }, [currentCoords, estimateTravelMinutes, favoriteEvents, geocodeLocation, getClosingMinute, resolveEventCity, travelMode]);
 
   useEffect(() => {
     const saved = localStorage.getItem("museum_itinerary");
@@ -1162,25 +1329,110 @@ const MuseumEventRadar: React.FC = () => {
         .filter(Boolean) as MuseumEvent[];
       if (items.length) {
         setItinerary(items);
-        setRouteSteps(buildRoutePlan(items));
+        setRouteSteps([]);
       }
     } catch {
       void 0;
     }
   }, [data]);
 
-  useEffect(() => {
-    if (!itinerary.length) {
-      setRouteSteps([]);
-      return;
-    }
-    setRouteSteps(buildRoutePlan(itinerary));
-  }, [itinerary, travelMode]);
+  const shareEvents = itinerary.length ? itinerary : favoriteEvents;
 
   useEffect(() => {
-    setHighlightPage(0);
-    setShowSourceSummary(false);
-  }, [selectedEventId]);
+    if (!showShareDialog || shareMode !== "map" || !shareMapContainerRef.current || !itineraryPoints.length) return;
+    let cancelled = false;
+    void loadAMap().then((AMap) => {
+      if (cancelled || !shareMapContainerRef.current) return;
+      shareMapRef.current?.destroy?.();
+      const map = new AMap.Map(shareMapContainerRef.current, {
+        zoom: 11,
+        mapStyle: "amap://styles/whitesmoke",
+      });
+      shareMapRef.current = map;
+      const overlays: any[] = [];
+      const pointsByDay = new Map<number, ItineraryPoint[]>();
+      for (const point of itineraryPoints) {
+        const group = pointsByDay.get(point.day) || [];
+        group.push(point);
+        pointsByDay.set(point.day, group);
+        const marker = new AMap.Marker({
+          position: [point.coord.lng, point.coord.lat],
+          content: `<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#0f172a;color:white;border:3px solid white;box-shadow:0 4px 12px rgba(15,23,42,.28);font:600 12px sans-serif">${point.order}</div>`,
+          offset: new AMap.Pixel(-14, -14),
+        });
+        marker.setMap(map);
+        overlays.push(marker);
+      }
+      const colors = ["#ea580c", "#2563eb", "#059669", "#9333ea"];
+      Array.from(pointsByDay.entries()).forEach(([day, points]) => {
+        if (points.length < 2) return;
+        const polyline = new AMap.Polyline({
+          path: points.map((point) => [point.coord.lng, point.coord.lat]),
+          strokeColor: colors[(day - 1) % colors.length],
+          strokeWeight: 6,
+          strokeOpacity: 0.85,
+          showDir: true,
+        });
+        polyline.setMap(map);
+        overlays.push(polyline);
+      });
+      map.setFitView(overlays, false, [56, 56, 56, 56]);
+      stabilizeMapRender(map);
+    });
+    return () => {
+      cancelled = true;
+      shareMapRef.current?.destroy?.();
+      shareMapRef.current = null;
+    };
+  }, [itineraryPoints, loadAMap, shareMode, showShareDialog, stabilizeMapRender]);
+
+  const exportShareImage = useCallback(
+    async (useSystemShare: boolean) => {
+      if (!sharePreviewRef.current || !shareEvents.length) return;
+      setExportingShare(true);
+      try {
+        await document.fonts?.ready;
+        const images = Array.from(sharePreviewRef.current.querySelectorAll("img"));
+        await Promise.all(
+          images.map(
+            (image) =>
+              new Promise<void>((resolve) => {
+                if (image.complete) {
+                  resolve();
+                  return;
+                }
+                image.addEventListener("load", () => resolve(), { once: true });
+                image.addEventListener("error", () => resolve(), { once: true });
+              })
+          )
+        );
+        const { default: html2canvas } = await import("html2canvas");
+        const canvas = await html2canvas(sharePreviewRef.current, {
+          backgroundColor: "#f8fafc",
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        });
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png", 0.96));
+        if (!blob) return;
+        const fileName = `看展行程-${new Date().toISOString().slice(0, 10)}.png`;
+        const file = new File([blob], fileName, { type: "image/png" });
+        if (useSystemShare && navigator.share && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ title: "我的看展行程", files: [file] });
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      } finally {
+        setExportingShare(false);
+      }
+    },
+    [shareEvents]
+  );
 
   useEffect(() => {
     setDetailAccent(getFallbackAccent(selectedEvent));
@@ -1224,14 +1476,7 @@ const MuseumEventRadar: React.FC = () => {
   }, [selectedEvent]);
 
   return (
-    <div
-      className="min-h-screen p-4 md:p-8"
-      style={{
-        background:
-          "radial-gradient(circle at top left, rgba(37,99,235,0.12), transparent 26%), radial-gradient(circle at 85% 10%, rgba(180,83,9,0.12), transparent 24%), linear-gradient(180deg, #f8fafc 0%, #f7f4ee 100%)",
-      }}
-    >
-      <style>{`@keyframes pulse-city {0%{transform:scale(.92);opacity:.2}60%{transform:scale(1.18);opacity:.42}100%{transform:scale(1.26);opacity:0}}`}</style>
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
       <Dialog open={showMapDialog} onOpenChange={setShowMapDialog}>
         <DialogContent className="max-w-md rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
           <DialogHeader>
@@ -1269,15 +1514,196 @@ const MuseumEventRadar: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
-      <div className="mx-auto max-w-[1500px] space-y-6">
-        <Card className="overflow-hidden border border-slate-200/70 bg-white/90 shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] backdrop-blur">
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl">
+          <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <DialogHeader>
+              <DialogTitle>导出与分享行程</DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShareMode("map")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm ${
+                  shareMode === "map" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                <MapIcon className="h-4 w-4" />
+                地图轨迹
+              </button>
+              <button
+                type="button"
+                onClick={() => setShareMode("poster")}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm ${
+                  shareMode === "poster" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
+                }`}
+              >
+                <Images className="h-4 w-4" />
+                海报清单
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-[72vh] overflow-auto bg-slate-100 p-4 md:p-6">
+            <div ref={sharePreviewRef} className="mx-auto w-full max-w-[900px] overflow-hidden rounded-2xl bg-slate-50 shadow-sm">
+              <div className="bg-slate-950 px-6 py-6 text-white md:px-8">
+                <div className="text-xs font-medium uppercase tracking-[0.24em] text-orange-300">Exhibition Journey</div>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2 className="text-3xl font-semibold tracking-tight">我的看展行程</h2>
+                    <p className="mt-1 text-sm text-slate-300">
+                      {shareEvents.length} 场展览 · {new Set(shareEvents.map(resolveEventCity)).size} 个城市
+                    </p>
+                  </div>
+                  <div className="text-sm text-slate-400">{new Date().toLocaleDateString("zh-CN")}</div>
+                </div>
+              </div>
+
+              {shareMode === "map" ? (
+                itineraryPoints.length ? (
+                  <>
+                    <div ref={shareMapContainerRef} className="h-[460px] w-full bg-slate-200" />
+                    <div className="grid gap-px bg-slate-200 sm:grid-cols-2">
+                      {Array.from(new Set(itineraryPoints.map((point) => point.day))).map((day) => {
+                        const dayPoints = itineraryPoints.filter((point) => point.day === day);
+                        return (
+                          <div key={`share-day-${day}`} className="bg-white px-5 py-4">
+                            <div className="text-xs font-semibold text-orange-600">第 {day} 天 · {resolveEventCity(dayPoints[0].event)}</div>
+                            <div className="mt-2 text-sm leading-6 text-slate-700">
+                              {dayPoints.map((point) => `${point.order}. ${point.event.title}`).join(" → ")}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex h-[460px] items-center justify-center px-8 text-center text-sm leading-6 text-slate-500">
+                    请先生成行程，系统才能绘制地图轨迹。
+                  </div>
+                )
+              ) : (
+                <div className="grid gap-4 p-5 sm:grid-cols-2 md:p-7">
+                  {shareEvents.map((event, index) => {
+                    const point = itineraryPoints.find((item) => item.event.id === event.id);
+                    return (
+                      <div key={`share-poster-${event.id}`} className="flex min-h-[160px] overflow-hidden rounded-xl border border-slate-200 bg-white">
+                        {(event.poster_url || event.cover_url) ? (
+                          <img
+                            src={getShareImageUrl(event.poster_url || event.cover_url)}
+                            alt=""
+                            className="w-28 shrink-0 object-cover"
+                            onError={(error) => {
+                              const fallback = getShareImageUrl(event.cover_url);
+                              if (fallback && error.currentTarget.src !== new URL(fallback, window.location.href).href) {
+                                error.currentTarget.src = fallback;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div className="w-28 shrink-0 bg-slate-200" />
+                        )}
+                        <div className="flex min-w-0 flex-1 flex-col p-4">
+                          <div className="text-[11px] font-medium text-orange-600">
+                            {point ? `第 ${point.day} 天 · ` : ""}{resolveEventCity(event)}
+                          </div>
+                          <div className="mt-2 line-clamp-3 text-base font-semibold leading-snug text-slate-950">{event.title}</div>
+                          <div className="mt-1 text-xs text-slate-500">{event.museum}</div>
+                          <div className="mt-auto pt-3 text-xs text-slate-400">
+                            #{index + 1} · {getEventDateRangeLabel(event)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-3 text-[11px] text-slate-400">
+                <span>评分与开放信息请以展馆官方发布为准</span>
+                <span>{city || "看展计划"}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
+            <button
+              type="button"
+              disabled={exportingShare || !shareEvents.length || (shareMode === "map" && !itineraryPoints.length)}
+              onClick={() => void exportShareImage(false)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+            >
+              <Download className="h-4 w-4" />
+              导出 PNG
+            </button>
+            <button
+              type="button"
+              disabled={exportingShare || !shareEvents.length || (shareMode === "map" && !itineraryPoints.length)}
+              onClick={() => void exportShareImage(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-40"
+            >
+              {exportingShare ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+              分享图片
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <div className="mx-auto max-w-5xl space-y-5">
+        <header className="rounded-2xl bg-white px-5 py-5 shadow-sm md:px-6">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <div className="text-sm font-medium text-orange-600">附近展览推荐</div>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">{city || "北京"}看什么展</h1>
+              <p className="mt-1 text-sm text-slate-500">按评分与关注度优先推荐，选好后直接生成行程。</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[180px_150px_150px_auto]">
+              <select
+                aria-label="选择城市"
+                className="h-10 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-slate-300"
+                value={cityInput}
+                onChange={(event) => {
+                  setCityInput(event.target.value);
+                  setCity(event.target.value);
+                  setSelectedEventId("");
+                }}
+              >
+                {cityOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <Input
+                className="border-slate-200 bg-slate-50"
+                type="date"
+                value={startDateInput}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setStartDateInput(event.target.value)}
+              />
+              <Input
+                className="border-slate-200 bg-slate-50"
+                type="date"
+                value={endDateInput}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setEndDateInput(event.target.value)}
+              />
+              <button
+                type="button"
+                onClick={applyFilters}
+                className="rounded-lg bg-slate-950 px-5 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+              >
+                查看推荐
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 border-t border-slate-100 pt-3 text-xs text-slate-400">
+            <span>{cityEvents.length} 场符合条件</span>
+            <span>数据源：{dataSource}</span>
+            <span>更新：{data?.last_refresh || "暂无"}</span>
+          </div>
+        </header>
+
+        {false && <Card className="overflow-hidden border border-slate-200/70 bg-white/90 shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] backdrop-blur">
           <div className="grid gap-0 xl:grid-cols-[minmax(560px,1.28fr)_minmax(420px,0.72fr)]">
             <div className="border-b border-slate-200/80 p-5 lg:border-b-0 lg:border-r lg:p-7">
               <div className="space-y-2">
                 <div className="text-[11px] uppercase tracking-[0.34em] text-slate-500">当前城市 / 临期提醒</div>
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">{city || "北京"}</h1>
                 <p className="text-sm leading-6 text-slate-600">
-                  先看哪些展快结束，再看热门展期，最后点开详情决定什么时候去最合适。
+                  先告诉你这座城市现在最值得优先处理的展，再决定这周去哪看。
                 </p>
               </div>
               <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-12">
@@ -1286,8 +1712,8 @@ const MuseumEventRadar: React.FC = () => {
                   placeholder="城市（如 北京）"
                   list="event-city-list"
                   value={cityInput}
-                  onChange={(e) => setCityInput(e.target.value)}
-                  onKeyDown={(event) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCityInput(e.target.value)}
+                  onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
                     if (event.key === "Enter") {
                       applyFilters();
                     }
@@ -1302,13 +1728,13 @@ const MuseumEventRadar: React.FC = () => {
                   className="border-slate-300 bg-white md:col-span-4"
                   type="date"
                   value={startDateInput}
-                  onChange={(e) => setStartDateInput(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStartDateInput(e.target.value)}
                 />
                 <Input
                   className="border-slate-300 bg-white md:col-span-4"
                   type="date"
                   value={endDateInput}
-                  onChange={(e) => setEndDateInput(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEndDateInput(e.target.value)}
                 />
               </div>
               <div className="mt-3 flex justify-end">
@@ -1320,31 +1746,64 @@ const MuseumEventRadar: React.FC = () => {
                   应用筛选
                 </button>
               </div>
-              <div className="mt-5 rounded-2xl border border-red-100 bg-red-50/60 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="text-sm font-semibold text-red-700">本城市即将结束（14天内）</div>
-                  <div className="text-xs text-red-500">{endingSoonCityEvents.length} 场</div>
+              <div className="mt-5 grid gap-3 lg:grid-cols-3">
+                {cityPriorityCards.map((item) => (
+                  <button
+                    type="button"
+                    key={item.key}
+                    onClick={() => item.event && setSelectedEventId(item.event.id)}
+                    className={`rounded-[24px] border p-4 text-left transition ${
+                      item.event ? "hover:-translate-y-0.5 hover:shadow-sm" : ""
+                    } ${item.accent}`}
+                  >
+                    <div className="text-[11px] uppercase tracking-[0.24em]">{item.label}</div>
+                    {item.event ? (
+                      <>
+                        <div className="mt-3 line-clamp-2 text-lg font-semibold text-slate-900">{item.event.title}</div>
+                        <div className="mt-1 text-sm text-slate-700">{item.event.museum}</div>
+                        <div className={`mt-3 text-xs font-medium ${item.quiet}`}>{getPrimaryEventSignal(item.event).label}</div>
+                        <div className="mt-2 text-sm leading-6 text-slate-700">{getEventQuickNote(item.event)}</div>
+                        <div className="mt-3 text-xs text-slate-500">{item.meta}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mt-3 text-base font-semibold text-slate-900">{item.emptyLabel}</div>
+                        <div className="mt-2 text-sm leading-6 text-slate-600">{item.helper}</div>
+                        <div className="mt-3 text-xs text-slate-500">{item.meta}</div>
+                      </>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/70 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">临期清单</div>
+                    <div className="mt-1 text-xs text-slate-500">只保留最近 14 天要闭幕的展，帮助你先做决定。</div>
+                  </div>
+                  <div className="text-xs text-slate-500">{endingSoonCityEvents.length} 场</div>
                 </div>
                 {endingSoonCityEvents.length ? (
-                  <div className="space-y-2">
-                    {endingSoonCityEvents.map((event) => (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {endingSoonCityEvents.slice(0, 6).map((event) => (
                       <button
                         type="button"
                         key={`ending-${event.id}`}
                         onClick={() => setSelectedEventId(event.id)}
-                        className="flex w-full items-center justify-between rounded-xl bg-white px-3 py-2 text-left text-sm transition hover:bg-red-100/60"
+                        className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700 transition hover:border-red-300 hover:bg-red-100"
                       >
-                        <span className="mr-3 truncate text-slate-800">{event.title}</span>
-                        <span className="shrink-0 text-xs font-medium text-red-600">{formatDateLabel(event.end_date)} 截止</span>
+                        {formatDateLabel(event.end_date)} 截止 · {event.title}
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-sm text-slate-600">近 14 天暂无即将结束展览。</div>
+                  <div className="mt-3 text-sm text-slate-600">近 14 天暂无即将结束展览。</div>
                 )}
               </div>
               <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
                 <span>进行中：{activeCityInsight.active}</span>
+                <span>即将开始：{activeCityInsight.openingSoon}</span>
+                <span>即将结束：{activeCityInsight.endingSoon}</span>
                 <span>数据源：{dataSource}</span>
                 <span>最近同步：{data?.last_refresh || "暂无"}</span>
               </div>
@@ -1399,7 +1858,7 @@ const MuseumEventRadar: React.FC = () => {
               </div>
             </div>
           </div>
-        </Card>
+        </Card>}
 
         {error && (
           <Card className="border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
@@ -1407,8 +1866,433 @@ const MuseumEventRadar: React.FC = () => {
           </Card>
         )}
 
-        <Card className="border-0 bg-white/90 p-4 shadow-sm">
-          <div className="mb-3 text-sm text-slate-700">当前筛选共 {cityEvents.length} 场展览。展期条已融合在列表内，点击任一展览即可查看要点。</div>
+        <main className="space-y-4">
+          <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">最值得去</h2>
+                <p className="mt-0.5 text-xs text-slate-500">热度占推荐结果的 70%</p>
+              </div>
+              <span className="text-xs text-slate-400">Top {Math.min(10, recommendedEvents.length)}</span>
+            </div>
+            {loading ? (
+              <div className="flex h-32 items-center justify-center text-sm text-slate-500">
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                正在计算推荐
+              </div>
+            ) : recommendedEvents.length ? (
+              <div className="divide-y divide-slate-100">
+                {recommendedEvents.slice(0, 10).map((item, index) => {
+                  const saved = favorites.includes(item.event.id);
+                  const rating = item.event.rating_stars ?? item.event.rating ?? 0;
+                  return (
+                    <div key={`simple-recommendation-${item.event.id}`} className="flex items-center gap-3 px-4 py-3 md:gap-4 md:px-5">
+                      <div className={`w-6 shrink-0 text-center text-sm font-semibold ${index === 0 ? "text-orange-600" : "text-slate-400"}`}>
+                        {index + 1}
+                      </div>
+                      {(item.event.cover_url || item.event.poster_url) ? (
+                        <img
+                          src={item.event.cover_url || item.event.poster_url}
+                          alt=""
+                          className="h-16 w-12 shrink-0 rounded-md object-cover"
+                          loading="lazy"
+                        />
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedEventId(item.event.id);
+                          setShowAllEvents(true);
+                        }}
+                        className="min-w-0 flex-1 text-left"
+                      >
+                        <div className="truncate text-base font-semibold text-slate-950">{item.event.title}</div>
+                        <div className="mt-1 truncate text-xs text-slate-500">
+                          {item.event.museum} · {getEventDateRangeLabel(item.event)}
+                        </div>
+                        <div className="mt-1.5 truncate text-xs text-slate-600">{item.reasons.slice(0, 2).join(" · ")}</div>
+                      </button>
+                      <div className="hidden w-28 shrink-0 text-right sm:block">
+                        <div className="text-sm font-semibold text-slate-900">{rating ? `${rating.toFixed(1)} 分` : "暂无评分"}</div>
+                        <div className="mt-0.5 text-xs text-slate-400">{formatCompactCount(item.event.likes_count || 0)} 人关注</div>
+                      </div>
+                      <div className="w-16 shrink-0 text-center">
+                        <div className="text-lg font-semibold text-orange-600">{item.score}</div>
+                        <div className="text-[10px] text-slate-400">推荐分</div>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label={saved ? "从行程移除" : "加入行程"}
+                        aria-pressed={saved}
+                        onClick={() => toggleFavorite(item.event.id)}
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition ${
+                          saved ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        }`}
+                      >
+                        <Heart className={`h-4 w-4 ${saved ? "fill-current" : ""}`} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="px-5 py-10 text-center text-sm text-slate-500">当前日期范围内没有可推荐的展览。</div>
+            )}
+          </Card>
+
+          {favoriteEvents.length ? (
+            <Card className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <Route className="h-5 w-5 shrink-0 text-orange-600" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-950">
+                      跨城行程 · 已选 {favoriteEvents.length} 场 / {new Set(favoriteEvents.map(resolveEventCity)).size} 个城市
+                    </div>
+                    <div className="truncate text-xs text-slate-500">
+                      {favoriteEvents
+                        .map((event) => `${resolveEventCity(event)} · ${event.title}`)
+                        .join("、")}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {[
+                    { key: "driving", label: "驾车" },
+                    { key: "transfer", label: "公交" },
+                    { key: "walking", label: "步行" },
+                  ].map((mode) => (
+                    <button
+                      type="button"
+                      key={mode.key}
+                      onClick={() => setTravelMode(mode.key as TravelMode)}
+                      className={`rounded-md px-2.5 py-1.5 text-xs ${
+                        travelMode === mode.key ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={planningRoute}
+                    onClick={() => void planItinerary()}
+                    className="ml-1 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-60"
+                  >
+                    {planningRoute ? "计算中…" : "生成行程"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShareMode(itineraryPoints.length ? "map" : "poster");
+                      setShowShareDialog(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    导出分享
+                  </button>
+                </div>
+              </div>
+              {routeSteps.length ? (
+                <div className="mt-4 flex gap-2 overflow-x-auto border-t border-slate-100 pt-4">
+                  {routeSteps.map((step) => (
+                    <div key={`simple-${step.id}`} className="min-w-[180px] rounded-lg bg-slate-50 px-3 py-2">
+                      <div className="text-[11px] text-orange-600">{step.endTime ? `${step.time}–${step.endTime}` : step.time}</div>
+                      <div className="mt-1 truncate text-sm font-medium text-slate-900">{step.title}</div>
+                      <div className="truncate text-xs text-slate-400">{step.subtitle}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </Card>
+          ) : null}
+
+          <div className="flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setShowAllEvents((value) => !value)}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-white hover:text-slate-950"
+            >
+              {showAllEvents ? "收起全部展览" : `查看全部 ${cityEvents.length} 场展览`}
+            </button>
+          </div>
+
+          {showAllEvents ? (
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,1.1fr)] lg:items-start">
+              <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="border-b border-slate-100 p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { key: "all", label: "全部" },
+                      { key: "hot", label: "热门" },
+                      { key: "ending", label: "即将结束" },
+                      { key: "upcoming", label: "即将开始" },
+                      { key: "permanent", label: "常设展" },
+                    ].map((tab) => (
+                      <button
+                        type="button"
+                        key={tab.key}
+                        onClick={() => setListFilter(tab.key as "all" | "hot" | "ending" | "upcoming" | "permanent")}
+                        className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                          listFilter === tab.key ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <ScrollArea className="h-[620px]">
+                  <div className="divide-y divide-slate-100 p-2">
+                    {filteredListEvents.slice(0, 80).map((event) => {
+                      const active = selectedEventId === event.id;
+                      return (
+                        <button
+                          type="button"
+                          key={`simple-list-${event.id}`}
+                          onClick={() => setSelectedEventId(event.id)}
+                          className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition ${
+                            active ? "bg-orange-50 ring-1 ring-inset ring-orange-200" : "hover:bg-slate-50"
+                          }`}
+                        >
+                          {(event.cover_url || event.poster_url) ? (
+                            <img src={event.cover_url || event.poster_url} alt="" className="h-12 w-9 shrink-0 rounded object-cover" loading="lazy" />
+                          ) : null}
+                          <div className="min-w-0 flex-1">
+                            <div className={`truncate text-sm font-medium ${active ? "text-orange-900" : "text-slate-900"}`}>{event.title}</div>
+                            <div className={`mt-1 truncate text-xs ${active ? "text-orange-700/70" : "text-slate-400"}`}>
+                              {event.museum} · {getEventDateRangeLabel(event)}
+                            </div>
+                          </div>
+                          <span className={`text-xs ${active ? "font-medium text-orange-700" : "text-slate-400"}`}>
+                            {event.rating_stars ? `${event.rating_stars.toFixed(1)} 分` : ""}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              </Card>
+
+              <div className="lg:sticky lg:top-4">
+                {selectedEvent ? (
+                  <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    {(selectedEvent.poster_url || selectedEvent.cover_url) ? (
+                      <img
+                        src={selectedEvent.poster_url || selectedEvent.cover_url}
+                        alt={selectedEvent.title}
+                        className="h-64 w-full object-cover"
+                      />
+                    ) : null}
+                    <div className="p-5">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span>{selectedEvent.museum}</span>
+                        <span>·</span>
+                        <span>{getEventDateRangeLabel(selectedEvent)}</span>
+                      </div>
+                      <h2 className="mt-2 text-2xl font-semibold leading-tight text-slate-950">{selectedEvent.title}</h2>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">{getEventQuickNote(selectedEvent)}</p>
+                      <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
+                        <div className="flex items-start gap-2"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />{selectedEvent.address || "地址待确认"}</div>
+                        <div className="flex items-start gap-2"><Clock3 className="mt-0.5 h-3.5 w-3.5 shrink-0" />{selectedEvent.open_hours || "开放时间待确认"}</div>
+                        <div>{selectedEvent.fee || "票务待确认"}</div>
+                      </div>
+                      <div className="mt-5 flex gap-2">
+                        <button type="button" onClick={() => setShowMapDialog(true)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                          导航
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleFavorite(selectedEvent.id)}
+                          className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                            favorites.includes(selectedEvent.id) ? "bg-orange-50 text-orange-700" : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {favorites.includes(selectedEvent.id) ? "已加入行程" : "加入行程"}
+                        </button>
+                        {selectedEvent.source_url ? (
+                          <a href={selectedEvent.source_url} target="_blank" rel="noreferrer" className="ml-auto rounded-lg bg-slate-950 px-4 py-2 text-sm text-white">
+                            展览详情
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  </Card>
+                ) : (
+                  <Card className="flex min-h-[360px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-sm text-slate-400">
+                    从左侧选择一个展览查看详情
+                  </Card>
+                )}
+              </div>
+            </div>
+          ) : null}
+        </main>
+
+        {false && <section className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
+          <Card className="overflow-hidden border border-slate-200/80 bg-white/95 shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-slate-200/80 px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-orange-600">
+                  <Sparkles className="h-4 w-4" />
+                  城市精选
+                </div>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                  {city || "当前城市"}最值得看的展
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">受欢迎程度占推荐结果的 70%，同时兼顾展期与行程信息。</p>
+              </div>
+              <div className="text-xs text-slate-400">推荐会随城市与日期自动更新</div>
+            </div>
+            {recommendedEvents.length ? (
+              <div className="grid gap-px bg-slate-200 md:grid-cols-2 xl:grid-cols-3">
+                {recommendedEvents.map((item, index) => {
+                  const saved = favorites.includes(item.event.id);
+                  return (
+                    <article key={`recommendation-${item.event.id}`} className="group flex min-h-[270px] flex-col bg-white p-4">
+                      <button type="button" onClick={() => setSelectedEventId(item.event.id)} className="flex-1 text-left">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-orange-600">#{index + 1}</span>
+                            <span className="rounded-full bg-orange-50 px-2 py-1 text-[11px] font-medium text-orange-700">
+                              热度 {item.popularity} · 推荐 {item.score}
+                            </span>
+                          </div>
+                          {(item.event.cover_url || item.event.poster_url) ? (
+                            <img
+                              src={item.event.cover_url || item.event.poster_url}
+                              alt=""
+                              className="h-20 w-16 rounded-lg object-cover transition duration-300 group-hover:scale-[1.03]"
+                              loading="lazy"
+                            />
+                          ) : null}
+                        </div>
+                        <h3 className="mt-4 line-clamp-2 text-lg font-semibold leading-snug text-slate-950">{item.event.title}</h3>
+                        <div className="mt-1 text-sm text-slate-500">{item.event.museum}</div>
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                          {item.reasons.map((reason) => (
+                            <span key={`${item.event.id}-${reason}`} className="rounded-md bg-slate-100 px-2 py-1 text-[11px] text-slate-600">
+                              {reason}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedEventId(item.event.id)}
+                          className="text-xs font-medium text-slate-500 transition hover:text-slate-950"
+                        >
+                          查看详情
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={saved}
+                          onClick={() => toggleFavorite(item.event.id)}
+                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                            saved ? "bg-slate-950 text-white" : "bg-orange-50 text-orange-700 hover:bg-orange-100"
+                          }`}
+                        >
+                          <Heart className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`} />
+                          {saved ? "已加入行程" : "加入行程"}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="px-5 py-12 text-center text-sm text-slate-500">当前日期范围内没有可推荐的在展或待开展览。</div>
+            )}
+          </Card>
+
+          <Card className="border border-slate-200/80 bg-slate-950 p-5 text-white shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-orange-300">
+                  <Route className="h-4 w-4" />
+                  行程规划
+                </div>
+                <h2 className="mt-2 text-xl font-semibold">把想看的展串成一天</h2>
+              </div>
+              <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-white/70">
+                {favoriteTimelineGroups.rescue.length + favoriteTimelineGroups.active.length + favoriteTimelineGroups.upcoming.length} 场
+              </span>
+            </div>
+
+            <div className="mt-5 flex gap-2">
+              {[
+                { key: "driving", label: "驾车" },
+                { key: "transfer", label: "公交" },
+                { key: "walking", label: "步行" },
+              ].map((mode) => (
+                <button
+                  type="button"
+                  key={mode.key}
+                  onClick={() => setTravelMode(mode.key as TravelMode)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                    travelMode === mode.key ? "bg-orange-400 text-slate-950" : "bg-white/10 text-white/70 hover:bg-white/15"
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+
+            {favoriteEvents.filter((event) => normalizeCityName(event.city) === normalizeCityName(city)).length ? (
+              <>
+                <div className="mt-5 space-y-2">
+                  {favoriteEvents
+                    .filter((event) => normalizeCityName(event.city) === normalizeCityName(city))
+                    .slice(0, 5)
+                    .map((event) => (
+                      <div key={`trip-${event.id}`} className="flex items-center gap-3 rounded-xl bg-white/[0.08] px-3 py-2.5">
+                        <Star className="h-3.5 w-3.5 shrink-0 fill-orange-300 text-orange-300" />
+                        <button type="button" onClick={() => setSelectedEventId(event.id)} className="min-w-0 flex-1 truncate text-left text-sm">
+                          {event.title}
+                        </button>
+                        <button type="button" onClick={() => toggleFavorite(event.id)} className="text-xs text-white/45 hover:text-white">
+                          移除
+                        </button>
+                      </div>
+                    ))}
+                </div>
+                <button
+                  type="button"
+                  disabled={planningRoute}
+                  onClick={() => void planItinerary()}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-300 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {planningRoute ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Route className="h-4 w-4" />}
+                  {planningRoute ? "正在计算路线" : routeSteps.length ? "重新生成路线" : "生成一日路线"}
+                </button>
+              </>
+            ) : (
+              <div className="mt-5 rounded-2xl border border-dashed border-white/20 px-4 py-7 text-center text-sm leading-6 text-white/55">
+                从左侧推荐中加入想看的展，路线会结合闭馆时间与交通耗时排序。
+              </div>
+            )}
+
+            {routeSteps.length ? (
+              <div className="mt-5 max-h-[310px] space-y-0 overflow-y-auto pr-1">
+                {routeSteps.map((step, index) => (
+                  <div key={step.id} className="relative flex gap-3 pb-4">
+                    {index < routeSteps.length - 1 ? <div className="absolute left-[5px] top-4 h-full w-px bg-white/15" /> : null}
+                    <div className={`relative mt-1.5 h-3 w-3 shrink-0 rounded-full ${step.type === "event" ? "bg-orange-300" : "bg-white/30"}`} />
+                    <div className="min-w-0">
+                      <div className="text-[11px] text-orange-200">{step.time}–{step.endTime}</div>
+                      <div className="mt-0.5 truncate text-sm font-medium">{step.title}</div>
+                      <div className="mt-0.5 truncate text-xs text-white/45">{step.subtitle}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </Card>
+        </section>}
+
+        {false && <Card className="border-0 bg-white/90 p-4 shadow-sm">
+          <div className="mb-3 text-sm text-slate-700">当前筛选共 {cityEvents.length} 场展览。左侧先看优先级，右侧再判断值不值得专门去。</div>
           {loading ? (
             <div className="flex h-48 items-center justify-center text-slate-500">
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -1448,25 +2332,9 @@ const MuseumEventRadar: React.FC = () => {
                     {filteredListEvents.map((event) => {
                       const status = getEventStatus(event.start_date, event.end_date);
                       const active = selectedEvent?.id === event.id;
-                      const permanent = event.start_date === event.end_date;
-                      const phase = getProgressState(event.start_date, event.end_date);
-                      const endHint = permanent ? null : getEndUrgencyLabel(event.end_date);
-                      const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
-                      const startMs = new Date(event.start_date).getTime();
-                      const endMs = new Date(event.end_date).getTime();
-                      const clippedStart = Math.max(startMs, ganttWindow.startMs);
-                      const clippedEnd = Math.min(endMs, ganttWindow.endMs);
-                      const hasOverlap = clippedEnd >= clippedStart;
-                      const left = hasOverlap
-                        ? clampPercent(((clippedStart - ganttWindow.startMs) / ganttWindow.totalMs) * 100)
-                        : startMs > ganttWindow.endMs
-                        ? 98
-                        : 0;
-                      const width = hasOverlap
-                        ? Math.max(2, ((clippedEnd - clippedStart) / ganttWindow.totalMs) * 100)
-                        : 2;
-                      const todayPos = clampPercent(((ganttWindow.todayMs - ganttWindow.startMs) / ganttWindow.totalMs) * 100);
-                      const endPos = clampPercent(((endMs - ganttWindow.startMs) / ganttWindow.totalMs) * 100);
+                      const signal = getPrimaryEventSignal(event);
+                      const quickNote = getEventQuickNote(event);
+                      const openState = computeOpenStatus(event.open_hours);
                       return (
                         <button
                           type="button"
@@ -1488,52 +2356,20 @@ const MuseumEventRadar: React.FC = () => {
                               <div className="h-16 w-12 shrink-0 rounded bg-slate-100" />
                             )}
                             <div className="min-w-0 flex-1">
-                              <div className={`line-clamp-2 text-[17px] font-semibold ${active ? "text-white" : "text-slate-900"}`}>{event.title}</div>
-                              <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{event.museum}</div>
-                              <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>
-                                {formatDateLabel(event.start_date)} - {formatDateLabel(event.end_date)}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${active ? "bg-white/15 text-white" : signal.tone}`}>
+                                  {signal.label}
+                                </span>
+                                <span className={`text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>{status.label}</span>
                               </div>
-                              {permanent ? (
-                                <div className={`mt-2 text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>常设展</div>
-                              ) : (
-                                <div className="relative mt-2 h-8">
-                                  <div className={`absolute left-0 right-0 top-3 h-2.5 rounded-full ${active ? "bg-white/10" : "bg-slate-100"}`} />
-                                  <div
-                                    className={`absolute top-3 h-2.5 rounded-full ${
-                                      phase.state === "lastcall" ? "bg-red-600" : phase.state === "hot" ? "bg-blue-700" : "bg-slate-500"
-                                    }`}
-                                    style={{ marginLeft: `${left}%`, width: `${width}%` }}
-                                  />
-                                  <span
-                                    className={`absolute top-1 h-6 w-px ${active ? "bg-white/60" : "bg-slate-400/70"}`}
-                                    style={{ left: `${todayPos}%` }}
-                                  />
-                                  <span
-                                    className={`absolute top-3 h-2.5 w-2.5 -translate-x-1/2 rounded-full border-2 ${
-                                      active ? "border-white bg-slate-900" : "border-white bg-slate-700"
-                                    }`}
-                                    style={{ left: `${endPos}%` }}
-                                  />
-                                  {endHint?.level === "urgent" ? (
-                                    <span
-                                      className={`absolute top-2.5 h-3.5 w-3.5 -translate-x-1/2 rounded-full border ${
-                                        active ? "border-red-200/80" : "border-red-500/70"
-                                      } animate-ping`}
-                                      style={{ left: `${endPos}%` }}
-                                    />
-                                  ) : null}
-                                  {endHint ? (
-                                    <span
-                                      className={`absolute top-0 -translate-x-1/2 rounded px-1.5 py-[1px] text-[10px] font-semibold ${
-                                        active ? "bg-red-500/30 text-red-100" : endHint.tone
-                                      }`}
-                                      style={{ left: `${endPos}%` }}
-                                    >
-                                      {endHint.label}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              )}
+                              <div className={`mt-2 line-clamp-2 text-[17px] font-semibold ${active ? "text-white" : "text-slate-900"}`}>{event.title}</div>
+                              <div className={`mt-1 text-xs ${active ? "text-slate-300" : "text-slate-500"}`}>{event.museum}</div>
+                              <div className={`mt-3 text-sm leading-6 ${active ? "text-slate-200" : "text-slate-700"}`}>{quickNote}</div>
+                              <div className={`mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] ${active ? "text-slate-300" : "text-slate-500"}`}>
+                                <span>{getEventDateRangeLabel(event)}</span>
+                                <span>{openState.label.replace(/[●○⏰]\s*/, "")}</span>
+                                <span>{signal.summary}</span>
+                              </div>
                             </div>
                             <Badge className={status.color}>{status.label}</Badge>
                           </div>
@@ -1547,40 +2383,112 @@ const MuseumEventRadar: React.FC = () => {
               <div className="xl:sticky xl:top-6">
                 {selectedEvent ? (
                   <Card className="overflow-hidden border border-slate-200/80 bg-white shadow-sm xl:max-h-[78vh]">
-                    <div
-                      className="relative min-h-[280px] p-5 text-white"
-                      style={{
-                        backgroundImage: `linear-gradient(180deg, rgba(15,23,42,0.12), rgba(15,23,42,0.82)), linear-gradient(135deg, ${detailAccent}, rgba(15,23,42,0.96)), url(${selectedEvent.poster_url || selectedEvent.cover_url})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="max-w-xl">
-                          <h2 className="text-2xl font-semibold leading-tight">{selectedEvent.title}</h2>
-                          <div className="mt-2 text-xs text-white/85">{selectedEvent.museum} · {selectedEvent.city}</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowMapDialog(true)}
-                          className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs"
-                        >
-                          去地图导航
-                        </button>
-                      </div>
-                      <div className="mt-4 rounded-xl border border-white/20 bg-black/20 p-3 text-sm leading-6">
-                        {(selectedEvent.highlights || []).length ? selectedEvent.highlights[Math.min(highlightPage, selectedEvent.highlights.length - 1)] : "暂无结构化要点"}
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/85">
-                        <span>{selectedEvent.start_date} 至 {selectedEvent.end_date}</span>
-                        <span>{computeOpenStatus(selectedEvent.open_hours).label}</span>
-                      </div>
-                    </div>
-                    {selectedEvent.raw_excerpt ? (
-                      <div className="max-h-[36vh] overflow-y-auto border-t border-slate-200 bg-white px-5 py-4 text-sm leading-7 text-slate-600">
-                        {selectedEvent.raw_excerpt}
-                      </div>
-                    ) : null}
+                    {((selectedEvent: MuseumEvent) => {
+                      const signal = getPrimaryEventSignal(selectedEvent);
+                      const openState = computeOpenStatus(selectedEvent.open_hours);
+                      const highlights = (selectedEvent.highlights || []).filter(Boolean).slice(0, 3);
+                      const quickNote = getEventQuickNote(selectedEvent);
+                      return (
+                        <>
+                          <div
+                            className="relative min-h-[280px] p-5 text-white"
+                            style={{
+                              backgroundImage: `linear-gradient(180deg, rgba(15,23,42,0.12), rgba(15,23,42,0.82)), linear-gradient(135deg, ${detailAccent}, rgba(15,23,42,0.96)), url(${selectedEvent.poster_url || selectedEvent.cover_url})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="max-w-xl">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${signal.tone}`}>{signal.label}</span>
+                                  <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white/85">
+                                    {openState.label}
+                                  </span>
+                                </div>
+                                <h2 className="mt-4 text-2xl font-semibold leading-tight">{selectedEvent.title}</h2>
+                                <div className="mt-2 text-xs text-white/85">{selectedEvent.museum} · {selectedEvent.city}</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setShowMapDialog(true)}
+                                className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs"
+                              >
+                                去地图导航
+                              </button>
+                            </div>
+                            <div className="mt-5 rounded-2xl border border-white/20 bg-black/20 p-4">
+                              <div className="text-[11px] uppercase tracking-[0.24em] text-white/60">为什么现在看</div>
+                              <div className="mt-2 text-base font-medium leading-7 text-white">{quickNote}</div>
+                            </div>
+                            <div className="mt-4 grid gap-3 text-sm text-white/90 md:grid-cols-2">
+                              <div className="rounded-xl border border-white/15 bg-white/10 p-3">
+                                <div className="text-[11px] uppercase tracking-[0.22em] text-white/55">展期</div>
+                                <div className="mt-2 flex items-center gap-2"><CalendarDays className="h-4 w-4" />{selectedEvent.start_date} 至 {selectedEvent.end_date}</div>
+                              </div>
+                              <div className="rounded-xl border border-white/15 bg-white/10 p-3">
+                                <div className="text-[11px] uppercase tracking-[0.22em] text-white/55">开放</div>
+                                <div className="mt-2 flex items-center gap-2"><Clock3 className="h-4 w-4" />{selectedEvent.open_hours || "时间待确认"}</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="space-y-5 border-t border-slate-200 bg-white px-5 py-5">
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">去之前先确认</div>
+                                <div className="mt-3 space-y-3 text-sm text-slate-700">
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                                    <span>{selectedEvent.address || "地址待确认"}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                                    <span>{openState.label} · {selectedEvent.open_hours || "开放时间待确认"}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                                    <span>{getEventDateRangeLabel(selectedEvent)} · {selectedEvent.fee || "票务待确认"}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">看点</div>
+                                {highlights.length ? (
+                                  <div className="mt-3 space-y-2">
+                                    {highlights.map((item, index) => (
+                                      <div key={`${selectedEvent.id}-highlight-${index}`} className="rounded-xl bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700">
+                                        {item}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600">暂无结构化看点，可直接看下方原文摘要。</div>
+                                )}
+                              </div>
+                            </div>
+                            {selectedEvent.raw_excerpt ? (
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">原文摘要</div>
+                                  {selectedEvent.source_url ? (
+                                    <a
+                                      href={selectedEvent.source_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900"
+                                    >
+                                      查看来源
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </a>
+                                  ) : null}
+                                </div>
+                                <div className="mt-3 max-h-[28vh] overflow-y-auto text-sm leading-7 text-slate-600">{selectedEvent.raw_excerpt}</div>
+                              </div>
+                            ) : null}
+                          </div>
+                        </>
+                      );
+                    })(selectedEvent!)}
                   </Card>
                   ) : (
                     <Card className="border border-slate-200/80 bg-white p-6 text-sm text-slate-500 shadow-sm">
@@ -1594,7 +2502,7 @@ const MuseumEventRadar: React.FC = () => {
               暂无该城市该时间段展览数据。
             </div>
           )}
-        </Card>
+        </Card>}
       </div>
     </div>
   );

@@ -10,22 +10,14 @@ export interface AppCatalogItem {
 }
 
 export const appCatalog: AppCatalogItem[] = [
-    {
-        id: "reading-notes",
-        label: "读书笔记合集",
-        url: "/reading-notes",
-        icon: "material-symbols:auto-stories-outline-rounded",
-        description: "按书架浏览微信读书笔记，沉浸式查看封面、书摘与章节划线",
-        component: () => import("./ReadingNotesCollection"),
-    },
-    {
-        id: "cover-collage",
-        label: "封面拼贴",
-        url: "/cover-collage",
-        icon: "material-symbols:imagesmode-outline-rounded",
-        description: "上传多张图片生成暗色展陈感 cover 图，适合做封面和分享海报",
-        component: () => import("./CoverCollageMaker"),
-    },
+    // {
+    //     id: "reading-notes",
+    //     label: "读书笔记合集",
+    //     url: "/reading-notes",
+    //     icon: "material-symbols:auto-stories-outline-rounded",
+    //     description: "按书架浏览微信读书笔记，沉浸式查看封面、书摘与章节划线",
+    //     component: () => import("./ReadingNotesCollection"),
+    // },
     {
         id: "watermark",
         label: "水印添加",
@@ -33,6 +25,14 @@ export const appCatalog: AppCatalogItem[] = [
         icon: "ri:image-ai-line",
         description: "批量给图片加文字或图标水印，快速保护版权",
         component: () => import("./Watermark"),
+    },
+     {
+        id: "puzzle",
+        label: "长图拼版",
+        url: "/puzzle",
+        icon: "tabler:layout-board-split",
+        description: "多图自由排版后导出长图，适合作品集、教程和图文合集",
+        component: () => import("./Puzzle"),
     },
     {
         id: "compress",
@@ -51,13 +51,21 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("./GooglePhoto"),
     },
     {
-        id: "frame",
-        label: "简约相框",
-        url: "/frame",
-        icon: "ri:image-edit-line",
-        description: "为照片加统一边框和留白，适合发朋友圈或打印",
-        component: () => import("./PhotoFrame"),
+        id: "cover-collage",
+        label: "封面拼贴",
+        url: "/cover-collage",
+        icon: "material-symbols:imagesmode-outline-rounded",
+        description: "上传多张图片生成暗色展陈感 cover 图，适合做封面和分享海报",
+        component: () => import("./CoverCollageMaker"),
     },
+    // {
+    //     id: "frame",
+    //     label: "简约相框",
+    //     url: "/frame",
+    //     icon: "ri:image-edit-line",
+    //     description: "为照片加统一边框和留白，适合发朋友圈或打印",
+    //     component: () => import("./PhotoFrame"),
+    // },
     {
         id: "photo-exif",
         label: "照片 EXIF",
@@ -68,34 +76,26 @@ export const appCatalog: AppCatalogItem[] = [
     },
     {
         id: "split",
-        label: "图片分割",
+        label: "规则切图",
         url: "/split",
         icon: "material-symbols:split-vertical",
-        description: "把一张图按规则切成多张，适配社媒九宫格等场景",
+        description: "把一张图按网格或规则切成多张，适合九宫格和分片发布",
         component: () => import("./ImageSplitter"),
     },
     {
         id: "crop",
-        label: "图片裁切",
+        label: "尺寸裁切",
         url: "/crop",
         icon: "material-symbols:crop",
-        description: "支持固定像素、按比例和自由裁切，导出尺寸更可控",
+        description: "按比例、固定像素或自由框选裁切，快速得到目标尺寸",
         component: () => import("./ImageCropper"),
     },
     {
-        id: "puzzle",
-        label: "大图拼接",
-        url: "/puzzle",
-        icon: "tabler:layout-board-split",
-        description: "多图自由排版并导出长图，适合作品集和图文合集",
-        component: () => import("./Puzzle"),
-    },
-    {
         id: "stitch",
-        label: "图片拼接",
+        label: "全景拼接",
         url: "/stitch",
         icon: "material-symbols:photo-library-outline",
-        description: "上传有重叠的照片自动全景拼接，输出一张完整大图",
+        description: "上传有重叠区域的照片自动合成为一张全景大图",
         component: () => import("./ImageStitching"),
     },
     {
@@ -114,22 +114,22 @@ export const appCatalog: AppCatalogItem[] = [
         description: "输入问题快速查文物背景，适合做讲解和科普笔记",
         component: () => import("./ArtifactAI"),
     },
-    {
-        id: "restaurant",
-        label: "餐厅搜索",
-        url: "/restaurant",
-        icon: "ri:restaurant-2-line",
-        description: "按位置和偏好筛餐厅，快速决定去哪吃",
-        component: () => import("./RestaurantFinder"),
-    },
-    {
-        id: "change",
-        label: "图片颜色调整",
-        url: "/change",
-        icon: "material-symbols:palette-outline",
-        description: "调亮度、对比度和色调，快速修正照片观感",
-        component: () => import("./ChangeColor"),
-    },
+    // {
+    //     id: "restaurant",
+    //     label: "餐厅搜索",
+    //     url: "/restaurant",
+    //     icon: "ri:restaurant-2-line",
+    //     description: "按位置和偏好筛餐厅，快速决定去哪吃",
+    //     component: () => import("./RestaurantFinder"),
+    // },
+    // {
+    //     id: "change",
+    //     label: "图片颜色调整",
+    //     url: "/change",
+    //     icon: "material-symbols:palette-outline",
+    //     description: "调亮度、对比度和色调，快速修正照片观感",
+    //     component: () => import("./ChangeColor"),
+    // },
     {
         id: "wenwu",
         label: "195禁出",
@@ -138,20 +138,20 @@ export const appCatalog: AppCatalogItem[] = [
         description: "按地图查看重点馆藏与分布，快速了解文物脉络",
         component: () => import("./Wenwu"),
     },
-    {
-        id: "news",
-        label: "新闻",
-        url: "/news",
-        icon: "ri:news-line",
-        description: "聚合热点资讯，快速浏览当天重要信息",
-        component: () => import("./News"),
-    },
+    // {
+    //     id: "news",
+    //     label: "新闻",
+    //     url: "/news",
+    //     icon: "ri:news-line",
+    //     description: "聚合热点资讯，快速浏览当天重要信息",
+    //     component: () => import("./News"),
+    // },
     {
         id: "collage",
-        label: "图片拼接",
+        label: "模板拼贴",
         url: "/collage",
         icon: "material-symbols:photo-library-outline",
-        description: "按模板合成多图海报，适合电商图和分享封面",
+        description: "按预设模板合成多图海报，适合电商图、封面和分享图",
         component: () => import("./ImageCollage"),
     },
     {
@@ -163,14 +163,6 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("./FileRenamer"),
     },
     {
-        id: "mosaic",
-        label: "创意马赛克",
-        url: "/mosaic",
-        icon: "material-symbols:mosaic-outline",
-        description: "把多张图组合成图形化马赛克，适合海报创作",
-        component: () => import("./CreativeMosaic"),
-    },
-    {
         id: "gallery",
         label: "年度相册",
         url: "/gallery",
@@ -178,14 +170,14 @@ export const appCatalog: AppCatalogItem[] = [
         description: "做有边框和排版感的年度照片合集，一键导出",
         component: () => import("./Gallery"),
     },
-    {
-        id: "christmas",
-        label: "圣诞树",
-        url: "/christmas",
-        icon: "mdi:pine-tree",
-        description: "节日互动小工具，适合屏幕展示和氛围装饰",
-        component: () => import("./ChristmasTreeHand"),
-    },
+    // {
+    //     id: "christmas",
+    //     label: "圣诞树",
+    //     url: "/christmas",
+    //     icon: "mdi:pine-tree",
+    //     description: "节日互动小工具，适合屏幕展示和氛围装饰",
+    //     component: () => import("./ChristmasTreeHand"),
+    // },
     {
         id: "calendar",
         label: "日历",
@@ -219,11 +211,3 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("./MuseumEventRadar"),
     },
 ];
-
-// 应用目录
-// 5.2早上到临沂，北寨汉墓 临沂博物馆 一天
-// 晚上 到济宁北
-// 5.3第二天 早上 直冲 武梁祠 下午巨野博物馆
-// 晚上巨野北 到济南
-// 5.4第三天 孝堂山+长清博物馆+灵岩寺
-//

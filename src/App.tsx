@@ -93,18 +93,18 @@ const FloatingButtons = () => {
 
     const menuItems = [
         { path: "/", icon: "material-symbols:apps", label: "应用库" },
-        { path: "/reading-notes", icon: "material-symbols:auto-stories-outline-rounded", label: "读书笔记" },
+        // { path: "/reading-notes", icon: "material-symbols:auto-stories-outline-rounded", label: "读书笔记" },
         { path: "/watermark", icon: "ri:image-ai-line", label: "水印添加" },
-        { path: "/focus-stack", icon: "mdi:image-filter-hdr", label: "焦点合成" },
         { path: "/puzzle", icon: "tabler:layout-board-split", label: "图片拼接" },
         { path: "/crop", icon: "material-symbols:crop", label: "图片裁切" },
         { path: "/photo-exif", icon: "material-symbols:info-outline-rounded", label: "照片 EXIF" },
-        { path: "/restaurant", icon: "ri:restaurant-2-line", label: "美食推荐" },
-        { path: "/news", icon: "ri:news-line", label: "新闻" },
+        { path: "/focus-stack", icon: "mdi:image-filter-hdr", label: "焦点合成" },
+        // { path: "/restaurant", icon: "ri:restaurant-2-line", label: "美食推荐" },
+        // { path: "/news", icon: "ri:news-line", label: "新闻" },
         { path: "/google-photo", icon: "logos:google-photos", label: "Google 相册" },
         { path: "/compress", icon: "material-symbols:compress", label: "图片压缩" },
         { path: "/wenwu", icon: "ri:globe-line", label: "195禁出" },
-        { path: "/christmas", icon: "mdi:pine-tree", label: "圣诞树" },
+        // { path: "/christmas", icon: "mdi:pine-tree", label: "圣诞树" },
     ];
 
     return (
