@@ -31,6 +31,7 @@ import pLimit from "p-limit";
 import confetti from "canvas-confetti";
 import "./watermark.css";
 import { consumePendingCropTransfer } from "@/utils/crop-transfer";
+import { disposeImageSource, loadImageSource } from "./utils/image-loading";
 
 interface ProgressButtonProps {
     onClick: () => void;
@@ -159,6 +160,32 @@ const Watermark: React.FC = () => {
 
     // Stack preview URLs for mobile gallery header
     const [stackPreviews, setStackPreviews] = useState<{id: string, url: string}[]>([]);
+    const managedPreviewUrlsRef = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        const nextUrls = new Set(
+            images
+                .map((img) => img.previewUrl)
+                .filter((url): url is string => Boolean(url))
+        );
+
+        managedPreviewUrlsRef.current.forEach((url) => {
+            if (!nextUrls.has(url)) {
+                URL.revokeObjectURL(url);
+            }
+        });
+
+        managedPreviewUrlsRef.current = nextUrls;
+    }, [images]);
+
+    useEffect(() => {
+        return () => {
+            managedPreviewUrlsRef.current.forEach((url) => {
+                URL.revokeObjectURL(url);
+            });
+            managedPreviewUrlsRef.current.clear();
+        };
+    }, []);
 
     useEffect(() => {
         if (images.length === 0) {
@@ -168,15 +195,13 @@ const Watermark: React.FC = () => {
 
         // Only take top 3 for stack
         const topImages = images.slice(0, 3);
-        const urls = topImages.map(img => ({
+        const urls = topImages
+            .filter((img) => img.previewUrl)
+            .map((img) => ({
             id: img.id,
-            url: URL.createObjectURL(img.file)
+            url: img.previewUrl!,
         }));
         setStackPreviews(urls);
-
-        return () => {
-            urls.forEach(u => URL.revokeObjectURL(u.url));
-        };
     }, [images]);
 
     // 添加平滑进度状态
@@ -230,7 +255,11 @@ const Watermark: React.FC = () => {
     const handleImagesUpload = async (files: File[]) => {
         setUploading(true);
         try {
-            const uploadImages = await loadImageData(files);
+            const { images: uploadImages, failedFiles } = await loadImageData(files);
+            if (uploadImages.length === 0) {
+                alert("没有可用的图片被读取，请检查文件格式后重试。");
+                return;
+            }
             setImages((prevImages) => {
                 // 如果之前没有图片，直接设置
                 if (prevImages.length === 0) {
@@ -283,6 +312,22 @@ const Watermark: React.FC = () => {
                     return newImages;
                 }
             });
+            if (failedFiles.length > 0) {
+                const summary =
+                    failedFiles.length > 3
+                        ? `${failedFiles.slice(0, 3).join("、")} 等 ${failedFiles.length} 张`
+                        : failedFiles.join("、");
+                alert(
+                    `已导入 ${uploadImages.length} 张图片，跳过 ${failedFiles.length} 张不支持或读取失败的图片：${summary}`
+                );
+            }
+        } catch (error) {
+            console.error("批量上传图片失败:", error);
+            alert(
+                error instanceof Error
+                    ? error.message
+                    : "批量上传失败，请检查图片文件后重试。"
+            );
         } finally {
             setUploading(false);
         }
@@ -561,45 +606,32 @@ const Watermark: React.FC = () => {
 
     // 暗水印检测（增强可视化预览）
     const visualizeDarkWatermark = async (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            const objUrl = URL.createObjectURL(file);
-            img.onload = () => {
-                try {
-                    const canvas = document.createElement("canvas");
-                    const ctx = canvas.getContext("2d");
-                    if (!ctx) throw new Error("Canvas not supported");
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx.drawImage(img, 0, 0);
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const data = imageData.data;
-                    const factor = 1.6;
-                    for (let i = 0; i < data.length; i += 4) {
-                        const r = 255 - data[i];
-                        const g = 255 - data[i + 1];
-                        const b = 255 - data[i + 2];
-                        let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-                        gray = Math.max(0, Math.min(255, (gray - 128) * factor + 128));
-                        data[i] = gray;
-                        data[i + 1] = gray;
-                        data[i + 2] = gray;
-                    }
-                    ctx.putImageData(imageData, 0, 0);
-                    const resultUrl = canvas.toDataURL("image/png");
-                    URL.revokeObjectURL(objUrl);
-                    resolve(resultUrl);
-                } catch (err) {
-                    URL.revokeObjectURL(objUrl);
-                    reject(err);
-                }
-            };
-            img.onerror = () => {
-                URL.revokeObjectURL(objUrl);
-                reject(new Error("图片加载失败"));
-            };
-            img.src = objUrl;
-        });
+        const source = await loadImageSource(file);
+        try {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            if (!ctx) throw new Error("Canvas not supported");
+            canvas.width = source.width;
+            canvas.height = source.height;
+            ctx.drawImage(source as CanvasImageSource, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            const factor = 1.6;
+            for (let i = 0; i < data.length; i += 4) {
+                const r = 255 - data[i];
+                const g = 255 - data[i + 1];
+                const b = 255 - data[i + 2];
+                let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                gray = Math.max(0, Math.min(255, (gray - 128) * factor + 128));
+                data[i] = gray;
+                data[i + 1] = gray;
+                data[i + 2] = gray;
+            }
+            ctx.putImageData(imageData, 0, 0);
+            return canvas.toDataURL("image/png");
+        } finally {
+            disposeImageSource(source);
+        }
     };
 
     const handleDetectDarkWatermark = async () => {
@@ -716,7 +748,7 @@ const Watermark: React.FC = () => {
                                     上传背景图片
                                 </span>
                                 <span className="text-xs md:text-sm text-slate-600/70 dark:text-slate-400/70 mt-1 md:mt-2 text-center group-hover:text-slate-700/80 dark:group-hover:text-slate-300/80 transition-colors duration-300">
-                                    支持 JPG、PNG 格式
+                                    支持 JPG、PNG、TIFF 格式
                                 </span>
 
                                 {/* 移动端优化的触摸提示 */}
@@ -757,7 +789,7 @@ const Watermark: React.FC = () => {
                     {mobileView === "editor" && currentImg ? (
                         <MobileWatermarkEditor
                             watermarkUrl={watermarkUrl}
-                            backgroundImageFile={currentImg.file}
+                            backgroundPreviewUrl={currentImg.previewUrl || ""}
                             currentWatermarkPosition={watermarkPositions.find(
                                 (pos) => pos.id === currentImg.id
                             )}
@@ -950,7 +982,7 @@ const Watermark: React.FC = () => {
                                     上传背景图片
                                 </span>
                                 <span className="text-xs md:text-sm text-slate-600/70 mt-1 md:mt-2 text-center group-hover:text-slate-700/80 transition-colors duration-300">
-                                    支持 JPG、PNG 格式
+                                    支持 JPG、PNG、TIFF 格式
                                 </span>
                             </div>
                         </ImageUploader>
@@ -974,7 +1006,7 @@ const Watermark: React.FC = () => {
                     {watermarkUrl && currentImg && (
                         <WatermarkEditor
                             watermarkUrl={watermarkUrl}
-                            backgroundImageFile={currentImg.file}
+                            backgroundPreviewUrl={currentImg.previewUrl || ""}
                             currentWatermarkPosition={watermarkPositions.find(
                                 (pos) => pos.id === currentImg.id
                             )}

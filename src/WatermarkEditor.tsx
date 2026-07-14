@@ -80,7 +80,7 @@ interface DominantColor {
 
 interface WatermarkEditorProps {
     watermarkUrl: string;
-    backgroundImageFile: File;
+    backgroundPreviewUrl: string;
     currentWatermarkPosition?: WatermarkPosition;
     onTransform: (position: WatermarkPosition) => void;
     onAllTransform: (position: WatermarkPosition) => void;
@@ -91,7 +91,7 @@ interface WatermarkEditorProps {
 
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     watermarkUrl,
-    backgroundImageFile,
+    backgroundPreviewUrl,
     currentWatermarkPosition,
     onTransform,
     onAllTransform,
@@ -460,14 +460,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     };
 
-    // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
+    // 当背景图片预览地址改变时，更新背景图片的 URL
     useEffect(() => {
-        if (backgroundImageFile) {
-            const objectURL = URL.createObjectURL(backgroundImageFile);
-            setBackgroundImageUrl(objectURL);
-            return () => URL.revokeObjectURL(objectURL);
-        }
-    }, [backgroundImageFile]);
+        setBackgroundImageUrl(backgroundPreviewUrl);
+    }, [backgroundPreviewUrl]);
 
     // 当缩放或图片变化时，刷新用于边界判断的尺寸
     useEffect(() => {
@@ -548,15 +544,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             backgroundImageSize.height
         );
     }, [backgroundImageSize.width, backgroundImageSize.height]);
-
-    // 清理背景图片的 URL
-    useEffect(() => {
-        return () => {
-            if (backgroundImageFile) {
-                URL.revokeObjectURL(URL.createObjectURL(backgroundImageFile));
-            }
-        };
-    }, [backgroundImageFile]);
 
     useEffect(() => {
         if (currentWatermarkPosition) {

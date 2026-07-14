@@ -87,7 +87,7 @@ const drawGuideLines = (layer: Konva.Layer, width: number, height: number) => {
 
 interface MobileWatermarkEditorProps {
     watermarkUrl: string;
-    backgroundImageFile: File;
+    backgroundPreviewUrl: string;
     currentWatermarkPosition?: WatermarkPosition;
     stackPreviews?: { id: string; url: string }[];
     onTransform: (position: {
@@ -135,7 +135,7 @@ interface MobileWatermarkEditorProps {
 
 const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     watermarkUrl,
-    backgroundImageFile,
+    backgroundPreviewUrl,
     currentWatermarkPosition,
     onTransform,
     onAllTransform,
@@ -355,24 +355,15 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         setTouchStartRotation(null);
     };
 
-    // 当背景图片文件改变时，更新背景图片的 URL 和尺寸
+    // 当背景图片预览地址改变时，更新背景图片的 URL
     useEffect(() => {
-        if (backgroundImageFile) {
-            setIsLoading(true);
-            // 释放之前的URL
-            if (backgroundImageUrl) {
-                URL.revokeObjectURL(backgroundImageUrl);
-            }
-
-            // 创建新的URL
-            const objectURL = URL.createObjectURL(backgroundImageFile);
-            setBackgroundImageUrl(objectURL);
-
-            return () => {
-                URL.revokeObjectURL(objectURL);
-            };
+        if (!backgroundPreviewUrl) {
+            setBackgroundImageUrl("");
+            return;
         }
-    }, [backgroundImageFile]);
+        setIsLoading(true);
+        setBackgroundImageUrl(backgroundPreviewUrl);
+    }, [backgroundPreviewUrl]);
 
     // 当背景图片加载完成时，计算并设置 watermarkStandardScale
     useEffect(() => {
@@ -504,7 +495,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         showGuideLines,
         backgroundImageSize,
         layerRef.current,
-        backgroundImageFile,
+        backgroundPreviewUrl,
     ]);
 
     // 初始化水印尺寸
@@ -552,13 +543,6 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             else if (pos.x === 1 && pos.y === 1) setSelectedPosition("bottomRight");
         }
     }, [currentWatermarkPosition]);
-
-    // 清理背景图片的 URL
-    useEffect(() => {
-        if (backgroundImageFile) {
-            URL.revokeObjectURL(URL.createObjectURL(backgroundImageFile));
-        }
-    }, [backgroundImageFile]);
 
     const updateWatermarkPosition = (percentX: number, percentY: number) => {
         if (!backgroundImage || !watermarkImage) return;
