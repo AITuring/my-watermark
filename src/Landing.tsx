@@ -1,7 +1,28 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import DarkToggle from "@/components/DarkToggle";
-import { Icon } from "@iconify/react";
+import {
+    Album,
+    Archive,
+    BookOpen,
+    CalendarClock,
+    Camera,
+    Combine,
+    Crop,
+    FilePenLine,
+    Focus,
+    GalleryHorizontal,
+    Images,
+    Landmark,
+    LibraryBig,
+    PanelsTopLeft,
+    Rows3,
+    ScanSearch,
+    SlidersHorizontal,
+    SquareSplitVertical,
+    Stamp,
+    type LucideIcon,
+} from "lucide-react";
 import { appCatalog } from "./app-catalog";
 import h001 from "@/assets/history/split_001.png";
 import h002 from "@/assets/history/split_002.png";
@@ -47,7 +68,7 @@ interface ToolItem {
     id: string;
     title: string;
     description: string;
-    icon: string;
+    iconComponent: LucideIcon;
     href: string;
     colorTheme: {
         bg: string;
@@ -66,6 +87,8 @@ const ToolCard = ({
     index: number;
     onClick: () => void;
 }) => {
+    const IconComponent = item.iconComponent;
+
     return (
         <motion.div
             whileHover={{ y: -4, scale: 1.005 }}
@@ -97,7 +120,7 @@ const ToolCard = ({
                 <div
                     className={`shrink-0 p-2.5 rounded-lg bg-white/80 dark:bg-stone-700/80 border border-stone-100 dark:border-stone-600 shadow-sm ${item.colorTheme.text} transition-transform duration-300 group-hover:scale-105 backdrop-blur-sm`}
                 >
-                    <Icon icon={item.icon} width={20} height={20} />
+                    <IconComponent size={20} strokeWidth={1.9} />
                 </div>
 
                 {/* 文字内容 */}
@@ -149,6 +172,28 @@ const ToolCard = ({
     );
 };
 
+const LANDING_ICON_MAP: Record<string, LucideIcon> = {
+    watermark: Stamp,
+    puzzle: PanelsTopLeft,
+    compress: Archive,
+    photo: Images,
+    "cover-collage": GalleryHorizontal,
+    "photo-exif": ScanSearch,
+    split: SquareSplitVertical,
+    crop: Crop,
+    stitch: Combine,
+    "focus-stack": Focus,
+    "artifact-ai": BookOpen,
+    wenwu: Landmark,
+    collage: Rows3,
+    rename: FilePenLine,
+    gallery: Album,
+    calendar: CalendarClock,
+    "raw-editor": SlidersHorizontal,
+    museum: LibraryBig,
+    "museum-events": CalendarClock,
+};
+
 export default function Landing() {
     const navigate = useNavigate();
     const colorThemes = [
@@ -194,7 +239,7 @@ export default function Landing() {
         id: app.id,
         title: app.label,
         description: app.description,
-        icon: app.icon,
+        iconComponent: LANDING_ICON_MAP[app.id] ?? Camera,
         href: app.url,
         colorTheme: colorThemes[index % colorThemes.length],
     }));

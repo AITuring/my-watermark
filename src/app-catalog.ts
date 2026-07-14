@@ -28,10 +28,10 @@ export const appCatalog: AppCatalogItem[] = [
     },
      {
         id: "puzzle",
-        label: "大图拼接",
+        label: "长图拼版",
         url: "/puzzle",
         icon: "tabler:layout-board-split",
-        description: "多图自由排版并导出长图，适合作品集和图文合集",
+        description: "多图自由排版后导出长图，适合作品集、教程和图文合集",
         component: () => import("./Puzzle"),
     },
     {
@@ -76,26 +76,26 @@ export const appCatalog: AppCatalogItem[] = [
     },
     {
         id: "split",
-        label: "图片分割",
+        label: "规则切图",
         url: "/split",
         icon: "material-symbols:split-vertical",
-        description: "把一张图按规则切成多张，适配社媒九宫格等场景",
+        description: "把一张图按网格或规则切成多张，适合九宫格和分片发布",
         component: () => import("./ImageSplitter"),
     },
     {
         id: "crop",
-        label: "图片裁切",
+        label: "尺寸裁切",
         url: "/crop",
         icon: "material-symbols:crop",
-        description: "支持固定像素、按比例和自由裁切，导出尺寸更可控",
+        description: "按比例、固定像素或自由框选裁切，快速得到目标尺寸",
         component: () => import("./ImageCropper"),
     },
     {
         id: "stitch",
-        label: "图片拼接",
+        label: "全景拼接",
         url: "/stitch",
         icon: "material-symbols:photo-library-outline",
-        description: "上传有重叠的照片自动全景拼接，输出一张完整大图",
+        description: "上传有重叠区域的照片自动合成为一张全景大图",
         component: () => import("./ImageStitching"),
     },
     {
@@ -148,10 +148,10 @@ export const appCatalog: AppCatalogItem[] = [
     // },
     {
         id: "collage",
-        label: "图片拼接",
+        label: "模板拼贴",
         url: "/collage",
         icon: "material-symbols:photo-library-outline",
-        description: "按模板合成多图海报，适合电商图和分享封面",
+        description: "按预设模板合成多图海报，适合电商图、封面和分享图",
         component: () => import("./ImageCollage"),
     },
     {
