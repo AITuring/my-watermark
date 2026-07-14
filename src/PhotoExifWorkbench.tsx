@@ -425,6 +425,17 @@ const getFileBaseName = (name: string): string => {
     return name.slice(0, dotIndex);
 };
 
+const getFileExtension = (name: string): string => {
+    const dotIndex = name.lastIndexOf(".");
+    if (dotIndex <= 0) return "";
+    return name.slice(dotIndex);
+};
+
+const replaceFileBaseName = (name: string, nextBaseName: string): string => {
+    const extension = getFileExtension(name);
+    return extension ? `${nextBaseName}${extension}` : nextBaseName;
+};
+
 const getFileNameValidationError = (baseName: string): string => {
     const normalized = baseName.trim();
     if (!normalized) return "图片名称不能为空";
@@ -434,6 +445,22 @@ const getFileNameValidationError = (baseName: string): string => {
 };
 
 const getEffectiveFileName = (item: PhotoExifItem): string => item.currentFileName.trim() || item.originalFileName;
+
+const exifDateTimeToLocalInputValue = (value: string): string => {
+    const match = value.trim().match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+    if (!match) return "";
+    const [, year, month, day, hour, minute, second] = match;
+    return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+};
+
+const localInputValueToExifDateTime = (value: string): string => {
+    const normalized = value.trim();
+    if (!normalized) return "";
+    const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) return normalized;
+    const [, year, month, day, hour, minute, second = "00"] = match;
+    return `${year}:${month}:${day} ${hour}:${minute}:${second}`;
+};
 
 const normalizeRational = (value: unknown): number | null => {
     if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -946,6 +973,7 @@ const PhotoExifWorkbench: React.FC = () => {
     const [items, setItems] = useState<PhotoExifItem[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [selectedImportSourceId, setSelectedImportSourceId] = useState("");
+    const [batchImportSourceId, setBatchImportSourceId] = useState("");
     const [batchEditable, setBatchEditable] = useState<EditableExif>(EMPTY_EDITABLE);
     const [batchGps, setBatchGps] = useState<EditableGps>(EMPTY_GPS);
     const [batchGpsSourceId, setBatchGpsSourceId] = useState("");
@@ -965,9 +993,15 @@ const PhotoExifWorkbench: React.FC = () => {
     const [isImportConfirmDialogOpen, setIsImportConfirmDialogOpen] = useState(false);
     const [pendingImportPersistInPlace, setPendingImportPersistInPlace] = useState(false);
     const [importScopeSelection, setImportScopeSelection] = useState<ImportScopeSelection>(DEFAULT_IMPORT_SCOPE_SELECTION);
+    const [batchImportScopeSelection, setBatchImportScopeSelection] = useState<ImportScopeSelection>(DEFAULT_IMPORT_SCOPE_SELECTION);
     const [locationSearchQuery, setLocationSearchQuery] = useState("");
+    const [batchLocationSearchQuery, setBatchLocationSearchQuery] = useState("");
     const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
     const [mapState, setMapState] = useState<{ loading: boolean; error: string | null }>({
+        loading: false,
+        error: null,
+    });
+    const [batchMapState, setBatchMapState] = useState<{ loading: boolean; error: string | null }>({
         loading: false,
         error: null,
     });
@@ -975,9 +1009,12 @@ const PhotoExifWorkbench: React.FC = () => {
     const selectedItemRef = useRef<PhotoExifItem | null>(null);
     const importSourceInputRef = useRef<HTMLInputElement>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
+    const batchMapContainerRef = useRef<HTMLDivElement>(null);
     const mapSdkRef = useRef<MapSdkLike | null>(null);
     const mapRef = useRef<MapInstanceLike | null>(null);
     const markerRef = useRef<MarkerLike | null>(null);
+    const batchMapRef = useRef<MapInstanceLike | null>(null);
+    const batchMarkerRef = useRef<MarkerLike | null>(null);
 
     useEffect(() => {
         itemsRef.current = items;
@@ -994,6 +1031,7 @@ const PhotoExifWorkbench: React.FC = () => {
     useEffect(() => () => {
         itemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
         mapRef.current?.destroy?.();
+        batchMapRef.current?.destroy?.();
     }, []);
 
     const selectedItem = useMemo(
@@ -1005,6 +1043,10 @@ const PhotoExifWorkbench: React.FC = () => {
         selectedItemRef.current = selectedItem;
         setLocationSearchQuery(selectedItem?.gpsCurrent.locationName ?? "");
     }, [selectedItem]);
+
+    useEffect(() => {
+        setBatchLocationSearchQuery(batchGps.locationName);
+    }, [batchGps.locationName]);
 
     useEffect(() => {
         if (!selectedItem) {
@@ -1033,9 +1075,14 @@ const PhotoExifWorkbench: React.FC = () => {
         () => items.filter((item) => item.id !== selectedId),
         [items, selectedId],
     );
+    const batchImportSourceOptions = useMemo(() => items, [items]);
     const selectedImportSourceItem = useMemo(
         () => items.find((item) => item.id === selectedImportSourceId) ?? null,
         [items, selectedImportSourceId],
+    );
+    const batchImportSourceItem = useMemo(
+        () => items.find((item) => item.id === batchImportSourceId) ?? null,
+        [items, batchImportSourceId],
     );
     const importScopeSummaries = useMemo(
         () =>
@@ -1055,6 +1102,14 @@ const PhotoExifWorkbench: React.FC = () => {
             .map((scope) => scope.key);
         return createImportScopeSelection(changedScopeKeys.length ? changedScopeKeys : IMPORT_SCOPE_DEFINITIONS.map((scope) => scope.key));
     }, [importScopeSummaries]);
+    const batchImportTargetItems = useMemo(
+        () => items.filter((item) => item.canWriteExif && item.id !== batchImportSourceId),
+        [items, batchImportSourceId],
+    );
+    const batchImportWritableTargetItems = useMemo(
+        () => batchImportTargetItems.filter((item) => item.fileHandle),
+        [batchImportTargetItems],
+    );
     const loadAMap = useCallback(async (): Promise<MapSdkLike> => {
         if (mapSdkRef.current) return mapSdkRef.current;
         (window as Window & { _AMapSecurityConfig?: Record<string, string> })._AMapSecurityConfig = {
@@ -1079,6 +1134,35 @@ const PhotoExifWorkbench: React.FC = () => {
         );
     }, []);
 
+    const updateItemEditable = useCallback((itemId: string, updater: (current: EditableExif) => EditableExif) => {
+        setItems((previous) =>
+            previous.map((item) => {
+                if (item.id !== itemId) return item;
+                const nextEditable = updater(item.editableCurrent);
+                return applyEditableStateToItem(item, nextEditable);
+            }),
+        );
+    }, []);
+
+    const updateItemFileName = useCallback((itemId: string, value: string) => {
+        setItems((previous) =>
+            previous.map((item) => {
+                if (item.id !== itemId) return item;
+                return {
+                    ...item,
+                    currentFileName: replaceFileBaseName(item.currentFileName, value),
+                };
+            }),
+        );
+    }, []);
+
+    const updateItemDateTimeField = useCallback((itemId: string, key: "dateTimeOriginal" | "dateTimeDigitized", value: string) => {
+        updateItemEditable(itemId, (current) => ({
+            ...current,
+            [key]: localInputValueToExifDateTime(value),
+        }));
+    }, [updateItemEditable]);
+
     const reverseGeocodePoint = useCallback(async (point: GpsPoint): Promise<string> => {
         const sdk = await loadAMap();
         return new Promise((resolve) => {
@@ -1090,6 +1174,41 @@ const PhotoExifWorkbench: React.FC = () => {
                     return;
                 }
                 resolve("");
+            });
+        });
+    }, [loadAMap]);
+
+    const searchLocationPoint = useCallback(async (keyword: string): Promise<{ point: GpsPoint; title: string } | null> => {
+        const sdk = await loadAMap();
+        return new Promise((resolve) => {
+            const placeSearch = new sdk.PlaceSearch({
+                pageSize: 8,
+                extensions: "base",
+            } as Record<string, unknown>);
+            placeSearch.search(keyword, (status, result) => {
+                if (status === "complete" && result?.poiList?.pois?.length) {
+                    const poi = result.poiList.pois[0];
+                    const pointValue = extractLngLat(poi?.location);
+                    if (pointValue) {
+                        resolve({
+                            point: pointValue,
+                            title: String(poi?.name ?? keyword).trim() || keyword,
+                        });
+                        return;
+                    }
+                }
+
+                const geocoder = new sdk.Geocoder({});
+                geocoder.getLocation(keyword, (geoStatus, geoResult) => {
+                    if (geoStatus === "complete" && geoResult?.geocodes?.length) {
+                        const geoPoint = extractLngLat(geoResult.geocodes[0]?.location);
+                        if (geoPoint) {
+                            resolve({ point: geoPoint, title: keyword });
+                            return;
+                        }
+                    }
+                    resolve(null);
+                });
             });
         });
     }, [loadAMap]);
@@ -1118,6 +1237,29 @@ const PhotoExifWorkbench: React.FC = () => {
             locationName,
         }));
     }, [reverseGeocodePoint, updateItemGps]);
+
+    const applyBatchGpsPoint = useCallback(async (point: GpsPoint, resolveAddress = false) => {
+        let locationName = batchGps.locationName;
+        if (resolveAddress) {
+            try {
+                const resolved = await reverseGeocodePoint(point);
+                if (resolved) {
+                    locationName = resolved;
+                    setBatchLocationSearchQuery(resolved);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        setBatchGpsSourceId("");
+        setBatchGps({
+            enabled: true,
+            lat: formatGpsValue(point.lat),
+            lng: formatGpsValue(point.lng),
+            locationName,
+        });
+    }, [batchGps.locationName, reverseGeocodePoint]);
 
     useEffect(() => {
         const gpsPoint = selectedItem ? editableGpsToPoint(selectedItem.gpsCurrent) : null;
@@ -1179,6 +1321,68 @@ const PhotoExifWorkbench: React.FC = () => {
             cancelled = true;
         };
     }, [applySelectedGpsPoint, loadAMap, selectedItem]);
+
+    useEffect(() => {
+        const gpsPoint = editableGpsToPoint({
+            ...batchGps,
+            enabled: true,
+        });
+        if (!batchMapContainerRef.current) return;
+
+        let cancelled = false;
+        const renderBatchMap = async () => {
+            setBatchMapState({ loading: true, error: null });
+            try {
+                const sdk = await loadAMap();
+                if (cancelled || !batchMapContainerRef.current) return;
+
+                if (!batchMapRef.current) {
+                    batchMapRef.current = new sdk.Map(batchMapContainerRef.current, {
+                        zoom: 15,
+                        center: [gpsPoint?.lng ?? DEFAULT_MAP_CENTER.lng, gpsPoint?.lat ?? DEFAULT_MAP_CENTER.lat],
+                    });
+                    batchMapRef.current.on("click", (event: any) => {
+                        const point = extractLngLat(event?.lnglat);
+                        if (point) {
+                            void applyBatchGpsPoint(point, true);
+                        }
+                    });
+                }
+
+                batchMapRef.current.clearMap();
+                batchMarkerRef.current = null;
+                batchMapRef.current.setZoomAndCenter(15, [gpsPoint?.lng ?? DEFAULT_MAP_CENTER.lng, gpsPoint?.lat ?? DEFAULT_MAP_CENTER.lat]);
+                if (gpsPoint) {
+                    const marker = new sdk.Marker({
+                        position: [gpsPoint.lng, gpsPoint.lat],
+                        title: batchGps.locationName || "批量 GPS 位置",
+                        draggable: true,
+                    } as Record<string, unknown>);
+                    marker.on("dragend", (event: any) => {
+                        const point = extractLngLat(event?.lnglat ?? event?.target?.getPosition?.());
+                        if (point) {
+                            void applyBatchGpsPoint(point, true);
+                        }
+                    });
+                    batchMarkerRef.current = marker;
+                    batchMapRef.current.add(marker);
+                }
+                if (!cancelled) {
+                    setBatchMapState({ loading: false, error: null });
+                }
+            } catch (error) {
+                console.error(error);
+                if (!cancelled) {
+                    setBatchMapState({ loading: false, error: "批量地图加载失败，请稍后重试" });
+                }
+            }
+        };
+
+        void renderBatchMap();
+        return () => {
+            cancelled = true;
+        };
+    }, [applyBatchGpsPoint, batchGps, loadAMap]);
 
     const appendItems = useCallback((nextItems: PhotoExifItem[]) => {
         if (!nextItems.length) return;
@@ -1394,9 +1598,19 @@ const PhotoExifWorkbench: React.FC = () => {
         items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
         setItems([]);
         setSelectedId(null);
+        setBatchImportSourceId("");
         setBatchEditable(EMPTY_EDITABLE);
         setDirectoryHandle(null);
         toast.success("已清空图片列表");
+    };
+
+    const setSelectedAsBatchImportSource = () => {
+        if (!selectedItem) {
+            toast.error("请先在左侧选择一张图片");
+            return;
+        }
+        setBatchImportSourceId(selectedItem.id);
+        toast.success("已将当前图片设为批量来源图");
     };
 
     const updateCopyrightPresetField = (key: keyof CopyrightPreset, value: string) => {
@@ -1507,6 +1721,25 @@ const PhotoExifWorkbench: React.FC = () => {
         });
     };
 
+    const updateSelectedFileName = (value: string) => {
+        if (!selectedItem) return;
+        updateItemFileName(selectedItem.id, value);
+    };
+
+    const updateSelectedDateTimeField = (key: "dateTimeOriginal" | "dateTimeDigitized", value: string) => {
+        if (!selectedItem) return;
+        updateItemDateTimeField(selectedItem.id, key, value);
+    };
+
+    const updateBatchEditableField = (key: EditableExifKey, value: string) => {
+        setBatchEditable((previous) => ({
+            ...previous,
+            [key]: key === "dateTimeOriginal" || key === "dateTimeDigitized"
+                ? localInputValueToExifDateTime(value)
+                : value,
+        }));
+    };
+
     const updateBatchGpsField = (key: "lat" | "lng" | "locationName", value: string) => {
         setBatchGps((previous) => ({
             ...previous,
@@ -1536,7 +1769,55 @@ const PhotoExifWorkbench: React.FC = () => {
     const clearBatchGpsConfig = () => {
         setBatchGps({ ...EMPTY_GPS });
         setBatchGpsSourceId("");
+        setBatchLocationSearchQuery("");
         toast.success("已清空批量 GPS 配置");
+    };
+
+    const applyBatchSourceImport = async (persistInPlace = false) => {
+        if (!batchImportSourceId) {
+            toast.error("请先选择一张批量来源图");
+            return;
+        }
+        if (!Object.values(batchImportScopeSelection).some(Boolean)) {
+            toast.error("请至少选择一类要导入的信息");
+            return;
+        }
+        const sourceItem = items.find((item) => item.id === batchImportSourceId);
+        if (!sourceItem) {
+            toast.error("批量来源图不存在，请重新选择");
+            return;
+        }
+        if (!batchImportTargetItems.length) {
+            toast.error("没有可导入的目标 JPEG");
+            return;
+        }
+
+        const stagedItems = batchImportTargetItems.map((item) => applySourceMetadataToItem(item, sourceItem, batchImportScopeSelection));
+        const stagedItemsMap = new Map(stagedItems.map((item) => [item.id, item]));
+
+        if (!persistInPlace) {
+            setItems((previous) => previous.map((item) => stagedItemsMap.get(item.id) ?? item));
+            toast.success(`已将来源图信息导入到 ${stagedItems.length} 张 JPEG`);
+            return;
+        }
+
+        const writableItems = stagedItems.filter((item) => item.fileHandle);
+        if (!writableItems.length) {
+            toast.error("当前没有已授权原文件的目标 JPEG，无法批量原地写回");
+            return;
+        }
+
+        setIsOverwritingInPlace(true);
+        try {
+            const refreshedItems = await overwriteItemsInPlace(writableItems);
+            setItems((previous) => previous.map((item) => refreshedItems.get(item.id) ?? item));
+            toast.success(`已导入来源图信息并原地写回 ${refreshedItems.size} 张 JPEG`);
+        } catch (error) {
+            console.error(error);
+            toast.error(error instanceof Error ? error.message : "批量导入并写回失败，请重试");
+        } finally {
+            setIsOverwritingInPlace(false);
+        }
     };
 
     const clearSelectedGps = () => {
@@ -1564,38 +1845,7 @@ const PhotoExifWorkbench: React.FC = () => {
 
         setIsSearchingLocation(true);
         try {
-            const sdk = await loadAMap();
-            const point = await new Promise<{ point: GpsPoint; title: string } | null>((resolve) => {
-                const placeSearch = new sdk.PlaceSearch({
-                    pageSize: 8,
-                    extensions: "base",
-                } as Record<string, unknown>);
-                placeSearch.search(keyword, (status, result) => {
-                    if (status === "complete" && result?.poiList?.pois?.length) {
-                        const poi = result.poiList.pois[0];
-                        const pointValue = extractLngLat(poi?.location);
-                        if (pointValue) {
-                            resolve({
-                                point: pointValue,
-                                title: String(poi?.name ?? keyword).trim() || keyword,
-                            });
-                            return;
-                        }
-                    }
-
-                    const geocoder = new sdk.Geocoder({});
-                    geocoder.getLocation(keyword, (geoStatus, geoResult) => {
-                        if (geoStatus === "complete" && geoResult?.geocodes?.length) {
-                            const geoPoint = extractLngLat(geoResult.geocodes[0]?.location);
-                            if (geoPoint) {
-                                resolve({ point: geoPoint, title: keyword });
-                                return;
-                            }
-                        }
-                        resolve(null);
-                    });
-                });
-            });
+            const point = await searchLocationPoint(keyword);
 
             if (!point) {
                 toast.error("未找到该地点，请尝试更精确的名称");
@@ -1613,6 +1863,38 @@ const PhotoExifWorkbench: React.FC = () => {
         } catch (error) {
             console.error(error);
             toast.error("地点搜索失败，请稍后重试");
+        } finally {
+            setIsSearchingLocation(false);
+        }
+    };
+
+    const searchBatchLocation = async () => {
+        const keyword = batchLocationSearchQuery.trim();
+        if (!keyword) {
+            toast.error("请输入批量 GPS 的地点名称");
+            return;
+        }
+
+        setIsSearchingLocation(true);
+        try {
+            const point = await searchLocationPoint(keyword);
+            if (!point) {
+                toast.error("未找到该地点，请尝试更精确的名称");
+                return;
+            }
+
+            setBatchGpsSourceId("");
+            setBatchGps({
+                enabled: true,
+                lat: formatGpsValue(point.point.lat),
+                lng: formatGpsValue(point.point.lng),
+                locationName: point.title,
+            });
+            setBatchLocationSearchQuery(point.title);
+            toast.success("已根据地点名称更新批量 GPS 坐标");
+        } catch (error) {
+            console.error(error);
+            toast.error("批量地点搜索失败，请稍后重试");
         } finally {
             setIsSearchingLocation(false);
         }
@@ -1896,9 +2178,14 @@ const PhotoExifWorkbench: React.FC = () => {
     };
 
     const selectedGpsPoint = selectedItem ? editableGpsToPoint(selectedItem.gpsCurrent) : null;
+    const selectedFileExtension = selectedItem ? getFileExtension(selectedItem.currentFileName) : "";
+    const selectedFileNameValue = selectedItem ? getFileBaseName(selectedItem.currentFileName) : "";
+    const selectedFileNameError = selectedItem ? getFileNameValidationError(selectedFileNameValue) : "";
+    const selectedDateTimeOriginalValue = selectedItem ? exifDateTimeToLocalInputValue(selectedItem.editableCurrent.dateTimeOriginal) : "";
+    const selectedDateTimeDigitizedValue = selectedItem ? exifDateTimeToLocalInputValue(selectedItem.editableCurrent.dateTimeDigitized) : "";
 
     const amapLink = selectedGpsPoint
-        ? `https://uri.amap.com/marker?position=${selectedGpsPoint.lng},${selectedGpsPoint.lat}&name=${encodeURIComponent(selectedItem?.file.name ?? "拍摄位置")}`
+        ? `https://uri.amap.com/marker?position=${selectedGpsPoint.lng},${selectedGpsPoint.lat}&name=${encodeURIComponent(selectedItem ? getEffectiveFileName(selectedItem) : "拍摄位置")}`
         : "#";
     const googleLink = selectedGpsPoint
         ? `https://www.google.com/maps?q=${selectedGpsPoint.lat},${selectedGpsPoint.lng}`
@@ -2224,6 +2511,65 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         </div>
 
                                                         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                            <div>
+                                                                <h3 className="text-lg font-semibold">文件名与时间</h3>
+                                                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                                    可直接修改导出/写回后的文件名，以及拍摄时间和数字化时间
+                                                                </p>
+                                                            </div>
+                                                            <div className="grid gap-4 xl:grid-cols-2">
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="selected-file-name">文件名</Label>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Input
+                                                                            id="selected-file-name"
+                                                                            value={selectedFileNameValue}
+                                                                            placeholder="输入导出或写回时使用的文件名"
+                                                                            disabled={!selectedItem.canWriteExif}
+                                                                            onChange={(event) => updateSelectedFileName(event.target.value)}
+                                                                        />
+                                                                        {selectedFileExtension && (
+                                                                            <div className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                                                                                {selectedFileExtension}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className={`text-xs ${selectedFileNameError ? "text-rose-500" : "text-slate-500 dark:text-slate-400"}`}>
+                                                                        {selectedFileNameError || `留空或非法名称会在保存时拦截，原始文件名：${selectedItem.originalFileName}`}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="selected-date-time-original">拍摄时间</Label>
+                                                                    <Input
+                                                                        id="selected-date-time-original"
+                                                                        type="datetime-local"
+                                                                        step="1"
+                                                                        value={selectedDateTimeOriginalValue}
+                                                                        disabled={!selectedItem.canWriteExif}
+                                                                        onChange={(event) => updateSelectedDateTimeField("dateTimeOriginal", event.target.value)}
+                                                                    />
+                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                        会写回 `DateTimeOriginal`，格式自动转换为 EXIF 时间
+                                                                    </p>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="selected-date-time-digitized">数字化时间</Label>
+                                                                    <Input
+                                                                        id="selected-date-time-digitized"
+                                                                        type="datetime-local"
+                                                                        step="1"
+                                                                        value={selectedDateTimeDigitizedValue}
+                                                                        disabled={!selectedItem.canWriteExif}
+                                                                        onChange={(event) => updateSelectedDateTimeField("dateTimeDigitized", event.target.value)}
+                                                                    />
+                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                        可选；会写回 `DateTimeDigitized`
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
                                                             <input
                                                                 ref={importSourceInputRef}
                                                                 type="file"
@@ -2514,6 +2860,117 @@ const PhotoExifWorkbench: React.FC = () => {
                                         <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
                                             <CardHeader>
                                                 <CardTitle className="flex items-center gap-2">
+                                                    <Upload className="w-5 h-5" />
+                                                    批量来源图导入
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    选择一张来源图后，可把它的 EXIF 与 GPS 按范围导入到其它全部 JPEG
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="pt-0 space-y-6">
+                                                <div className="flex flex-wrap gap-2">
+                                                    <Button variant="outline" className={secondaryButtonClass} onClick={setSelectedAsBatchImportSource}>
+                                                        从当前图片设为来源图
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className={secondaryButtonClass}
+                                                        onClick={() => setBatchImportScopeSelection(createImportScopeSelection(["gps"]))}
+                                                    >
+                                                        只导入GPS
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className={secondaryButtonClass}
+                                                        onClick={() => setBatchImportScopeSelection(createImportScopeSelection(["time"]))}
+                                                    >
+                                                        只导入时间
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className={secondaryButtonClass}
+                                                        onClick={() => setBatchImportScopeSelection(DEFAULT_IMPORT_SCOPE_SELECTION)}
+                                                    >
+                                                        恢复默认勾选
+                                                    </Button>
+                                                </div>
+
+                                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="batch-import-source">来源图片</Label>
+                                                        <select
+                                                            id="batch-import-source"
+                                                            title="选择批量来源图片"
+                                                            aria-label="选择批量来源图片"
+                                                            value={batchImportSourceId}
+                                                            onChange={(event) => setBatchImportSourceId(event.target.value)}
+                                                            className="flex h-10 w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm ring-offset-background dark:border-slate-800"
+                                                        >
+                                                            <option value="">请选择来源图片</option>
+                                                            {batchImportSourceOptions.map((item) => (
+                                                                <option key={item.id} value={item.id}>
+                                                                    {getEffectiveFileName(item)}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
+                                                        <p>目标 JPEG：{batchImportTargetItems.length} 张</p>
+                                                        <p>可原地写回：{batchImportWritableTargetItems.length} 张</p>
+                                                        <p>当前来源图：{batchImportSourceItem ? getEffectiveFileName(batchImportSourceItem) : "未选择"}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                                    {IMPORT_SCOPE_DEFINITIONS.map((scope) => (
+                                                        <label
+                                                            key={`batch-scope-${scope.key}`}
+                                                            className={`flex cursor-pointer gap-3 rounded-2xl border p-4 transition-colors ${
+                                                                batchImportScopeSelection[scope.key]
+                                                                    ? "border-blue-500 bg-blue-50/70 dark:border-blue-500/70 dark:bg-blue-950/20"
+                                                                    : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
+                                                            }`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                                checked={batchImportScopeSelection[scope.key]}
+                                                                onChange={(event) =>
+                                                                    setBatchImportScopeSelection((previous) => ({
+                                                                        ...previous,
+                                                                        [scope.key]: event.target.checked,
+                                                                    }))
+                                                                }
+                                                            />
+                                                            <div className="min-w-0 space-y-1">
+                                                                <p className="text-sm font-medium">{scope.label}</p>
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">{scope.description}</p>
+                                                            </div>
+                                                        </label>
+                                                    ))}
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                                                    <Button className={accentButtonClass} size="sm" onClick={() => void applyBatchSourceImport(false)}>
+                                                        导入到全部 JPEG
+                                                    </Button>
+                                                    <Button
+                                                        className={dangerButtonClass}
+                                                        size="sm"
+                                                        onClick={() => void applyBatchSourceImport(true)}
+                                                        disabled={isOverwritingInPlace}
+                                                    >
+                                                        <AlertCircle className="w-4 h-4 mr-1" />
+                                                        <Save className="w-4 h-4 mr-2" />
+                                                        {isOverwritingInPlace ? "写回中..." : "导入并原地写回已授权 JPEG"}
+                                                    </Button>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2">
                                                     <Files className="w-5 h-5" />
                                                     批量统一修改
                                                 </CardTitle>
@@ -2538,15 +2995,21 @@ const PhotoExifWorkbench: React.FC = () => {
                                                             <Label htmlFor={`batch-${field.key}`}>{field.label}</Label>
                                                             <Input
                                                                 id={`batch-${field.key}`}
-                                                                value={batchEditable[field.key]}
-                                                                placeholder={field.placeholder}
-                                                                onChange={(event) =>
-                                                                    setBatchEditable((previous) => ({
-                                                                        ...previous,
-                                                                        [field.key]: event.target.value,
-                                                                    }))
+                                                                type={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? "datetime-local" : undefined}
+                                                                step={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? "1" : undefined}
+                                                                value={
+                                                                    field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized"
+                                                                        ? exifDateTimeToLocalInputValue(batchEditable[field.key])
+                                                                        : batchEditable[field.key]
                                                                 }
+                                                                placeholder={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? undefined : field.placeholder}
+                                                                onChange={(event) => updateBatchEditableField(field.key, event.target.value)}
                                                             />
+                                                            {(field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized") && (
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                    自动转换为 EXIF 时间格式后批量应用
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2598,6 +3061,36 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         </select>
                                                     </div>
 
+                                                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                                                        <div>
+                                                            <div className="flex flex-col gap-3 sm:flex-row">
+                                                                <Input
+                                                                    value={batchLocationSearchQuery}
+                                                                    placeholder="搜索批量地点，例如 上海外滩 / 故宫博物院"
+                                                                    disabled={isSearchingLocation}
+                                                                    onChange={(event) => setBatchLocationSearchQuery(event.target.value)}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === "Enter") {
+                                                                            event.preventDefault();
+                                                                            void searchBatchLocation();
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <Button
+                                                                    className={primaryButtonClass}
+                                                                    onClick={() => void searchBatchLocation()}
+                                                                    disabled={isSearchingLocation}
+                                                                >
+                                                                    <Search className="w-4 h-4 mr-2" />
+                                                                    {isSearchingLocation ? "搜索中..." : "搜索地点"}
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 lg:justify-end">
+                                                            {batchGps.locationName || "未设置地点名称"}
+                                                        </div>
+                                                    </div>
+
                                                     <div className="grid gap-4 sm:grid-cols-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor="batch-gps-lat">批量纬度</Label>
@@ -2628,9 +3121,22 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         </div>
                                                     </div>
 
+                                                    <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                                                        <div ref={batchMapContainerRef} className="h-[280px] w-full bg-slate-100 dark:bg-slate-900" />
+                                                    </div>
+                                                    {batchMapState.loading && (
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400">批量地图加载中...</p>
+                                                    )}
+                                                    {batchMapState.error && (
+                                                        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                                                            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                                            {batchMapState.error}
+                                                        </div>
+                                                    )}
+
                                                     <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-3 text-xs text-slate-500 dark:text-slate-400 space-y-1">
                                                         <p>1. 选了“同步来源照片”后，批量应用时会优先使用该照片的 GPS。</p>
-                                                        <p>2. 未选来源时，使用你手动填写的经纬度和地点名称。</p>
+                                                        <p>2. 未选来源时，可手动填写、搜索地点，或直接点击地图和拖拽标记设置 GPS。</p>
                                                         <p>3. 打开“空值也覆盖”且 GPS 配置为空时，会批量清除全部 JPEG 的 GPS。</p>
                                                     </div>
                                                 </div>
@@ -2668,10 +3174,10 @@ const PhotoExifWorkbench: React.FC = () => {
                                             <CardHeader>
                                                 <CardTitle className="flex items-center gap-2">
                                                     <FileImage className="w-5 h-5" />
-                                                    批量概览
+                                                    批量逐张编辑与概览
                                                 </CardTitle>
                                                 <CardDescription>
-                                                    方便快速筛出可写回文件、已修改文件、已授权目录文件和包含位置信息的图片
+                                                    支持逐张调整文件名和时间，并快速查看哪些图片可写回、已修改或包含位置信息
                                                 </CardDescription>
                                             </CardHeader>
                                             <CardContent className="pt-0">
@@ -2718,6 +3224,64 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                     <div>
                                                                         <p className="text-slate-500 dark:text-slate-400">原地改写</p>
                                                                         <p className="mt-1 break-words">{item.fileHandle && item.canWriteExif ? "支持" : "不支持"}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                                    <div>
+                                                                        <p className="text-sm font-medium">逐张编辑</p>
+                                                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                                            这里的文件名与时间修改会直接进入批量导出和批量原地写回
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="grid gap-4 lg:grid-cols-3">
+                                                                        <div className="space-y-2">
+                                                                            <Label htmlFor={`batch-item-file-name-${item.id}`}>文件名</Label>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Input
+                                                                                    id={`batch-item-file-name-${item.id}`}
+                                                                                    value={getFileBaseName(item.currentFileName)}
+                                                                                    placeholder="输入导出或写回时使用的文件名"
+                                                                                    disabled={!item.canWriteExif}
+                                                                                    onChange={(event) => updateItemFileName(item.id, event.target.value)}
+                                                                                />
+                                                                                {getFileExtension(item.currentFileName) && (
+                                                                                    <div className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                                                                                        {getFileExtension(item.currentFileName)}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                            <p className={`text-xs ${getFileNameValidationError(getFileBaseName(item.currentFileName)) ? "text-rose-500" : "text-slate-500 dark:text-slate-400"}`}>
+                                                                                {getFileNameValidationError(getFileBaseName(item.currentFileName)) || `原始文件名：${item.originalFileName}`}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="space-y-2">
+                                                                            <Label htmlFor={`batch-item-date-time-original-${item.id}`}>拍摄时间</Label>
+                                                                            <Input
+                                                                                id={`batch-item-date-time-original-${item.id}`}
+                                                                                type="datetime-local"
+                                                                                step="1"
+                                                                                value={exifDateTimeToLocalInputValue(item.editableCurrent.dateTimeOriginal)}
+                                                                                disabled={!item.canWriteExif}
+                                                                                onChange={(event) => updateItemDateTimeField(item.id, "dateTimeOriginal", event.target.value)}
+                                                                            />
+                                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                                写回 `DateTimeOriginal`
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="space-y-2">
+                                                                            <Label htmlFor={`batch-item-date-time-digitized-${item.id}`}>数字化时间</Label>
+                                                                            <Input
+                                                                                id={`batch-item-date-time-digitized-${item.id}`}
+                                                                                type="datetime-local"
+                                                                                step="1"
+                                                                                value={exifDateTimeToLocalInputValue(item.editableCurrent.dateTimeDigitized)}
+                                                                                disabled={!item.canWriteExif}
+                                                                                onChange={(event) => updateItemDateTimeField(item.id, "dateTimeDigitized", event.target.value)}
+                                                                            />
+                                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                                写回 `DateTimeDigitized`
+                                                                            </p>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
