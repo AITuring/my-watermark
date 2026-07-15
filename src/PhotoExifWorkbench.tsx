@@ -190,6 +190,85 @@ interface DirectoryImageEntry {
     file: File;
 }
 
+const PREVIEW_MAX_EDGE = 256;
+
+const yieldToMainThread = (): Promise<void> =>
+    new Promise((resolve) => {
+        window.setTimeout(resolve, 0);
+    });
+
+const createPreviewUrl = async (file: File): Promise<string> => {
+    if (typeof window === "undefined" || typeof createImageBitmap !== "function") {
+        return URL.createObjectURL(file);
+    }
+
+    try {
+        const bitmap = await createImageBitmap(file, {
+            resizeWidth: PREVIEW_MAX_EDGE,
+            resizeHeight: PREVIEW_MAX_EDGE,
+            resizeQuality: "high",
+        });
+
+        try {
+            const scale = Math.min(1, PREVIEW_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+            const width = Math.max(1, Math.round(bitmap.width * scale));
+            const height = Math.max(1, Math.round(bitmap.height * scale));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+
+            const context = canvas.getContext("2d");
+            if (!context) {
+                return URL.createObjectURL(file);
+            }
+
+            context.drawImage(bitmap, 0, 0, width, height);
+            const previewBlob = await new Promise<Blob | null>((resolve) => {
+                canvas.toBlob(resolve, "image/jpeg", 0.82);
+            });
+            if (!previewBlob) {
+                return URL.createObjectURL(file);
+            }
+
+            return URL.createObjectURL(previewBlob);
+        } finally {
+            bitmap.close();
+        }
+    } catch (error) {
+        console.warn("生成缩略图失败，回退为原图预览", file.name, error);
+        return URL.createObjectURL(file);
+    }
+};
+
+const buildPhotoExifItemsSequentially = async (
+    entries: Array<{
+        file: File;
+        fileHandle?: FileSystemFileHandle | null;
+        source?: PhotoExifItem["source"];
+    }>,
+    options: {
+        copyrightPreset: CopyrightPreset;
+        copyrightPresetEnabled: boolean;
+    },
+): Promise<PhotoExifItem[]> => {
+    const nextItems: PhotoExifItem[] = [];
+
+    for (const [index, entry] of entries.entries()) {
+        nextItems.push(await buildPhotoExifItem(entry.file, {
+            fileHandle: entry.fileHandle,
+            source: entry.source,
+            copyrightPreset: options.copyrightPreset,
+            copyrightPresetEnabled: options.copyrightPresetEnabled,
+        }));
+
+        if (index < entries.length - 1) {
+            await yieldToMainThread();
+        }
+    }
+
+    return nextItems;
+};
+
 interface PiexifData {
     [key: string]: unknown;
     "0th": Record<number, unknown>;
@@ -947,6 +1026,7 @@ const buildPhotoExifItem = async (
         console.warn("读取 EXIF 失败", file.name, error);
     }
 
+    const previewUrl = await createPreviewUrl(file);
     const gpsPoint = parseGpsPoint(tags);
     const editable = buildEditable(tags);
     const editableGps = buildEditableGps(gpsPoint);
@@ -955,7 +1035,7 @@ const buildPhotoExifItem = async (
         file,
         originalFileName: file.name,
         currentFileName: file.name,
-        previewUrl: URL.createObjectURL(file),
+        previewUrl,
         canWriteExif: isWritableJpeg(file),
         summary: buildSummary(file, tags, gpsPoint),
         editableOriginal: editable,
@@ -1393,11 +1473,15 @@ const PhotoExifWorkbench: React.FC = () => {
     const handleFiles = useCallback(async (files: File[], options?: { selectAsImportSource?: boolean }) => {
         if (!files.length) return;
         try {
-            const nextItems = await Promise.all(
-                files.map((file) => buildPhotoExifItem(file, {
+            const nextItems = await buildPhotoExifItemsSequentially(
+                files.map((file) => ({
+                    file,
+                    source: "dropzone" as const,
+                })),
+                {
                     copyrightPreset,
                     copyrightPresetEnabled,
-                })),
+                },
             );
             appendItems(nextItems);
             if (options?.selectAsImportSource) {
@@ -1434,15 +1518,17 @@ const PhotoExifWorkbench: React.FC = () => {
             }
 
             const entries = await listDirectoryImageEntries(handle);
-            const nextItems: PhotoExifItem[] = [];
-            for (const { fileHandle, file } of entries) {
-                nextItems.push(await buildPhotoExifItem(file, {
+            const nextItems = await buildPhotoExifItemsSequentially(
+                entries.map(({ fileHandle, file }) => ({
+                    file,
                     fileHandle,
-                    source: "directory",
+                    source: "directory" as const,
+                })),
+                {
                     copyrightPreset,
                     copyrightPresetEnabled,
-                }));
-            }
+                },
+            );
 
             setDirectoryHandle(handle);
             appendItems(nextItems);
