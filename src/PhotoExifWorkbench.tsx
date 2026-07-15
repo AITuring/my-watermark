@@ -12,7 +12,6 @@ import {
     ChevronDown,
     ChevronRight,
     Download,
-    ExternalLink,
     FileImage,
     Files,
     FolderOpen,
@@ -103,6 +102,24 @@ interface ImportDiffRow {
     sourceValue: string;
     changed: boolean;
     willClearTarget: boolean;
+}
+
+type RenameRuleType = "delete" | "add_prefix" | "add_suffix";
+
+interface RenameRule {
+    id: string;
+    type: RenameRuleType;
+    value: string;
+}
+
+interface RenamePreviewRow {
+    itemId: string;
+    originalName: string;
+    nextName: string;
+    changed: boolean;
+    validationError: string;
+    duplicate: boolean;
+    canApply: boolean;
 }
 
 const cloneEditableExif = (editable: EditableExif): EditableExif => ({
@@ -545,6 +562,11 @@ const IMPORT_SCOPE_DEFINITIONS: Array<{ key: ImportScopeKey; label: string; desc
     { key: "copyright", label: "版权", description: "导入作者和版权声明" },
     { key: "description", label: "图片说明", description: "导入图片描述" },
 ];
+const RENAME_RULE_DEFINITIONS: Array<{ type: RenameRuleType; label: string; placeholder: string }> = [
+    { type: "delete", label: "删除文本", placeholder: "例如 IMG_ / DSC_" },
+    { type: "add_prefix", label: "添加前缀", placeholder: "例如 旅行_" },
+    { type: "add_suffix", label: "添加后缀", placeholder: "例如 _精选" },
+];
 const IMPORT_SCOPE_EDITABLE_FIELDS: Record<Exclude<ImportScopeKey, "gps">, EditableExifKey[]> = {
     core: ["make", "model", "lensModel", "software", "focalLength", "fNumber", "exposureTime", "iso"],
     time: ["dateTimeOriginal", "dateTimeDigitized"],
@@ -682,6 +704,24 @@ const getFileExtension = (name: string): string => {
 const replaceFileBaseName = (name: string, nextBaseName: string): string => {
     const extension = getFileExtension(name);
     return extension ? `${nextBaseName}${extension}` : nextBaseName;
+};
+
+const applyRenameRulesToFileName = (name: string, rules: RenameRule[]): string => {
+    if (!rules.length) return name;
+    const extension = getFileExtension(name);
+    let baseName = getFileBaseName(name);
+    rules.forEach((rule) => {
+        if (rule.type === "delete") {
+            baseName = baseName.split(rule.value).join("");
+            return;
+        }
+        if (rule.type === "add_prefix") {
+            baseName = `${rule.value}${baseName}`;
+            return;
+        }
+        baseName = `${baseName}${rule.value}`;
+    });
+    return `${baseName}${extension}`;
 };
 
 const getFileNameValidationError = (baseName: string): string => {
@@ -1236,6 +1276,13 @@ const PhotoExifWorkbench: React.FC = () => {
     const [batchEditable, setBatchEditable] = useState<EditableExif>(EMPTY_EDITABLE);
     const [batchGps, setBatchGps] = useState<EditableGps>(EMPTY_GPS);
     const [batchGpsSourceId, setBatchGpsSourceId] = useState("");
+    const [renameRules, setRenameRules] = useState<RenameRule[]>([]);
+    const [renameRuleInputs, setRenameRuleInputs] = useState<Record<RenameRuleType, string>>({
+        delete: "",
+        add_prefix: "",
+        add_suffix: "",
+    });
+    const [renameFilterKeyword, setRenameFilterKeyword] = useState("");
     const [batchOverwriteEmpty, setBatchOverwriteEmpty] = useState(false);
     const [isCopyrightPresetExpanded, setIsCopyrightPresetExpanded] = useState(false);
     const [copyrightPreset, setCopyrightPreset] = useState<CopyrightPreset>(() => readStoredCopyrightPreset());
@@ -1368,6 +1415,53 @@ const PhotoExifWorkbench: React.FC = () => {
     const batchImportWritableTargetItems = useMemo(
         () => batchImportTargetItems.filter((item) => item.canOverwriteInPlace && item.fileHandle),
         [batchImportTargetItems],
+    );
+    const renamePreviewRows = useMemo<RenamePreviewRow[]>(() => {
+        const normalizedKeyword = renameFilterKeyword.trim().toLowerCase();
+        const rows = items
+            .filter((item) => item.canWriteExif)
+            .filter((item) => {
+                if (!normalizedKeyword) return true;
+                return getEffectiveFileName(item).toLowerCase().includes(normalizedKeyword);
+            })
+            .map((item) => {
+                const originalName = getEffectiveFileName(item);
+                const nextName = applyRenameRulesToFileName(originalName, renameRules);
+                return {
+                    itemId: item.id,
+                    originalName,
+                    nextName,
+                    changed: originalName !== nextName,
+                    validationError: getFileNameValidationError(getFileBaseName(nextName)),
+                };
+            });
+        const nextNameCounts = rows.reduce<Map<string, number>>((map, row) => {
+            if (!row.changed || row.validationError) return map;
+            const key = row.nextName.toLowerCase();
+            map.set(key, (map.get(key) ?? 0) + 1);
+            return map;
+        }, new Map());
+
+        return rows.map((row) => {
+            const duplicate = row.changed && !row.validationError && (nextNameCounts.get(row.nextName.toLowerCase()) ?? 0) > 1;
+            return {
+                ...row,
+                duplicate,
+                canApply: row.changed && !row.validationError && !duplicate,
+            };
+        });
+    }, [items, renameFilterKeyword, renameRules]);
+    const renameChangedCount = useMemo(
+        () => renamePreviewRows.filter((row) => row.changed).length,
+        [renamePreviewRows],
+    );
+    const renameApplicableCount = useMemo(
+        () => renamePreviewRows.filter((row) => row.canApply).length,
+        [renamePreviewRows],
+    );
+    const renameBlockedCount = useMemo(
+        () => renamePreviewRows.filter((row) => row.changed && !row.canApply).length,
+        [renamePreviewRows],
     );
     const loadAMap = useCallback(async (): Promise<MapSdkLike> => {
         if (mapSdkRef.current) return mapSdkRef.current;
@@ -1865,6 +1959,14 @@ const PhotoExifWorkbench: React.FC = () => {
         setSelectedId(null);
         setBatchImportSourceId("");
         setBatchEditable(EMPTY_EDITABLE);
+        setBatchGps(EMPTY_GPS);
+        setRenameRules([]);
+        setRenameRuleInputs({
+            delete: "",
+            add_prefix: "",
+            add_suffix: "",
+        });
+        setRenameFilterKeyword("");
         setDirectoryHandle(null);
         toast.success("已清空图片列表");
     };
@@ -2003,6 +2105,82 @@ const PhotoExifWorkbench: React.FC = () => {
                 ? localInputValueToExifDateTime(value)
                 : value,
         }));
+    };
+
+    const updateRenameRuleInput = (type: RenameRuleType, value: string) => {
+        setRenameRuleInputs((previous) => ({
+            ...previous,
+            [type]: value,
+        }));
+    };
+
+    const submitRenameRule = (type: RenameRuleType) => {
+        const nextValue = renameRuleInputs[type].trim();
+        if (!nextValue) return;
+        setRenameRules((previous) => [
+            ...previous,
+            {
+                id: Math.random().toString(36).slice(2, 11),
+                type,
+                value: nextValue,
+            },
+        ]);
+        setRenameRuleInputs((previous) => ({
+            ...previous,
+            [type]: "",
+        }));
+    };
+
+    const removeRenameRule = (ruleId: string) => {
+        setRenameRules((previous) => previous.filter((rule) => rule.id !== ruleId));
+    };
+
+    const clearRenameRules = () => {
+        setRenameRules([]);
+        setRenameRuleInputs({
+            delete: "",
+            add_prefix: "",
+            add_suffix: "",
+        });
+        setRenameFilterKeyword("");
+        toast.success("已清空批量改名规则");
+    };
+
+    const applyRenameRulesToWorkbench = () => {
+        if (!renameRules.length) {
+            toast.error("请先添加至少一条改名规则");
+            return;
+        }
+        if (!renamePreviewRows.length) {
+            toast.error("没有匹配到可改名的图片");
+            return;
+        }
+
+        const previewMap = new Map(renamePreviewRows.map((row) => [row.itemId, row]));
+        let affected = 0;
+        let blocked = 0;
+        setItems((previous) =>
+            previous.map((item) => {
+                const preview = previewMap.get(item.id);
+                if (!preview || !item.canWriteExif) return item;
+                if (!preview.canApply) {
+                    if (preview.changed) blocked += 1;
+                    return item;
+                }
+                affected += 1;
+                return {
+                    ...item,
+                    currentFileName: preview.nextName,
+                };
+            }),
+        );
+
+        if (affected > 0) {
+            toast.success(`已更新 ${affected} 张图片的文件名`);
+        }
+        if (blocked > 0) {
+            toast.error(`${blocked} 张图片因名称重复或非法被跳过`);
+        }
     };
 
     const updateBatchGpsField = (key: "lat" | "lng" | "locationName", value: string) => {
@@ -2473,13 +2651,6 @@ const PhotoExifWorkbench: React.FC = () => {
     const selectedFileNameError = selectedItem ? getFileNameValidationError(selectedFileNameValue) : "";
     const selectedDateTimeOriginalValue = selectedItem ? exifDateTimeToLocalInputValue(selectedItem.editableCurrent.dateTimeOriginal) : "";
     const selectedDateTimeDigitizedValue = selectedItem ? exifDateTimeToLocalInputValue(selectedItem.editableCurrent.dateTimeDigitized) : "";
-
-    const amapLink = selectedGpsPoint
-        ? `https://uri.amap.com/marker?position=${selectedGpsPoint.lng},${selectedGpsPoint.lat}&name=${encodeURIComponent(selectedItem ? getEffectiveFileName(selectedItem) : "拍摄位置")}`
-        : "#";
-    const googleLink = selectedGpsPoint
-        ? `https://www.google.com/maps?q=${selectedGpsPoint.lat},${selectedGpsPoint.lng}`
-        : "#";
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 px-4 py-4 lg:px-5">
@@ -3156,6 +3327,192 @@ const PhotoExifWorkbench: React.FC = () => {
                                         <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
                                             <CardHeader>
                                                 <CardTitle className="flex items-center gap-2">
+                                                    <PencilLine className="w-5 h-5" />
+                                                    批量改名助手
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    把常和 EXIF 联动使用的改名规则直接放进工作台；应用后会进入当前图片的导出/原地写回文件名
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="pt-0 space-y-6">
+                                                <div className="grid gap-4 xl:grid-cols-3">
+                                                    {RENAME_RULE_DEFINITIONS.map((definition) => (
+                                                        <div key={definition.type} className="space-y-2">
+                                                            <Label htmlFor={`rename-rule-${definition.type}`}>{definition.label}</Label>
+                                                            <div className="flex items-center gap-2">
+                                                                <Input
+                                                                    id={`rename-rule-${definition.type}`}
+                                                                    value={renameRuleInputs[definition.type]}
+                                                                    placeholder={definition.placeholder}
+                                                                    onChange={(event) => updateRenameRuleInput(definition.type, event.target.value)}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === "Enter") {
+                                                                            event.preventDefault();
+                                                                            submitRenameRule(definition.type);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className={secondaryButtonClass}
+                                                                    onClick={() => submitRenameRule(definition.type)}
+                                                                >
+                                                                    添加
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-medium">当前规则</p>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                规则按添加顺序依次执行，适合先删前缀，再补统一前后缀
+                                                            </p>
+                                                        </div>
+                                                        <Badge variant="outline">{renameRules.length} 条规则</Badge>
+                                                    </div>
+                                                    {renameRules.length ? (
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {renameRules.map((rule) => (
+                                                                <div
+                                                                    key={rule.id}
+                                                                    className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm dark:border-slate-700 dark:bg-slate-950"
+                                                                >
+                                                                    <span className="text-slate-500 dark:text-slate-400">
+                                                                        {rule.type === "delete" ? "删除" : rule.type === "add_prefix" ? "前缀" : "后缀"}
+                                                                    </span>
+                                                                    <span className="font-medium break-all">{rule.value}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeRenameRule(rule.id)}
+                                                                        className="text-slate-400 hover:text-rose-500"
+                                                                        aria-label="删除改名规则"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                            还没有规则，先输入要删除的内容或要追加的前后缀
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="rename-filter-keyword">筛选范围</Label>
+                                                        <div className="flex items-center gap-2">
+                                                            <Input
+                                                                id="rename-filter-keyword"
+                                                                value={renameFilterKeyword}
+                                                                placeholder="只处理名称里包含这个关键词的图片；留空表示全部"
+                                                                onChange={(event) => setRenameFilterKeyword(event.target.value)}
+                                                            />
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className={secondaryButtonClass}
+                                                                onClick={() => setRenameFilterKeyword("")}
+                                                                disabled={!renameFilterKeyword}
+                                                            >
+                                                                <Search className="w-4 h-4 mr-2" />
+                                                                清空
+                                                            </Button>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                            只对当前工作台里可导出修改的图片生效；TIF 也会使用这里的文件名预设
+                                                        </p>
+                                                    </div>
+                                                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
+                                                        <p>匹配图片：{renamePreviewRows.length} 张</p>
+                                                        <p>名称变化：{renameChangedCount} 张</p>
+                                                        <p>可直接应用：{renameApplicableCount} 张</p>
+                                                        <p>待处理冲突：{renameBlockedCount} 张</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        className={primaryButtonClass}
+                                                        onClick={applyRenameRulesToWorkbench}
+                                                        disabled={!renameRules.length || !renamePreviewRows.length}
+                                                    >
+                                                        <PencilLine className="w-4 h-4 mr-2" />
+                                                        应用到当前工作台
+                                                    </Button>
+                                                    <Button type="button" variant="outline" size="sm" className={dangerSubtleButtonClass} onClick={clearRenameRules}>
+                                                        <RotateCcw className="w-4 h-4 mr-2" />
+                                                        清空规则
+                                                    </Button>
+                                                </div>
+
+                                                <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-medium">改名预览</p>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                真正落盘发生在后续“导出已修改图片”或“原地改写已修改 JPEG / PNG”
+                                                            </p>
+                                                        </div>
+                                                        <Badge variant="outline">{renamePreviewRows.length} 条结果</Badge>
+                                                    </div>
+                                                    {renamePreviewRows.length ? (
+                                                        <ScrollArea className="h-[260px] pr-3">
+                                                            <div className="space-y-3">
+                                                                {renamePreviewRows.map((row) => (
+                                                                    <div key={row.itemId} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                                                            <div className="min-w-0 flex-1 space-y-2">
+                                                                                <p className="text-xs text-slate-500 dark:text-slate-400 break-all">
+                                                                                    原名：{row.originalName}
+                                                                                </p>
+                                                                                <p className={`text-sm font-medium break-all ${row.canApply ? "text-blue-600 dark:text-blue-300" : "text-slate-900 dark:text-slate-100"}`}>
+                                                                                    目标：{row.nextName}
+                                                                                </p>
+                                                                            </div>
+                                                                            <Badge
+                                                                                className={
+                                                                                    row.canApply
+                                                                                        ? "bg-emerald-600 text-white hover:bg-emerald-600"
+                                                                                        : row.duplicate || row.validationError
+                                                                                            ? "bg-rose-600 text-white hover:bg-rose-600"
+                                                                                            : "bg-slate-500 text-white hover:bg-slate-500"
+                                                                                }
+                                                                            >
+                                                                                {row.canApply ? "可应用" : row.duplicate ? "名称重复" : row.validationError ? "名称非法" : "无变化"}
+                                                                            </Badge>
+                                                                        </div>
+                                                                        {(row.validationError || row.duplicate) && (
+                                                                            <p className="mt-2 text-xs text-rose-500">
+                                                                                {row.validationError || "目标名称与其它图片重复，请调整规则或筛选范围"}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </ScrollArea>
+                                                    ) : (
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                            当前没有可预览结果，先上传图片或调整筛选关键词
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2">
                                                     <Upload className="w-5 h-5" />
                                                     批量来源图导入
                                                 </CardTitle>
@@ -3250,7 +3607,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                     <Button className={accentButtonClass} size="sm" onClick={() => void applyBatchSourceImport(false)}>
                                                         导入到全部图片
                                                     </Button>
-                                                    <Button
+                                                    {/* <Button
                                                         className={dangerButtonClass}
                                                         size="sm"
                                                         onClick={() => void applyBatchSourceImport(true)}
@@ -3259,7 +3616,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         <AlertCircle className="w-4 h-4 mr-1" />
                                                         <Save className="w-4 h-4 mr-2" />
                                                         {isOverwritingInPlace ? "写回中..." : "导入并原地写回已授权 JPEG / PNG"}
-                                                    </Button>
+                                                    </Button> */}
                                                 </div>
                                             </CardContent>
                                         </Card>
