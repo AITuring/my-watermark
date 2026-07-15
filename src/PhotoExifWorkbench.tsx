@@ -37,6 +37,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { disposeImageSource, isTiffFile, loadImageSource } from "@/utils/image-loading";
 
 type EditableExifKey =
     | "make"
@@ -174,6 +175,7 @@ interface PhotoExifItem {
     currentFileName: string;
     previewUrl: string;
     canWriteExif: boolean;
+    canOverwriteInPlace: boolean;
     summary: ExifSummary;
     editableOriginal: EditableExif;
     editableCurrent: EditableExif;
@@ -191,6 +193,20 @@ interface DirectoryImageEntry {
 }
 
 const PREVIEW_MAX_EDGE = 256;
+const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_EXIF_CHUNK_TYPE = "eXIf";
+const EXIF_HEADER = "Exif\x00\x00";
+const CRC32_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let index = 0; index < 256; index += 1) {
+        let value = index;
+        for (let bit = 0; bit < 8; bit += 1) {
+            value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
+        }
+        table[index] = value >>> 0;
+    }
+    return table;
+})();
 
 const yieldToMainThread = (): Promise<void> =>
     new Promise((resolve) => {
@@ -198,21 +214,19 @@ const yieldToMainThread = (): Promise<void> =>
     });
 
 const createPreviewUrl = async (file: File): Promise<string> => {
-    if (typeof window === "undefined" || typeof createImageBitmap !== "function") {
+    if (typeof window === "undefined") {
         return URL.createObjectURL(file);
     }
 
     try {
-        const bitmap = await createImageBitmap(file, {
-            resizeWidth: PREVIEW_MAX_EDGE,
-            resizeHeight: PREVIEW_MAX_EDGE,
-            resizeQuality: "high",
-        });
+        const source = await loadImageSource(file);
 
         try {
-            const scale = Math.min(1, PREVIEW_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-            const width = Math.max(1, Math.round(bitmap.width * scale));
-            const height = Math.max(1, Math.round(bitmap.height * scale));
+            const widthValue = "naturalWidth" in source ? source.naturalWidth : source.width;
+            const heightValue = "naturalHeight" in source ? source.naturalHeight : source.height;
+            const scale = Math.min(1, PREVIEW_MAX_EDGE / Math.max(widthValue, heightValue));
+            const width = Math.max(1, Math.round(widthValue * scale));
+            const height = Math.max(1, Math.round(heightValue * scale));
             const canvas = document.createElement("canvas");
             canvas.width = width;
             canvas.height = height;
@@ -222,7 +236,7 @@ const createPreviewUrl = async (file: File): Promise<string> => {
                 return URL.createObjectURL(file);
             }
 
-            context.drawImage(bitmap, 0, 0, width, height);
+            context.drawImage(source as CanvasImageSource, 0, 0, width, height);
             const previewBlob = await new Promise<Blob | null>((resolve) => {
                 canvas.toBlob(resolve, "image/jpeg", 0.82);
             });
@@ -232,12 +246,164 @@ const createPreviewUrl = async (file: File): Promise<string> => {
 
             return URL.createObjectURL(previewBlob);
         } finally {
-            bitmap.close();
+            disposeImageSource(source);
         }
     } catch (error) {
         console.warn("生成缩略图失败，回退为原图预览", file.name, error);
         return URL.createObjectURL(file);
     }
+};
+
+const convertImageToJpegDataUrl = async (file: File): Promise<string> => {
+    const source = await loadImageSource(file);
+
+    try {
+        const width = "naturalWidth" in source ? source.naturalWidth : source.width;
+        const height = "naturalHeight" in source ? source.naturalHeight : source.height;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(width));
+        canvas.height = Math.max(1, Math.round(height));
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+            throw new Error("Canvas 上下文不可用");
+        }
+
+        // PNG 透明区域导出 JPEG 时需要铺底色，避免变成黑底。
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(source as CanvasImageSource, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", 0.95);
+    } finally {
+        disposeImageSource(source);
+    }
+};
+
+const readUint32BigEndian = (bytes: Uint8Array, offset: number): number =>
+    (((bytes[offset] ?? 0) << 24) | ((bytes[offset + 1] ?? 0) << 16) | ((bytes[offset + 2] ?? 0) << 8) | (bytes[offset + 3] ?? 0)) >>> 0;
+
+const writeUint32BigEndian = (target: Uint8Array, offset: number, value: number) => {
+    target[offset] = (value >>> 24) & 0xff;
+    target[offset + 1] = (value >>> 16) & 0xff;
+    target[offset + 2] = (value >>> 8) & 0xff;
+    target[offset + 3] = value & 0xff;
+};
+
+const asciiToBytes = (text: string): Uint8Array => Uint8Array.from(text, (char) => char.charCodeAt(0) & 0xff);
+
+const bytesToBinaryString = (bytes: Uint8Array): string => {
+    let result = "";
+    for (let index = 0; index < bytes.length; index += 1) {
+        result += String.fromCharCode(bytes[index]);
+    }
+    return result;
+};
+
+const binaryStringToBytes = (value: string): Uint8Array => {
+    const bytes = new Uint8Array(value.length);
+    for (let index = 0; index < value.length; index += 1) {
+        bytes[index] = value.charCodeAt(index) & 0xff;
+    }
+    return bytes;
+};
+
+const concatUint8Arrays = (chunks: Uint8Array[]): Uint8Array => {
+    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    chunks.forEach((chunk) => {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+    });
+    return merged;
+};
+
+const calculateCrc32 = (bytes: Uint8Array): number => {
+    let crc = 0xffffffff;
+    for (let index = 0; index < bytes.length; index += 1) {
+        crc = CRC32_TABLE[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+};
+
+const createPngChunk = (type: string, data: Uint8Array): Uint8Array => {
+    const typeBytes = asciiToBytes(type);
+    const crcInput = concatUint8Arrays([typeBytes, data]);
+    const chunk = new Uint8Array(12 + data.length);
+    writeUint32BigEndian(chunk, 0, data.length);
+    chunk.set(typeBytes, 4);
+    chunk.set(data, 8);
+    writeUint32BigEndian(chunk, 8 + data.length, calculateCrc32(crcInput));
+    return chunk;
+};
+
+const assertPngSignature = (bytes: Uint8Array) => {
+    if (bytes.length < PNG_SIGNATURE.length || !PNG_SIGNATURE.every((value, index) => bytes[index] === value)) {
+        throw new Error("不是有效的 PNG 文件");
+    }
+};
+
+const extractPngExifChunk = (pngBytes: Uint8Array): Uint8Array | null => {
+    assertPngSignature(pngBytes);
+    let offset = PNG_SIGNATURE.length;
+
+    while (offset + 12 <= pngBytes.length) {
+        const length = readUint32BigEndian(pngBytes, offset);
+        const type = bytesToBinaryString(pngBytes.slice(offset + 4, offset + 8));
+        const dataStart = offset + 8;
+        const dataEnd = dataStart + length;
+        const chunkEnd = dataEnd + 4;
+        if (chunkEnd > pngBytes.length) {
+            throw new Error("PNG 数据块结构损坏");
+        }
+        if (type === PNG_EXIF_CHUNK_TYPE) {
+            return pngBytes.slice(dataStart, dataEnd);
+        }
+        offset = chunkEnd;
+    }
+
+    return null;
+};
+
+const upsertPngExifChunk = (pngBytes: Uint8Array, exifPayload: Uint8Array): Uint8Array => {
+    assertPngSignature(pngBytes);
+
+    const chunks: Uint8Array[] = [pngBytes.slice(0, PNG_SIGNATURE.length)];
+    const exifChunk = createPngChunk(PNG_EXIF_CHUNK_TYPE, exifPayload);
+    let offset = PNG_SIGNATURE.length;
+    let inserted = false;
+
+    while (offset + 12 <= pngBytes.length) {
+        const length = readUint32BigEndian(pngBytes, offset);
+        const type = bytesToBinaryString(pngBytes.slice(offset + 4, offset + 8));
+        const chunkEnd = offset + 12 + length;
+        if (chunkEnd > pngBytes.length) {
+            throw new Error("PNG 数据块结构损坏");
+        }
+
+        const chunk = pngBytes.slice(offset, chunkEnd);
+        if (type === PNG_EXIF_CHUNK_TYPE) {
+            offset = chunkEnd;
+            continue;
+        }
+        if (!inserted && type === "IDAT") {
+            chunks.push(exifChunk);
+            inserted = true;
+        }
+        if (!inserted && type === "IEND") {
+            chunks.push(exifChunk);
+            inserted = true;
+        }
+        chunks.push(chunk);
+        offset = chunkEnd;
+    }
+
+    return concatUint8Arrays(chunks);
+};
+
+const exifStringToPngPayload = (exifString: string): Uint8Array => {
+    const normalized = exifString.startsWith(EXIF_HEADER) ? exifString.slice(EXIF_HEADER.length) : exifString;
+    return binaryStringToBytes(normalized);
 };
 
 const buildPhotoExifItemsSequentially = async (
@@ -497,6 +663,9 @@ const toTagRows = (tags: Record<string, unknown>): ExifTagRow[] =>
         .sort((a, b) => a.label.localeCompare(b.label));
 
 const isWritableJpeg = (file: File): boolean => /image\/jpeg/i.test(file.type) || /\.jpe?g$/i.test(file.name);
+const isPngFile = (file: File): boolean => /image\/png/i.test(file.type) || /\.png$/i.test(file.name);
+const canExportMetadata = (file: File): boolean => isWritableJpeg(file) || isPngFile(file) || isTiffFile(file);
+const canOverwriteMetadataInPlace = (file: File): boolean => isWritableJpeg(file) || isPngFile(file);
 
 const getFileBaseName = (name: string): string => {
     const dotIndex = name.lastIndexOf(".");
@@ -524,6 +693,15 @@ const getFileNameValidationError = (baseName: string): string => {
 };
 
 const getEffectiveFileName = (item: PhotoExifItem): string => item.currentFileName.trim() || item.originalFileName;
+const getExportTargetFileName = (item: PhotoExifItem, exportName?: string): string => {
+    const nextFileName = exportName ?? getEffectiveFileName(item);
+    if (!isTiffFile(item.file)) {
+        return nextFileName === item.originalFileName ? getExportName(item.file.name) : nextFileName;
+    }
+
+    const nextBaseName = getFileBaseName(nextFileName).trim() || getFileBaseName(item.originalFileName).trim() || "image";
+    return `${nextBaseName}.jpg`;
+};
 
 const exifDateTimeToLocalInputValue = (value: string): string => {
     const match = value.trim().match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
@@ -1036,7 +1214,8 @@ const buildPhotoExifItem = async (
         originalFileName: file.name,
         currentFileName: file.name,
         previewUrl,
-        canWriteExif: isWritableJpeg(file),
+        canWriteExif: canExportMetadata(file),
+        canOverwriteInPlace: canOverwriteMetadataInPlace(file),
         summary: buildSummary(file, tags, gpsPoint),
         editableOriginal: editable,
         editableCurrent: editable,
@@ -1142,9 +1321,9 @@ const PhotoExifWorkbench: React.FC = () => {
     const dirtyCount = useMemo(() => items.filter((item) => item.canWriteExif && isDirty(item)).length, [items]);
     const gpsCount = useMemo(() => items.filter((item) => editableGpsToPoint(item.gpsCurrent)).length, [items]);
     const linkedCount = useMemo(() => items.filter((item) => item.fileHandle).length, [items]);
-    const bindableCount = useMemo(() => items.filter((item) => item.canWriteExif && !item.fileHandle).length, [items]);
+    const bindableCount = useMemo(() => items.filter((item) => item.canOverwriteInPlace && !item.fileHandle).length, [items]);
     const inplaceCount = useMemo(
-        () => items.filter((item) => item.canWriteExif && item.fileHandle && isDirty(item)).length,
+        () => items.filter((item) => item.canOverwriteInPlace && item.fileHandle && isDirty(item)).length,
         [items],
     );
     const gpsSourceOptions = useMemo(
@@ -1187,7 +1366,7 @@ const PhotoExifWorkbench: React.FC = () => {
         [items, batchImportSourceId],
     );
     const batchImportWritableTargetItems = useMemo(
-        () => batchImportTargetItems.filter((item) => item.fileHandle),
+        () => batchImportTargetItems.filter((item) => item.canOverwriteInPlace && item.fileHandle),
         [batchImportTargetItems],
     );
     const loadAMap = useCallback(async (): Promise<MapSdkLike> => {
@@ -1491,7 +1670,7 @@ const PhotoExifWorkbench: React.FC = () => {
                     setSelectedImportSourceId(preferredSourceItem.id);
                 }
             }
-            if (nextItems.some((item) => item.canWriteExif)) {
+            if (nextItems.some((item) => item.canOverwriteInPlace)) {
                 setRecentUploadedCount(nextItems.length);
                 setIsUploadPermissionDialogOpen(true);
             }
@@ -1532,7 +1711,7 @@ const PhotoExifWorkbench: React.FC = () => {
 
             setDirectoryHandle(handle);
             appendItems(nextItems);
-            toast.success(`已从文件夹载入 ${nextItems.length} 张图片，可直接原地改写 JPEG EXIF`);
+            toast.success(`已从文件夹载入 ${nextItems.length} 张图片；JPEG / PNG 可直接原地改写，TIF 可导出修改`);
         } catch (error) {
             console.error(error);
             if ((error as Error).name !== "AbortError") {
@@ -1723,7 +1902,7 @@ const PhotoExifWorkbench: React.FC = () => {
                 });
             }),
         );
-        toast.success(`已将默认版权应用到 ${affected} 张 JPEG 图片`);
+        toast.success(`已将默认版权应用到 ${affected} 张可导出图片`);
     };
 
     const applyBatchChanges = () => {
@@ -1777,7 +1956,7 @@ const PhotoExifWorkbench: React.FC = () => {
                 return applyGpsStateToItem(nextItem, EMPTY_GPS);
             }),
         );
-        toast.success(`已把批量修改应用到 ${affected} 张 JPEG 图片`);
+        toast.success(`已把批量修改应用到 ${affected} 张可导出图片`);
     };
 
     const resetAllEditable = () => {
@@ -1874,7 +2053,7 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
         if (!batchImportTargetItems.length) {
-            toast.error("没有可导入的目标 JPEG");
+            toast.error("没有可导入的目标图片");
             return;
         }
 
@@ -1883,13 +2062,13 @@ const PhotoExifWorkbench: React.FC = () => {
 
         if (!persistInPlace) {
             setItems((previous) => previous.map((item) => stagedItemsMap.get(item.id) ?? item));
-            toast.success(`已将来源图信息导入到 ${stagedItems.length} 张 JPEG`);
+            toast.success(`已将来源图信息导入到 ${stagedItems.length} 张图片`);
             return;
         }
 
-        const writableItems = stagedItems.filter((item) => item.fileHandle);
+        const writableItems = stagedItems.filter((item) => item.canOverwriteInPlace && item.fileHandle);
         if (!writableItems.length) {
-            toast.error("当前没有已授权原文件的目标 JPEG，无法批量原地写回");
+            toast.error("当前没有已授权原文件的目标 JPEG / PNG，无法批量原地写回");
             return;
         }
 
@@ -1897,7 +2076,7 @@ const PhotoExifWorkbench: React.FC = () => {
         try {
             const refreshedItems = await overwriteItemsInPlace(writableItems);
             setItems((previous) => previous.map((item) => refreshedItems.get(item.id) ?? item));
-            toast.success(`已导入来源图信息并原地写回 ${refreshedItems.size} 张 JPEG`);
+            toast.success(`已导入来源图信息并原地写回 ${refreshedItems.size} 张 JPEG / PNG`);
         } catch (error) {
             console.error(error);
             toast.error(error instanceof Error ? error.message : "批量导入并写回失败，请重试");
@@ -1921,7 +2100,7 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
         if (!activeItem.canWriteExif) {
-            toast.error("当前图片格式只支持查看，不能写入 GPS");
+            toast.error("当前图片格式暂不支持编辑后导出元数据");
             return;
         }
         if (!keyword) {
@@ -1988,7 +2167,7 @@ const PhotoExifWorkbench: React.FC = () => {
 
     const generateUpdatedFile = useCallback(async (item: PhotoExifItem, exportName?: string): Promise<File> => {
         if (!item.canWriteExif) {
-            throw new Error("当前仅支持为 JPEG/JPG 写回 EXIF");
+            throw new Error("当前格式暂不支持导出 EXIF 修改");
         }
         const nextFileName = exportName ?? getEffectiveFileName(item);
         const fileNameError = getFileNameValidationError(getFileBaseName(nextFileName));
@@ -1996,18 +2175,46 @@ const PhotoExifWorkbench: React.FC = () => {
             throw new Error(fileNameError);
         }
 
-        const originalDataUrl = await readAsDataUrl(item.file);
-        let sourceExif = createEmptyExifObject();
-        try {
-            sourceExif = {
-                ...createEmptyExifObject(),
-                ...(piexif.load(originalDataUrl) as Record<string, unknown>),
-            };
-        } catch (error) {
-            console.warn("原图 EXIF 不可读，将创建新的 EXIF 块", item.file.name, error);
+        const outputFileName = getExportTargetFileName(item, exportName);
+        const editableToSave = applyCopyrightPresetToEditable(item.editableCurrent, copyrightPreset, copyrightPresetEnabled);
+
+        if (isPngFile(item.file)) {
+            const pngBytes = new Uint8Array(await item.file.arrayBuffer());
+            let sourceExif = createEmptyExifObject();
+            const existingExifPayload = extractPngExifChunk(pngBytes);
+            if (existingExifPayload) {
+                try {
+                    sourceExif = {
+                        ...createEmptyExifObject(),
+                        ...(piexif.load(EXIF_HEADER + bytesToBinaryString(existingExifPayload)) as Record<string, unknown>),
+                    };
+                } catch (error) {
+                    console.warn("PNG 原图 EXIF 不可读，将创建新的 EXIF 块", item.file.name, error);
+                }
+            }
+
+            const outputExif = applyEditableToExif(sourceExif, editableToSave, item.gpsCurrent);
+            const exifString = piexif.dump(outputExif as Record<string, unknown>);
+            const updatedPngBytes = upsertPngExifChunk(pngBytes, exifStringToPngPayload(exifString));
+            const pngBlob = new Blob([updatedPngBytes as unknown as BlobPart], { type: "image/png" });
+            return new File([pngBlob], outputFileName, { type: "image/png" });
         }
 
-        const editableToSave = applyCopyrightPresetToEditable(item.editableCurrent, copyrightPreset, copyrightPresetEnabled);
+        const originalDataUrl = item.canOverwriteInPlace
+            ? await readAsDataUrl(item.file)
+            : await convertImageToJpegDataUrl(item.file);
+        let sourceExif = createEmptyExifObject();
+        if (item.canOverwriteInPlace) {
+            try {
+                sourceExif = {
+                    ...createEmptyExifObject(),
+                    ...(piexif.load(originalDataUrl) as Record<string, unknown>),
+                };
+            } catch (error) {
+                console.warn("原图 EXIF 不可读，将创建新的 EXIF 块", item.file.name, error);
+            }
+        }
+
         const outputExif = applyEditableToExif(sourceExif, editableToSave, item.gpsCurrent);
         const exifString = piexif.dump(outputExif as Record<string, unknown>);
 
@@ -2019,10 +2226,7 @@ const PhotoExifWorkbench: React.FC = () => {
         }
 
         const updatedDataUrl = piexif.insert(exifString, jpegData);
-        return dataUrlToFile(
-            updatedDataUrl,
-            nextFileName === item.originalFileName ? getExportName(item.file.name) : nextFileName,
-        );
+        return dataUrlToFile(updatedDataUrl, outputFileName);
     }, [copyrightPreset, copyrightPresetEnabled]);
 
     const refreshItemFromHandle = useCallback(async (item: PhotoExifItem): Promise<PhotoExifItem> => {
@@ -2097,7 +2301,7 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
         if (!selectedItem.canWriteExif) {
-            toast.error("当前目标图片不是 JPEG/JPG，无法导入可写信息");
+            toast.error("当前目标图片格式暂不支持导出元数据修改");
             return;
         }
         if (!selectedImportSourceId) {
@@ -2122,7 +2326,7 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
         if (!selectedItem.canWriteExif) {
-            toast.error("当前目标图片不是 JPEG/JPG，无法导入可写信息");
+            toast.error("当前目标图片格式暂不支持导出元数据修改");
             return;
         }
         if (!Object.values(importScopeSelection).some(Boolean)) {
@@ -2145,8 +2349,8 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
 
-        if (!stagedItem.fileHandle) {
-            toast.error("当前图片未通过文件夹授权导入，不能原地改写");
+        if (!stagedItem.canOverwriteInPlace || !stagedItem.fileHandle) {
+            toast.error("当前图片只有 JPEG / PNG 支持原地改写，请先导出修改后图片");
             return;
         }
 
@@ -2168,8 +2372,8 @@ const PhotoExifWorkbench: React.FC = () => {
             toast.error("请先选择图片");
             return;
         }
-        if (!selectedItem.canWriteExif || !selectedItem.fileHandle) {
-            toast.error("当前图片未通过文件夹授权导入，不能原地改写");
+        if (!selectedItem.canOverwriteInPlace || !selectedItem.fileHandle) {
+            toast.error("当前图片只有 JPEG / PNG 支持原地改写，请先导出修改后图片");
             return;
         }
         if (!isDirty(selectedItem)) {
@@ -2196,7 +2400,7 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
         if (!selectedItem.canWriteExif) {
-            toast.error("当前仅支持导出修改后的 JPEG/JPG");
+            toast.error("当前仅支持导出修改后的 JPEG / PNG / TIF");
             return;
         }
 
@@ -2216,7 +2420,7 @@ const PhotoExifWorkbench: React.FC = () => {
     const exportBatch = async () => {
         const writableDirtyItems = items.filter((item) => item.canWriteExif && isDirty(item));
         if (!writableDirtyItems.length) {
-            toast.error("没有可导出的已修改 JPEG 图片");
+            toast.error("没有可导出的已修改图片");
             return;
         }
 
@@ -2244,9 +2448,9 @@ const PhotoExifWorkbench: React.FC = () => {
     };
 
     const overwriteBatchInPlace = async () => {
-        const writableDirtyItems = items.filter((item) => item.canWriteExif && item.fileHandle && isDirty(item));
+        const writableDirtyItems = items.filter((item) => item.canOverwriteInPlace && item.fileHandle && isDirty(item));
         if (!writableDirtyItems.length) {
-            toast.error("没有可原地改写的已修改 JPEG，请先从文件夹载入图片");
+            toast.error("没有可原地改写的已修改 JPEG / PNG，请先从文件夹载入图片");
             return;
         }
 
@@ -2254,7 +2458,7 @@ const PhotoExifWorkbench: React.FC = () => {
         try {
             const refreshedItems = await overwriteItemsInPlace(writableDirtyItems);
             setItems((previous) => previous.map((item) => refreshedItems.get(item.id) ?? item));
-            toast.success(`已原地改写 ${refreshedItems.size} 张 JPEG 图片的 EXIF`);
+            toast.success(`已原地改写 ${refreshedItems.size} 张 JPEG / PNG 图片的 EXIF`);
         } catch (error) {
             console.error(error);
             toast.error(error instanceof Error ? error.message : "原地改写失败，请重试");
@@ -2284,7 +2488,7 @@ const PhotoExifWorkbench: React.FC = () => {
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight lg:text-[28px]">照片 EXIF 查看与修改</h1>
                         <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
-                            支持单图详情查看、GPS 地图预览、批量概览与统一修改；可先上传筛图，再授权文件夹绑定原文件后对 JPEG 原地改写。
+                            支持单图详情查看、GPS 地图预览、批量概览与统一修改；JPEG / PNG 支持授权后原地改写，TIF 适合读取后导出。
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -2327,6 +2531,10 @@ const PhotoExifWorkbench: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
+                            <p>推荐上传：通用兼容优先 `JPEG`，需要无损或透明背景优先 `PNG`，`TIF` 更适合读取检查后再导出。</p>
+                            <p>推荐导出：日常分享和体积优先 `JPEG`；需要保留透明背景或无损内容时优先 `PNG`；`TIF` 当前建议转导出为 `JPEG`。</p>
+                        </div>
                         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
                             <Button
                                 size="sm"
@@ -2366,7 +2574,7 @@ const PhotoExifWorkbench: React.FC = () => {
                         </div>
                         {items.length > 0 && (
                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                已上传 {items.length} 张图片。想直接写回原文件？下一步请点击“授权文件夹读取权限”。目前已授权 {linkedCount} 张，还有 {bindableCount} 张可继续授权。
+                                已上传 {items.length} 张图片。若要直接写回原文件，请继续授权 JPEG / PNG 所在文件夹；目前已授权 {linkedCount} 张，还有 {bindableCount} 张 JPEG / PNG 可继续授权。
                             </p>
                         )}
                     </CardContent>
@@ -2392,7 +2600,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                         <PencilLine className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">可写回 JPEG</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">可导出修改</p>
                                         <p className="text-xl font-semibold">{writableCount}</p>
                                     </div>
                                 </CardContent>
@@ -2440,7 +2648,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                         图片列表
                                     </CardTitle>
                                     <CardDescription>
-                                        先上传图片筛选与查看；如需直接写回原文件，再补一步授权原文件
+                                        先上传图片筛选与查看；JPEG / PNG 可授权后原地写回，TIF 可导出修改
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="pt-0">
@@ -2577,7 +2785,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                     <Button
                                                                         className={dangerButtonClass}
                                                                         onClick={() => void overwriteSelectedInPlace()}
-                                                                        disabled={!selectedItem.canWriteExif || !selectedItem.fileHandle || !isDirty(selectedItem) || isOverwritingSelected}
+                                                                        disabled={!selectedItem.canOverwriteInPlace || !selectedItem.fileHandle || !isDirty(selectedItem) || isOverwritingSelected}
                                                                     >
                                                                         <AlertCircle className="w-4 h-4 mr-1" />
                                                                         <Save className="w-4 h-4 mr-2" />
@@ -2587,12 +2795,14 @@ const PhotoExifWorkbench: React.FC = () => {
                                                             </div>
                                                             <p className="text-sm text-slate-500 dark:text-slate-400">
                                                                 {!selectedItem.canWriteExif
-                                                                    ? "当前图片格式不是 JPEG/JPG，仅支持查看，不支持导出或写回。"
-                                                                    : !selectedItem.fileHandle
-                                                                      ? "当前图片还没授权原文件，可先导出修改后图片；如需直接写回，请先点击“授权原文件”。"
-                                                                      : !isDirty(selectedItem)
-                                                                        ? "当前图片还没有待保存的修改。"
-                                                                        : "已授权原文件，可直接原地写回。"}
+                                                                    ? "当前图片格式暂不支持导出元数据修改。"
+                                                                    : !selectedItem.canOverwriteInPlace
+                                                                      ? "当前图片可导出修改后的 JPEG；原地写回仅支持 JPEG / PNG。"
+                                                                      : !selectedItem.fileHandle
+                                                                        ? "当前 JPEG / PNG 还没授权原文件，可先导出修改后图片；如需直接写回，请先点击“授权原文件”。"
+                                                                        : !isDirty(selectedItem)
+                                                                          ? "当前图片还没有待保存的修改。"
+                                                                          : "已授权原文件，可直接原地写回。"}
                                                             </p>
                                                         </div>
 
@@ -2950,7 +3160,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                     批量来源图导入
                                                 </CardTitle>
                                                 <CardDescription>
-                                                    选择一张来源图后，可把它的 EXIF 与 GPS 按范围导入到其它全部 JPEG
+                                                    选择一张来源图后，可把它的 EXIF 与 GPS 按范围导入到其它全部可导出图片
                                                 </CardDescription>
                                             </CardHeader>
                                             <CardContent className="pt-0 space-y-6">
@@ -3001,7 +3211,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         </select>
                                                     </div>
                                                     <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
-                                                        <p>目标 JPEG：{batchImportTargetItems.length} 张</p>
+                                                        <p>目标图片：{batchImportTargetItems.length} 张</p>
                                                         <p>可原地写回：{batchImportWritableTargetItems.length} 张</p>
                                                         <p>当前来源图：{batchImportSourceItem ? getEffectiveFileName(batchImportSourceItem) : "未选择"}</p>
                                                     </div>
@@ -3038,7 +3248,7 @@ const PhotoExifWorkbench: React.FC = () => {
 
                                                 <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
                                                     <Button className={accentButtonClass} size="sm" onClick={() => void applyBatchSourceImport(false)}>
-                                                        导入到全部 JPEG
+                                                        导入到全部图片
                                                     </Button>
                                                     <Button
                                                         className={dangerButtonClass}
@@ -3048,7 +3258,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                     >
                                                         <AlertCircle className="w-4 h-4 mr-1" />
                                                         <Save className="w-4 h-4 mr-2" />
-                                                        {isOverwritingInPlace ? "写回中..." : "导入并原地写回已授权 JPEG"}
+                                                        {isOverwritingInPlace ? "写回中..." : "导入并原地写回已授权 JPEG / PNG"}
                                                     </Button>
                                                 </div>
                                             </CardContent>
@@ -3108,7 +3318,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                 批量 GPS 处理
                                                             </h3>
                                                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                                可手动统一设置 GPS，或从一张已有定位的照片同步到全部 JPEG
+                                                                可手动统一设置 GPS，或从一张已有定位的照片同步到全部可导出图片
                                                             </p>
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
@@ -3223,14 +3433,14 @@ const PhotoExifWorkbench: React.FC = () => {
                                                     <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-3 text-xs text-slate-500 dark:text-slate-400 space-y-1">
                                                         <p>1. 选了“同步来源照片”后，批量应用时会优先使用该照片的 GPS。</p>
                                                         <p>2. 未选来源时，可手动填写、搜索地点，或直接点击地图和拖拽标记设置 GPS。</p>
-                                                        <p>3. 打开“空值也覆盖”且 GPS 配置为空时，会批量清除全部 JPEG 的 GPS。</p>
+                                                        <p>3. 打开“空值也覆盖”且 GPS 配置为空时，会批量清除全部可导出图片的 GPS。</p>
                                                     </div>
                                                 </div>
 
                                                 <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
                                                     <Button onClick={applyBatchChanges} size="sm" className={primaryButtonClass}>
                                                         <PencilLine className="w-4 h-4 mr-2" />
-                                                        应用到全部 JPEG
+                                                        应用到全部图片
                                                     </Button>
                                                     <Button variant="outline" size="sm" className={dangerSubtleButtonClass} onClick={resetAllEditable}>
                                                         <RotateCcw className="w-4 h-4 mr-2" />
@@ -3243,13 +3453,13 @@ const PhotoExifWorkbench: React.FC = () => {
                                                     <Button className={dangerButtonClass} size="sm" onClick={() => void overwriteBatchInPlace()} disabled={isOverwritingInPlace}>
                                                         <AlertCircle className="w-4 h-4 mr-1" />
                                                         <Save className="w-4 h-4 mr-2" />
-                                                        {isOverwritingInPlace ? "原地改写中..." : "原地改写已修改 JPEG"}
+                                                        {isOverwritingInPlace ? "原地改写中..." : "原地改写已修改 JPEG / PNG"}
                                                     </Button>
                                                 </div>
 
                                                 <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-sm text-slate-600 dark:text-slate-300 space-y-2">
                                                     <p>原地改写说明：</p>
-                                                    <p>1. 仅对从“选择文件夹并授权写入”导入的 JPEG 生效。</p>
+                                                    <p>1. 仅对从“选择文件夹并授权写入”导入的 JPEG / PNG 生效。</p>
                                                     <p>2. 会直接覆盖原文件，请先确认字段修改无误。</p>
                                                     <p>3. 原地写回后，列表会自动刷新为最新 EXIF 状态。</p>
                                                 </div>
@@ -3263,7 +3473,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                     批量逐张编辑与概览
                                                 </CardTitle>
                                                 <CardDescription>
-                                                    支持逐张调整文件名和时间，并快速查看哪些图片可写回、已修改或包含位置信息
+                                                    支持逐张调整文件名和时间，并快速查看哪些图片可导出、可原地改写或包含位置信息
                                                 </CardDescription>
                                             </CardHeader>
                                             <CardContent className="pt-0">
@@ -3309,7 +3519,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                     </div>
                                                                     <div>
                                                                         <p className="text-slate-500 dark:text-slate-400">原地改写</p>
-                                                                        <p className="mt-1 break-words">{item.fileHandle && item.canWriteExif ? "支持" : "不支持"}</p>
+                                                                        <p className="mt-1 break-words">{item.fileHandle && item.canOverwriteInPlace ? "支持" : "不支持"}</p>
                                                                     </div>
                                                                 </div>
                                                                 <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
@@ -3574,11 +3784,11 @@ const PhotoExifWorkbench: React.FC = () => {
                     <DialogHeader>
                         <DialogTitle>已上传图片</DialogTitle>
                         <DialogDescription className="text-slate-600 dark:text-slate-400">
-                            已读取 {recentUploadedCount} 张图片。若要后续直接写回原文件，现在请继续授权图片所在文件夹的读取与写入权限。
+                            已读取 {recentUploadedCount} 张图片。若要后续直接写回 JPEG / PNG 原文件，现在请继续授权图片所在文件夹的读取与写入权限。
                         </DialogDescription>
                     </DialogHeader>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
-                        授权后，已上传的 JPEG 图片就可以直接写回原文件；不授权也可以继续查看和导出修改后图片。
+                        授权后，已上传的 JPEG / PNG 图片就可以直接写回原文件；不授权也可以继续查看和导出修改后图片。
                     </div>
                     <DialogFooter className="gap-2 sm:justify-end">
                         <Button variant="outline" className={secondaryButtonClass} onClick={() => setIsUploadPermissionDialogOpen(false)}>
