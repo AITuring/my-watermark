@@ -2,7 +2,7 @@ import { useState, useEffect, forwardRef } from "react";
 import Konva from "konva";
 import { Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
-import { getImageOpaqueBounds } from "./utils";
+import { getImageOpaqueBounds } from "@/utils";
 
 interface ImageWithFixedWidthProps {
     src: string;

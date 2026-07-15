@@ -21,15 +21,15 @@ import { Icon } from "@iconify/react";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
-import { WatermarkPosition } from "./types";
+import { WatermarkPosition } from "@/types";
 import {
     extractDominantColors,
     applyColorToWatermark,
     getAdaptiveWatermarkBaseScale,
     getAdaptiveWatermarkRenderMetrics,
-} from "./utils";
-import ImageWithFixedWidth from "./ImageWithFixedWidth";
-import "./watermark.css";
+} from "@/utils";
+import ImageWithFixedWidth from "@/pages/watermark/components/ImageWithFixedWidth";
+import "../watermark.css";
 
 const drawGuideLines = (layer, stageWidth, stageHeight) => {
     const lineStroke = "red";

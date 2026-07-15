@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import GenerativeBackground, { GenerativeBackgroundHandle } from './components/GenerativeBackground';
+import GenerativeBackground, { GenerativeBackgroundHandle } from '@/components/GenerativeBackground';
 
 const NumberColumn = ({ digit }: { digit: string }) => {
     return (

@@ -8,7 +8,7 @@ import {
     Text,
 } from "react-konva";
 import useImage from "use-image";
-import { WatermarkPosition, MixedWatermarkConfig } from "./types";
+import { WatermarkPosition, MixedWatermarkConfig } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
     Select,
@@ -30,6 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import ImageUploader from "@/components/ImageUploader";
 import {
     ChevronLeft,
     ChevronRight,
@@ -39,12 +40,11 @@ import {
     Images,
 } from "lucide-react";
 import Konva from "konva";
-import ImageWithFixedWidth from "./ImageWithFixedWidth";
-import ImageUploader from "./ImageUploader";
+import ImageWithFixedWidth from "@/pages/watermark/components/ImageWithFixedWidth";
 import {
     getAdaptiveWatermarkBaseScale,
     getAdaptiveWatermarkRenderMetrics,
-} from "./utils";
+} from "@/utils";
 
 // 绘制辅助线函数
 const drawGuideLines = (layer: Konva.Layer, width: number, height: number) => {

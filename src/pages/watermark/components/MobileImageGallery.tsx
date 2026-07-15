@@ -1,11 +1,11 @@
 import React, { useState } from "react";
+import ImagePreview from "@/components/ImagePreview";
+import ImageUploader from "@/components/ImageUploader";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, Maximize2 } from "lucide-react";
-import { ImageType } from "./types";
-import ImageUploader from "./ImageUploader";
-import ImagePreview from "./ImagePreview";
+import { ImageType } from "@/types";
 
 interface MobileImageGalleryProps {
     images: ImageType[];

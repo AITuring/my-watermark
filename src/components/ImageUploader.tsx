@@ -39,9 +39,7 @@ const ImageUploader = forwardRef<HTMLDivElement, ImageUploaderProps>(
             <div
                 {...getRootProps()}
                 ref={ref}
-                className={`${className} ${
-                    isDragActive ? "border-primary" : ""
-                }`}
+                className={`${className} ${isDragActive ? "border-primary" : ""}`}
             >
                 <input {...getInputProps()} />
                 {children || (

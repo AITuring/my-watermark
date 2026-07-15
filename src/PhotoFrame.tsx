@@ -12,7 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import ImageUploader from './ImageUploader';
+import ImageUploader from "@/components/ImageUploader";
 import { Download, RotateCcw, Upload, Trash2, Plus, Image as ImageIcon, Film, BoxSelect, Camera, Newspaper, Aperture, Copy, Calendar as CalendarIcon, Layers, PenTool } from 'lucide-react';
 import { toast } from 'sonner';
 

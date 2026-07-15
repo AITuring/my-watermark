@@ -24,7 +24,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/watermark",
         icon: "ri:image-ai-line",
         description: "批量给图片加文字或图标水印，快速保护版权",
-        component: () => import("./Watermark"),
+        component: () => import("./pages/watermark"),
     },
      {
         id: "puzzle",
@@ -32,7 +32,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/puzzle",
         icon: "tabler:layout-board-split",
         description: "多图自由排版后导出长图，适合作品集、教程和图文合集",
-        component: () => import("./Puzzle"),
+        component: () => import("./pages/puzzle"),
     },
     {
         id: "compress",
@@ -40,7 +40,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/compress",
         icon: "material-symbols:compress",
         description: "批量减小图片体积，兼顾清晰度和上传速度",
-        component: () => import("./BatchImageCompressor"),
+        component: () => import("./pages/compress"),
     },
     {
         id: "photo",
@@ -48,7 +48,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/google-photo",
         icon: "logos:google-photos",
         description: "按相册流式浏览照片，适合沉浸式回看和筛图",
-        component: () => import("./GooglePhoto"),
+        component: () => import("./pages/google-photo"),
     },
     {
         id: "cover-collage",
@@ -56,7 +56,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/cover-collage",
         icon: "material-symbols:imagesmode-outline-rounded",
         description: "上传多张图片生成暗色展陈感 cover 图，适合做封面和分享海报",
-        component: () => import("./CoverCollageMaker"),
+        component: () => import("./pages/cover-collage"),
     },
     // {
     //     id: "frame",
@@ -72,7 +72,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/photo-exif",
         icon: "material-symbols:info-outline-rounded",
         description: "查看和批量修改照片 EXIF 信息，适合整理拍摄元数据",
-        component: () => import("./PhotoExifWorkbench"),
+        component: () => import("./pages/photo-exif"),
     },
     {
         id: "split",
@@ -80,7 +80,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/split",
         icon: "material-symbols:split-vertical",
         description: "把一张图按网格或规则切成多张，适合九宫格和分片发布",
-        component: () => import("./ImageSplitter"),
+        component: () => import("./pages/split"),
     },
     {
         id: "crop",
@@ -88,7 +88,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/crop",
         icon: "material-symbols:crop",
         description: "按比例、固定像素或自由框选裁切，快速得到目标尺寸",
-        component: () => import("./ImageCropper"),
+        component: () => import("./pages/crop"),
     },
     {
         id: "stitch",
@@ -96,7 +96,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/stitch",
         icon: "material-symbols:photo-library-outline",
         description: "上传有重叠区域的照片自动合成为一张全景大图",
-        component: () => import("./ImageStitching"),
+        component: () => import("./pages/stitch"),
     },
     {
         id: "focus-stack",
@@ -104,7 +104,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/focus-stack",
         icon: "mdi:image-filter-hdr",
         description: "把不同对焦点的照片融合成一张尽量全清晰的成片",
-        component: () => import("./FocusStacking"),
+        component: () => import("./pages/focus-stack"),
     },
     {
         id: "artifact-ai",
@@ -112,7 +112,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/artifact-ai",
         icon: "lucide:book-open",
         description: "输入问题快速查文物背景，适合做讲解和科普笔记",
-        component: () => import("./ArtifactAI"),
+        component: () => import("./pages/artifact-ai"),
     },
     // {
     //     id: "restaurant",
@@ -136,7 +136,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/wenwu",
         icon: "material-symbols:museum-outline",
         description: "按地图查看重点馆藏与分布，快速了解文物脉络",
-        component: () => import("./Wenwu"),
+        component: () => import("./pages/wenwu"),
     },
     // {
     //     id: "news",
@@ -152,7 +152,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/collage",
         icon: "material-symbols:photo-library-outline",
         description: "按预设模板合成多图海报，适合电商图、封面和分享图",
-        component: () => import("./ImageCollage"),
+        component: () => import("./pages/collage"),
     },
     {
         id: "rename",
@@ -160,7 +160,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/rename",
         icon: "material-symbols:file-rename-outline",
         description: "按规则批量改文件名，整理素材更省时",
-        component: () => import("./FileRenamer"),
+        component: () => import("./pages/rename"),
     },
     {
         id: "gallery",
@@ -168,7 +168,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/gallery",
         icon: "material-symbols:photo-library-outline",
         description: "做有边框和排版感的年度照片合集，一键导出",
-        component: () => import("./Gallery"),
+        component: () => import("./pages/gallery"),
     },
     // {
     //     id: "christmas",
@@ -184,7 +184,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/calendar",
         icon: "material-symbols:calendar-month-outline",
         description: "大屏日历和时钟展示，适合会议室或工作台",
-        component: () => import("./Calendar"),
+        component: () => import("./pages/calendar"),
     },
     {
         id: "raw-editor",
@@ -192,7 +192,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/raw-editor",
         icon: "material-symbols:camera-enhance-outline",
         description: "面向摄影后期的 RAW 调整工具，精细控制画质",
-        component: () => import("./RawEditor"),
+        component: () => import("./pages/raw-editor"),
     },
     {
         id: "museum",
@@ -200,7 +200,7 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/museum",
         icon: "material-symbols:museum-outline",
         description: "聚合博物馆内容入口，便于浏览专题与展讯",
-        component: () => import("./MuseumExplorer"),
+        component: () => import("./pages/museum"),
     },
     {
         id: "museum-events",
@@ -208,6 +208,6 @@ export const appCatalog: AppCatalogItem[] = [
         url: "/museum-events",
         icon: "material-symbols:event-available-outline",
         description: "追踪近期临展和时间节点，避免错过想看的展",
-        component: () => import("./MuseumEventRadar"),
+        component: () => import("./pages/museum-events"),
     },
 ];

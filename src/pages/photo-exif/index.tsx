@@ -8,16 +8,13 @@ import JSZip from "jszip";
 import {
     AlertCircle,
     Camera,
-    CheckCircle2,
     ChevronDown,
     ChevronRight,
     Download,
     FileImage,
     Files,
-    FolderOpen,
     Image as ImageIcon,
     LocateFixed,
-    MapPin,
     PencilLine,
     RotateCcw,
     Search,
@@ -26,7 +23,6 @@ import {
     Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import DarkToggle from "@/components/DarkToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +33,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { disposeImageSource, isTiffFile, loadImageSource } from "@/utils/image-loading";
+import ImportPanel from "@/pages/photo-exif/components/ImportPanel";
+import StatsOverview from "@/pages/photo-exif/components/StatsOverview";
+import WorkbenchHeader from "@/pages/photo-exif/components/WorkbenchHeader";
 
 type EditableExifKey =
     | "make"
@@ -2655,161 +2654,40 @@ const PhotoExifWorkbench: React.FC = () => {
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 px-4 py-4 lg:px-5">
             <div className="mx-auto max-w-[1680px] space-y-5">
-                <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight lg:text-[28px]">照片 EXIF 查看与修改</h1>
-                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
-                            支持单图详情查看、GPS 地图预览、批量概览与统一修改；JPEG / PNG 支持授权后原地改写，TIF 适合读取后导出。
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <DarkToggle />
-                        {items.length > 0 && (
-                            <Button variant="outline" className={dangerSubtleButtonClass} onClick={clearAll}>
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                清空全部
-                            </Button>
-                        )}
-                    </div>
-                </header>
+                <WorkbenchHeader
+                    hasItems={items.length > 0}
+                    dangerSubtleButtonClass={dangerSubtleButtonClass}
+                    onClearAll={clearAll}
+                />
 
-                <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                    <CardContent className="space-y-3 p-5">
-                        <div
-                            {...getRootProps()}
-                            className={`border-2 border-dashed rounded-2xl text-center transition-all ${
-                                items.length > 0
-                                    ? "px-5 py-4"
-                                    : "p-8 md:p-9"
-                            } ${
-                                isDragActive
-                                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                                    : "border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500"
-                            }`}
-                        >
-                            <input {...getInputProps()} />
-                            <div className={`flex items-center justify-center gap-3 ${items.length > 0 ? "min-h-[56px]" : "flex-col"}`}>
-                                <Upload className={`text-slate-400 ${items.length > 0 ? "h-8 w-8 shrink-0" : "mb-4 h-12 w-12"}`} />
-                                <div className={`space-y-1 ${items.length > 0 ? "text-left" : "space-y-2"}`}>
-                                    <p className={`${items.length > 0 ? "text-base font-medium" : "text-lg font-medium"}`}>
-                                        {isDragActive ? "释放图片开始读取" : items.length > 0 ? "继续拖拽添加图片" : "拖拽图片到这里"}
-                                    </p>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                                        {items.length > 0
-                                            ? "可继续补充图片，或直接使用下方按钮进行选择与授权"
-                                            : "先上传图片查看和修改；上传完成后，如需直接写回原文件，再继续授权原文件"}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
-                            <p>推荐上传：通用兼容优先 `JPEG`，需要无损或透明背景优先 `PNG`，`TIF` 更适合读取检查后再导出。</p>
-                            <p>推荐导出：日常分享和体积优先 `JPEG`；需要保留透明背景或无损内容时优先 `PNG`；`TIF` 当前建议转导出为 `JPEG`。</p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
-                            <Button
-                                size="sm"
-                                onClick={open}
-                                className={primaryButtonClass}
-                            >
-                                <ImageIcon className="w-4 h-4 mr-2" />
-                                选择图片
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className={secondaryButtonClass}
-                                onClick={() => void handleSelectDirectory()}
-                                disabled={isImportingDirectory}
-                            >
-                                <FolderOpen className="w-4 h-4 mr-2" />
-                                {isImportingDirectory ? "读取文件夹中..." : "选择文件夹并授权写入"}
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant={items.length > 0 ? "default" : "outline"}
-                                className={items.length > 0
-                                    ? accentButtonClass
-                                    : secondaryButtonClass}
-                                onClick={() => void handleBindUploadedItemsToDirectory()}
-                                disabled={!items.length || isBindingDirectory}
-                            >
-                                <FolderOpen className="w-4 h-4 mr-2" />
-                                {isBindingDirectory ? "授权中..." : "授权文件夹读取权限"}
-                            </Button>
-                            {directoryHandle && (
-                                <Badge variant="outline" className="rounded-xl border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                    已授权文件夹：{directoryHandle.name}
-                                </Badge>
-                            )}
-                        </div>
-                        {items.length > 0 && (
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                已上传 {items.length} 张图片。若要直接写回原文件，请继续授权 JPEG / PNG 所在文件夹；目前已授权 {linkedCount} 张，还有 {bindableCount} 张 JPEG / PNG 可继续授权。
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
+                <ImportPanel
+                    accentButtonClass={accentButtonClass}
+                    getInputProps={getInputProps}
+                    getRootProps={getRootProps}
+                    isBindingDirectory={isBindingDirectory}
+                    isDragActive={isDragActive}
+                    isImportingDirectory={isImportingDirectory}
+                    bindableCount={bindableCount}
+                    directoryHandleName={directoryHandle?.name ?? null}
+                    hasItems={items.length > 0}
+                    itemCount={items.length}
+                    linkedCount={linkedCount}
+                    openFilePicker={open}
+                    onBindDirectory={() => void handleBindUploadedItemsToDirectory()}
+                    onSelectDirectory={() => void handleSelectDirectory()}
+                    primaryButtonClass={primaryButtonClass}
+                    secondaryButtonClass={secondaryButtonClass}
+                />
 
                 {items.length > 0 && (
                     <>
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300">
-                                        <Files className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">已加载图片</p>
-                                        <p className="text-xl font-semibold">{items.length}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300">
-                                        <PencilLine className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">可导出修改</p>
-                                        <p className="text-xl font-semibold">{writableCount}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300">
-                                        <CheckCircle2 className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">待导出修改</p>
-                                        <p className="text-xl font-semibold">{dirtyCount}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
-                                        <MapPin className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">含 GPS 信息</p>
-                                        <p className="text-xl font-semibold">{gpsCount}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300">
-                                        <Save className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">可原地改写</p>
-                                        <p className="text-xl font-semibold">{inplaceCount}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                        <StatsOverview
+                            dirtyCount={dirtyCount}
+                            gpsCount={gpsCount}
+                            inplaceCount={inplaceCount}
+                            itemCount={items.length}
+                            writableCount={writableCount}
+                        />
 
                         <div className="grid gap-5 xl:grid-cols-12">
                             <Card className="xl:col-span-3 border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
