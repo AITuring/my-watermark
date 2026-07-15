@@ -47,6 +47,8 @@ const ratioOptions = [
     { label: "3:4", value: 3 / 4 },
     { label: "16:9", value: 16 / 9 },
     { label: "9:16", value: 9 / 16 },
+    { label: "16:10", value: 16 / 10 },
+    { label: "10:16", value: 10 / 16 },
     { label: "2:1", value: 2 },
     { label: "1:2", value: 0.5 },
     { label: "自定义", value: 1 },

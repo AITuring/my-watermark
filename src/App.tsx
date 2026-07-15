@@ -9,7 +9,22 @@ import {
 } from "react-router-dom";
 import { ThemeProvider, ThemeContext } from "./context";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Icon } from "@iconify/react";
+import {
+    Crop,
+    Focus,
+    Landmark,
+    ImagePlus,
+    Images,
+    Info,
+    LayoutGrid,
+    FileArchive,
+    MoonStar,
+    PanelRightOpen,
+    PanelsTopLeft,
+    Pencil,
+    SunMedium,
+    X,
+} from "lucide-react";
 import Landing from "./Landing";
 import "./App.css";
 import { Toaster } from "sonner";
@@ -20,6 +35,29 @@ const routeItems = appCatalog.map((item) => ({
     Page: lazy(item.component),
 }));
 
+const menuItems = [
+    { path: "/", icon: LayoutGrid, label: "应用库" },
+    { path: "/watermark", icon: ImagePlus, label: "水印添加" },
+    { path: "/puzzle", icon: PanelsTopLeft, label: "图片拼接" },
+    { path: "/crop", icon: Crop, label: "图片裁切" },
+    { path: "/rename", icon: Pencil, label: "图片重命名" },
+    { path: "/photo-exif", icon: Info, label: "照片 EXIF" },
+    { path: "/focus-stack", icon: Focus, label: "焦点合成" },
+    { path: "/google-photo", icon: Images, label: "Google 相册" },
+    { path: "/compress", icon: FileArchive, label: "图片压缩" },
+    { path: "/wenwu", icon: Landmark, label: "195禁出" },
+] as const;
+
+const menuButtonClass =
+    "w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95";
+
+const inactiveMenuButtonClass =
+    "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80";
+
+const activeMenuButtonClass =
+    "bg-blue-600 text-white shadow-md shadow-blue-600/20 dark:bg-blue-500 dark:shadow-blue-500/25";
+
+const iconClass = "w-4 h-4";
 
 const FloatingButtons = () => {
     const navigate = useNavigate();
@@ -90,22 +128,77 @@ const FloatingButtons = () => {
     };
 
     const isActive = (path: string) => location.pathname === path;
+    const renderMenuButton = (item: (typeof menuItems)[number]) => {
+        const ItemIcon = item.icon;
 
-    const menuItems = [
-        { path: "/", icon: "material-symbols:apps", label: "应用库" },
-        // { path: "/reading-notes", icon: "material-symbols:auto-stories-outline-rounded", label: "读书笔记" },
-        { path: "/watermark", icon: "ri:image-ai-line", label: "水印添加" },
-        { path: "/puzzle", icon: "tabler:layout-board-split", label: "图片拼接" },
-        { path: "/crop", icon: "material-symbols:crop", label: "图片裁切" },
-        { path: "/photo-exif", icon: "material-symbols:info-outline-rounded", label: "照片 EXIF" },
-        { path: "/focus-stack", icon: "mdi:image-filter-hdr", label: "焦点合成" },
-        // { path: "/restaurant", icon: "ri:restaurant-2-line", label: "美食推荐" },
-        // { path: "/news", icon: "ri:news-line", label: "新闻" },
-        { path: "/google-photo", icon: "logos:google-photos", label: "Google 相册" },
-        { path: "/compress", icon: "material-symbols:compress", label: "图片压缩" },
-        { path: "/wenwu", icon: "ri:globe-line", label: "195禁出" },
-        // { path: "/christmas", icon: "mdi:pine-tree", label: "圣诞树" },
-    ];
+        return (
+            <Tooltip key={item.path}>
+                <TooltipTrigger asChild>
+                    <button
+                        type="button"
+                        title={item.label}
+                        onClick={() => {
+                            navigate(item.path);
+                            setOpen(false);
+                        }}
+                        className={`${menuButtonClass} ${
+                            isActive(item.path) ? activeMenuButtonClass : inactiveMenuButtonClass
+                        }`}
+                    >
+                        <ItemIcon className={iconClass} />
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">{item.label}</TooltipContent>
+            </Tooltip>
+        );
+    };
+
+    const renderThemeButton = () => {
+        const ThemeIcon = isDark ? SunMedium : MoonStar;
+
+        return (
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <button
+                        type="button"
+                        title={isDark ? "切换日间模式" : "切换夜间模式"}
+                        onClick={toggleTheme}
+                        className={`${menuButtonClass} ${
+                            isDark
+                                ? "bg-indigo-500 text-white hover:bg-indigo-600 shadow-md shadow-indigo-500/20"
+                                : "bg-pink-500 text-white hover:bg-pink-600 shadow-md shadow-pink-500/20"
+                        }`}
+                    >
+                        <ThemeIcon className={iconClass} />
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                    {isDark ? "切换日间模式" : "切换夜间模式"}
+                </TooltipContent>
+            </Tooltip>
+        );
+    };
+
+    const renderCloseButton = () => (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <button
+                    type="button"
+                    title="收起导航"
+                    onClick={() => setOpen(false)}
+                    style={{ touchAction: "none" }}
+                    onPointerDown={startDrag}
+                    onPointerMove={onDragMove}
+                    onPointerUp={endDragOrClick}
+                    onPointerCancel={cancelDrag}
+                    className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-all mt-1"
+                >
+                    <X className={iconClass} />
+                </button>
+            </TooltipTrigger>
+            <TooltipContent side="left">收起导航</TooltipContent>
+        </Tooltip>
+    );
 
     return (
         <div
@@ -114,147 +207,24 @@ const FloatingButtons = () => {
             style={{ left: pos.x, top: pos.y }}
         >
             {open ? (
-                <div className="bg-white/80 backdrop-blur-xl shadow-2xl shadow-black/10 border border-white/60 rounded-[2rem] p-2 flex flex-col items-center gap-2 transition-all hover:bg-white hover:shadow-black/15" style={{ transform: expandUp ? 'translateY(-100%)' : undefined }}>
+                <div
+                    className="bg-white/80 backdrop-blur-xl shadow-2xl shadow-black/10 border border-white/60 rounded-[2rem] p-2 flex flex-col items-center gap-2 transition-all hover:bg-white hover:shadow-black/15 dark:bg-slate-900/85 dark:border-white/10 dark:shadow-black/40 dark:hover:bg-slate-900/95"
+                    style={{ transform: expandUp ? "translateY(-100%)" : undefined }}
+                >
                     <TooltipProvider>
                         {expandUp ? (
                             <>
-                                {menuItems.map((item) => (
-                                    <Tooltip key={item.path}>
-                                        <TooltipTrigger asChild>
-                                            <button
-                                                type="button"
-                                                title={item.label}
-                                                onClick={() => {
-                                                    navigate(item.path);
-                                                    setOpen(false);
-                                                }}
-                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
-                                                    isActive(item.path)
-                                                        ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                                                        : "text-slate-500 hover:bg-slate-100"
-                                                }`}
-                                            >
-                                                <Icon icon={item.icon} className="w-4 h-4" />
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="left">{item.label}</TooltipContent>
-                                    </Tooltip>
-                                ))}
-                                <div className="w-6 h-px bg-slate-200 my-0.5"></div>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            type="button"
-                                            title={isDark ? "切换日间模式" : "切换夜间模式"}
-                                            onClick={toggleTheme}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
-                                                isDark
-                                                    ? "bg-indigo-500 text-white hover:bg-indigo-600 shadow-md shadow-indigo-500/20"
-                                                    : "bg-pink-500 text-white hover:bg-pink-600 shadow-md shadow-pink-500/20"
-                                            }`}
-                                        >
-                                            <Icon
-                                                icon={
-                                                    isDark
-                                                        ? "line-md:moon-rising-alt-loop"
-                                                        : "line-md:moon-alt-to-sunny-outline-loop-transition"
-                                                }
-                                                className="w-4 h-4"
-                                            />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="left">
-                                        {isDark ? "切换日间模式" : "切换夜间模式"}
-                                    </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            type="button"
-                                            title="收起导航"
-                                            onClick={() => setOpen(false)}
-                                            style={{ touchAction: 'none' }}
-                                            onPointerDown={startDrag}
-                                            onPointerMove={onDragMove}
-                                            onPointerUp={endDragOrClick}
-                                            onPointerCancel={cancelDrag}
-                                            className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-all mt-1"
-                                        >
-                                            <Icon icon="mdi:close" className="w-4 h-4" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="left">收起导航</TooltipContent>
-                                </Tooltip>
+                                {menuItems.map(renderMenuButton)}
+                                <div className="w-6 h-px bg-slate-200 dark:bg-white/10 my-0.5"></div>
+                                {renderThemeButton()}
+                                {renderCloseButton()}
                             </>
                         ) : (
                             <>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            type="button"
-                                            title="收起导航"
-                                            onClick={() => setOpen(false)}
-                                            style={{ touchAction: 'none' }}
-                                            onPointerDown={startDrag}
-                                            onPointerMove={onDragMove}
-                                            onPointerUp={endDragOrClick}
-                                            onPointerCancel={cancelDrag}
-                                            className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-all mt-1"
-                                        >
-                                            <Icon icon="mdi:close" className="w-4 h-4" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="left">收起导航</TooltipContent>
-                                </Tooltip>
-                                {menuItems.map((item) => (
-                                    <Tooltip key={item.path}>
-                                        <TooltipTrigger asChild>
-                                            <button
-                                                type="button"
-                                                title={item.label}
-                                                onClick={() => {
-                                                    navigate(item.path);
-                                                    setOpen(false);
-                                                }}
-                                                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
-                                                    isActive(item.path)
-                                                        ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
-                                                        : "text-slate-500 hover:bg-slate-100"
-                                                }`}
-                                            >
-                                                <Icon icon={item.icon} className="w-4 h-4" />
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="left">{item.label}</TooltipContent>
-                                    </Tooltip>
-                                ))}
-                                <div className="w-6 h-px bg-slate-200 my-0.5"></div>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            type="button"
-                                            title={isDark ? "切换日间模式" : "切换夜间模式"}
-                                            onClick={toggleTheme}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
-                                                isDark
-                                                    ? "bg-indigo-500 text-white hover:bg-indigo-600 shadow-md shadow-indigo-500/20"
-                                                    : "bg-pink-500 text-white hover:bg-pink-600 shadow-md shadow-pink-500/20"
-                                            }`}
-                                        >
-                                            <Icon
-                                                icon={
-                                                    isDark
-                                                        ? "line-md:moon-rising-alt-loop"
-                                                        : "line-md:moon-alt-to-sunny-outline-loop-transition"
-                                                }
-                                                className="w-4 h-4"
-                                            />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="left">
-                                        {isDark ? "切换日间模式" : "切换夜间模式"}
-                                    </TooltipContent>
-                                </Tooltip>
+                                {renderCloseButton()}
+                                {menuItems.map(renderMenuButton)}
+                                <div className="w-6 h-px bg-slate-200 dark:bg-white/10 my-0.5"></div>
+                                {renderThemeButton()}
                             </>
                         )}
                     </TooltipProvider>
@@ -264,17 +234,14 @@ const FloatingButtons = () => {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <div
-                                style={{ touchAction: 'none' }}
+                                style={{ touchAction: "none" }}
                                 onPointerDown={startDrag}
                                 onPointerMove={onDragMove}
                                 onPointerUp={endDragOrClick}
                                 onPointerCancel={cancelDrag}
-                                className="w-10 h-10 rounded-full bg-white shadow-xl shadow-slate-300/30 border border-slate-200 flex items-center justify-center text-slate-600 hover:scale-110 hover:text-blue-600 transition-all cursor-pointer group"
+                                className="w-10 h-10 rounded-full bg-white shadow-xl shadow-slate-300/30 border border-slate-200 flex items-center justify-center text-slate-600 hover:scale-110 hover:text-blue-600 transition-all cursor-pointer group dark:bg-slate-900/90 dark:border-white/10 dark:shadow-black/40 dark:text-slate-200 dark:hover:text-blue-400"
                             >
-                                <Icon
-                                    icon="material-symbols:navigation"
-                                    className="w-5 h-5 group-hover:rotate-12 transition-transform"
-                                />
+                                <PanelRightOpen className="w-5 h-5 group-hover:rotate-12 transition-transform" />
                             </div>
                         </TooltipTrigger>
                         <TooltipContent side="left">打开导航</TooltipContent>
