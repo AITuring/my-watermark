@@ -8,7 +8,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import ChineseWaveBackground from "./components/ChineseWaveBackground";
+import ChineseWaveBackground from "@/components/ChineseWaveBackground";
 import { Edit } from "lucide-react";
 import { Icon } from "@iconify/react";
 import {
@@ -17,14 +17,14 @@ import {
     processImage,
     adjustBatchSizeAndConcurrency,
     createMixedWatermark,
-} from "./utils";
+} from "@/utils";
 import { useDeviceDetect } from "@/hooks";
-import { ImageType, WatermarkPosition, ImgWithPosition, TextWatermarkConfig, MixedWatermarkConfig } from "./types";
-import ImageUploader from "./ImageUploader";
-import WatermarkEditor from "./WatermarkEditor";
-import MobileWatermarkEditor from "./MobileWatermarkEditor";
-import VerticalCarousel from "./VerticalCarousel";
-import MobileImageGallery from "./MobileImageGallery";
+import { ImageType, WatermarkPosition, ImgWithPosition, TextWatermarkConfig, MixedWatermarkConfig } from "@/types";
+import ImageUploader from "@/components/ImageUploader";
+import WatermarkEditor from "@/pages/watermark/components/WatermarkEditor";
+import MobileWatermarkEditor from "@/pages/watermark/components/MobileWatermarkEditor";
+import VerticalCarousel from "@/pages/watermark/components/VerticalCarousel";
+import MobileImageGallery from "@/pages/watermark/components/MobileImageGallery";
 import pLimit from "p-limit";
 import confetti from "canvas-confetti";
 import "./watermark.css";

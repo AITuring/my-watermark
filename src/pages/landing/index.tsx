@@ -23,7 +23,7 @@ import {
     Stamp,
     type LucideIcon,
 } from "lucide-react";
-import { appCatalog } from "./app-catalog";
+import { appCatalog } from "@/app-catalog";
 import h001 from "@/assets/history/split_001.png";
 import h002 from "@/assets/history/split_002.png";
 import h003 from "@/assets/history/split_003.png";

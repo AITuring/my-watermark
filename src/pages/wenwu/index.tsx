@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github.css";
-import "./wenwu-map.css";
+import "@/wenwu-map.css";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,7 +65,7 @@ declare global {
 }
 
 // 导入JSON数据
-import artifactsData from "./195.json";
+import artifactsData from "@/195.json";
 
 // 在文件末尾添加 Markdown 样式组件
 // 导入图片资源

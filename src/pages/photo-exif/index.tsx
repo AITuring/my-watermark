@@ -8,17 +8,13 @@ import JSZip from "jszip";
 import {
     AlertCircle,
     Camera,
-    CheckCircle2,
     ChevronDown,
     ChevronRight,
     Download,
-    ExternalLink,
     FileImage,
     Files,
-    FolderOpen,
     Image as ImageIcon,
     LocateFixed,
-    MapPin,
     PencilLine,
     RotateCcw,
     Search,
@@ -27,7 +23,6 @@ import {
     Upload,
 } from "lucide-react";
 import { toast } from "sonner";
-import DarkToggle from "@/components/DarkToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +32,10 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { disposeImageSource, isTiffFile, loadImageSource } from "@/utils/image-loading";
+import ImportPanel from "@/pages/photo-exif/components/ImportPanel";
+import StatsOverview from "@/pages/photo-exif/components/StatsOverview";
+import WorkbenchHeader from "@/pages/photo-exif/components/WorkbenchHeader";
 
 type EditableExifKey =
     | "make"
@@ -102,6 +101,24 @@ interface ImportDiffRow {
     sourceValue: string;
     changed: boolean;
     willClearTarget: boolean;
+}
+
+type RenameRuleType = "delete" | "add_prefix" | "add_suffix";
+
+interface RenameRule {
+    id: string;
+    type: RenameRuleType;
+    value: string;
+}
+
+interface RenamePreviewRow {
+    itemId: string;
+    originalName: string;
+    nextName: string;
+    changed: boolean;
+    validationError: string;
+    duplicate: boolean;
+    canApply: boolean;
 }
 
 const cloneEditableExif = (editable: EditableExif): EditableExif => ({
@@ -174,6 +191,7 @@ interface PhotoExifItem {
     currentFileName: string;
     previewUrl: string;
     canWriteExif: boolean;
+    canOverwriteInPlace: boolean;
     summary: ExifSummary;
     editableOriginal: EditableExif;
     editableCurrent: EditableExif;
@@ -189,6 +207,249 @@ interface DirectoryImageEntry {
     fileHandle: FileSystemFileHandle;
     file: File;
 }
+
+const PREVIEW_MAX_EDGE = 256;
+const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_EXIF_CHUNK_TYPE = "eXIf";
+const EXIF_HEADER = "Exif\x00\x00";
+const CRC32_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let index = 0; index < 256; index += 1) {
+        let value = index;
+        for (let bit = 0; bit < 8; bit += 1) {
+            value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
+        }
+        table[index] = value >>> 0;
+    }
+    return table;
+})();
+
+const yieldToMainThread = (): Promise<void> =>
+    new Promise((resolve) => {
+        window.setTimeout(resolve, 0);
+    });
+
+const createPreviewUrl = async (file: File): Promise<string> => {
+    if (typeof window === "undefined") {
+        return URL.createObjectURL(file);
+    }
+
+    try {
+        const source = await loadImageSource(file);
+
+        try {
+            const widthValue = "naturalWidth" in source ? source.naturalWidth : source.width;
+            const heightValue = "naturalHeight" in source ? source.naturalHeight : source.height;
+            const scale = Math.min(1, PREVIEW_MAX_EDGE / Math.max(widthValue, heightValue));
+            const width = Math.max(1, Math.round(widthValue * scale));
+            const height = Math.max(1, Math.round(heightValue * scale));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+
+            const context = canvas.getContext("2d");
+            if (!context) {
+                return URL.createObjectURL(file);
+            }
+
+            context.drawImage(source as CanvasImageSource, 0, 0, width, height);
+            const previewBlob = await new Promise<Blob | null>((resolve) => {
+                canvas.toBlob(resolve, "image/jpeg", 0.82);
+            });
+            if (!previewBlob) {
+                return URL.createObjectURL(file);
+            }
+
+            return URL.createObjectURL(previewBlob);
+        } finally {
+            disposeImageSource(source);
+        }
+    } catch (error) {
+        console.warn("生成缩略图失败，回退为原图预览", file.name, error);
+        return URL.createObjectURL(file);
+    }
+};
+
+const convertImageToJpegDataUrl = async (file: File): Promise<string> => {
+    const source = await loadImageSource(file);
+
+    try {
+        const width = "naturalWidth" in source ? source.naturalWidth : source.width;
+        const height = "naturalHeight" in source ? source.naturalHeight : source.height;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(width));
+        canvas.height = Math.max(1, Math.round(height));
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+            throw new Error("Canvas 上下文不可用");
+        }
+
+        // PNG 透明区域导出 JPEG 时需要铺底色，避免变成黑底。
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(source as CanvasImageSource, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", 0.95);
+    } finally {
+        disposeImageSource(source);
+    }
+};
+
+const readUint32BigEndian = (bytes: Uint8Array, offset: number): number =>
+    (((bytes[offset] ?? 0) << 24) | ((bytes[offset + 1] ?? 0) << 16) | ((bytes[offset + 2] ?? 0) << 8) | (bytes[offset + 3] ?? 0)) >>> 0;
+
+const writeUint32BigEndian = (target: Uint8Array, offset: number, value: number) => {
+    target[offset] = (value >>> 24) & 0xff;
+    target[offset + 1] = (value >>> 16) & 0xff;
+    target[offset + 2] = (value >>> 8) & 0xff;
+    target[offset + 3] = value & 0xff;
+};
+
+const asciiToBytes = (text: string): Uint8Array => Uint8Array.from(text, (char) => char.charCodeAt(0) & 0xff);
+
+const bytesToBinaryString = (bytes: Uint8Array): string => {
+    let result = "";
+    for (let index = 0; index < bytes.length; index += 1) {
+        result += String.fromCharCode(bytes[index]);
+    }
+    return result;
+};
+
+const binaryStringToBytes = (value: string): Uint8Array => {
+    const bytes = new Uint8Array(value.length);
+    for (let index = 0; index < value.length; index += 1) {
+        bytes[index] = value.charCodeAt(index) & 0xff;
+    }
+    return bytes;
+};
+
+const concatUint8Arrays = (chunks: Uint8Array[]): Uint8Array => {
+    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const merged = new Uint8Array(totalLength);
+    let offset = 0;
+    chunks.forEach((chunk) => {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+    });
+    return merged;
+};
+
+const calculateCrc32 = (bytes: Uint8Array): number => {
+    let crc = 0xffffffff;
+    for (let index = 0; index < bytes.length; index += 1) {
+        crc = CRC32_TABLE[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+};
+
+const createPngChunk = (type: string, data: Uint8Array): Uint8Array => {
+    const typeBytes = asciiToBytes(type);
+    const crcInput = concatUint8Arrays([typeBytes, data]);
+    const chunk = new Uint8Array(12 + data.length);
+    writeUint32BigEndian(chunk, 0, data.length);
+    chunk.set(typeBytes, 4);
+    chunk.set(data, 8);
+    writeUint32BigEndian(chunk, 8 + data.length, calculateCrc32(crcInput));
+    return chunk;
+};
+
+const assertPngSignature = (bytes: Uint8Array) => {
+    if (bytes.length < PNG_SIGNATURE.length || !PNG_SIGNATURE.every((value, index) => bytes[index] === value)) {
+        throw new Error("不是有效的 PNG 文件");
+    }
+};
+
+const extractPngExifChunk = (pngBytes: Uint8Array): Uint8Array | null => {
+    assertPngSignature(pngBytes);
+    let offset = PNG_SIGNATURE.length;
+
+    while (offset + 12 <= pngBytes.length) {
+        const length = readUint32BigEndian(pngBytes, offset);
+        const type = bytesToBinaryString(pngBytes.slice(offset + 4, offset + 8));
+        const dataStart = offset + 8;
+        const dataEnd = dataStart + length;
+        const chunkEnd = dataEnd + 4;
+        if (chunkEnd > pngBytes.length) {
+            throw new Error("PNG 数据块结构损坏");
+        }
+        if (type === PNG_EXIF_CHUNK_TYPE) {
+            return pngBytes.slice(dataStart, dataEnd);
+        }
+        offset = chunkEnd;
+    }
+
+    return null;
+};
+
+const upsertPngExifChunk = (pngBytes: Uint8Array, exifPayload: Uint8Array): Uint8Array => {
+    assertPngSignature(pngBytes);
+
+    const chunks: Uint8Array[] = [pngBytes.slice(0, PNG_SIGNATURE.length)];
+    const exifChunk = createPngChunk(PNG_EXIF_CHUNK_TYPE, exifPayload);
+    let offset = PNG_SIGNATURE.length;
+    let inserted = false;
+
+    while (offset + 12 <= pngBytes.length) {
+        const length = readUint32BigEndian(pngBytes, offset);
+        const type = bytesToBinaryString(pngBytes.slice(offset + 4, offset + 8));
+        const chunkEnd = offset + 12 + length;
+        if (chunkEnd > pngBytes.length) {
+            throw new Error("PNG 数据块结构损坏");
+        }
+
+        const chunk = pngBytes.slice(offset, chunkEnd);
+        if (type === PNG_EXIF_CHUNK_TYPE) {
+            offset = chunkEnd;
+            continue;
+        }
+        if (!inserted && type === "IDAT") {
+            chunks.push(exifChunk);
+            inserted = true;
+        }
+        if (!inserted && type === "IEND") {
+            chunks.push(exifChunk);
+            inserted = true;
+        }
+        chunks.push(chunk);
+        offset = chunkEnd;
+    }
+
+    return concatUint8Arrays(chunks);
+};
+
+const exifStringToPngPayload = (exifString: string): Uint8Array => {
+    const normalized = exifString.startsWith(EXIF_HEADER) ? exifString.slice(EXIF_HEADER.length) : exifString;
+    return binaryStringToBytes(normalized);
+};
+
+const buildPhotoExifItemsSequentially = async (
+    entries: Array<{
+        file: File;
+        fileHandle?: FileSystemFileHandle | null;
+        source?: PhotoExifItem["source"];
+    }>,
+    options: {
+        copyrightPreset: CopyrightPreset;
+        copyrightPresetEnabled: boolean;
+    },
+): Promise<PhotoExifItem[]> => {
+    const nextItems: PhotoExifItem[] = [];
+
+    for (const [index, entry] of entries.entries()) {
+        nextItems.push(await buildPhotoExifItem(entry.file, {
+            fileHandle: entry.fileHandle,
+            source: entry.source,
+            copyrightPreset: options.copyrightPreset,
+            copyrightPresetEnabled: options.copyrightPresetEnabled,
+        }));
+
+        if (index < entries.length - 1) {
+            await yieldToMainThread();
+        }
+    }
+
+    return nextItems;
+};
 
 interface PiexifData {
     [key: string]: unknown;
@@ -299,6 +560,11 @@ const IMPORT_SCOPE_DEFINITIONS: Array<{ key: ImportScopeKey; label: string; desc
     { key: "time", label: "时间", description: "导入拍摄时间和数字化时间" },
     { key: "copyright", label: "版权", description: "导入作者和版权声明" },
     { key: "description", label: "图片说明", description: "导入图片描述" },
+];
+const RENAME_RULE_DEFINITIONS: Array<{ type: RenameRuleType; label: string; placeholder: string }> = [
+    { type: "delete", label: "删除文本", placeholder: "例如 IMG_ / DSC_" },
+    { type: "add_prefix", label: "添加前缀", placeholder: "例如 旅行_" },
+    { type: "add_suffix", label: "添加后缀", placeholder: "例如 _精选" },
 ];
 const IMPORT_SCOPE_EDITABLE_FIELDS: Record<Exclude<ImportScopeKey, "gps">, EditableExifKey[]> = {
     core: ["make", "model", "lensModel", "software", "focalLength", "fNumber", "exposureTime", "iso"],
@@ -418,11 +684,43 @@ const toTagRows = (tags: Record<string, unknown>): ExifTagRow[] =>
         .sort((a, b) => a.label.localeCompare(b.label));
 
 const isWritableJpeg = (file: File): boolean => /image\/jpeg/i.test(file.type) || /\.jpe?g$/i.test(file.name);
+const isPngFile = (file: File): boolean => /image\/png/i.test(file.type) || /\.png$/i.test(file.name);
+const canExportMetadata = (file: File): boolean => isWritableJpeg(file) || isPngFile(file) || isTiffFile(file);
+const canOverwriteMetadataInPlace = (file: File): boolean => isWritableJpeg(file) || isPngFile(file);
 
 const getFileBaseName = (name: string): string => {
     const dotIndex = name.lastIndexOf(".");
     if (dotIndex <= 0) return name;
     return name.slice(0, dotIndex);
+};
+
+const getFileExtension = (name: string): string => {
+    const dotIndex = name.lastIndexOf(".");
+    if (dotIndex <= 0) return "";
+    return name.slice(dotIndex);
+};
+
+const replaceFileBaseName = (name: string, nextBaseName: string): string => {
+    const extension = getFileExtension(name);
+    return extension ? `${nextBaseName}${extension}` : nextBaseName;
+};
+
+const applyRenameRulesToFileName = (name: string, rules: RenameRule[]): string => {
+    if (!rules.length) return name;
+    const extension = getFileExtension(name);
+    let baseName = getFileBaseName(name);
+    rules.forEach((rule) => {
+        if (rule.type === "delete") {
+            baseName = baseName.split(rule.value).join("");
+            return;
+        }
+        if (rule.type === "add_prefix") {
+            baseName = `${rule.value}${baseName}`;
+            return;
+        }
+        baseName = `${baseName}${rule.value}`;
+    });
+    return `${baseName}${extension}`;
 };
 
 const getFileNameValidationError = (baseName: string): string => {
@@ -434,6 +732,31 @@ const getFileNameValidationError = (baseName: string): string => {
 };
 
 const getEffectiveFileName = (item: PhotoExifItem): string => item.currentFileName.trim() || item.originalFileName;
+const getExportTargetFileName = (item: PhotoExifItem, exportName?: string): string => {
+    const nextFileName = exportName ?? getEffectiveFileName(item);
+    if (!isTiffFile(item.file)) {
+        return nextFileName === item.originalFileName ? getExportName(item.file.name) : nextFileName;
+    }
+
+    const nextBaseName = getFileBaseName(nextFileName).trim() || getFileBaseName(item.originalFileName).trim() || "image";
+    return `${nextBaseName}.jpg`;
+};
+
+const exifDateTimeToLocalInputValue = (value: string): string => {
+    const match = value.trim().match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+    if (!match) return "";
+    const [, year, month, day, hour, minute, second] = match;
+    return `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+};
+
+const localInputValueToExifDateTime = (value: string): string => {
+    const normalized = value.trim();
+    if (!normalized) return "";
+    const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) return normalized;
+    const [, year, month, day, hour, minute, second = "00"] = match;
+    return `${year}:${month}:${day} ${hour}:${minute}:${second}`;
+};
 
 const normalizeRational = (value: unknown): number | null => {
     if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -920,6 +1243,7 @@ const buildPhotoExifItem = async (
         console.warn("读取 EXIF 失败", file.name, error);
     }
 
+    const previewUrl = await createPreviewUrl(file);
     const gpsPoint = parseGpsPoint(tags);
     const editable = buildEditable(tags);
     const editableGps = buildEditableGps(gpsPoint);
@@ -928,8 +1252,9 @@ const buildPhotoExifItem = async (
         file,
         originalFileName: file.name,
         currentFileName: file.name,
-        previewUrl: URL.createObjectURL(file),
-        canWriteExif: isWritableJpeg(file),
+        previewUrl,
+        canWriteExif: canExportMetadata(file),
+        canOverwriteInPlace: canOverwriteMetadataInPlace(file),
         summary: buildSummary(file, tags, gpsPoint),
         editableOriginal: editable,
         editableCurrent: editable,
@@ -946,9 +1271,17 @@ const PhotoExifWorkbench: React.FC = () => {
     const [items, setItems] = useState<PhotoExifItem[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [selectedImportSourceId, setSelectedImportSourceId] = useState("");
+    const [batchImportSourceId, setBatchImportSourceId] = useState("");
     const [batchEditable, setBatchEditable] = useState<EditableExif>(EMPTY_EDITABLE);
     const [batchGps, setBatchGps] = useState<EditableGps>(EMPTY_GPS);
     const [batchGpsSourceId, setBatchGpsSourceId] = useState("");
+    const [renameRules, setRenameRules] = useState<RenameRule[]>([]);
+    const [renameRuleInputs, setRenameRuleInputs] = useState<Record<RenameRuleType, string>>({
+        delete: "",
+        add_prefix: "",
+        add_suffix: "",
+    });
+    const [renameFilterKeyword, setRenameFilterKeyword] = useState("");
     const [batchOverwriteEmpty, setBatchOverwriteEmpty] = useState(false);
     const [isCopyrightPresetExpanded, setIsCopyrightPresetExpanded] = useState(false);
     const [copyrightPreset, setCopyrightPreset] = useState<CopyrightPreset>(() => readStoredCopyrightPreset());
@@ -965,9 +1298,15 @@ const PhotoExifWorkbench: React.FC = () => {
     const [isImportConfirmDialogOpen, setIsImportConfirmDialogOpen] = useState(false);
     const [pendingImportPersistInPlace, setPendingImportPersistInPlace] = useState(false);
     const [importScopeSelection, setImportScopeSelection] = useState<ImportScopeSelection>(DEFAULT_IMPORT_SCOPE_SELECTION);
+    const [batchImportScopeSelection, setBatchImportScopeSelection] = useState<ImportScopeSelection>(DEFAULT_IMPORT_SCOPE_SELECTION);
     const [locationSearchQuery, setLocationSearchQuery] = useState("");
+    const [batchLocationSearchQuery, setBatchLocationSearchQuery] = useState("");
     const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
     const [mapState, setMapState] = useState<{ loading: boolean; error: string | null }>({
+        loading: false,
+        error: null,
+    });
+    const [batchMapState, setBatchMapState] = useState<{ loading: boolean; error: string | null }>({
         loading: false,
         error: null,
     });
@@ -975,9 +1314,12 @@ const PhotoExifWorkbench: React.FC = () => {
     const selectedItemRef = useRef<PhotoExifItem | null>(null);
     const importSourceInputRef = useRef<HTMLInputElement>(null);
     const mapContainerRef = useRef<HTMLDivElement>(null);
+    const batchMapContainerRef = useRef<HTMLDivElement>(null);
     const mapSdkRef = useRef<MapSdkLike | null>(null);
     const mapRef = useRef<MapInstanceLike | null>(null);
     const markerRef = useRef<MarkerLike | null>(null);
+    const batchMapRef = useRef<MapInstanceLike | null>(null);
+    const batchMarkerRef = useRef<MarkerLike | null>(null);
 
     useEffect(() => {
         itemsRef.current = items;
@@ -994,6 +1336,7 @@ const PhotoExifWorkbench: React.FC = () => {
     useEffect(() => () => {
         itemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
         mapRef.current?.destroy?.();
+        batchMapRef.current?.destroy?.();
     }, []);
 
     const selectedItem = useMemo(
@@ -1005,6 +1348,10 @@ const PhotoExifWorkbench: React.FC = () => {
         selectedItemRef.current = selectedItem;
         setLocationSearchQuery(selectedItem?.gpsCurrent.locationName ?? "");
     }, [selectedItem]);
+
+    useEffect(() => {
+        setBatchLocationSearchQuery(batchGps.locationName);
+    }, [batchGps.locationName]);
 
     useEffect(() => {
         if (!selectedItem) {
@@ -1020,9 +1367,9 @@ const PhotoExifWorkbench: React.FC = () => {
     const dirtyCount = useMemo(() => items.filter((item) => item.canWriteExif && isDirty(item)).length, [items]);
     const gpsCount = useMemo(() => items.filter((item) => editableGpsToPoint(item.gpsCurrent)).length, [items]);
     const linkedCount = useMemo(() => items.filter((item) => item.fileHandle).length, [items]);
-    const bindableCount = useMemo(() => items.filter((item) => item.canWriteExif && !item.fileHandle).length, [items]);
+    const bindableCount = useMemo(() => items.filter((item) => item.canOverwriteInPlace && !item.fileHandle).length, [items]);
     const inplaceCount = useMemo(
-        () => items.filter((item) => item.canWriteExif && item.fileHandle && isDirty(item)).length,
+        () => items.filter((item) => item.canOverwriteInPlace && item.fileHandle && isDirty(item)).length,
         [items],
     );
     const gpsSourceOptions = useMemo(
@@ -1033,9 +1380,14 @@ const PhotoExifWorkbench: React.FC = () => {
         () => items.filter((item) => item.id !== selectedId),
         [items, selectedId],
     );
+    const batchImportSourceOptions = useMemo(() => items, [items]);
     const selectedImportSourceItem = useMemo(
         () => items.find((item) => item.id === selectedImportSourceId) ?? null,
         [items, selectedImportSourceId],
+    );
+    const batchImportSourceItem = useMemo(
+        () => items.find((item) => item.id === batchImportSourceId) ?? null,
+        [items, batchImportSourceId],
     );
     const importScopeSummaries = useMemo(
         () =>
@@ -1055,6 +1407,61 @@ const PhotoExifWorkbench: React.FC = () => {
             .map((scope) => scope.key);
         return createImportScopeSelection(changedScopeKeys.length ? changedScopeKeys : IMPORT_SCOPE_DEFINITIONS.map((scope) => scope.key));
     }, [importScopeSummaries]);
+    const batchImportTargetItems = useMemo(
+        () => items.filter((item) => item.canWriteExif && item.id !== batchImportSourceId),
+        [items, batchImportSourceId],
+    );
+    const batchImportWritableTargetItems = useMemo(
+        () => batchImportTargetItems.filter((item) => item.canOverwriteInPlace && item.fileHandle),
+        [batchImportTargetItems],
+    );
+    const renamePreviewRows = useMemo<RenamePreviewRow[]>(() => {
+        const normalizedKeyword = renameFilterKeyword.trim().toLowerCase();
+        const rows = items
+            .filter((item) => item.canWriteExif)
+            .filter((item) => {
+                if (!normalizedKeyword) return true;
+                return getEffectiveFileName(item).toLowerCase().includes(normalizedKeyword);
+            })
+            .map((item) => {
+                const originalName = getEffectiveFileName(item);
+                const nextName = applyRenameRulesToFileName(originalName, renameRules);
+                return {
+                    itemId: item.id,
+                    originalName,
+                    nextName,
+                    changed: originalName !== nextName,
+                    validationError: getFileNameValidationError(getFileBaseName(nextName)),
+                };
+            });
+        const nextNameCounts = rows.reduce<Map<string, number>>((map, row) => {
+            if (!row.changed || row.validationError) return map;
+            const key = row.nextName.toLowerCase();
+            map.set(key, (map.get(key) ?? 0) + 1);
+            return map;
+        }, new Map());
+
+        return rows.map((row) => {
+            const duplicate = row.changed && !row.validationError && (nextNameCounts.get(row.nextName.toLowerCase()) ?? 0) > 1;
+            return {
+                ...row,
+                duplicate,
+                canApply: row.changed && !row.validationError && !duplicate,
+            };
+        });
+    }, [items, renameFilterKeyword, renameRules]);
+    const renameChangedCount = useMemo(
+        () => renamePreviewRows.filter((row) => row.changed).length,
+        [renamePreviewRows],
+    );
+    const renameApplicableCount = useMemo(
+        () => renamePreviewRows.filter((row) => row.canApply).length,
+        [renamePreviewRows],
+    );
+    const renameBlockedCount = useMemo(
+        () => renamePreviewRows.filter((row) => row.changed && !row.canApply).length,
+        [renamePreviewRows],
+    );
     const loadAMap = useCallback(async (): Promise<MapSdkLike> => {
         if (mapSdkRef.current) return mapSdkRef.current;
         (window as Window & { _AMapSecurityConfig?: Record<string, string> })._AMapSecurityConfig = {
@@ -1079,6 +1486,35 @@ const PhotoExifWorkbench: React.FC = () => {
         );
     }, []);
 
+    const updateItemEditable = useCallback((itemId: string, updater: (current: EditableExif) => EditableExif) => {
+        setItems((previous) =>
+            previous.map((item) => {
+                if (item.id !== itemId) return item;
+                const nextEditable = updater(item.editableCurrent);
+                return applyEditableStateToItem(item, nextEditable);
+            }),
+        );
+    }, []);
+
+    const updateItemFileName = useCallback((itemId: string, value: string) => {
+        setItems((previous) =>
+            previous.map((item) => {
+                if (item.id !== itemId) return item;
+                return {
+                    ...item,
+                    currentFileName: replaceFileBaseName(item.currentFileName, value),
+                };
+            }),
+        );
+    }, []);
+
+    const updateItemDateTimeField = useCallback((itemId: string, key: "dateTimeOriginal" | "dateTimeDigitized", value: string) => {
+        updateItemEditable(itemId, (current) => ({
+            ...current,
+            [key]: localInputValueToExifDateTime(value),
+        }));
+    }, [updateItemEditable]);
+
     const reverseGeocodePoint = useCallback(async (point: GpsPoint): Promise<string> => {
         const sdk = await loadAMap();
         return new Promise((resolve) => {
@@ -1090,6 +1526,41 @@ const PhotoExifWorkbench: React.FC = () => {
                     return;
                 }
                 resolve("");
+            });
+        });
+    }, [loadAMap]);
+
+    const searchLocationPoint = useCallback(async (keyword: string): Promise<{ point: GpsPoint; title: string } | null> => {
+        const sdk = await loadAMap();
+        return new Promise((resolve) => {
+            const placeSearch = new sdk.PlaceSearch({
+                pageSize: 8,
+                extensions: "base",
+            } as Record<string, unknown>);
+            placeSearch.search(keyword, (status, result) => {
+                if (status === "complete" && result?.poiList?.pois?.length) {
+                    const poi = result.poiList.pois[0];
+                    const pointValue = extractLngLat(poi?.location);
+                    if (pointValue) {
+                        resolve({
+                            point: pointValue,
+                            title: String(poi?.name ?? keyword).trim() || keyword,
+                        });
+                        return;
+                    }
+                }
+
+                const geocoder = new sdk.Geocoder({});
+                geocoder.getLocation(keyword, (geoStatus, geoResult) => {
+                    if (geoStatus === "complete" && geoResult?.geocodes?.length) {
+                        const geoPoint = extractLngLat(geoResult.geocodes[0]?.location);
+                        if (geoPoint) {
+                            resolve({ point: geoPoint, title: keyword });
+                            return;
+                        }
+                    }
+                    resolve(null);
+                });
             });
         });
     }, [loadAMap]);
@@ -1118,6 +1589,29 @@ const PhotoExifWorkbench: React.FC = () => {
             locationName,
         }));
     }, [reverseGeocodePoint, updateItemGps]);
+
+    const applyBatchGpsPoint = useCallback(async (point: GpsPoint, resolveAddress = false) => {
+        let locationName = batchGps.locationName;
+        if (resolveAddress) {
+            try {
+                const resolved = await reverseGeocodePoint(point);
+                if (resolved) {
+                    locationName = resolved;
+                    setBatchLocationSearchQuery(resolved);
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        setBatchGpsSourceId("");
+        setBatchGps({
+            enabled: true,
+            lat: formatGpsValue(point.lat),
+            lng: formatGpsValue(point.lng),
+            locationName,
+        });
+    }, [batchGps.locationName, reverseGeocodePoint]);
 
     useEffect(() => {
         const gpsPoint = selectedItem ? editableGpsToPoint(selectedItem.gpsCurrent) : null;
@@ -1180,6 +1674,68 @@ const PhotoExifWorkbench: React.FC = () => {
         };
     }, [applySelectedGpsPoint, loadAMap, selectedItem]);
 
+    useEffect(() => {
+        const gpsPoint = editableGpsToPoint({
+            ...batchGps,
+            enabled: true,
+        });
+        if (!batchMapContainerRef.current) return;
+
+        let cancelled = false;
+        const renderBatchMap = async () => {
+            setBatchMapState({ loading: true, error: null });
+            try {
+                const sdk = await loadAMap();
+                if (cancelled || !batchMapContainerRef.current) return;
+
+                if (!batchMapRef.current) {
+                    batchMapRef.current = new sdk.Map(batchMapContainerRef.current, {
+                        zoom: 15,
+                        center: [gpsPoint?.lng ?? DEFAULT_MAP_CENTER.lng, gpsPoint?.lat ?? DEFAULT_MAP_CENTER.lat],
+                    });
+                    batchMapRef.current.on("click", (event: any) => {
+                        const point = extractLngLat(event?.lnglat);
+                        if (point) {
+                            void applyBatchGpsPoint(point, true);
+                        }
+                    });
+                }
+
+                batchMapRef.current.clearMap();
+                batchMarkerRef.current = null;
+                batchMapRef.current.setZoomAndCenter(15, [gpsPoint?.lng ?? DEFAULT_MAP_CENTER.lng, gpsPoint?.lat ?? DEFAULT_MAP_CENTER.lat]);
+                if (gpsPoint) {
+                    const marker = new sdk.Marker({
+                        position: [gpsPoint.lng, gpsPoint.lat],
+                        title: batchGps.locationName || "批量 GPS 位置",
+                        draggable: true,
+                    } as Record<string, unknown>);
+                    marker.on("dragend", (event: any) => {
+                        const point = extractLngLat(event?.lnglat ?? event?.target?.getPosition?.());
+                        if (point) {
+                            void applyBatchGpsPoint(point, true);
+                        }
+                    });
+                    batchMarkerRef.current = marker;
+                    batchMapRef.current.add(marker);
+                }
+                if (!cancelled) {
+                    setBatchMapState({ loading: false, error: null });
+                }
+            } catch (error) {
+                console.error(error);
+                if (!cancelled) {
+                    setBatchMapState({ loading: false, error: "批量地图加载失败，请稍后重试" });
+                }
+            }
+        };
+
+        void renderBatchMap();
+        return () => {
+            cancelled = true;
+        };
+    }, [applyBatchGpsPoint, batchGps, loadAMap]);
+
     const appendItems = useCallback((nextItems: PhotoExifItem[]) => {
         if (!nextItems.length) return;
         setItems((previous) => [...previous, ...nextItems]);
@@ -1189,11 +1745,15 @@ const PhotoExifWorkbench: React.FC = () => {
     const handleFiles = useCallback(async (files: File[], options?: { selectAsImportSource?: boolean }) => {
         if (!files.length) return;
         try {
-            const nextItems = await Promise.all(
-                files.map((file) => buildPhotoExifItem(file, {
+            const nextItems = await buildPhotoExifItemsSequentially(
+                files.map((file) => ({
+                    file,
+                    source: "dropzone" as const,
+                })),
+                {
                     copyrightPreset,
                     copyrightPresetEnabled,
-                })),
+                },
             );
             appendItems(nextItems);
             if (options?.selectAsImportSource) {
@@ -1203,7 +1763,7 @@ const PhotoExifWorkbench: React.FC = () => {
                     setSelectedImportSourceId(preferredSourceItem.id);
                 }
             }
-            if (nextItems.some((item) => item.canWriteExif)) {
+            if (nextItems.some((item) => item.canOverwriteInPlace)) {
                 setRecentUploadedCount(nextItems.length);
                 setIsUploadPermissionDialogOpen(true);
             }
@@ -1230,19 +1790,21 @@ const PhotoExifWorkbench: React.FC = () => {
             }
 
             const entries = await listDirectoryImageEntries(handle);
-            const nextItems: PhotoExifItem[] = [];
-            for (const { fileHandle, file } of entries) {
-                nextItems.push(await buildPhotoExifItem(file, {
+            const nextItems = await buildPhotoExifItemsSequentially(
+                entries.map(({ fileHandle, file }) => ({
+                    file,
                     fileHandle,
-                    source: "directory",
+                    source: "directory" as const,
+                })),
+                {
                     copyrightPreset,
                     copyrightPresetEnabled,
-                }));
-            }
+                },
+            );
 
             setDirectoryHandle(handle);
             appendItems(nextItems);
-            toast.success(`已从文件夹载入 ${nextItems.length} 张图片，可直接原地改写 JPEG EXIF`);
+            toast.success(`已从文件夹载入 ${nextItems.length} 张图片；JPEG / PNG 可直接原地改写，TIF 可导出修改`);
         } catch (error) {
             console.error(error);
             if ((error as Error).name !== "AbortError") {
@@ -1394,9 +1956,27 @@ const PhotoExifWorkbench: React.FC = () => {
         items.forEach((item) => URL.revokeObjectURL(item.previewUrl));
         setItems([]);
         setSelectedId(null);
+        setBatchImportSourceId("");
         setBatchEditable(EMPTY_EDITABLE);
+        setBatchGps(EMPTY_GPS);
+        setRenameRules([]);
+        setRenameRuleInputs({
+            delete: "",
+            add_prefix: "",
+            add_suffix: "",
+        });
+        setRenameFilterKeyword("");
         setDirectoryHandle(null);
         toast.success("已清空图片列表");
+    };
+
+    const setSelectedAsBatchImportSource = () => {
+        if (!selectedItem) {
+            toast.error("请先在左侧选择一张图片");
+            return;
+        }
+        setBatchImportSourceId(selectedItem.id);
+        toast.success("已将当前图片设为批量来源图");
     };
 
     const updateCopyrightPresetField = (key: keyof CopyrightPreset, value: string) => {
@@ -1423,7 +2003,7 @@ const PhotoExifWorkbench: React.FC = () => {
                 });
             }),
         );
-        toast.success(`已将默认版权应用到 ${affected} 张 JPEG 图片`);
+        toast.success(`已将默认版权应用到 ${affected} 张可导出图片`);
     };
 
     const applyBatchChanges = () => {
@@ -1477,7 +2057,7 @@ const PhotoExifWorkbench: React.FC = () => {
                 return applyGpsStateToItem(nextItem, EMPTY_GPS);
             }),
         );
-        toast.success(`已把批量修改应用到 ${affected} 张 JPEG 图片`);
+        toast.success(`已把批量修改应用到 ${affected} 张可导出图片`);
     };
 
     const resetAllEditable = () => {
@@ -1505,6 +2085,101 @@ const PhotoExifWorkbench: React.FC = () => {
             };
             return nextGps;
         });
+    };
+
+    const updateSelectedFileName = (value: string) => {
+        if (!selectedItem) return;
+        updateItemFileName(selectedItem.id, value);
+    };
+
+    const updateSelectedDateTimeField = (key: "dateTimeOriginal" | "dateTimeDigitized", value: string) => {
+        if (!selectedItem) return;
+        updateItemDateTimeField(selectedItem.id, key, value);
+    };
+
+    const updateBatchEditableField = (key: EditableExifKey, value: string) => {
+        setBatchEditable((previous) => ({
+            ...previous,
+            [key]: key === "dateTimeOriginal" || key === "dateTimeDigitized"
+                ? localInputValueToExifDateTime(value)
+                : value,
+        }));
+    };
+
+    const updateRenameRuleInput = (type: RenameRuleType, value: string) => {
+        setRenameRuleInputs((previous) => ({
+            ...previous,
+            [type]: value,
+        }));
+    };
+
+    const submitRenameRule = (type: RenameRuleType) => {
+        const nextValue = renameRuleInputs[type].trim();
+        if (!nextValue) return;
+        setRenameRules((previous) => [
+            ...previous,
+            {
+                id: Math.random().toString(36).slice(2, 11),
+                type,
+                value: nextValue,
+            },
+        ]);
+        setRenameRuleInputs((previous) => ({
+            ...previous,
+            [type]: "",
+        }));
+    };
+
+    const removeRenameRule = (ruleId: string) => {
+        setRenameRules((previous) => previous.filter((rule) => rule.id !== ruleId));
+    };
+
+    const clearRenameRules = () => {
+        setRenameRules([]);
+        setRenameRuleInputs({
+            delete: "",
+            add_prefix: "",
+            add_suffix: "",
+        });
+        setRenameFilterKeyword("");
+        toast.success("已清空批量改名规则");
+    };
+
+    const applyRenameRulesToWorkbench = () => {
+        if (!renameRules.length) {
+            toast.error("请先添加至少一条改名规则");
+            return;
+        }
+        if (!renamePreviewRows.length) {
+            toast.error("没有匹配到可改名的图片");
+            return;
+        }
+
+        const previewMap = new Map(renamePreviewRows.map((row) => [row.itemId, row]));
+        let affected = 0;
+        let blocked = 0;
+        setItems((previous) =>
+            previous.map((item) => {
+                const preview = previewMap.get(item.id);
+                if (!preview || !item.canWriteExif) return item;
+                if (!preview.canApply) {
+                    if (preview.changed) blocked += 1;
+                    return item;
+                }
+                affected += 1;
+                return {
+                    ...item,
+                    currentFileName: preview.nextName,
+                };
+            }),
+        );
+
+        if (affected > 0) {
+            toast.success(`已更新 ${affected} 张图片的文件名`);
+        }
+        if (blocked > 0) {
+            toast.error(`${blocked} 张图片因名称重复或非法被跳过`);
+        }
     };
 
     const updateBatchGpsField = (key: "lat" | "lng" | "locationName", value: string) => {
@@ -1536,7 +2211,55 @@ const PhotoExifWorkbench: React.FC = () => {
     const clearBatchGpsConfig = () => {
         setBatchGps({ ...EMPTY_GPS });
         setBatchGpsSourceId("");
+        setBatchLocationSearchQuery("");
         toast.success("已清空批量 GPS 配置");
+    };
+
+    const applyBatchSourceImport = async (persistInPlace = false) => {
+        if (!batchImportSourceId) {
+            toast.error("请先选择一张批量来源图");
+            return;
+        }
+        if (!Object.values(batchImportScopeSelection).some(Boolean)) {
+            toast.error("请至少选择一类要导入的信息");
+            return;
+        }
+        const sourceItem = items.find((item) => item.id === batchImportSourceId);
+        if (!sourceItem) {
+            toast.error("批量来源图不存在，请重新选择");
+            return;
+        }
+        if (!batchImportTargetItems.length) {
+            toast.error("没有可导入的目标图片");
+            return;
+        }
+
+        const stagedItems = batchImportTargetItems.map((item) => applySourceMetadataToItem(item, sourceItem, batchImportScopeSelection));
+        const stagedItemsMap = new Map(stagedItems.map((item) => [item.id, item]));
+
+        if (!persistInPlace) {
+            setItems((previous) => previous.map((item) => stagedItemsMap.get(item.id) ?? item));
+            toast.success(`已将来源图信息导入到 ${stagedItems.length} 张图片`);
+            return;
+        }
+
+        const writableItems = stagedItems.filter((item) => item.canOverwriteInPlace && item.fileHandle);
+        if (!writableItems.length) {
+            toast.error("当前没有已授权原文件的目标 JPEG / PNG，无法批量原地写回");
+            return;
+        }
+
+        setIsOverwritingInPlace(true);
+        try {
+            const refreshedItems = await overwriteItemsInPlace(writableItems);
+            setItems((previous) => previous.map((item) => refreshedItems.get(item.id) ?? item));
+            toast.success(`已导入来源图信息并原地写回 ${refreshedItems.size} 张 JPEG / PNG`);
+        } catch (error) {
+            console.error(error);
+            toast.error(error instanceof Error ? error.message : "批量导入并写回失败，请重试");
+        } finally {
+            setIsOverwritingInPlace(false);
+        }
     };
 
     const clearSelectedGps = () => {
@@ -1554,7 +2277,7 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
         if (!activeItem.canWriteExif) {
-            toast.error("当前图片格式只支持查看，不能写入 GPS");
+            toast.error("当前图片格式暂不支持编辑后导出元数据");
             return;
         }
         if (!keyword) {
@@ -1564,38 +2287,7 @@ const PhotoExifWorkbench: React.FC = () => {
 
         setIsSearchingLocation(true);
         try {
-            const sdk = await loadAMap();
-            const point = await new Promise<{ point: GpsPoint; title: string } | null>((resolve) => {
-                const placeSearch = new sdk.PlaceSearch({
-                    pageSize: 8,
-                    extensions: "base",
-                } as Record<string, unknown>);
-                placeSearch.search(keyword, (status, result) => {
-                    if (status === "complete" && result?.poiList?.pois?.length) {
-                        const poi = result.poiList.pois[0];
-                        const pointValue = extractLngLat(poi?.location);
-                        if (pointValue) {
-                            resolve({
-                                point: pointValue,
-                                title: String(poi?.name ?? keyword).trim() || keyword,
-                            });
-                            return;
-                        }
-                    }
-
-                    const geocoder = new sdk.Geocoder({});
-                    geocoder.getLocation(keyword, (geoStatus, geoResult) => {
-                        if (geoStatus === "complete" && geoResult?.geocodes?.length) {
-                            const geoPoint = extractLngLat(geoResult.geocodes[0]?.location);
-                            if (geoPoint) {
-                                resolve({ point: geoPoint, title: keyword });
-                                return;
-                            }
-                        }
-                        resolve(null);
-                    });
-                });
-            });
+            const point = await searchLocationPoint(keyword);
 
             if (!point) {
                 toast.error("未找到该地点，请尝试更精确的名称");
@@ -1618,9 +2310,41 @@ const PhotoExifWorkbench: React.FC = () => {
         }
     };
 
+    const searchBatchLocation = async () => {
+        const keyword = batchLocationSearchQuery.trim();
+        if (!keyword) {
+            toast.error("请输入批量 GPS 的地点名称");
+            return;
+        }
+
+        setIsSearchingLocation(true);
+        try {
+            const point = await searchLocationPoint(keyword);
+            if (!point) {
+                toast.error("未找到该地点，请尝试更精确的名称");
+                return;
+            }
+
+            setBatchGpsSourceId("");
+            setBatchGps({
+                enabled: true,
+                lat: formatGpsValue(point.point.lat),
+                lng: formatGpsValue(point.point.lng),
+                locationName: point.title,
+            });
+            setBatchLocationSearchQuery(point.title);
+            toast.success("已根据地点名称更新批量 GPS 坐标");
+        } catch (error) {
+            console.error(error);
+            toast.error("批量地点搜索失败，请稍后重试");
+        } finally {
+            setIsSearchingLocation(false);
+        }
+    };
+
     const generateUpdatedFile = useCallback(async (item: PhotoExifItem, exportName?: string): Promise<File> => {
         if (!item.canWriteExif) {
-            throw new Error("当前仅支持为 JPEG/JPG 写回 EXIF");
+            throw new Error("当前格式暂不支持导出 EXIF 修改");
         }
         const nextFileName = exportName ?? getEffectiveFileName(item);
         const fileNameError = getFileNameValidationError(getFileBaseName(nextFileName));
@@ -1628,18 +2352,46 @@ const PhotoExifWorkbench: React.FC = () => {
             throw new Error(fileNameError);
         }
 
-        const originalDataUrl = await readAsDataUrl(item.file);
-        let sourceExif = createEmptyExifObject();
-        try {
-            sourceExif = {
-                ...createEmptyExifObject(),
-                ...(piexif.load(originalDataUrl) as Record<string, unknown>),
-            };
-        } catch (error) {
-            console.warn("原图 EXIF 不可读，将创建新的 EXIF 块", item.file.name, error);
+        const outputFileName = getExportTargetFileName(item, exportName);
+        const editableToSave = applyCopyrightPresetToEditable(item.editableCurrent, copyrightPreset, copyrightPresetEnabled);
+
+        if (isPngFile(item.file)) {
+            const pngBytes = new Uint8Array(await item.file.arrayBuffer());
+            let sourceExif = createEmptyExifObject();
+            const existingExifPayload = extractPngExifChunk(pngBytes);
+            if (existingExifPayload) {
+                try {
+                    sourceExif = {
+                        ...createEmptyExifObject(),
+                        ...(piexif.load(EXIF_HEADER + bytesToBinaryString(existingExifPayload)) as Record<string, unknown>),
+                    };
+                } catch (error) {
+                    console.warn("PNG 原图 EXIF 不可读，将创建新的 EXIF 块", item.file.name, error);
+                }
+            }
+
+            const outputExif = applyEditableToExif(sourceExif, editableToSave, item.gpsCurrent);
+            const exifString = piexif.dump(outputExif as Record<string, unknown>);
+            const updatedPngBytes = upsertPngExifChunk(pngBytes, exifStringToPngPayload(exifString));
+            const pngBlob = new Blob([updatedPngBytes as unknown as BlobPart], { type: "image/png" });
+            return new File([pngBlob], outputFileName, { type: "image/png" });
         }
 
-        const editableToSave = applyCopyrightPresetToEditable(item.editableCurrent, copyrightPreset, copyrightPresetEnabled);
+        const originalDataUrl = item.canOverwriteInPlace
+            ? await readAsDataUrl(item.file)
+            : await convertImageToJpegDataUrl(item.file);
+        let sourceExif = createEmptyExifObject();
+        if (item.canOverwriteInPlace) {
+            try {
+                sourceExif = {
+                    ...createEmptyExifObject(),
+                    ...(piexif.load(originalDataUrl) as Record<string, unknown>),
+                };
+            } catch (error) {
+                console.warn("原图 EXIF 不可读，将创建新的 EXIF 块", item.file.name, error);
+            }
+        }
+
         const outputExif = applyEditableToExif(sourceExif, editableToSave, item.gpsCurrent);
         const exifString = piexif.dump(outputExif as Record<string, unknown>);
 
@@ -1651,10 +2403,7 @@ const PhotoExifWorkbench: React.FC = () => {
         }
 
         const updatedDataUrl = piexif.insert(exifString, jpegData);
-        return dataUrlToFile(
-            updatedDataUrl,
-            nextFileName === item.originalFileName ? getExportName(item.file.name) : nextFileName,
-        );
+        return dataUrlToFile(updatedDataUrl, outputFileName);
     }, [copyrightPreset, copyrightPresetEnabled]);
 
     const refreshItemFromHandle = useCallback(async (item: PhotoExifItem): Promise<PhotoExifItem> => {
@@ -1729,7 +2478,7 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
         if (!selectedItem.canWriteExif) {
-            toast.error("当前目标图片不是 JPEG/JPG，无法导入可写信息");
+            toast.error("当前目标图片格式暂不支持导出元数据修改");
             return;
         }
         if (!selectedImportSourceId) {
@@ -1754,7 +2503,7 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
         if (!selectedItem.canWriteExif) {
-            toast.error("当前目标图片不是 JPEG/JPG，无法导入可写信息");
+            toast.error("当前目标图片格式暂不支持导出元数据修改");
             return;
         }
         if (!Object.values(importScopeSelection).some(Boolean)) {
@@ -1777,8 +2526,8 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
 
-        if (!stagedItem.fileHandle) {
-            toast.error("当前图片未通过文件夹授权导入，不能原地改写");
+        if (!stagedItem.canOverwriteInPlace || !stagedItem.fileHandle) {
+            toast.error("当前图片只有 JPEG / PNG 支持原地改写，请先导出修改后图片");
             return;
         }
 
@@ -1800,8 +2549,8 @@ const PhotoExifWorkbench: React.FC = () => {
             toast.error("请先选择图片");
             return;
         }
-        if (!selectedItem.canWriteExif || !selectedItem.fileHandle) {
-            toast.error("当前图片未通过文件夹授权导入，不能原地改写");
+        if (!selectedItem.canOverwriteInPlace || !selectedItem.fileHandle) {
+            toast.error("当前图片只有 JPEG / PNG 支持原地改写，请先导出修改后图片");
             return;
         }
         if (!isDirty(selectedItem)) {
@@ -1828,7 +2577,7 @@ const PhotoExifWorkbench: React.FC = () => {
             return;
         }
         if (!selectedItem.canWriteExif) {
-            toast.error("当前仅支持导出修改后的 JPEG/JPG");
+            toast.error("当前仅支持导出修改后的 JPEG / PNG / TIF");
             return;
         }
 
@@ -1848,7 +2597,7 @@ const PhotoExifWorkbench: React.FC = () => {
     const exportBatch = async () => {
         const writableDirtyItems = items.filter((item) => item.canWriteExif && isDirty(item));
         if (!writableDirtyItems.length) {
-            toast.error("没有可导出的已修改 JPEG 图片");
+            toast.error("没有可导出的已修改图片");
             return;
         }
 
@@ -1876,9 +2625,9 @@ const PhotoExifWorkbench: React.FC = () => {
     };
 
     const overwriteBatchInPlace = async () => {
-        const writableDirtyItems = items.filter((item) => item.canWriteExif && item.fileHandle && isDirty(item));
+        const writableDirtyItems = items.filter((item) => item.canOverwriteInPlace && item.fileHandle && isDirty(item));
         if (!writableDirtyItems.length) {
-            toast.error("没有可原地改写的已修改 JPEG，请先从文件夹载入图片");
+            toast.error("没有可原地改写的已修改 JPEG / PNG，请先从文件夹载入图片");
             return;
         }
 
@@ -1886,7 +2635,7 @@ const PhotoExifWorkbench: React.FC = () => {
         try {
             const refreshedItems = await overwriteItemsInPlace(writableDirtyItems);
             setItems((previous) => previous.map((item) => refreshedItems.get(item.id) ?? item));
-            toast.success(`已原地改写 ${refreshedItems.size} 张 JPEG 图片的 EXIF`);
+            toast.success(`已原地改写 ${refreshedItems.size} 张 JPEG / PNG 图片的 EXIF`);
         } catch (error) {
             console.error(error);
             toast.error(error instanceof Error ? error.message : "原地改写失败，请重试");
@@ -1896,168 +2645,49 @@ const PhotoExifWorkbench: React.FC = () => {
     };
 
     const selectedGpsPoint = selectedItem ? editableGpsToPoint(selectedItem.gpsCurrent) : null;
-
-    const amapLink = selectedGpsPoint
-        ? `https://uri.amap.com/marker?position=${selectedGpsPoint.lng},${selectedGpsPoint.lat}&name=${encodeURIComponent(selectedItem?.file.name ?? "拍摄位置")}`
-        : "#";
-    const googleLink = selectedGpsPoint
-        ? `https://www.google.com/maps?q=${selectedGpsPoint.lat},${selectedGpsPoint.lng}`
-        : "#";
+    const selectedFileExtension = selectedItem ? getFileExtension(selectedItem.currentFileName) : "";
+    const selectedFileNameValue = selectedItem ? getFileBaseName(selectedItem.currentFileName) : "";
+    const selectedFileNameError = selectedItem ? getFileNameValidationError(selectedFileNameValue) : "";
+    const selectedDateTimeOriginalValue = selectedItem ? exifDateTimeToLocalInputValue(selectedItem.editableCurrent.dateTimeOriginal) : "";
+    const selectedDateTimeDigitizedValue = selectedItem ? exifDateTimeToLocalInputValue(selectedItem.editableCurrent.dateTimeDigitized) : "";
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 px-4 py-4 lg:px-5">
             <div className="mx-auto max-w-[1680px] space-y-5">
-                <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight lg:text-[28px]">照片 EXIF 查看与修改</h1>
-                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
-                            支持单图详情查看、GPS 地图预览、批量概览与统一修改；可先上传筛图，再授权文件夹绑定原文件后对 JPEG 原地改写。
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <DarkToggle />
-                        {items.length > 0 && (
-                            <Button variant="outline" className={dangerSubtleButtonClass} onClick={clearAll}>
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                清空全部
-                            </Button>
-                        )}
-                    </div>
-                </header>
+                <WorkbenchHeader
+                    hasItems={items.length > 0}
+                    dangerSubtleButtonClass={dangerSubtleButtonClass}
+                    onClearAll={clearAll}
+                />
 
-                <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                    <CardContent className="space-y-3 p-5">
-                        <div
-                            {...getRootProps()}
-                            className={`border-2 border-dashed rounded-2xl text-center transition-all ${
-                                items.length > 0
-                                    ? "px-5 py-4"
-                                    : "p-8 md:p-9"
-                            } ${
-                                isDragActive
-                                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                                    : "border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500"
-                            }`}
-                        >
-                            <input {...getInputProps()} />
-                            <div className={`flex items-center justify-center gap-3 ${items.length > 0 ? "min-h-[56px]" : "flex-col"}`}>
-                                <Upload className={`text-slate-400 ${items.length > 0 ? "h-8 w-8 shrink-0" : "mb-4 h-12 w-12"}`} />
-                                <div className={`space-y-1 ${items.length > 0 ? "text-left" : "space-y-2"}`}>
-                                    <p className={`${items.length > 0 ? "text-base font-medium" : "text-lg font-medium"}`}>
-                                        {isDragActive ? "释放图片开始读取" : items.length > 0 ? "继续拖拽添加图片" : "拖拽图片到这里"}
-                                    </p>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                                        {items.length > 0
-                                            ? "可继续补充图片，或直接使用下方按钮进行选择与授权"
-                                            : "先上传图片查看和修改；上传完成后，如需直接写回原文件，再继续授权原文件"}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
-                            <Button
-                                size="sm"
-                                onClick={open}
-                                className={primaryButtonClass}
-                            >
-                                <ImageIcon className="w-4 h-4 mr-2" />
-                                选择图片
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className={secondaryButtonClass}
-                                onClick={() => void handleSelectDirectory()}
-                                disabled={isImportingDirectory}
-                            >
-                                <FolderOpen className="w-4 h-4 mr-2" />
-                                {isImportingDirectory ? "读取文件夹中..." : "选择文件夹并授权写入"}
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant={items.length > 0 ? "default" : "outline"}
-                                className={items.length > 0
-                                    ? accentButtonClass
-                                    : secondaryButtonClass}
-                                onClick={() => void handleBindUploadedItemsToDirectory()}
-                                disabled={!items.length || isBindingDirectory}
-                            >
-                                <FolderOpen className="w-4 h-4 mr-2" />
-                                {isBindingDirectory ? "授权中..." : "授权文件夹读取权限"}
-                            </Button>
-                            {directoryHandle && (
-                                <Badge variant="outline" className="rounded-xl border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                    已授权文件夹：{directoryHandle.name}
-                                </Badge>
-                            )}
-                        </div>
-                        {items.length > 0 && (
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                已上传 {items.length} 张图片。想直接写回原文件？下一步请点击“授权文件夹读取权限”。目前已授权 {linkedCount} 张，还有 {bindableCount} 张可继续授权。
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
+                <ImportPanel
+                    accentButtonClass={accentButtonClass}
+                    getInputProps={getInputProps}
+                    getRootProps={getRootProps}
+                    isBindingDirectory={isBindingDirectory}
+                    isDragActive={isDragActive}
+                    isImportingDirectory={isImportingDirectory}
+                    bindableCount={bindableCount}
+                    directoryHandleName={directoryHandle?.name ?? null}
+                    hasItems={items.length > 0}
+                    itemCount={items.length}
+                    linkedCount={linkedCount}
+                    openFilePicker={open}
+                    onBindDirectory={() => void handleBindUploadedItemsToDirectory()}
+                    onSelectDirectory={() => void handleSelectDirectory()}
+                    primaryButtonClass={primaryButtonClass}
+                    secondaryButtonClass={secondaryButtonClass}
+                />
 
                 {items.length > 0 && (
                     <>
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300">
-                                        <Files className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">已加载图片</p>
-                                        <p className="text-xl font-semibold">{items.length}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300">
-                                        <PencilLine className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">可写回 JPEG</p>
-                                        <p className="text-xl font-semibold">{writableCount}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300">
-                                        <CheckCircle2 className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">待导出修改</p>
-                                        <p className="text-xl font-semibold">{dirtyCount}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300">
-                                        <MapPin className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">含 GPS 信息</p>
-                                        <p className="text-xl font-semibold">{gpsCount}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                                <CardContent className="flex items-center gap-3 p-4">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300">
-                                        <Save className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">可原地改写</p>
-                                        <p className="text-xl font-semibold">{inplaceCount}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
+                        <StatsOverview
+                            dirtyCount={dirtyCount}
+                            gpsCount={gpsCount}
+                            inplaceCount={inplaceCount}
+                            itemCount={items.length}
+                            writableCount={writableCount}
+                        />
 
                         <div className="grid gap-5 xl:grid-cols-12">
                             <Card className="xl:col-span-3 border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
@@ -2067,7 +2697,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                         图片列表
                                     </CardTitle>
                                     <CardDescription>
-                                        先上传图片筛选与查看；如需直接写回原文件，再补一步授权原文件
+                                        先上传图片筛选与查看；JPEG / PNG 可授权后原地写回，TIF 可导出修改
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="pt-0">
@@ -2204,7 +2834,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                     <Button
                                                                         className={dangerButtonClass}
                                                                         onClick={() => void overwriteSelectedInPlace()}
-                                                                        disabled={!selectedItem.canWriteExif || !selectedItem.fileHandle || !isDirty(selectedItem) || isOverwritingSelected}
+                                                                        disabled={!selectedItem.canOverwriteInPlace || !selectedItem.fileHandle || !isDirty(selectedItem) || isOverwritingSelected}
                                                                     >
                                                                         <AlertCircle className="w-4 h-4 mr-1" />
                                                                         <Save className="w-4 h-4 mr-2" />
@@ -2214,13 +2844,74 @@ const PhotoExifWorkbench: React.FC = () => {
                                                             </div>
                                                             <p className="text-sm text-slate-500 dark:text-slate-400">
                                                                 {!selectedItem.canWriteExif
-                                                                    ? "当前图片格式不是 JPEG/JPG，仅支持查看，不支持导出或写回。"
-                                                                    : !selectedItem.fileHandle
-                                                                      ? "当前图片还没授权原文件，可先导出修改后图片；如需直接写回，请先点击“授权原文件”。"
-                                                                      : !isDirty(selectedItem)
-                                                                        ? "当前图片还没有待保存的修改。"
-                                                                        : "已授权原文件，可直接原地写回。"}
+                                                                    ? "当前图片格式暂不支持导出元数据修改。"
+                                                                    : !selectedItem.canOverwriteInPlace
+                                                                      ? "当前图片可导出修改后的 JPEG；原地写回仅支持 JPEG / PNG。"
+                                                                      : !selectedItem.fileHandle
+                                                                        ? "当前 JPEG / PNG 还没授权原文件，可先导出修改后图片；如需直接写回，请先点击“授权原文件”。"
+                                                                        : !isDirty(selectedItem)
+                                                                          ? "当前图片还没有待保存的修改。"
+                                                                          : "已授权原文件，可直接原地写回。"}
                                                             </p>
+                                                        </div>
+
+                                                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                            <div>
+                                                                <h3 className="text-lg font-semibold">文件名与时间</h3>
+                                                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                                    可直接修改导出/写回后的文件名，以及拍摄时间和数字化时间
+                                                                </p>
+                                                            </div>
+                                                            <div className="grid gap-4 xl:grid-cols-2">
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="selected-file-name">文件名</Label>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Input
+                                                                            id="selected-file-name"
+                                                                            value={selectedFileNameValue}
+                                                                            placeholder="输入导出或写回时使用的文件名"
+                                                                            disabled={!selectedItem.canWriteExif}
+                                                                            onChange={(event) => updateSelectedFileName(event.target.value)}
+                                                                        />
+                                                                        {selectedFileExtension && (
+                                                                            <div className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                                                                                {selectedFileExtension}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className={`text-xs ${selectedFileNameError ? "text-rose-500" : "text-slate-500 dark:text-slate-400"}`}>
+                                                                        {selectedFileNameError || `留空或非法名称会在保存时拦截，原始文件名：${selectedItem.originalFileName}`}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="selected-date-time-original">拍摄时间</Label>
+                                                                    <Input
+                                                                        id="selected-date-time-original"
+                                                                        type="datetime-local"
+                                                                        step="1"
+                                                                        value={selectedDateTimeOriginalValue}
+                                                                        disabled={!selectedItem.canWriteExif}
+                                                                        onChange={(event) => updateSelectedDateTimeField("dateTimeOriginal", event.target.value)}
+                                                                    />
+                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                        会写回 `DateTimeOriginal`，格式自动转换为 EXIF 时间
+                                                                    </p>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label htmlFor="selected-date-time-digitized">数字化时间</Label>
+                                                                    <Input
+                                                                        id="selected-date-time-digitized"
+                                                                        type="datetime-local"
+                                                                        step="1"
+                                                                        value={selectedDateTimeDigitizedValue}
+                                                                        disabled={!selectedItem.canWriteExif}
+                                                                        onChange={(event) => updateSelectedDateTimeField("dateTimeDigitized", event.target.value)}
+                                                                    />
+                                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                        可选；会写回 `DateTimeDigitized`
+                                                                    </p>
+                                                                </div>
+                                                            </div>
                                                         </div>
 
                                                         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
@@ -2514,6 +3205,303 @@ const PhotoExifWorkbench: React.FC = () => {
                                         <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
                                             <CardHeader>
                                                 <CardTitle className="flex items-center gap-2">
+                                                    <PencilLine className="w-5 h-5" />
+                                                    批量改名助手
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    把常和 EXIF 联动使用的改名规则直接放进工作台；应用后会进入当前图片的导出/原地写回文件名
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="pt-0 space-y-6">
+                                                <div className="grid gap-4 xl:grid-cols-3">
+                                                    {RENAME_RULE_DEFINITIONS.map((definition) => (
+                                                        <div key={definition.type} className="space-y-2">
+                                                            <Label htmlFor={`rename-rule-${definition.type}`}>{definition.label}</Label>
+                                                            <div className="flex items-center gap-2">
+                                                                <Input
+                                                                    id={`rename-rule-${definition.type}`}
+                                                                    value={renameRuleInputs[definition.type]}
+                                                                    placeholder={definition.placeholder}
+                                                                    onChange={(event) => updateRenameRuleInput(definition.type, event.target.value)}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === "Enter") {
+                                                                            event.preventDefault();
+                                                                            submitRenameRule(definition.type);
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className={secondaryButtonClass}
+                                                                    onClick={() => submitRenameRule(definition.type)}
+                                                                >
+                                                                    添加
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-medium">当前规则</p>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                规则按添加顺序依次执行，适合先删前缀，再补统一前后缀
+                                                            </p>
+                                                        </div>
+                                                        <Badge variant="outline">{renameRules.length} 条规则</Badge>
+                                                    </div>
+                                                    {renameRules.length ? (
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {renameRules.map((rule) => (
+                                                                <div
+                                                                    key={rule.id}
+                                                                    className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm dark:border-slate-700 dark:bg-slate-950"
+                                                                >
+                                                                    <span className="text-slate-500 dark:text-slate-400">
+                                                                        {rule.type === "delete" ? "删除" : rule.type === "add_prefix" ? "前缀" : "后缀"}
+                                                                    </span>
+                                                                    <span className="font-medium break-all">{rule.value}</span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => removeRenameRule(rule.id)}
+                                                                        className="text-slate-400 hover:text-rose-500"
+                                                                        aria-label="删除改名规则"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                            还没有规则，先输入要删除的内容或要追加的前后缀
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="rename-filter-keyword">筛选范围</Label>
+                                                        <div className="flex items-center gap-2">
+                                                            <Input
+                                                                id="rename-filter-keyword"
+                                                                value={renameFilterKeyword}
+                                                                placeholder="只处理名称里包含这个关键词的图片；留空表示全部"
+                                                                onChange={(event) => setRenameFilterKeyword(event.target.value)}
+                                                            />
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className={secondaryButtonClass}
+                                                                onClick={() => setRenameFilterKeyword("")}
+                                                                disabled={!renameFilterKeyword}
+                                                            >
+                                                                <Search className="w-4 h-4 mr-2" />
+                                                                清空
+                                                            </Button>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                            只对当前工作台里可导出修改的图片生效；TIF 也会使用这里的文件名预设
+                                                        </p>
+                                                    </div>
+                                                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
+                                                        <p>匹配图片：{renamePreviewRows.length} 张</p>
+                                                        <p>名称变化：{renameChangedCount} 张</p>
+                                                        <p>可直接应用：{renameApplicableCount} 张</p>
+                                                        <p>待处理冲突：{renameBlockedCount} 张</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        className={primaryButtonClass}
+                                                        onClick={applyRenameRulesToWorkbench}
+                                                        disabled={!renameRules.length || !renamePreviewRows.length}
+                                                    >
+                                                        <PencilLine className="w-4 h-4 mr-2" />
+                                                        应用到当前工作台
+                                                    </Button>
+                                                    <Button type="button" variant="outline" size="sm" className={dangerSubtleButtonClass} onClick={clearRenameRules}>
+                                                        <RotateCcw className="w-4 h-4 mr-2" />
+                                                        清空规则
+                                                    </Button>
+                                                </div>
+
+                                                <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-medium">改名预览</p>
+                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                真正落盘发生在后续“导出已修改图片”或“原地改写已修改 JPEG / PNG”
+                                                            </p>
+                                                        </div>
+                                                        <Badge variant="outline">{renamePreviewRows.length} 条结果</Badge>
+                                                    </div>
+                                                    {renamePreviewRows.length ? (
+                                                        <ScrollArea className="h-[260px] pr-3">
+                                                            <div className="space-y-3">
+                                                                {renamePreviewRows.map((row) => (
+                                                                    <div key={row.itemId} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                                                            <div className="min-w-0 flex-1 space-y-2">
+                                                                                <p className="text-xs text-slate-500 dark:text-slate-400 break-all">
+                                                                                    原名：{row.originalName}
+                                                                                </p>
+                                                                                <p className={`text-sm font-medium break-all ${row.canApply ? "text-blue-600 dark:text-blue-300" : "text-slate-900 dark:text-slate-100"}`}>
+                                                                                    目标：{row.nextName}
+                                                                                </p>
+                                                                            </div>
+                                                                            <Badge
+                                                                                className={
+                                                                                    row.canApply
+                                                                                        ? "bg-emerald-600 text-white hover:bg-emerald-600"
+                                                                                        : row.duplicate || row.validationError
+                                                                                            ? "bg-rose-600 text-white hover:bg-rose-600"
+                                                                                            : "bg-slate-500 text-white hover:bg-slate-500"
+                                                                                }
+                                                                            >
+                                                                                {row.canApply ? "可应用" : row.duplicate ? "名称重复" : row.validationError ? "名称非法" : "无变化"}
+                                                                            </Badge>
+                                                                        </div>
+                                                                        {(row.validationError || row.duplicate) && (
+                                                                            <p className="mt-2 text-xs text-rose-500">
+                                                                                {row.validationError || "目标名称与其它图片重复，请调整规则或筛选范围"}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </ScrollArea>
+                                                    ) : (
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                                                            当前没有可预览结果，先上传图片或调整筛选关键词
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2">
+                                                    <Upload className="w-5 h-5" />
+                                                    批量来源图导入
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    选择一张来源图后，可把它的 EXIF 与 GPS 按范围导入到其它全部可导出图片
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="pt-0 space-y-6">
+                                                <div className="flex flex-wrap gap-2">
+                                                    <Button variant="outline" className={secondaryButtonClass} onClick={setSelectedAsBatchImportSource}>
+                                                        从当前图片设为来源图
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className={secondaryButtonClass}
+                                                        onClick={() => setBatchImportScopeSelection(createImportScopeSelection(["gps"]))}
+                                                    >
+                                                        只导入GPS
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className={secondaryButtonClass}
+                                                        onClick={() => setBatchImportScopeSelection(createImportScopeSelection(["time"]))}
+                                                    >
+                                                        只导入时间
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className={secondaryButtonClass}
+                                                        onClick={() => setBatchImportScopeSelection(DEFAULT_IMPORT_SCOPE_SELECTION)}
+                                                    >
+                                                        恢复默认勾选
+                                                    </Button>
+                                                </div>
+
+                                                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="batch-import-source">来源图片</Label>
+                                                        <select
+                                                            id="batch-import-source"
+                                                            title="选择批量来源图片"
+                                                            aria-label="选择批量来源图片"
+                                                            value={batchImportSourceId}
+                                                            onChange={(event) => setBatchImportSourceId(event.target.value)}
+                                                            className="flex h-10 w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm ring-offset-background dark:border-slate-800"
+                                                        >
+                                                            <option value="">请选择来源图片</option>
+                                                            {batchImportSourceOptions.map((item) => (
+                                                                <option key={item.id} value={item.id}>
+                                                                    {getEffectiveFileName(item)}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
+                                                        <p>目标图片：{batchImportTargetItems.length} 张</p>
+                                                        <p>可原地写回：{batchImportWritableTargetItems.length} 张</p>
+                                                        <p>当前来源图：{batchImportSourceItem ? getEffectiveFileName(batchImportSourceItem) : "未选择"}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                                    {IMPORT_SCOPE_DEFINITIONS.map((scope) => (
+                                                        <label
+                                                            key={`batch-scope-${scope.key}`}
+                                                            className={`flex cursor-pointer gap-3 rounded-2xl border p-4 transition-colors ${
+                                                                batchImportScopeSelection[scope.key]
+                                                                    ? "border-blue-500 bg-blue-50/70 dark:border-blue-500/70 dark:bg-blue-950/20"
+                                                                    : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
+                                                            }`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                                checked={batchImportScopeSelection[scope.key]}
+                                                                onChange={(event) =>
+                                                                    setBatchImportScopeSelection((previous) => ({
+                                                                        ...previous,
+                                                                        [scope.key]: event.target.checked,
+                                                                    }))
+                                                                }
+                                                            />
+                                                            <div className="min-w-0 space-y-1">
+                                                                <p className="text-sm font-medium">{scope.label}</p>
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">{scope.description}</p>
+                                                            </div>
+                                                        </label>
+                                                    ))}
+                                                </div>
+
+                                                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                                                    <Button className={accentButtonClass} size="sm" onClick={() => void applyBatchSourceImport(false)}>
+                                                        导入到全部图片
+                                                    </Button>
+                                                    {/* <Button
+                                                        className={dangerButtonClass}
+                                                        size="sm"
+                                                        onClick={() => void applyBatchSourceImport(true)}
+                                                        disabled={isOverwritingInPlace}
+                                                    >
+                                                        <AlertCircle className="w-4 h-4 mr-1" />
+                                                        <Save className="w-4 h-4 mr-2" />
+                                                        {isOverwritingInPlace ? "写回中..." : "导入并原地写回已授权 JPEG / PNG"}
+                                                    </Button> */}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+                                            <CardHeader>
+                                                <CardTitle className="flex items-center gap-2">
                                                     <Files className="w-5 h-5" />
                                                     批量统一修改
                                                 </CardTitle>
@@ -2538,15 +3526,21 @@ const PhotoExifWorkbench: React.FC = () => {
                                                             <Label htmlFor={`batch-${field.key}`}>{field.label}</Label>
                                                             <Input
                                                                 id={`batch-${field.key}`}
-                                                                value={batchEditable[field.key]}
-                                                                placeholder={field.placeholder}
-                                                                onChange={(event) =>
-                                                                    setBatchEditable((previous) => ({
-                                                                        ...previous,
-                                                                        [field.key]: event.target.value,
-                                                                    }))
+                                                                type={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? "datetime-local" : undefined}
+                                                                step={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? "1" : undefined}
+                                                                value={
+                                                                    field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized"
+                                                                        ? exifDateTimeToLocalInputValue(batchEditable[field.key])
+                                                                        : batchEditable[field.key]
                                                                 }
+                                                                placeholder={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? undefined : field.placeholder}
+                                                                onChange={(event) => updateBatchEditableField(field.key, event.target.value)}
                                                             />
+                                                            {(field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized") && (
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                    自动转换为 EXIF 时间格式后批量应用
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -2559,7 +3553,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                 批量 GPS 处理
                                                             </h3>
                                                             <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                                可手动统一设置 GPS，或从一张已有定位的照片同步到全部 JPEG
+                                                                可手动统一设置 GPS，或从一张已有定位的照片同步到全部可导出图片
                                                             </p>
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
@@ -2598,6 +3592,36 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         </select>
                                                     </div>
 
+                                                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                                                        <div>
+                                                            <div className="flex flex-col gap-3 sm:flex-row">
+                                                                <Input
+                                                                    value={batchLocationSearchQuery}
+                                                                    placeholder="搜索批量地点，例如 上海外滩 / 故宫博物院"
+                                                                    disabled={isSearchingLocation}
+                                                                    onChange={(event) => setBatchLocationSearchQuery(event.target.value)}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === "Enter") {
+                                                                            event.preventDefault();
+                                                                            void searchBatchLocation();
+                                                                        }
+                                                                    }}
+                                                                />
+                                                                <Button
+                                                                    className={primaryButtonClass}
+                                                                    onClick={() => void searchBatchLocation()}
+                                                                    disabled={isSearchingLocation}
+                                                                >
+                                                                    <Search className="w-4 h-4 mr-2" />
+                                                                    {isSearchingLocation ? "搜索中..." : "搜索地点"}
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 lg:justify-end">
+                                                            {batchGps.locationName || "未设置地点名称"}
+                                                        </div>
+                                                    </div>
+
                                                     <div className="grid gap-4 sm:grid-cols-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor="batch-gps-lat">批量纬度</Label>
@@ -2628,17 +3652,30 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         </div>
                                                     </div>
 
+                                                    <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                                                        <div ref={batchMapContainerRef} className="h-[280px] w-full bg-slate-100 dark:bg-slate-900" />
+                                                    </div>
+                                                    {batchMapState.loading && (
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400">批量地图加载中...</p>
+                                                    )}
+                                                    {batchMapState.error && (
+                                                        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                                                            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                                            {batchMapState.error}
+                                                        </div>
+                                                    )}
+
                                                     <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-3 text-xs text-slate-500 dark:text-slate-400 space-y-1">
                                                         <p>1. 选了“同步来源照片”后，批量应用时会优先使用该照片的 GPS。</p>
-                                                        <p>2. 未选来源时，使用你手动填写的经纬度和地点名称。</p>
-                                                        <p>3. 打开“空值也覆盖”且 GPS 配置为空时，会批量清除全部 JPEG 的 GPS。</p>
+                                                        <p>2. 未选来源时，可手动填写、搜索地点，或直接点击地图和拖拽标记设置 GPS。</p>
+                                                        <p>3. 打开“空值也覆盖”且 GPS 配置为空时，会批量清除全部可导出图片的 GPS。</p>
                                                     </div>
                                                 </div>
 
                                                 <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
                                                     <Button onClick={applyBatchChanges} size="sm" className={primaryButtonClass}>
                                                         <PencilLine className="w-4 h-4 mr-2" />
-                                                        应用到全部 JPEG
+                                                        应用到全部图片
                                                     </Button>
                                                     <Button variant="outline" size="sm" className={dangerSubtleButtonClass} onClick={resetAllEditable}>
                                                         <RotateCcw className="w-4 h-4 mr-2" />
@@ -2651,13 +3688,13 @@ const PhotoExifWorkbench: React.FC = () => {
                                                     <Button className={dangerButtonClass} size="sm" onClick={() => void overwriteBatchInPlace()} disabled={isOverwritingInPlace}>
                                                         <AlertCircle className="w-4 h-4 mr-1" />
                                                         <Save className="w-4 h-4 mr-2" />
-                                                        {isOverwritingInPlace ? "原地改写中..." : "原地改写已修改 JPEG"}
+                                                        {isOverwritingInPlace ? "原地改写中..." : "原地改写已修改 JPEG / PNG"}
                                                     </Button>
                                                 </div>
 
                                                 <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-sm text-slate-600 dark:text-slate-300 space-y-2">
                                                     <p>原地改写说明：</p>
-                                                    <p>1. 仅对从“选择文件夹并授权写入”导入的 JPEG 生效。</p>
+                                                    <p>1. 仅对从“选择文件夹并授权写入”导入的 JPEG / PNG 生效。</p>
                                                     <p>2. 会直接覆盖原文件，请先确认字段修改无误。</p>
                                                     <p>3. 原地写回后，列表会自动刷新为最新 EXIF 状态。</p>
                                                 </div>
@@ -2668,10 +3705,10 @@ const PhotoExifWorkbench: React.FC = () => {
                                             <CardHeader>
                                                 <CardTitle className="flex items-center gap-2">
                                                     <FileImage className="w-5 h-5" />
-                                                    批量概览
+                                                    批量逐张编辑与概览
                                                 </CardTitle>
                                                 <CardDescription>
-                                                    方便快速筛出可写回文件、已修改文件、已授权目录文件和包含位置信息的图片
+                                                    支持逐张调整文件名和时间，并快速查看哪些图片可导出、可原地改写或包含位置信息
                                                 </CardDescription>
                                             </CardHeader>
                                             <CardContent className="pt-0">
@@ -2717,7 +3754,65 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                     </div>
                                                                     <div>
                                                                         <p className="text-slate-500 dark:text-slate-400">原地改写</p>
-                                                                        <p className="mt-1 break-words">{item.fileHandle && item.canWriteExif ? "支持" : "不支持"}</p>
+                                                                        <p className="mt-1 break-words">{item.fileHandle && item.canOverwriteInPlace ? "支持" : "不支持"}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                                                                    <div>
+                                                                        <p className="text-sm font-medium">逐张编辑</p>
+                                                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                                            这里的文件名与时间修改会直接进入批量导出和批量原地写回
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="grid gap-4 lg:grid-cols-3">
+                                                                        <div className="space-y-2">
+                                                                            <Label htmlFor={`batch-item-file-name-${item.id}`}>文件名</Label>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <Input
+                                                                                    id={`batch-item-file-name-${item.id}`}
+                                                                                    value={getFileBaseName(item.currentFileName)}
+                                                                                    placeholder="输入导出或写回时使用的文件名"
+                                                                                    disabled={!item.canWriteExif}
+                                                                                    onChange={(event) => updateItemFileName(item.id, event.target.value)}
+                                                                                />
+                                                                                {getFileExtension(item.currentFileName) && (
+                                                                                    <div className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                                                                                        {getFileExtension(item.currentFileName)}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                            <p className={`text-xs ${getFileNameValidationError(getFileBaseName(item.currentFileName)) ? "text-rose-500" : "text-slate-500 dark:text-slate-400"}`}>
+                                                                                {getFileNameValidationError(getFileBaseName(item.currentFileName)) || `原始文件名：${item.originalFileName}`}
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="space-y-2">
+                                                                            <Label htmlFor={`batch-item-date-time-original-${item.id}`}>拍摄时间</Label>
+                                                                            <Input
+                                                                                id={`batch-item-date-time-original-${item.id}`}
+                                                                                type="datetime-local"
+                                                                                step="1"
+                                                                                value={exifDateTimeToLocalInputValue(item.editableCurrent.dateTimeOriginal)}
+                                                                                disabled={!item.canWriteExif}
+                                                                                onChange={(event) => updateItemDateTimeField(item.id, "dateTimeOriginal", event.target.value)}
+                                                                            />
+                                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                                写回 `DateTimeOriginal`
+                                                                            </p>
+                                                                        </div>
+                                                                        <div className="space-y-2">
+                                                                            <Label htmlFor={`batch-item-date-time-digitized-${item.id}`}>数字化时间</Label>
+                                                                            <Input
+                                                                                id={`batch-item-date-time-digitized-${item.id}`}
+                                                                                type="datetime-local"
+                                                                                step="1"
+                                                                                value={exifDateTimeToLocalInputValue(item.editableCurrent.dateTimeDigitized)}
+                                                                                disabled={!item.canWriteExif}
+                                                                                onChange={(event) => updateItemDateTimeField(item.id, "dateTimeDigitized", event.target.value)}
+                                                                            />
+                                                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                                                写回 `DateTimeDigitized`
+                                                                            </p>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -2924,11 +4019,11 @@ const PhotoExifWorkbench: React.FC = () => {
                     <DialogHeader>
                         <DialogTitle>已上传图片</DialogTitle>
                         <DialogDescription className="text-slate-600 dark:text-slate-400">
-                            已读取 {recentUploadedCount} 张图片。若要后续直接写回原文件，现在请继续授权图片所在文件夹的读取与写入权限。
+                            已读取 {recentUploadedCount} 张图片。若要后续直接写回 JPEG / PNG 原文件，现在请继续授权图片所在文件夹的读取与写入权限。
                         </DialogDescription>
                     </DialogHeader>
                     <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
-                        授权后，已上传的 JPEG 图片就可以直接写回原文件；不授权也可以继续查看和导出修改后图片。
+                        授权后，已上传的 JPEG / PNG 图片就可以直接写回原文件；不授权也可以继续查看和导出修改后图片。
                     </div>
                     <DialogFooter className="gap-2 sm:justify-end">
                         <Button variant="outline" className={secondaryButtonClass} onClick={() => setIsUploadPermissionDialogOpen(false)}>

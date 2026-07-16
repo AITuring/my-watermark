@@ -8,10 +8,10 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ImageType } from "./types";
+import ImageUploader from "@/components/ImageUploader";
+import ImagePreview from "@/components/ImagePreview";
+import { ImageType } from "@/types";
 import { X, Plus, Maximize2 } from "lucide-react";
-import ImageUploader from "./ImageUploader";
-import ImagePreview from "./ImagePreview";
 
 interface VerticalCarouselProps {
     images: ImageType[];
@@ -57,7 +57,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     const handleImagesUpload = async (files: File[]) => {
         try {
             // 导入 loadImageData 函数
-            const { loadImageData } = await import('./utils');
+            const { loadImageData } = await import("@/utils");
             const { images: newImages, failedFiles } = await loadImageData(files);
 
             // 合并新上传的图片和现有图片

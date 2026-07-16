@@ -36,15 +36,15 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import ImageUploader from "./ImageUploader";
+import ImageUploader from "@/components/ImageUploader";
 import {
     createFocusStackResult,
     getFocusStackOwnershipColor,
     type FocusStackLivePreview,
     type FocusStackOptions,
     type FocusStackResult,
-} from "./utils/focus-stack";
-import { createPreviewUrl } from "./utils/image-loading";
+} from "@/utils/focus-stack";
+import { createPreviewUrl } from "@/utils/image-loading";
 
 interface UploadState {
     id: string;

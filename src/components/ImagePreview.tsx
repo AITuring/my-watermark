@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
-    X,
     Ruler,
     Weight,
     ChevronLeft,
@@ -77,7 +76,6 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                 const isBlob = src.startsWith("blob:");
                 const isData = src.startsWith("data:");
                 if (isData) {
-                    // Compute size from base64 data URL
                     const commaIndex = src.indexOf(",");
                     const base64 = commaIndex >= 0 ? src.slice(commaIndex + 1) : "";
                     if (base64) {
@@ -85,13 +83,11 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                         size = Math.floor((base64.length * 3) / 4) - padding;
                     }
                 } else {
-                    // Try HEAD to read Content-Length
                     try {
                         const headRes = await fetch(src, { method: "HEAD" });
                         const sizeStr = headRes.headers.get("content-length");
                         if (sizeStr) size = Number(sizeStr);
                     } catch {}
-                    // Fallback: fetch actual resource to measure blob size
                     if (!size) {
                         const sameOrigin = (() => {
                             try {
@@ -120,7 +116,6 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
         };
     }, [open, index, images]);
 
-    // 重置状态
     useEffect(() => {
         if (open) {
             setIndex(currentIndex);
@@ -132,7 +127,6 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
         }
     }, [open, currentIndex]);
 
-    // 键盘事件处理
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (!open) return;
@@ -162,6 +156,14 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [open, index, images.length]);
 
+    const resetView = () => {
+        setScale(1);
+        setRotation(0);
+        setFlipX(false);
+        setFlipY(false);
+        setPosition({ x: 0, y: 0 });
+    };
+
     const handleNext = useCallback(() => {
         if (images.length <= 1) return;
         setIndex((prev) => (prev + 1) % images.length);
@@ -185,14 +187,6 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
         next && preload(next);
         prev && preload(prev);
     }, [open, index, images]);
-
-    const resetView = () => {
-        setScale(1);
-        setRotation(0);
-        setFlipX(false);
-        setFlipY(false);
-        setPosition({ x: 0, y: 0 });
-    };
 
     const handleZoomIn = () => {
         setScale((prev) => Math.min(prev + 0.25, 5));
@@ -246,7 +240,6 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-transparent border-none">
                 <div className="relative w-full h-full flex flex-col">
-                    {/* 图片容器 */}
                     <div
                         className="flex-1 flex items-center justify-center overflow-hidden"
                         onMouseDown={handleMouseDown}
@@ -255,29 +248,17 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                         onMouseLeave={handleMouseUp}
                         onWheel={handleWheel}
                         onDoubleClick={() =>
-                            setScale((prev) =>
-                                prev > 1 ? 1 : Math.min(prev + 1, 5)
-                            )
+                            setScale((prev) => (prev > 1 ? 1 : Math.min(prev + 1, 5)))
                         }
                         style={{
-                            cursor: isDragging
-                                ? "grabbing"
-                                : scale > 1
-                                ? "grab"
-                                : "default",
+                            cursor: isDragging ? "grabbing" : scale > 1 ? "grab" : "default",
                         }}
                     >
                         {images.length > 0 && (
                             <div
                                 style={{
-                                    transform: `translate(${position.x}px, ${
-                                        position.y
-                                    }px) scale(${flipX ? -scale : scale}, ${
-                                        flipY ? -scale : scale
-                                    }) rotate(${rotation}deg)`,
-                                    transition: isDragging
-                                        ? "none"
-                                        : "transform 0.2s ease",
+                                    transform: `translate(${position.x}px, ${position.y}px) scale(${flipX ? -scale : scale}, ${flipY ? -scale : scale}) rotate(${rotation}deg)`,
+                                    transition: isDragging ? "none" : "transform 0.2s ease",
                                 }}
                                 className="origin-center"
                             >
@@ -291,7 +272,6 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                         )}
                     </div>
 
-                    {/* 左右切换按钮 */}
                     {images.length > 1 && (
                         <>
                             <Button
@@ -314,8 +294,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                     )}
                     <div className="max-w-full mx-auto backdrop-blur-2xl pb-[env(safe-area-inset-bottom)] mt-2 rounded-md">
                         <div className="text-white text-xs sm:text-sm text-center py-1">
-                            {images.length > 0 &&
-                                `${index + 1} / ${images.length}`}
+                            {images.length > 0 && `${index + 1} / ${images.length}`}
                         </div>
                         <div className="flex flex-wrap items-center justify-between gap-2 p-2">
                             <div className="flex items-center gap-1">
@@ -393,27 +372,17 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                                 )}
                             </Button>
                             {dimsText && (
-                                    <div className="flex items-center text-white/90 text-[11px] sm:text-xs ml-2">
-                                        <Ruler className="h-4 w-4 mr-2" />
-                                        <span>{dimsText}</span>
-                                    </div>
-                                )}
-
+                                <div className="flex items-center text-white/90 text-[11px] sm:text-xs ml-2">
+                                    <Ruler className="h-4 w-4 mr-2" />
+                                    <span>{dimsText}</span>
+                                </div>
+                            )}
                             {sizeText && (
                                 <div className="flex items-center text-white/90 text-[11px] sm:text-xs min-h-10 sm:min-h-8">
                                     <Weight className="h-4 w-4 mr-2" />
                                     <span>{sizeText}</span>
                                 </div>
                             )}
-                            {/* <DialogClose asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-10 w-10 sm:h-8 sm:w-8 text-white hover:bg-white/20"
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </DialogClose> */}
                         </div>
                     </div>
                 </div>

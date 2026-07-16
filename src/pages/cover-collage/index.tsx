@@ -7,8 +7,8 @@ import { toast } from 'sonner'
 
 import { BOOKS } from '@/assets/wxbooks/books'
 import CoverCollage from '@/components/CoverCollage'
-import ImageUploader from './ImageUploader'
-import './CoverCollageMaker.css'
+import ImageUploader from "@/components/ImageUploader"
+import '@/CoverCollageMaker.css'
 
 type UploadedImage = {
   readonly id: string
