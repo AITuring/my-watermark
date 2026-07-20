@@ -2836,7 +2836,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                                         onClick={() => void overwriteSelectedInPlace()}
                                                                         disabled={!selectedItem.canOverwriteInPlace || !selectedItem.fileHandle || !isDirty(selectedItem) || isOverwritingSelected}
                                                                     >
-                                                                        <AlertCircle className="w-4 h-4 mr-1" />
+                                                                        {/* <AlertCircle className="w-4 h-4 mr-1" /> */}
                                                                         <Save className="w-4 h-4 mr-2" />
                                                                         {isOverwritingSelected ? "写回中..." : "写回原文件"}
                                                                     </Button>
@@ -3317,7 +3317,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                                                {/* <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
                                                     <Button
                                                         type="button"
                                                         size="sm"
@@ -3332,7 +3332,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         <RotateCcw className="w-4 h-4 mr-2" />
                                                         清空规则
                                                     </Button>
-                                                </div>
+                                                </div> */}
 
                                                 <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
                                                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -3686,7 +3686,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         {isExportingBatch ? "导出中..." : "导出已修改图片"}
                                                     </Button>
                                                     <Button className={dangerButtonClass} size="sm" onClick={() => void overwriteBatchInPlace()} disabled={isOverwritingInPlace}>
-                                                        <AlertCircle className="w-4 h-4 mr-1" />
+                                                        {/* <AlertCircle className="w-4 h-4 mr-1" /> */}
                                                         <Save className="w-4 h-4 mr-2" />
                                                         {isOverwritingInPlace ? "原地改写中..." : "原地改写已修改 JPEG / PNG"}
                                                     </Button>
