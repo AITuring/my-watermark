@@ -3317,7 +3317,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                     </div>
                                                 </div>
 
-                                                {/* <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                                                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
                                                     <Button
                                                         type="button"
                                                         size="sm"
@@ -3332,7 +3332,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                                         <RotateCcw className="w-4 h-4 mr-2" />
                                                         清空规则
                                                     </Button>
-                                                </div> */}
+                                                </div>
 
                                                 <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
                                                     <div className="flex flex-wrap items-center justify-between gap-3">
