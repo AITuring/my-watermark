@@ -28,6 +28,9 @@ type CropImage = {
     id: string;
     name: string;
     url: string;
+    previewUrl: string;
+    previewWidth: number;
+    previewHeight: number;
     width: number;
     height: number;
     crop: CropBox;
@@ -49,6 +52,12 @@ type DragState = {
     mode: DragMode;
     startPoint: { x: number; y: number };
     startCrop: CropBox | null;
+};
+
+type EditorPreview = {
+    url: string;
+    width: number;
+    height: number;
 };
 
 const ratioOptions = [
@@ -96,6 +105,7 @@ const buildUniqueNames = (existingNames: string[], incomingNames: string[]) => {
 };
 
 const sanitizeFileSegment = (value: string) => value.replace(/[\\/:*?"<>|]/g, "-").trim() || "image";
+const MAX_EDITOR_PREVIEW_SIZE = 2200;
 
 const createCenteredCrop = (imgW: number, imgH: number, ratio: number): CropBox => {
     const maxW = imgW * 0.75;
@@ -132,6 +142,55 @@ const loadImageElement = (src: string) =>
             resolve(img);
         }
     });
+
+const createEditorPreviewAsset = async (
+    source: CanvasImageSource,
+    width: number,
+    height: number,
+    fallbackUrl: string
+) : Promise<EditorPreview> => {
+    const longestSide = Math.max(width, height);
+    if (longestSide <= MAX_EDITOR_PREVIEW_SIZE) {
+        return {
+            url: fallbackUrl,
+            width,
+            height,
+        };
+    }
+
+    const scale = MAX_EDITOR_PREVIEW_SIZE / longestSide;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+        return {
+            url: fallbackUrl,
+            width,
+            height,
+        };
+    }
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.88)
+    );
+
+    return blob
+        ? {
+              url: URL.createObjectURL(blob),
+              width: canvas.width,
+              height: canvas.height,
+          }
+        : {
+              url: fallbackUrl,
+              width,
+              height,
+          };
+};
 
 const buildAspectBox = (
     anchor: { x: number; y: number },
@@ -174,7 +233,9 @@ export default function ImageCropper() {
     const [customAngle, setCustomAngle] = useState(0);
     const [isRoutingExporting, setIsRoutingExporting] = useState(false);
     const [savedCrops, setSavedCrops] = useState<SavedCrop[]>([]);
+    const [zoom, setZoom] = useState(1);
     const stageRef = useRef<HTMLDivElement | null>(null);
+    const viewportRef = useRef<HTMLDivElement | null>(null);
     const dragRef = useRef<DragState>({
         active: false,
         mode: "new",
@@ -184,6 +245,9 @@ export default function ImageCropper() {
     const objectUrlsRef = useRef<string[]>([]);
     const savedPreviewUrlsRef = useRef<string[]>([]);
     const savedCropSequenceRef = useRef<Record<string, number>>({});
+    const animationFrameRef = useRef<number | null>(null);
+    const pendingCropRef = useRef<CropBox | null>(null);
+    const [viewportRect, setViewportRect] = useState({ left: 0, top: 0, width: 1, height: 1 });
 
     const selectedRatio = useMemo<number | null>(() => {
         if (mode === "free") {
@@ -204,6 +268,32 @@ export default function ImageCropper() {
         () => images.find((item) => item.id === activeId) ?? null,
         [images, activeId]
     );
+
+    const fitZoom = useMemo(() => {
+        if (!activeImage) return 1;
+        const viewport = viewportRef.current;
+        if (!viewport) return 1;
+        const horizontalScale = Math.max(0.05, (viewport.clientWidth - 24) / activeImage.width);
+        const verticalScale = Math.max(0.05, (viewport.clientHeight - 24) / activeImage.height);
+        return Math.min(horizontalScale, verticalScale, 1);
+    }, [activeImage]);
+
+    const effectiveZoom = activeImage ? zoom : 1;
+    const displayWidth = activeImage ? Math.max(1, Math.round(activeImage.width * effectiveZoom)) : 1;
+    const displayHeight = activeImage ? Math.max(1, Math.round(activeImage.height * effectiveZoom)) : 1;
+
+    const shouldUseFullResolution = useMemo(() => {
+        if (!activeImage) return false;
+        return displayWidth > activeImage.previewWidth * 0.92 || effectiveZoom >= 1;
+    }, [activeImage, displayWidth, effectiveZoom]);
+
+    const currentDisplayUrl = activeImage
+        ? shouldUseFullResolution
+            ? activeImage.url
+            : activeImage.previewUrl
+        : "";
+
+    const currentDisplayLabel = shouldUseFullResolution ? "高清" : "流畅预览";
 
     const groupedSavedCrops = useMemo(() => {
         const groups: Array<{ sourceImageId: string; sourceName: string; items: SavedCrop[] }> = [];
@@ -233,12 +323,55 @@ export default function ImageCropper() {
         };
     }, [activeImage]);
 
+    const updateViewportRect = () => {
+        const viewport = viewportRef.current;
+        const stage = stageRef.current;
+        if (!viewport || !stage || !activeImage) {
+            setViewportRect({ left: 0, top: 0, width: 1, height: 1 });
+            return;
+        }
+
+        const stageWidth = stage.offsetWidth || 1;
+        const stageHeight = stage.offsetHeight || 1;
+        const left = clamp((viewport.scrollLeft - stage.offsetLeft) / stageWidth, 0, 1);
+        const top = clamp((viewport.scrollTop - stage.offsetTop) / stageHeight, 0, 1);
+        const width = clamp(viewport.clientWidth / stageWidth, 0, 1);
+        const height = clamp(viewport.clientHeight / stageHeight, 0, 1);
+        setViewportRect({ left, top, width, height });
+    };
+
     useEffect(() => {
         return () => {
             objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
             savedPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+            if (animationFrameRef.current !== null) {
+                cancelAnimationFrame(animationFrameRef.current);
+            }
         };
     }, []);
+
+    useEffect(() => {
+        if (!activeImage) return;
+        const nextZoom = Math.max(fitZoom, 0.1);
+        setZoom(nextZoom);
+    }, [activeImage?.id, fitZoom]);
+
+    useEffect(() => {
+        updateViewportRect();
+    }, [activeId, zoom, images.length]);
+
+    useEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+
+        const handleScroll = () => updateViewportRect();
+        viewport.addEventListener("scroll", handleScroll);
+        window.addEventListener("resize", handleScroll);
+        return () => {
+            viewport.removeEventListener("scroll", handleScroll);
+            window.removeEventListener("resize", handleScroll);
+        };
+    }, [activeId, zoom]);
 
     const loadFiles = async (files: File[]) => {
         if (!files.length) return;
@@ -249,8 +382,17 @@ export default function ImageCropper() {
                         const url = URL.createObjectURL(file);
                         const img = new Image();
                         img.src = url;
-                        img.onload = () => {
+                        img.onload = async () => {
                             objectUrlsRef.current.push(url);
+                            const preview = await createEditorPreviewAsset(
+                                img,
+                                img.width,
+                                img.height,
+                                url
+                            );
+                            if (preview.url !== url) {
+                                objectUrlsRef.current.push(preview.url);
+                            }
                             const crop =
                                 mode === "free"
                                     ? createCenteredFreeCrop(img.width, img.height)
@@ -259,6 +401,9 @@ export default function ImageCropper() {
                                 id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
                                 name: file.name.replace(/\.[^/.]+$/, "") || "image",
                                 url,
+                                previewUrl: preview.url,
+                                previewWidth: preview.width,
+                                previewHeight: preview.height,
                                 width: img.width,
                                 height: img.height,
                                 crop,
@@ -332,8 +477,14 @@ export default function ImageCropper() {
             throw new Error("transform-export-failed");
         }
 
+        const nextUrl = URL.createObjectURL(blob);
+        const preview = await createEditorPreviewAsset(canvas, canvas.width, canvas.height, nextUrl);
+
         return {
-            url: URL.createObjectURL(blob),
+            url: nextUrl,
+            previewUrl: preview.url,
+            previewWidth: preview.width,
+            previewHeight: preview.height,
             width: canvas.width,
             height: canvas.height,
         };
@@ -353,12 +504,18 @@ export default function ImageCropper() {
         try {
             const nextImage = await transformImage(activeImage, angleDeg);
             objectUrlsRef.current.push(nextImage.url);
+            if (nextImage.previewUrl !== nextImage.url) {
+                objectUrlsRef.current.push(nextImage.previewUrl);
+            }
             setImages((prev) =>
                 prev.map((item) => {
                     if (item.id !== activeImage.id) return item;
                     return {
                         ...item,
                         url: nextImage.url,
+                        previewUrl: nextImage.previewUrl,
+                        previewWidth: nextImage.previewWidth,
+                        previewHeight: nextImage.previewHeight,
                         width: nextImage.width,
                         height: nextImage.height,
                         crop: getDefaultCrop(nextImage.width, nextImage.height, mode, selectedRatio),
@@ -366,6 +523,9 @@ export default function ImageCropper() {
                 })
             );
             releaseUrl(activeImage.url);
+            if (activeImage.previewUrl !== activeImage.url) {
+                releaseUrl(activeImage.previewUrl);
+            }
         } catch (error) {
             console.error(error);
             toast.error("几何变换失败，请重试");
@@ -427,6 +587,29 @@ export default function ImageCropper() {
         };
     };
 
+    const flushScheduledCropUpdate = () => {
+        if (animationFrameRef.current !== null) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
+        }
+        if (!pendingCropRef.current) return;
+        const nextCrop = pendingCropRef.current;
+        pendingCropRef.current = null;
+        updateActiveCrop(() => nextCrop);
+    };
+
+    const scheduleCropUpdate = (nextCrop: CropBox) => {
+        pendingCropRef.current = nextCrop;
+        if (animationFrameRef.current !== null) return;
+        animationFrameRef.current = requestAnimationFrame(() => {
+            animationFrameRef.current = null;
+            if (!pendingCropRef.current) return;
+            const next = pendingCropRef.current;
+            pendingCropRef.current = null;
+            updateActiveCrop(() => next);
+        });
+    };
+
     const startDrag = (dragMode: DragMode, e: React.PointerEvent) => {
         if (!activeImage) return;
         const pt = getImagePoint(e.clientX, e.clientY);
@@ -450,7 +633,7 @@ export default function ImageCropper() {
                 const dy = pt.y - d.startPoint.y;
                 const nextX = clamp(d.startCrop.x + dx, 0, activeImage.width - d.startCrop.w);
                 const nextY = clamp(d.startCrop.y + dy, 0, activeImage.height - d.startCrop.h);
-                updateActiveCrop((prev) => ({ ...prev, x: nextX, y: nextY }));
+                scheduleCropUpdate({ ...d.startCrop, x: nextX, y: nextY });
                 return;
             }
             let anchor = d.startPoint;
@@ -474,10 +657,11 @@ export default function ImageCropper() {
                   )
                 : buildAspectBox(anchor, pt, selectedRatio ?? 1, activeImage.width, activeImage.height);
             if (next.w < 2 || next.h < 2) return;
-            updateActiveCrop(() => next);
+            scheduleCropUpdate(next);
         };
 
         const onUp = () => {
+            flushScheduledCropUpdate();
             dragRef.current.active = false;
         };
 
@@ -502,6 +686,9 @@ export default function ImageCropper() {
             if (removeIndex < 0) return prev;
             const removing = prev[removeIndex];
             releaseUrl(removing.url);
+            if (removing.previewUrl !== removing.url) {
+                releaseUrl(removing.previewUrl);
+            }
             const next = prev.filter((item) => item.id !== id);
             setActiveId((current) => {
                 if (current !== id) return current;
@@ -514,6 +701,7 @@ export default function ImageCropper() {
     };
 
     const clearAllImages = () => {
+        flushScheduledCropUpdate();
         objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
         objectUrlsRef.current = [];
         setImages([]);
@@ -741,6 +929,27 @@ export default function ImageCropper() {
         }));
     };
 
+    const centerViewportOnImagePoint = (xRatio: number, yRatio: number) => {
+        const viewport = viewportRef.current;
+        const stage = stageRef.current;
+        if (!viewport || !stage) return;
+        const targetLeft = stage.offsetLeft + stage.offsetWidth * xRatio - viewport.clientWidth / 2;
+        const targetTop = stage.offsetTop + stage.offsetHeight * yRatio - viewport.clientHeight / 2;
+        viewport.scrollTo({
+            left: Math.max(0, targetLeft),
+            top: Math.max(0, targetTop),
+            behavior: "smooth",
+        });
+    };
+
+    const handleMinimapPointer = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!activeImage) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const xRatio = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+        const yRatio = clamp((e.clientY - rect.top) / rect.height, 0, 1);
+        centerViewportOnImagePoint(xRatio, yRatio);
+    };
+
     return (
         <div className="h-[calc(100vh-56px)] overflow-auto bg-muted/20 p-4">
             <div className="mx-auto flex max-w-[1520px] flex-col gap-4">
@@ -937,7 +1146,7 @@ export default function ImageCropper() {
                                                 }`}
                                             >
                                                 <img
-                                                    src={item.url}
+                                                    src={item.previewUrl}
                                                     alt={item.name}
                                                     className="h-14 w-14 rounded-xl object-cover bg-black/5"
                                                 />
@@ -1002,65 +1211,141 @@ export default function ImageCropper() {
                                         <Badge variant="outline">
                                             选区 {Math.round(activeImage.crop.w)} × {Math.round(activeImage.crop.h)}
                                         </Badge>
+                                        <Badge variant="outline">缩放 {Math.round(effectiveZoom * 100)}%</Badge>
+                                        <Badge variant="outline">{currentDisplayLabel}</Badge>
                                     </div>
-                                    <div className="flex h-[70vh] w-full items-center justify-center overflow-auto rounded-[28px] border bg-black/5 p-3">
-                                        <div
-                                            className="relative inline-block select-none"
-                                            ref={stageRef}
-                                            onPointerDown={(e) => startDrag("new", e)}
-                                        >
-                                            <img
-                                                src={activeImage.url}
-                                                alt={activeImage.name}
-                                                className="block max-h-[65vh] max-w-full rounded-xl"
-                                                draggable={false}
-                                            />
-                                            {cropPercent && (
-                                                <>
-                                                    <div className="absolute inset-0 pointer-events-none">
-                                                        <div className="absolute left-0 top-0 h-full bg-black/35" style={{ width: `${cropPercent.left}%` }} />
-                                                        <div className="absolute right-0 top-0 h-full bg-black/35" style={{ width: `${Math.max(0, 100 - cropPercent.left - cropPercent.width)}%` }} />
-                                                        <div className="absolute" style={{ left: `${cropPercent.left}%`, top: 0, width: `${cropPercent.width}%`, height: `${cropPercent.top}%`, backgroundColor: "rgba(0,0,0,0.35)" }} />
-                                                        <div className="absolute" style={{ left: `${cropPercent.left}%`, top: `${cropPercent.top + cropPercent.height}%`, width: `${cropPercent.width}%`, height: `${Math.max(0, 100 - cropPercent.top - cropPercent.height)}%`, backgroundColor: "rgba(0,0,0,0.35)" }} />
-                                                    </div>
+                                    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_180px]">
+                                        <div className="space-y-3">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Button variant="secondary" size="sm" onClick={() => setZoom(fitZoom)}>
+                                                    适应窗口
+                                                </Button>
+                                                <Button variant="secondary" size="sm" onClick={() => setZoom(1)}>
+                                                    100%
+                                                </Button>
+                                                <Button variant="secondary" size="sm" onClick={() => setZoom((prev) => clamp(prev * 1.5, fitZoom * 0.5, 4))}>
+                                                    放大
+                                                </Button>
+                                                <Button variant="secondary" size="sm" onClick={() => setZoom((prev) => clamp(prev / 1.5, fitZoom * 0.5, 4))}>
+                                                    缩小
+                                                </Button>
+                                            </div>
+                                            <div
+                                                ref={viewportRef}
+                                                className="h-[70vh] overflow-auto rounded-[28px] border bg-black/5 p-3"
+                                            >
+                                                <div
+                                                    className="flex min-h-full min-w-full items-start justify-start"
+                                                    style={{
+                                                        paddingLeft: displayWidth < 300 ? 80 : 0,
+                                                        paddingTop: displayHeight < 300 ? 80 : 0,
+                                                    }}
+                                                >
                                                     <div
-                                                        className="absolute border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.4)]"
-                                                        style={{
-                                                            left: `${cropPercent.left}%`,
-                                                            top: `${cropPercent.top}%`,
-                                                            width: `${cropPercent.width}%`,
-                                                            height: `${cropPercent.height}%`,
-                                                        }}
-                                                        onPointerDown={(e) => {
-                                                            e.stopPropagation();
-                                                            startDrag("move", e);
-                                                        }}
+                                                        className="relative inline-block select-none"
+                                                        ref={stageRef}
+                                                        onPointerDown={(e) => startDrag("new", e)}
+                                                        style={{ width: `${displayWidth}px`, height: `${displayHeight}px` }}
                                                     >
-                                                        <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/60" />
-                                                        <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/60" />
-                                                        <div className="absolute top-1/3 left-0 right-0 h-px bg-white/60" />
-                                                        <div className="absolute top-2/3 left-0 right-0 h-px bg-white/60" />
-                                                        {(["nw", "ne", "sw", "se"] as DragMode[]).map((h) => {
-                                                            const map: Record<string, string> = {
-                                                                nw: "left-0 top-0 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize",
-                                                                ne: "right-0 top-0 translate-x-1/2 -translate-y-1/2 cursor-nesw-resize",
-                                                                sw: "left-0 bottom-0 -translate-x-1/2 translate-y-1/2 cursor-nesw-resize",
-                                                                se: "right-0 bottom-0 translate-x-1/2 translate-y-1/2 cursor-nwse-resize",
-                                                            };
-                                                            return (
+                                                        <img
+                                                            src={currentDisplayUrl}
+                                                            alt={activeImage.name}
+                                                            className="block rounded-xl"
+                                                            style={{ width: `${displayWidth}px`, height: `${displayHeight}px`, maxWidth: "none" }}
+                                                            draggable={false}
+                                                        />
+                                                        {cropPercent && (
+                                                            <>
+                                                                <div className="absolute inset-0 pointer-events-none">
+                                                                    <div className="absolute left-0 top-0 h-full bg-black/35" style={{ width: `${cropPercent.left}%` }} />
+                                                                    <div className="absolute right-0 top-0 h-full bg-black/35" style={{ width: `${Math.max(0, 100 - cropPercent.left - cropPercent.width)}%` }} />
+                                                                    <div className="absolute" style={{ left: `${cropPercent.left}%`, top: 0, width: `${cropPercent.width}%`, height: `${cropPercent.top}%`, backgroundColor: "rgba(0,0,0,0.35)" }} />
+                                                                    <div className="absolute" style={{ left: `${cropPercent.left}%`, top: `${cropPercent.top + cropPercent.height}%`, width: `${cropPercent.width}%`, height: `${Math.max(0, 100 - cropPercent.top - cropPercent.height)}%`, backgroundColor: "rgba(0,0,0,0.35)" }} />
+                                                                </div>
                                                                 <div
-                                                                    key={h}
-                                                                    className={`absolute h-3 w-3 rounded-full border border-white bg-black/80 ${map[h]}`}
+                                                                    className="absolute border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,.4)]"
+                                                                    style={{
+                                                                        left: `${cropPercent.left}%`,
+                                                                        top: `${cropPercent.top}%`,
+                                                                        width: `${cropPercent.width}%`,
+                                                                        height: `${cropPercent.height}%`,
+                                                                    }}
                                                                     onPointerDown={(e) => {
                                                                         e.stopPropagation();
-                                                                        startDrag(h, e);
+                                                                        startDrag("move", e);
                                                                     }}
-                                                                />
-                                                            );
-                                                        })}
+                                                                >
+                                                                    <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/60" />
+                                                                    <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/60" />
+                                                                    <div className="absolute top-1/3 left-0 right-0 h-px bg-white/60" />
+                                                                    <div className="absolute top-2/3 left-0 right-0 h-px bg-white/60" />
+                                                                    {(["nw", "ne", "sw", "se"] as DragMode[]).map((h) => {
+                                                                        const map: Record<string, string> = {
+                                                                            nw: "left-0 top-0 cursor-nwse-resize",
+                                                                            ne: "right-0 top-0 cursor-nesw-resize",
+                                                                            sw: "left-0 bottom-0 cursor-nesw-resize",
+                                                                            se: "right-0 bottom-0 cursor-nwse-resize",
+                                                                        };
+                                                                        return (
+                                                                            <div
+                                                                                key={h}
+                                                                                className={`absolute h-3 w-3 rounded-full border border-white bg-black/80 ${map[h]}`}
+                                                                                onPointerDown={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    startDrag(h, e);
+                                                                                }}
+                                                                            />
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </>
+                                                        )}
                                                     </div>
-                                                </>
-                                            )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
+                                                <div className="mb-2 text-sm font-medium">Minimap</div>
+                                                <div
+                                                    className="relative overflow-hidden rounded-xl border bg-background"
+                                                    style={{ aspectRatio: `${activeImage.width} / ${activeImage.height}` }}
+                                                    onPointerDown={handleMinimapPointer}
+                                                >
+                                                    <img
+                                                        src={activeImage.previewUrl}
+                                                        alt={`${activeImage.name}-minimap`}
+                                                        className="h-full w-full object-contain"
+                                                        draggable={false}
+                                                    />
+                                                    {cropPercent && (
+                                                        <div
+                                                            className="absolute border border-white/90 bg-white/10"
+                                                            style={{
+                                                                left: `${cropPercent.left}%`,
+                                                                top: `${cropPercent.top}%`,
+                                                                width: `${cropPercent.width}%`,
+                                                                height: `${cropPercent.height}%`,
+                                                            }}
+                                                        />
+                                                    )}
+                                                    <div
+                                                        className="absolute border border-primary bg-primary/10"
+                                                        style={{
+                                                            left: `${viewportRect.left * 100}%`,
+                                                            top: `${viewportRect.top * 100}%`,
+                                                            width: `${viewportRect.width * 100}%`,
+                                                            height: `${viewportRect.height * 100}%`,
+                                                        }}
+                                                    />
+                                                </div>
+                                                <div className="mt-2 text-[11px] text-muted-foreground">
+                                                    点击 minimap 可快速定位当前视口
+                                                </div>
+                                            </div>
+                                            <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+                                                放大到 100% 或更高时会自动切到高清图源，避免看细节发糊。
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
