@@ -9,6 +9,24 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { useNavigate } from "react-router-dom";
 import {
+    ArrowDown,
+    ArrowLeft,
+    ArrowRight,
+    ArrowUp,
+    Crop,
+    Download,
+    ImagePlus,
+    Images,
+    Maximize,
+    Minimize,
+    PackageOpen,
+    RotateCcw,
+    ScanSearch,
+    Scissors,
+    Send,
+    Trash2,
+} from "lucide-react";
+import {
     consumePendingCropTransfer,
     setPendingCropTransfer,
     type TransferTarget,
@@ -108,25 +126,25 @@ const sanitizeFileSegment = (value: string) => value.replace(/[\\/:*?"<>|]/g, "-
 const MAX_EDITOR_PREVIEW_SIZE = 2200;
 
 const createCenteredCrop = (imgW: number, imgH: number, ratio: number): CropBox => {
-    const maxW = imgW * 0.75;
-    const maxH = imgH * 0.75;
-    let w = maxW;
-    let h = w / ratio;
-    if (h > maxH) {
-        h = maxH;
+    const imageRatio = imgW / Math.max(imgH, 1);
+    let w = imgW;
+    let h = imgH;
+
+    if (imageRatio > ratio) {
+        h = imgH;
         w = h * ratio;
+    } else {
+        w = imgW;
+        h = w / ratio;
     }
+
     const x = (imgW - w) / 2;
     const y = (imgH - h) / 2;
     return { x, y, w, h };
 };
 
 const createCenteredFreeCrop = (imgW: number, imgH: number): CropBox => {
-    const w = imgW * 0.75;
-    const h = imgH * 0.75;
-    const x = (imgW - w) / 2;
-    const y = (imgH - h) / 2;
-    return { x, y, w, h };
+    return { x: 0, y: 0, w: imgW, h: imgH };
 };
 
 const getDefaultCrop = (imgW: number, imgH: number, mode: CropMode, ratio: number | null) =>
@@ -248,6 +266,7 @@ export default function ImageCropper() {
     const animationFrameRef = useRef<number | null>(null);
     const pendingCropRef = useRef<CropBox | null>(null);
     const [viewportRect, setViewportRect] = useState({ left: 0, top: 0, width: 1, height: 1 });
+    const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
     const selectedRatio = useMemo<number | null>(() => {
         if (mode === "free") {
@@ -271,12 +290,10 @@ export default function ImageCropper() {
 
     const fitZoom = useMemo(() => {
         if (!activeImage) return 1;
-        const viewport = viewportRef.current;
-        if (!viewport) return 1;
-        const horizontalScale = Math.max(0.05, (viewport.clientWidth - 24) / activeImage.width);
-        const verticalScale = Math.max(0.05, (viewport.clientHeight - 24) / activeImage.height);
+        const horizontalScale = Math.max(0.05, (viewportSize.width - 24) / activeImage.width);
+        const verticalScale = Math.max(0.05, (viewportSize.height - 24) / activeImage.height);
         return Math.min(horizontalScale, verticalScale, 1);
-    }, [activeImage]);
+    }, [activeImage, viewportSize.height, viewportSize.width]);
 
     const effectiveZoom = activeImage ? zoom : 1;
     const displayWidth = activeImage ? Math.max(1, Math.round(activeImage.width * effectiveZoom)) : 1;
@@ -294,6 +311,12 @@ export default function ImageCropper() {
         : "";
 
     const currentDisplayLabel = shouldUseFullResolution ? "高清" : "流畅预览";
+    const shouldShowMinimap = useMemo(() => {
+        if (!activeImage) return false;
+        const isZoomedIn = effectiveZoom > fitZoom * 1.25;
+        const viewportIsClipped = viewportRect.width < 0.92 || viewportRect.height < 0.92;
+        return isZoomedIn && viewportIsClipped;
+    }, [activeImage, effectiveZoom, fitZoom, viewportRect.height, viewportRect.width]);
 
     const groupedSavedCrops = useMemo(() => {
         const groups: Array<{ sourceImageId: string; sourceName: string; items: SavedCrop[] }> = [];
@@ -372,6 +395,27 @@ export default function ImageCropper() {
             window.removeEventListener("resize", handleScroll);
         };
     }, [activeId, zoom]);
+
+    useEffect(() => {
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+
+        const updateViewportSize = () => {
+            setViewportSize({
+                width: viewport.clientWidth,
+                height: viewport.clientHeight,
+            });
+        };
+
+        updateViewportSize();
+        const observer = new ResizeObserver(() => updateViewportSize());
+        observer.observe(viewport);
+        window.addEventListener("resize", updateViewportSize);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener("resize", updateViewportSize);
+        };
+    }, [activeId]);
 
     const loadFiles = async (files: File[]) => {
         if (!files.length) return;
@@ -950,262 +994,358 @@ export default function ImageCropper() {
         centerViewportOnImagePoint(xRatio, yRatio);
     };
 
-    return (
-        <div className="h-[calc(100vh-56px)] overflow-auto bg-muted/20 p-4">
-            <div className="mx-auto flex max-w-[1520px] flex-col gap-4">
-                <Card className="border-border/60 bg-background/90 shadow-sm">
-                    <CardHeader className="pb-4">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    const renderLeftPanel = (className = "") => (
+        <Card className={`flex h-full min-h-0 flex-col border-border/60 bg-background/90 shadow-sm ${className}`}>
+            <CardHeader className="px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Scissors className="h-4 w-4" />
+                        图片裁切
+                    </CardTitle>
+                    <Badge variant="secondary">{images.length} 张</Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
+                <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                        <Button asChild className="w-full">
+                            <label className="flex cursor-pointer items-center justify-center gap-2 text-center">
+                                <ImagePlus className="h-4 w-4" />
+                                上传原图
+                                <input
+                                    className="hidden"
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handleUpload}
+                                />
+                            </label>
+                        </Button>
+                        <Button variant="secondary" onClick={resetAllCrop} disabled={!images.length}>
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            重置全部
+                        </Button>
+                    </div>
+                    <Button variant="ghost" className="w-full justify-center" onClick={clearAllImages} disabled={!images.length}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        清空原图列表
+                    </Button>
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-3">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                        <Crop className="h-4 w-4" />
+                        导出规则
+                    </div>
+                    <div className="space-y-2">
+                        <Select value={mode} onValueChange={(v) => setMode(v as CropMode)}>
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="fixed">固定像素导出</SelectItem>
+                                <SelectItem value="ratio">按比例选区导出</SelectItem>
+                                <SelectItem value="free">自由裁切导出</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {mode === "fixed" ? (
+                            <div className="grid grid-cols-2 gap-2">
+                                <Input type="number" value={targetWidth} min={1} onChange={(e) => setTargetWidth(Number(e.target.value || 1))} />
+                                <Input type="number" value={targetHeight} min={1} onChange={(e) => setTargetHeight(Number(e.target.value || 1))} />
+                            </div>
+                        ) : mode === "ratio" ? (
                             <div className="space-y-2">
-                                <CardTitle className="text-2xl">图片裁切</CardTitle>
-                                {/* <p className="max-w-2xl text-sm text-muted-foreground">
-                                    只保留一条主路径：上传原图，裁切并暂存，再统一导出或发送到水印。
-                                </p> */}
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Badge variant="outline">原图 {images.length}</Badge>
-                                <Badge variant="outline">暂存 {savedCrops.length}</Badge>
-                                <Badge variant="outline">
-                                    {mode === "fixed" ? "固定尺寸" : mode === "ratio" ? "按比例" : "自由裁切"}
-                                </Badge>
-                            </div>
-                        </div>
-                        {/* <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-3">
-                            <div className="rounded-xl border border-dashed bg-muted/20 px-3 py-2">1. 上传并选择一张原图</div>
-                            <div className="rounded-xl border border-dashed bg-muted/20 px-3 py-2">2. 在中间画布调整选区并暂存</div>
-                            <div className="rounded-xl border border-dashed bg-muted/20 px-3 py-2">3. 从右侧统一导出或发送</div>
-                        </div> */}
-                    </CardHeader>
-                </Card>
-
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)_340px]">
-                    <Card className="border-border/60 bg-background/90 shadow-sm">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between gap-2">
-                                <CardTitle className="text-base">原图与设置</CardTitle>
-                                <Badge variant="secondary">{images.length} 张</Badge>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-5">
-                            <div className="space-y-2">
-                                <div className="grid grid-cols-2 gap-2">
-                                    <Button asChild className="w-full">
-                                        <label className="cursor-pointer text-center">
-                                            上传原图
-                                            <input
-                                                className="hidden"
-                                                type="file"
-                                                accept="image/*"
-                                                multiple
-                                                onChange={handleUpload}
-                                            />
-                                        </label>
-                                    </Button>
-                                    <Button variant="secondary" onClick={resetAllCrop} disabled={!images.length}>
-                                        重置全部
-                                    </Button>
-                                </div>
-                                <Button variant="ghost" className="w-full justify-center" onClick={clearAllImages} disabled={!images.length}>
-                                    清空原图列表
-                                </Button>
-                            </div>
-
-                            <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-3">
-                                <div className="text-sm font-medium">导出规则</div>
-                                <div className="space-y-2">
-                                    <Select value={mode} onValueChange={(v) => setMode(v as CropMode)}>
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="fixed">固定像素导出</SelectItem>
-                                            <SelectItem value="ratio">按比例选区导出</SelectItem>
-                                            <SelectItem value="free">自由裁切导出</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    {mode === "fixed" ? (
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <Input type="number" value={targetWidth} min={1} onChange={(e) => setTargetWidth(Number(e.target.value || 1))} />
-                                            <Input type="number" value={targetHeight} min={1} onChange={(e) => setTargetHeight(Number(e.target.value || 1))} />
-                                        </div>
-                                    ) : mode === "ratio" ? (
-                                        <div className="space-y-2">
-                                            <Select value={ratioPreset} onValueChange={setRatioPreset}>
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {ratioOptions.map((item) => (
-                                                        <SelectItem key={item.label} value={item.label}>
-                                                            {item.label}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            {ratioPreset === "自定义" && (
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    <Input
-                                                        type="number"
-                                                        value={customRatioW}
-                                                        min={1}
-                                                        onChange={(e) => setCustomRatioW(Number(e.target.value || 1))}
-                                                    />
-                                                    <Input
-                                                        type="number"
-                                                        value={customRatioH}
-                                                        min={1}
-                                                        onChange={(e) => setCustomRatioH(Number(e.target.value || 1))}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-xl bg-background px-3 py-2 text-xs text-muted-foreground">
-                                            自由裁切会按当前选区的原始像素导出。
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {activeImage && (
-                                <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-3">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <div className="min-w-0">
-                                            <div className="truncate text-sm font-medium">{activeImage.name}</div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {activeImage.width} × {activeImage.height}
-                                            </div>
-                                        </div>
-                                        <Button variant="secondary" size="sm" onClick={resetCurrentCrop}>
-                                            重置当前
-                                        </Button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                        <div className="rounded-xl bg-background px-3 py-2">
-                                            X / Y: {Math.round(activeImage.crop.x)} / {Math.round(activeImage.crop.y)}
-                                        </div>
-                                        <div className="rounded-xl bg-background px-3 py-2">
-                                            W / H: {Math.round(activeImage.crop.w)} / {Math.round(activeImage.crop.h)}
-                                        </div>
-                                    </div>
+                                <Select value={ratioPreset} onValueChange={setRatioPreset}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ratioOptions.map((item) => (
+                                            <SelectItem key={item.label} value={item.label}>
+                                                {item.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {ratioPreset === "自定义" && (
                                     <div className="grid grid-cols-2 gap-2">
                                         <Input
                                             type="number"
-                                            value={Math.round(activeImage.crop.x)}
-                                            onChange={(e) => setCropX(Number(e.target.value || 0))}
+                                            value={customRatioW}
+                                            min={1}
+                                            onChange={(e) => setCustomRatioW(Number(e.target.value || 1))}
                                         />
                                         <Input
                                             type="number"
-                                            value={Math.round(activeImage.crop.y)}
-                                            onChange={(e) => setCropY(Number(e.target.value || 0))}
-                                        />
-                                        <Input
-                                            type="number"
-                                            value={Math.round(activeImage.crop.w)}
-                                            onChange={(e) => setCropW(Number(e.target.value || 1))}
-                                        />
-                                        <Input
-                                            type="number"
-                                            value={Math.round(activeImage.crop.h)}
-                                            onChange={(e) => setCropH(Number(e.target.value || 1))}
+                                            value={customRatioH}
+                                            min={1}
+                                            onChange={(e) => setCustomRatioH(Number(e.target.value || 1))}
                                         />
                                     </div>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        <Button variant="secondary" size="sm" onClick={() => nudge(0, -1)}>
-                                            上
-                                        </Button>
-                                        <Button variant="secondary" size="sm" onClick={() => nudge(0, 1)}>
-                                            下
-                                        </Button>
-                                        <Button variant="secondary" size="sm" onClick={() => nudge(-1, 0)}>
-                                            左
-                                        </Button>
-                                        <Button variant="secondary" size="sm" onClick={() => nudge(1, 0)}>
-                                            右
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
+                        ) : (
+                            <div className="rounded-xl bg-background px-3 py-2 text-xs text-muted-foreground">
+                                自由裁切会按当前选区的原始像素导出。
+                            </div>
+                        )}
+                    </div>
+                </div>
 
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="text-sm font-medium">原图列表</div>
-                                    <div className="text-xs text-muted-foreground">选择一张进入编辑</div>
-                                </div>
-                                <div className="max-h-[44vh] space-y-2 overflow-auto pr-1">
-                                    {images.length ? (
-                                        images.map((item) => (
-                                            <button
-                                                key={item.id}
-                                                type="button"
-                                                onClick={() => setActiveId(item.id)}
-                                                className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition ${
-                                                    activeId === item.id
-                                                        ? "border-primary bg-primary/5 shadow-sm"
-                                                        : "border-border/60 bg-background hover:bg-muted/30"
-                                                }`}
-                                            >
-                                                <img
-                                                    src={item.previewUrl}
-                                                    alt={item.name}
-                                                    className="h-14 w-14 rounded-xl object-cover bg-black/5"
-                                                />
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="truncate text-sm">{item.name}</div>
-                                                    <div className="text-[11px] text-muted-foreground">
-                                                        {item.width} × {item.height}
-                                                    </div>
-                                                </div>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="h-8 px-2 text-muted-foreground"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        removeImage(item.id);
-                                                    }}
-                                                >
-                                                    删除
-                                                </Button>
-                                            </button>
-                                        ))
-                                    ) : (
-                                        <div className="rounded-2xl border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-                                            先上传一批原图，再从这里选择要裁切的图片。
-                                        </div>
-                                    )}
+                {/* {activeImage && (
+                    <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                                <div className="truncate text-sm font-medium">{activeImage.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {activeImage.width} × {activeImage.height}
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                            <Button variant="secondary" size="sm" onClick={resetCurrentCrop}>
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                重置当前
+                            </Button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                            <div className="rounded-xl bg-background px-3 py-2">
+                                X / Y: {Math.round(activeImage.crop.x)} / {Math.round(activeImage.crop.y)}
+                            </div>
+                            <div className="rounded-xl bg-background px-3 py-2">
+                                W / H: {Math.round(activeImage.crop.w)} / {Math.round(activeImage.crop.h)}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <Input
+                                type="number"
+                                value={Math.round(activeImage.crop.x)}
+                                onChange={(e) => setCropX(Number(e.target.value || 0))}
+                            />
+                            <Input
+                                type="number"
+                                value={Math.round(activeImage.crop.y)}
+                                onChange={(e) => setCropY(Number(e.target.value || 0))}
+                            />
+                            <Input
+                                type="number"
+                                value={Math.round(activeImage.crop.w)}
+                                onChange={(e) => setCropW(Number(e.target.value || 1))}
+                            />
+                            <Input
+                                type="number"
+                                value={Math.round(activeImage.crop.h)}
+                                onChange={(e) => setCropH(Number(e.target.value || 1))}
+                            />
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                            <Button variant="secondary" size="sm" onClick={() => nudge(0, -1)}>
+                                <ArrowUp className="h-4 w-4" />
+                                上
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={() => nudge(0, 1)}>
+                                <ArrowDown className="h-4 w-4" />
+                                下
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={() => nudge(-1, 0)}>
+                                <ArrowLeft className="h-4 w-4" />
+                                左
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={() => nudge(1, 0)}>
+                                <ArrowRight className="h-4 w-4" />
+                                右
+                            </Button>
+                        </div>
+                    </div>
+                )} */}
 
-                    <Card className="border-border/60 bg-background/95 shadow-sm">
-                        <CardHeader className="pb-3">
-                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                <div className="min-w-0">
-                                    <CardTitle className="text-base">当前编辑</CardTitle>
+                <div className="flex min-h-0 flex-1 flex-col gap-3">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                            <Images className="h-4 w-4" />
+                            原图列表
+                        </div>
+                        <div className="text-xs text-muted-foreground">选择一张进入编辑</div>
+                    </div>
+                    <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
+                        {images.length ? (
+                            images.map((item) => (
+                                <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => setActiveId(item.id)}
+                                    className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition ${
+                                        activeId === item.id
+                                            ? "border-primary bg-primary/5 shadow-sm"
+                                            : "border-border/60 bg-background hover:bg-muted/30"
+                                    }`}
+                                >
+                                    <img
+                                        src={item.previewUrl}
+                                        alt={item.name}
+                                        className="h-14 w-14 rounded-xl object-cover bg-black/5"
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="truncate text-sm">{item.name}</div>
+                                        <div className="text-[11px] text-muted-foreground">
+                                            {item.width} × {item.height}
+                                        </div>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 px-2 text-muted-foreground"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            removeImage(item.id);
+                                        }}
+                                    >
+                                        删除
+                                    </Button>
+                                </button>
+                            ))
+                        ) : (
+                            <div className="rounded-2xl border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+                                先上传一批原图，再从这里选择要裁切的图片。
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+
+    const renderRightPanel = (className = "") => (
+        <Card className={`flex h-full min-h-0 flex-col border-border/60 bg-background/90 shadow-sm ${className}`}>
+            <CardHeader className="px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <PackageOpen className="h-4 w-4" />
+                        暂存结果
+                    </CardTitle>
+                    <Badge variant="secondary">{savedCrops.length} 张</Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
+                <div className="grid gap-2">
+                    <Button onClick={exportBatch} disabled={!savedCrops.length}>
+                        <Download className="mr-2 h-4 w-4" />
+                        导出 ZIP
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={() => routeWithCrops("watermark")}
+                        disabled={!savedCrops.length || isRoutingExporting}
+                    >
+                        <Send className="mr-2 h-4 w-4" />
+                        发送到水印
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={() => routeWithCrops("puzzle")}
+                        disabled={!savedCrops.length || isRoutingExporting}
+                    >
+                        <Send className="mr-2 h-4 w-4" />
+                        发送到拼图
+                    </Button>
+                    <Button variant="ghost" onClick={clearSavedCrops} disabled={!savedCrops.length}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        清空暂存
+                    </Button>
+                </div>
+
+                <div className="min-h-0 flex-1 space-y-3 overflow-auto pr-1">
+                    {groupedSavedCrops.length ? (
+                        groupedSavedCrops.map((group) => (
+                            <div key={group.sourceImageId} className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="min-w-0">
+                                        <div className="truncate text-sm font-medium">{group.sourceName}</div>
+                                        <div className="text-[11px] text-muted-foreground">
+                                            已暂存 {group.items.length} 张
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    {group.items.map((item) => (
+                                        <div key={item.id} className="flex items-center gap-3 rounded-xl bg-background px-3 py-2">
+                                            <img
+                                                src={item.previewUrl}
+                                                alt={item.file.name}
+                                                className="h-14 w-14 rounded-lg object-cover bg-black/5"
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <div className="text-xs">第 {item.index} 张</div>
+                                                <div className="truncate text-[11px] text-muted-foreground">
+                                                    {item.outputW} × {item.outputH}
+                                                </div>
+                                                <div className="truncate text-[11px] text-muted-foreground">
+                                                    {item.file.name}
+                                                </div>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-8 px-2 text-muted-foreground"
+                                                onClick={() => removeSavedCrop(item.id)}
+                                            >
+                                                删除
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="rounded-2xl border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
+                            暂存区还是空的。先在中间裁一张，再点“暂存当前裁切”。
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+
+    return (
+        <div className="h-screen overflow-hidden bg-muted/20 p-4">
+            <div className="mx-auto flex h-full max-w-[1520px] min-h-0 flex-col">
+                <div className="grid h-full min-h-0 grid-cols-[240px_minmax(0,1fr)_260px] grid-rows-[minmax(0,1fr)] gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
+                    <div className="flex min-h-0">
+                        {renderLeftPanel("w-full")}
+                    </div>
+
+                    <div className="flex h-full min-h-0 flex-col gap-3">
+                        <Card className="flex min-h-0 flex-1 flex-col border-border/60 bg-background/95 shadow-sm">
+                        <CardHeader className="px-4 py-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 flex items-center gap-2">
+                                    <CardTitle className="flex shrink-0 items-center gap-2 text-base">
+                                        <ScanSearch className="h-4 w-4" />
+                                        当前编辑
+                                    </CardTitle>
                                     <div className="truncate text-sm text-muted-foreground">
                                         {activeImage ? activeImage.name : "还没有选择原图"}
                                     </div>
                                 </div>
-                                <div className="flex flex-wrap gap-2">
-                                    <Button onClick={saveCurrentCrop} disabled={!activeImage}>
-                                        暂存当前裁切
+                                <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+                                    <Button size="sm" className="px-2.5 sm:px-3" onClick={saveCurrentCrop} disabled={!activeImage}>
+                                        <Scissors className="h-4 w-4" />
+                                        <span className="hidden sm:inline">暂存当前裁切</span>
                                     </Button>
-                                    <Button variant="secondary" onClick={exportCurrent} disabled={!activeImage}>
-                                        单独导出
+                                    <Button variant="secondary" size="sm" className="px-2.5 sm:px-3" onClick={exportCurrent} disabled={!activeImage}>
+                                        <Download className="h-4 w-4" />
+                                        <span className="hidden sm:inline">单独导出</span>
                                     </Button>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
                             {!activeImage ? (
-                                <div className="flex h-[70vh] items-center justify-center rounded-[28px] border border-dashed bg-muted/20 text-sm text-muted-foreground">
+                                <div className="flex h-full min-h-0 items-center justify-center rounded-[28px] border border-dashed bg-muted/20 text-sm text-muted-foreground">
                                     从左侧选择一张原图开始裁切
                                 </div>
                             ) : (
-                                <>
+                                <div className="flex min-h-0 flex-1 flex-col gap-3">
                                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                         <Badge variant="outline">原图 {activeImage.width} × {activeImage.height}</Badge>
                                         <Badge variant="outline">
@@ -1214,31 +1354,61 @@ export default function ImageCropper() {
                                         <Badge variant="outline">缩放 {Math.round(effectiveZoom * 100)}%</Badge>
                                         <Badge variant="outline">{currentDisplayLabel}</Badge>
                                     </div>
-                                    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_180px]">
-                                        <div className="space-y-3">
+                                    <div className="flex min-h-0 flex-1 flex-col gap-3">
+                                        <div className="rounded-2xl border border-border/60 bg-muted/20 px-3 py-2">
                                             <div className="flex flex-wrap items-center gap-2">
+                                                <Button variant="secondary" size="sm" onClick={() => applyRotationToActive(90)} disabled={!activeImage}>
+                                                    <RotateCcw className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">顺时针 90°</span>
+                                                </Button>
+                                                <Button variant="secondary" size="sm" onClick={() => applyRotationToActive(-90)} disabled={!activeImage}>
+                                                    <RotateCcw className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">逆时针 90°</span>
+                                                </Button>
+                                                <Input
+                                                    type="number"
+                                                    value={customAngle}
+                                                    step="0.1"
+                                                    className="h-8 w-20 bg-background"
+                                                    onChange={(e) => setCustomAngle(Number(e.target.value || 0))}
+                                                    placeholder="角度"
+                                                />
+                                                <Button variant="secondary" size="sm" onClick={() => applyRotationToActive(customAngle)} disabled={!activeImage}>
+                                                    <RotateCcw className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">应用角度</span>
+                                                </Button>
+                                                <div className="mx-1 hidden h-5 w-px bg-border lg:block" />
                                                 <Button variant="secondary" size="sm" onClick={() => setZoom(fitZoom)}>
-                                                    适应窗口
+                                                    <Maximize className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">适应窗口</span>
                                                 </Button>
                                                 <Button variant="secondary" size="sm" onClick={() => setZoom(1)}>
-                                                    100%
+                                                    <ScanSearch className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">100%</span>
                                                 </Button>
                                                 <Button variant="secondary" size="sm" onClick={() => setZoom((prev) => clamp(prev * 1.5, fitZoom * 0.5, 4))}>
-                                                    放大
+                                                    <Maximize className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">放大</span>
                                                 </Button>
                                                 <Button variant="secondary" size="sm" onClick={() => setZoom((prev) => clamp(prev / 1.5, fitZoom * 0.5, 4))}>
-                                                    缩小
+                                                    <Minimize className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">缩小</span>
                                                 </Button>
+                                                <div className="ml-auto hidden text-[11px] text-muted-foreground lg:block">
+                                                    放大到 100% 或更高时会自动切到高清图源
+                                                </div>
                                             </div>
+                                        </div>
+                                        <div className="relative min-h-0 flex-1">
                                             <div
                                                 ref={viewportRef}
-                                                className="h-[70vh] overflow-auto rounded-[28px] border bg-black/5 p-3"
+                                                className="h-full overflow-auto rounded border bg-black/5"
                                             >
                                                 <div
-                                                    className="flex min-h-full min-w-full items-start justify-start"
+                                                    className="flex min-h-full min-w-full"
                                                     style={{
-                                                        paddingLeft: displayWidth < 300 ? 80 : 0,
-                                                        paddingTop: displayHeight < 300 ? 80 : 0,
+                                                        justifyContent: displayWidth < viewportSize.width ? "center" : "flex-start",
+                                                        alignItems: displayHeight < viewportSize.height ? "center" : "flex-start",
                                                     }}
                                                 >
                                                     <div
@@ -1303,168 +1473,59 @@ export default function ImageCropper() {
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
-                                                <div className="mb-2 text-sm font-medium">Minimap</div>
-                                                <div
-                                                    className="relative overflow-hidden rounded-xl border bg-background"
-                                                    style={{ aspectRatio: `${activeImage.width} / ${activeImage.height}` }}
-                                                    onPointerDown={handleMinimapPointer}
-                                                >
-                                                    <img
-                                                        src={activeImage.previewUrl}
-                                                        alt={`${activeImage.name}-minimap`}
-                                                        className="h-full w-full object-contain"
-                                                        draggable={false}
-                                                    />
-                                                    {cropPercent && (
+                                            {shouldShowMinimap && (
+                                                <div className="pointer-events-none absolute bottom-4 right-4 z-10">
+                                                    <div className="pointer-events-auto w-[168px] rounded-2xl border border-border/70 bg-background/92 p-3 shadow-lg backdrop-blur-sm">
+                                                        <div className="mb-2 text-sm font-medium">Minimap</div>
                                                         <div
-                                                            className="absolute border border-white/90 bg-white/10"
-                                                            style={{
-                                                                left: `${cropPercent.left}%`,
-                                                                top: `${cropPercent.top}%`,
-                                                                width: `${cropPercent.width}%`,
-                                                                height: `${cropPercent.height}%`,
-                                                            }}
-                                                        />
-                                                    )}
-                                                    <div
-                                                        className="absolute border border-primary bg-primary/10"
-                                                        style={{
-                                                            left: `${viewportRect.left * 100}%`,
-                                                            top: `${viewportRect.top * 100}%`,
-                                                            width: `${viewportRect.width * 100}%`,
-                                                            height: `${viewportRect.height * 100}%`,
-                                                        }}
-                                                    />
+                                                            className="relative overflow-hidden rounded-xl border bg-background"
+                                                            style={{ aspectRatio: `${activeImage.width} / ${activeImage.height}` }}
+                                                            onPointerDown={handleMinimapPointer}
+                                                        >
+                                                            <img
+                                                                src={activeImage.previewUrl}
+                                                                alt={`${activeImage.name}-minimap`}
+                                                                className="h-full w-full object-contain"
+                                                                draggable={false}
+                                                            />
+                                                            {cropPercent && (
+                                                                <div
+                                                                    className="absolute border border-white/90 bg-white/10"
+                                                                    style={{
+                                                                        left: `${cropPercent.left}%`,
+                                                                        top: `${cropPercent.top}%`,
+                                                                        width: `${cropPercent.width}%`,
+                                                                        height: `${cropPercent.height}%`,
+                                                                    }}
+                                                                />
+                                                            )}
+                                                            <div
+                                                                className="absolute border border-primary bg-primary/10"
+                                                                style={{
+                                                                    left: `${viewportRect.left * 100}%`,
+                                                                    top: `${viewportRect.top * 100}%`,
+                                                                    width: `${viewportRect.width * 100}%`,
+                                                                    height: `${viewportRect.height * 100}%`,
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="mt-2 text-[11px] text-muted-foreground">
+                                                            已放大时显示，点击可快速定位视口
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="mt-2 text-[11px] text-muted-foreground">
-                                                    点击 minimap 可快速定位当前视口
-                                                </div>
-                                            </div>
-                                            <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
-                                                放大到 100% 或更高时会自动切到高清图源，避免看细节发糊。
-                                            </div>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-                                        <div className="rounded-2xl border border-border/60 bg-muted/20 p-3">
-                                            <div className="mb-3 text-sm font-medium">几何调整</div>
-                                            <div className="flex flex-wrap gap-2">
-                                                <Button variant="secondary" onClick={() => applyRotationToActive(90)} disabled={!activeImage}>
-                                                    顺时针 90°
-                                                </Button>
-                                                <Button variant="secondary" onClick={() => applyRotationToActive(-90)} disabled={!activeImage}>
-                                                    逆时针 90°
-                                                </Button>
-                                                <Input
-                                                    type="number"
-                                                    value={customAngle}
-                                                    step="0.1"
-                                                    className="w-28"
-                                                    onChange={(e) => setCustomAngle(Number(e.target.value || 0))}
-                                                    placeholder="角度"
-                                                />
-                                                <Button variant="secondary" onClick={() => applyRotationToActive(customAngle)} disabled={!activeImage}>
-                                                    应用角度
-                                                </Button>
-                                            </div>
-                                        </div>
-                                        <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
-                                            调整完成后点“暂存当前裁切”
-                                        </div>
-                                    </div>
-                                </>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
+                    </div>
 
-                    <Card className="border-border/60 bg-background/90 shadow-sm">
-                        <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between gap-2">
-                                <div>
-                                    <CardTitle className="text-base">暂存结果</CardTitle>
-                                    <div className="text-sm text-muted-foreground">按原图分组，统一输出</div>
-                                </div>
-                                <Badge variant="secondary">{savedCrops.length} 张</Badge>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-2">
-                                <Button onClick={exportBatch} disabled={!savedCrops.length}>
-                                    导出 ZIP
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => routeWithCrops("watermark")}
-                                    disabled={!savedCrops.length || isRoutingExporting}
-                                >
-                                    发送到水印
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => routeWithCrops("puzzle")}
-                                    disabled={!savedCrops.length || isRoutingExporting}
-                                >
-                                    发送到拼图
-                                </Button>
-                                <Button variant="ghost" onClick={clearSavedCrops} disabled={!savedCrops.length}>
-                                    清空暂存
-                                </Button>
-                            </div>
-
-                            <div className="max-h-[68vh] space-y-3 overflow-auto pr-1">
-                                {groupedSavedCrops.length ? (
-                                    groupedSavedCrops.map((group) => (
-                                        <div key={group.sourceImageId} className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-3">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="min-w-0">
-                                                    <div className="truncate text-sm font-medium">{group.sourceName}</div>
-                                                    <div className="text-[11px] text-muted-foreground">
-                                                        已暂存 {group.items.length} 张
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                {group.items.map((item) => (
-                                                    <div key={item.id} className="flex items-center gap-3 rounded-xl bg-background px-3 py-2">
-                                                        <img
-                                                            src={item.previewUrl}
-                                                            alt={item.file.name}
-                                                            className="h-14 w-14 rounded-lg object-cover bg-black/5"
-                                                        />
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="text-xs">第 {item.index} 张</div>
-                                                            <div className="truncate text-[11px] text-muted-foreground">
-                                                                {item.outputW} × {item.outputH}
-                                                            </div>
-                                                            <div className="truncate text-[11px] text-muted-foreground">
-                                                                {item.file.name}
-                                                            </div>
-                                                        </div>
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="h-8 px-2 text-muted-foreground"
-                                                            onClick={() => removeSavedCrop(item.id)}
-                                                        >
-                                                            删除
-                                                        </Button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="rounded-2xl border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
-                                        暂存区还是空的。先在中间裁一张，再点“暂存当前裁切”。
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div className="flex min-h-0">
+                        {renderRightPanel("w-full")}
+                    </div>
                 </div>
             </div>
         </div>
