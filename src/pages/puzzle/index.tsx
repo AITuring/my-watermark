@@ -27,7 +27,6 @@ import PhotoAlbum, {
 import "react-photo-album/styles.css";
 import { Icon } from "@iconify/react";
 
-import "@/puzzle.css";
 import ImagePreview from "@/components/ImagePreview";
 import ThreeLanding from "@/components/ThreeLanding";
 import { consumePendingCropTransfer } from "@/utils/crop-transfer";

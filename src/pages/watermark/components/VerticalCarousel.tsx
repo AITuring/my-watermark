@@ -57,7 +57,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     const handleImagesUpload = async (files: File[]) => {
         try {
             // 导入 loadImageData 函数
-            const { loadImageData } = await import("@/utils");
+            const { loadImageData } = await import("@/utils/watermark-processing");
             const { images: newImages, failedFiles } = await loadImageData(files);
 
             // 合并新上传的图片和现有图片

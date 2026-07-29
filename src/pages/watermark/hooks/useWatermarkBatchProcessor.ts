@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import pLimit from "p-limit";
 import confetti from "canvas-confetti";
-import { processImage } from "@/utils";
 import { ImgWithPosition, MixedWatermarkConfig } from "@/types";
 import { useSmoothProgress } from "@/pages/watermark/hooks/useSmoothProgress";
 
@@ -80,6 +79,7 @@ export function useWatermarkBatchProcessor({
             let completed = false;
 
             try {
+                const { processImage } = await import("@/utils/watermark-processing");
                 for (let i = 0; i < imgPositionList.length; i += batchSize) {
                     const batch = imgPositionList.slice(i, i + batchSize);
 

@@ -44,7 +44,7 @@ import ImageWithFixedWidth from "@/pages/watermark/components/ImageWithFixedWidt
 import {
     getAdaptiveWatermarkBaseScale,
     getAdaptiveWatermarkRenderMetrics,
-} from "@/utils";
+} from "@/utils/watermark-editor";
 
 // 绘制辅助线函数
 const drawGuideLines = (layer: Konva.Layer, width: number, height: number) => {

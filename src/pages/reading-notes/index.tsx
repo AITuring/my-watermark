@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { BOOKS } from '@/assets/wxbooks/books'
 import CoverCollage from '@/components/CoverCollage'
-import './ReadingNotesCollection.css'
+import './index.css'
 
 type Route =
   | { view: 'gallery'; bookId?: undefined }

@@ -1,5 +1,3 @@
-import { saveAs } from 'file-saver';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -10,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { SplitImage } from '@/pages/split/types';
+import { loadSaveAs } from '@/utils/lazy-deps';
 
 interface GeneratedImagesCardProps {
   images: SplitImage[];
@@ -37,6 +36,15 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
   }
 
   const previewImage = previewIndex !== null ? images[previewIndex] : null;
+
+  const handleDownloadSingle = async () => {
+    if (!previewImage) {
+      return;
+    }
+
+    const saveAs = await loadSaveAs();
+    saveAs(previewImage.blob, previewImage.fileName);
+  };
 
   return (
     <>
@@ -117,7 +125,7 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
                     下一张
                   </Button>
                 </div>
-                <Button onClick={() => saveAs(previewImage.blob, previewImage.fileName)}>
+                <Button onClick={() => void handleDownloadSingle()}>
                   下载此图
                 </Button>
               </div>

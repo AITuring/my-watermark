@@ -2,10 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
     adjustBatchSizeAndConcurrency,
-    createMixedWatermark,
     debounce,
-    loadImageData,
-} from "@/utils";
+} from "@/utils/watermark-common";
 import { useDeviceDetect } from "@/hooks";
 import {
     ImageType,
@@ -93,6 +91,9 @@ const Watermark: React.FC = () => {
         if (watermarkMode === "mixed") {
             const generate = async () => {
                 if (!mixedWatermarkConfig.icon) return;
+                const { createMixedWatermark } = await import(
+                    "@/utils/watermark-processing"
+                );
                 const url = await createMixedWatermark(mixedWatermarkConfig);
                 if (url) {
                     setWatermarkUrl(url);
@@ -140,6 +141,7 @@ const Watermark: React.FC = () => {
     const handleImagesUpload = async (files: File[]) => {
         setUploading(true);
         try {
+            const { loadImageData } = await import("@/utils/watermark-processing");
             const { images: uploadImages, failedFiles } = await loadImageData(
                 files
             );

@@ -1,13 +1,12 @@
 import React, { useState, useMemo, useEffect } from "react";
 import "highlight.js/styles/github.css";
-import "@/wenwu-map.css";
+import "./map.css";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import artifactsData from "@/195.json";
 import {
-    artifactImages,
     historyIcon,
     historyImages,
+    resolveArtifactImageUrl,
     wenwuTypeIcons,
 } from "./assets";
 import { ArtifactCard } from "./ArtifactCard";
@@ -26,9 +25,11 @@ import {
 import type { Artifact } from "./types";
 
 const Wenwu: React.FC = () => {
-    const [artifacts] = useState<Artifact[]>(artifactsData);
-    const [filteredArtifacts, setFilteredArtifacts] =
-        useState<Artifact[]>(artifacts);
+    const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+    const [filteredArtifacts, setFilteredArtifacts] = useState<Artifact[]>([]);
+    const [isLoadingArtifacts, setIsLoadingArtifacts] = useState(true);
+    const [artifactsError, setArtifactsError] = useState("");
+    const [artifactsReloadKey, setArtifactsReloadKey] = useState(0);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedBatch, setSelectedBatch] = useState<string>("all");
     const [selectedType, setSelectedType] = useState<string>("all");
@@ -38,6 +39,41 @@ const Wenwu: React.FC = () => {
 
     const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
     const [isArtifactPanelOpen, setIsArtifactPanelOpen] = useState(false);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const dataUrl = `${import.meta.env.BASE_URL}data/195.json`;
+
+        const loadArtifacts = async () => {
+            setIsLoadingArtifacts(true);
+            setArtifactsError("");
+
+            try {
+                const response = await fetch(dataUrl, {
+                    signal: controller.signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to load artifacts: ${response.status}`);
+                }
+
+                const payload = (await response.json()) as Artifact[];
+                setArtifacts(payload);
+            } catch (error) {
+                if (controller.signal.aborted) return;
+                setArtifacts([]);
+                setArtifactsError("文物数据加载失败，请重试");
+            } finally {
+                if (!controller.signal.aborted) {
+                    setIsLoadingArtifacts(false);
+                }
+            }
+        };
+
+        void loadArtifacts();
+
+        return () => controller.abort();
+    }, [artifactsReloadKey]);
 
     const openArtifactPanel = (artifact: Artifact) => {
         setActiveArtifact(artifact);
@@ -57,6 +93,9 @@ const Wenwu: React.FC = () => {
             if (artifact) {
                 openArtifactPanel(artifact);
             }
+        };
+        return () => {
+            delete (window as any).openArtifact;
         };
     }, [artifacts]);
 
@@ -126,7 +165,7 @@ const Wenwu: React.FC = () => {
 
     // 筛选逻辑
     useEffect(() => {
-        let filtered = artifacts;
+        let filtered = [...artifacts];
 
         // 按搜索词筛选
         if (searchTerm) {
@@ -278,7 +317,7 @@ const Wenwu: React.FC = () => {
                         isOpen={isArtifactPanelOpen}
                         onClose={closeArtifactPanel}
                         onFocusMuseum={focusMuseumForArtifact}
-                        artifactImages={artifactImages}
+                        resolveArtifactImageUrl={resolveArtifactImageUrl}
                         wenwuTypeIcons={wenwuTypeIcons}
                         getEraIcon={getEraIcon}
                         getEraColor={getEraColor}
@@ -315,7 +354,38 @@ const Wenwu: React.FC = () => {
                                 : "space-y-4"
                         }
                     >
-                        {filteredArtifacts.length === 0 ? (
+                        {isLoadingArtifacts ? (
+                            <div className="col-span-full flex flex-col items-center justify-center py-20 text-center space-y-4">
+                                <div className="w-10 h-10 rounded-full border-2 border-slate-200 border-t-indigo-500 animate-spin" />
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-medium text-slate-900">
+                                        正在加载文物数据
+                                    </h3>
+                                    <p className="text-sm text-slate-500">
+                                        首次加载会稍等一会
+                                    </p>
+                                </div>
+                            </div>
+                        ) : artifactsError ? (
+                            <div className="col-span-full flex flex-col items-center justify-center py-20 text-center space-y-4">
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-medium text-slate-900">
+                                        数据暂时没加载出来
+                                    </h3>
+                                    <p className="text-sm text-slate-500">
+                                        {artifactsError}
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        setArtifactsReloadKey((key) => key + 1)
+                                    }
+                                >
+                                    重新加载
+                                </Button>
+                            </div>
+                        ) : filteredArtifacts.length === 0 ? (
                             <div className="col-span-full flex flex-col items-center justify-center py-20 text-center space-y-4">
                                 <div className="w-32 h-32 rounded-full bg-slate-100 overflow-hidden shadow-inner">
                                     <img

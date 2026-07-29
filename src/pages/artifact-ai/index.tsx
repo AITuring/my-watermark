@@ -1,10 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import OpenAI from "openai";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
+import React, { Suspense, lazy, useState, useRef, useEffect } from "react";
 import "highlight.js/styles/github.css";
-import html2canvas from "html2canvas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,8 +51,11 @@ import {
     Maximize2,
     ArrowUp,
 } from "lucide-react";
+import { loadHtml2Canvas, loadOpenAI } from "@/utils/lazy-deps";
 
 interface ArtifactAIProps {}
+
+const LazyMarkdownRenderer = lazy(() => import("./MarkdownRenderer"));
 
 const MarkdownLink = ({ href, children, title }: any) => {
     // Helper to get text content
@@ -221,6 +219,7 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
         onError?: (error: any) => void
     ) => {
         try {
+            const OpenAI = await loadOpenAI();
             const client = new OpenAI({
                 apiKey: apiKey,
                 baseURL: baseURL,
@@ -531,6 +530,7 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
             // Wait for images to load if any (though we mostly have text)
             await new Promise((resolve) => setTimeout(resolve, 500));
 
+            const html2canvas = await loadHtml2Canvas();
             const canvas = await html2canvas(exportRef.current, {
                 useCORS: true,
                 scale: 4, // Higher scale for better quality
@@ -841,13 +841,12 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                 return (
                                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-4">
                                         <article className="bg-white p-10 md:p-12 rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-stone-100">
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
-                                                rehypePlugins={[rehypeHighlight]}
-                                                components={components}
-                                            >
-                                                {content}
-                                            </ReactMarkdown>
+                                            <Suspense fallback={<div className="text-sm text-stone-400">渲染内容中...</div>}>
+                                                <LazyMarkdownRenderer
+                                                    content={content}
+                                                    components={components}
+                                                />
+                                            </Suspense>
 
                                             <div className="mt-16 pt-8 border-t border-stone-100 flex items-center justify-center gap-3 text-stone-300">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
@@ -986,13 +985,12 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                     return (
                                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-4">
                                         <article className="bg-white p-10 md:p-12 rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-stone-100">
-                                            <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
-                                                rehypePlugins={[rehypeHighlight]}
-                                                components={components}
-                                            >
-                                                {content}
-                                            </ReactMarkdown>
+                                            <Suspense fallback={<div className="text-sm text-stone-400">渲染内容中...</div>}>
+                                                <LazyMarkdownRenderer
+                                                    content={content}
+                                                    components={components}
+                                                />
+                                            </Suspense>
 
                                             <div className="mt-16 pt-8 border-t border-stone-100 flex items-center justify-center gap-3 text-stone-300">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-stone-200" />
@@ -1101,12 +1099,15 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
 
                     {/* 正文内容 - 使用专用渲染组件 */}
                     <div className="prose prose-stone max-w-none">
-                         <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={exportComponents}
-                        >
-                            {exportContent || result}
-                        </ReactMarkdown>
+                        {(exportContent || result) ? (
+                            <Suspense fallback={<div className="text-sm text-stone-400">渲染内容中...</div>}>
+                                <LazyMarkdownRenderer
+                                    content={exportContent || result}
+                                    components={exportComponents}
+                                    highlight={false}
+                                />
+                            </Suspense>
+                        ) : null}
                     </div>
 
                     {/* 底部落款 */}

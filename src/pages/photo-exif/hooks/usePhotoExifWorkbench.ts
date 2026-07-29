@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { saveAs } from "file-saver";
 import { toast } from "sonner";
 import {
     COPYRIGHT_PRESET_ENABLED_STORAGE_KEY,
@@ -19,6 +18,7 @@ import {
     readStoredCopyrightPreset,
     readStoredCopyrightPresetEnabled,
 } from "@/pages/photo-exif/utils";
+import { loadSaveAs } from "@/utils/lazy-deps";
 
 export const usePhotoExifWorkbench = () => {
     const [items, setItems] = useState<PhotoExifItem[]>([]);
@@ -221,6 +221,7 @@ export const usePhotoExifWorkbench = () => {
         setIsExportingSingle(true);
         try {
             const payload = await buildExportPayload([selection.selectedItem], persistenceContext);
+            const saveAs = await loadSaveAs();
             saveAs(payload.data, payload.fileName);
             toast.success("已导出修改后的图片");
         } catch (error) {

@@ -26,7 +26,6 @@ import PhotoAlbum, {
 } from "react-photo-album";
 
 import "react-photo-album/styles.css";
-import "@/puzzle.css";
 
 import ImagePreview from "@/components/ImagePreview";
 import ThreeLanding from "@/components/ThreeLanding";

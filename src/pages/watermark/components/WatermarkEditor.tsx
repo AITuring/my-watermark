@@ -27,7 +27,7 @@ import {
     applyColorToWatermark,
     getAdaptiveWatermarkBaseScale,
     getAdaptiveWatermarkRenderMetrics,
-} from "@/utils";
+} from "@/utils/watermark-editor";
 import ImageWithFixedWidth from "@/pages/watermark/components/ImageWithFixedWidth";
 import "../watermark.css";
 

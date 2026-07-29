@@ -1,8 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import imageCompression from 'browser-image-compression';
-import { saveAs } from 'file-saver';
-import JSZip from 'jszip';
 import { useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
@@ -11,6 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trash2, Download, Upload, Image as ImageIcon } from 'lucide-react';
 import { FractalBackground } from '@/components/FractalBackground';
 import { setPendingCropTransfer, type TransferTarget } from '@/utils/crop-transfer';
+import { loadImageCompression, loadJSZip, loadSaveAs } from '@/utils/lazy-deps';
+
+type ZipInstance = {
+  file: (name: string, data: Blob | File) => void;
+  generateAsync: (options: { type: 'blob' }) => Promise<Blob>;
+};
+
+type ZipConstructor = new () => ZipInstance;
 
 interface CompressedImage {
   id: string;
@@ -59,6 +64,7 @@ const BatchImageCompressor: React.FC = () => {
     };
 
     try {
+      const imageCompression = await loadImageCompression();
       const compressedFile = await imageCompression(file, options);
       return compressedFile;
     } catch (error) {
@@ -111,9 +117,12 @@ const BatchImageCompressor: React.FC = () => {
     if (compressedImages.length === 1) {
       // 单张图片直接下载
       const image = compressedImages[0];
+      const saveAs = await loadSaveAs();
       saveAs(image.compressedFile!, `compressed_${image.originalFile.name}`);
     } else {
       // 多张图片打包成ZIP
+      const JSZip = (await loadJSZip()) as ZipConstructor;
+      const saveAs = await loadSaveAs();
       const zip = new JSZip();
 
       compressedImages.forEach((image) => {

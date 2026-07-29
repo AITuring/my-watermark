@@ -1,5 +1,5 @@
 import { RawImage } from '../types';
-import ExifReader from 'exifreader';
+import { loadExifReader } from '@/utils/lazy-deps';
 
 type LibRawImageData = {
   width?: number;
@@ -42,6 +42,9 @@ export class RawDecoder {
     // Extract EXIF data
     let exifData: any = {};
     try {
+        const ExifReader = (await loadExifReader()) as {
+            load: (file: File) => Promise<Record<string, { description?: string }>>;
+        };
         const tags = await ExifReader.load(file);
         exifData = {
             make: tags['Make']?.description,

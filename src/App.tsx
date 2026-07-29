@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ThemeProvider } from "./context";
 import "./App.css";
 import { Toaster } from "sonner";
-import { appCatalog } from "./app-catalog";
+import { appCatalog } from "./app/catalog";
 import FloatingButtons from "./app/FloatingButtons";
 import Landing from "./pages/landing";
 

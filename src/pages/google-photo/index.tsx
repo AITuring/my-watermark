@@ -3,7 +3,6 @@ import { Icon } from "@iconify/react";
 import { RowsPhotoAlbum } from "react-photo-album";
 import "react-photo-album/rows.css";
 import photosData from "@/photos.json";
-import "@/puzzle.css";
 import ImagePreview from "@/components/ImagePreview";
 
 

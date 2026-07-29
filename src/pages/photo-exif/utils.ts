@@ -1,6 +1,6 @@
-import ExifReader from "exifreader";
 import piexif from "piexifjs";
 import { disposeImageSource, isTiffFile, loadImageSource } from "@/utils/image-loading";
+import { loadExifReader } from "@/utils/lazy-deps";
 import {
     COPYRIGHT_PRESET_ENABLED_STORAGE_KEY,
     COPYRIGHT_PRESET_STORAGE_KEY,
@@ -923,6 +923,9 @@ export const buildPhotoExifItem = async (
 ): Promise<PhotoExifItem> => {
     let tags: Record<string, unknown> = {};
     try {
+        const ExifReader = (await loadExifReader()) as {
+            load: (file: File) => Promise<Record<string, unknown>>;
+        };
         tags = await ExifReader.load(file);
     } catch (error) {
         console.warn("读取 EXIF 失败", file.name, error);

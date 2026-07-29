@@ -1,12 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { saveAs } from "file-saver";
-import JSZip from "jszip";
 import type { NavigateFunction } from "react-router-dom";
 import { toast } from "sonner";
 import { buildSavedCropFileName, getOutputSize, sanitizeFileSegment } from "../helpers";
 import { drawCropToBlob } from "../image-utils";
 import type { CropImage, CropMode, SavedCrop, SavedCropGroup } from "../types";
 import { setPendingCropTransfer, type TransferTarget } from "@/utils/crop-transfer";
+import { loadJSZip, loadSaveAs } from "@/utils/lazy-deps";
+
+type ZipFolder = {
+    file: (name: string, data: Blob | File) => void;
+};
+
+type ZipInstance = ZipFolder & {
+    folder: (name: string) => ZipFolder | undefined;
+    generateAsync: (options: { type: "blob" }) => Promise<Blob>;
+};
+
+type ZipConstructor = new () => ZipInstance;
 
 type UseCropExportsParams = {
     activeImage: CropImage | null;
@@ -117,6 +127,8 @@ export function useCropExports({
             return;
         }
 
+        const JSZip = (await loadJSZip()) as ZipConstructor;
+        const saveAs = await loadSaveAs();
         const zip = new JSZip();
         groupedSavedCrops.forEach((group) => {
             const folder = zip.folder(sanitizeFileSegment(group.sourceName));

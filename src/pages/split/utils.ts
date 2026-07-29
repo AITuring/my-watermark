@@ -1,6 +1,3 @@
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
-
 import type {
   Orientation,
   OverlapRegion,
@@ -9,6 +6,15 @@ import type {
   SliceRegion,
   SplitImage,
 } from '@/pages/split/types';
+import { loadJSZip, loadSaveAs } from '@/utils/lazy-deps';
+
+type ZipInstance = {
+  file: (name: string, data: Blob | File) => void;
+  folder: (name: string) => ZipInstance | undefined;
+  generateAsync: (options: { type: 'blob' }) => Promise<Blob>;
+};
+
+type ZipConstructor = new () => ZipInstance;
 
 const calculateSlices = (
   orientation: Orientation,
@@ -344,6 +350,8 @@ export const buildGridSplitImages = async (
 };
 
 export const exportSplitImagesZip = async (images: SplitImage[]) => {
+  const JSZip = (await loadJSZip()) as ZipConstructor;
+  const saveAs = await loadSaveAs();
   const zip = new JSZip();
   const folder = zip.folder('split_images');
 

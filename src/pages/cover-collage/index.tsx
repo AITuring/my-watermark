@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 
-import html2canvas from 'html2canvas'
 import { Download, ImagePlus, RotateCcw, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { BOOKS } from '@/assets/wxbooks/books'
 import CoverCollage from '@/components/CoverCollage'
 import ImageUploader from "@/components/ImageUploader"
+import { loadHtml2Canvas } from '@/utils/lazy-deps'
 import './CoverCollageMaker.css'
 
 type UploadedImage = {
@@ -109,6 +109,7 @@ export default function CoverCollageMaker() {
 
     try {
       setIsExporting(true)
+      const html2canvas = await loadHtml2Canvas()
       const canvas = await html2canvas(previewRef.current, {
         backgroundColor: '#0f0d0b',
         scale: Math.min(window.devicePixelRatio || 2, 3),

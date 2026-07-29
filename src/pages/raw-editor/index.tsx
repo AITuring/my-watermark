@@ -1,1 +1,1 @@
-export { default } from "@/RawEditor";
+export { default } from "./editor";

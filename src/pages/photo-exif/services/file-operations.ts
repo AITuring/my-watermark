@@ -1,4 +1,3 @@
-import JSZip from "jszip";
 import piexif from "piexifjs";
 import type {
     CopyrightPreset,
@@ -25,6 +24,14 @@ import {
     verifyPermission,
 } from "@/pages/photo-exif/utils";
 import { EXIF_HEADER } from "@/pages/photo-exif/constants";
+import { loadJSZip } from "@/utils/lazy-deps";
+
+type ZipInstance = {
+    file: (name: string, data: Blob | File) => void;
+    generateAsync: (options: { type: "blob" }) => Promise<Blob>;
+};
+
+type ZipConstructor = new () => ZipInstance;
 
 interface PersistenceContext {
     copyrightPreset: CopyrightPreset;
@@ -197,6 +204,7 @@ export const buildExportPayload = async (
         };
     }
 
+    const JSZip = (await loadJSZip()) as ZipConstructor;
     const zip = new JSZip();
     for (const item of targetItems) {
         const output = await generateUpdatedFile(item, context);

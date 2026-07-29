@@ -1,10 +1,18 @@
-import imageCompression from "browser-image-compression";
-import html2canvas from "html2canvas";
-import JSZip from "jszip";
-import { saveAs } from "file-saver";
-
 import { aspectRatioOptions } from "./constants";
 import type { AspectRatio, ImgProp } from "./types";
+import {
+    loadHtml2Canvas,
+    loadImageCompression,
+    loadJSZip,
+    loadSaveAs,
+} from "@/utils/lazy-deps";
+
+type ZipInstance = {
+    file: (name: string, data: Blob | File) => void;
+    generateAsync: (options: { type: "blob" }) => Promise<Blob>;
+};
+
+type ZipConstructor = new () => ZipInstance;
 
 export const MAX_PUZZLE_IMAGE_SIZE = 200 * 1024 * 1024;
 
@@ -101,6 +109,7 @@ export async function processAcceptedFiles(acceptedFiles: File[]) {
         maxWidthOrHeight: 2560,
         useWebWorker: true,
     };
+    const imageCompression = await loadImageCompression();
 
     return Promise.all(
         acceptedFiles.map(async (file) => {
@@ -195,6 +204,7 @@ export async function downloadPuzzleImage({
         throw new Error("未找到可导出的画布");
     }
 
+    const html2canvas = await loadHtml2Canvas();
     const originalCanvas = await html2canvas(target, {
         scale: inputScale,
         useCORS: true,
@@ -289,6 +299,8 @@ export async function downloadPuzzleImage({
         ...breaksCss.map((value) => Math.round(padding + value * inputScale)),
         fullCanvas.height,
     ];
+    const JSZip = (await loadJSZip()) as ZipConstructor;
+    const saveAs = await loadSaveAs();
     const zip = new JSZip();
     const files: { name: string; blob: Blob }[] = [];
 

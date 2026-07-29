@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { saveAs } from "file-saver";
 import { toast } from "sonner";
 import { DEFAULT_IMPORT_SCOPE_SELECTION, EMPTY_EDITABLE, EMPTY_GPS } from "@/pages/photo-exif/constants";
 import { applyBatchChangesToItems, applyCopyrightPresetToItems, applyRenamePreviewRowsToItems, resetItemsToOriginal } from "@/pages/photo-exif/actions/item-actions";
@@ -30,6 +29,7 @@ import {
     isDirty,
     localInputValueToExifDateTime,
 } from "@/pages/photo-exif/utils";
+import { loadSaveAs } from "@/utils/lazy-deps";
 
 interface UsePhotoExifBatchFlowOptions {
     items: PhotoExifItem[];
@@ -393,6 +393,7 @@ export const usePhotoExifBatchFlow = ({
         setIsExportingBatch(true);
         try {
             const payload = await buildExportPayload(writableDirtyItems, persistenceContext);
+            const saveAs = await loadSaveAs();
             saveAs(payload.data, payload.fileName);
             toast.success(`已导出 ${writableDirtyItems.length} 张修改后的图片`);
         } catch (error) {

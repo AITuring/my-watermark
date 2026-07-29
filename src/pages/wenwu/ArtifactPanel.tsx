@@ -11,7 +11,7 @@ interface ArtifactPanelProps {
     isOpen: boolean;
     onClose: () => void;
     onFocusMuseum: (artifact: Artifact) => void;
-    artifactImages: Record<string, string>;
+    resolveArtifactImageUrl: (imagePath?: string) => string | undefined;
     wenwuTypeIcons: Record<string, string>;
     getEraIcon: (era: string) => string | undefined;
     getEraColor: (era: string) => string;
@@ -23,7 +23,7 @@ export const ArtifactPanel: React.FC<ArtifactPanelProps> = ({
     isOpen,
     onClose,
     onFocusMuseum,
-    artifactImages,
+    resolveArtifactImageUrl,
     wenwuTypeIcons,
     getEraIcon,
     getEraColor,
@@ -31,8 +31,7 @@ export const ArtifactPanel: React.FC<ArtifactPanelProps> = ({
 }) => {
     if (!artifact) return null;
 
-    const artifactImageKey = artifact.image?.split("/").pop() || "";
-    const artifactImage = artifactImages[artifactImageKey];
+    const artifactImage = resolveArtifactImageUrl(artifact.image);
     const eraIcon = getEraIcon(artifact.era);
     const typeIcon = wenwuTypeIcons[artifact.type];
 

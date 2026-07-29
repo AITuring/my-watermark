@@ -1,12 +1,21 @@
-import imageCompression from "browser-image-compression";
 import chroma from "chroma-js";
 import ColorThief from "colorthief";
-import html2canvas from "html2canvas";
-import JSZip from "jszip";
-import { saveAs } from "file-saver";
 
 import { getRandomColor } from "./constants";
 import type { AspectRatio, ImgProp } from "./types";
+import {
+    loadHtml2Canvas,
+    loadImageCompression,
+    loadJSZip,
+    loadSaveAs,
+} from "@/utils/lazy-deps";
+
+type ZipInstance = {
+    file: (name: string, data: Blob | File) => void;
+    generateAsync: (options: { type: "blob" }) => Promise<Blob>;
+};
+
+type ZipConstructor = new () => ZipInstance;
 
 export const prepareImagesFromFiles = async (acceptedFiles: File[]) => {
     const newImages: ImgProp[] = [];
@@ -15,6 +24,7 @@ export const prepareImagesFromFiles = async (acceptedFiles: File[]) => {
         maxWidthOrHeight: 2560,
         useWebWorker: true,
     };
+    const imageCompression = await loadImageCompression();
 
     await Promise.all(
         acceptedFiles.map(async (file) => {
@@ -95,6 +105,7 @@ export const exportGalleryImage = async ({
         throw new Error("导出目标不存在");
     }
 
+    const html2canvas = await loadHtml2Canvas();
     const originalCanvas = await html2canvas(target, {
         scale: inputScale,
         useCORS: true,
@@ -200,7 +211,8 @@ export const exportGalleryImage = async ({
         ),
         fullCanvas.height,
     ];
-
+    const JSZip = (await loadJSZip()) as ZipConstructor;
+    const saveAs = await loadSaveAs();
     const zip = new JSZip();
     const pagePadding = Math.round(outerPadding * inputScale);
     const files: { name: string; blob: Blob }[] = [];

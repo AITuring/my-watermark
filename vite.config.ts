@@ -35,7 +35,7 @@ export default defineConfig({
             },
             workbox: {
                 maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB
-                globPatterns: ["**/*.{js,css,html,ico,png,svg,json}"],
+                globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
                 runtimeCaching: [
                     {
                         urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -91,10 +91,13 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: {
-                    'react-vendor': ['react', 'react-dom', 'react-router-dom', 'scheduler'],
-                    'three-vendor': ['three', '@react-three/fiber', '@react-three/drei'],
-                        'ui-vendor': [
-                            '@radix-ui/react-dialog', '@radix-ui/react-label', '@radix-ui/react-progress',
+                    "react-vendor": ["react", "react-dom", "scheduler"],
+                    "router-vendor": ["react-router-dom"],
+                    "three-vendor": ["three", "@react-three/fiber", "@react-three/drei"],
+                    "radix-vendor": [
+                        "@radix-ui/react-dialog",
+                        "@radix-ui/react-label",
+                        "@radix-ui/react-progress",
                         '@radix-ui/react-scroll-area',
                         '@radix-ui/react-select',
                         '@radix-ui/react-separator',
@@ -103,23 +106,22 @@ export default defineConfig({
                         '@radix-ui/react-switch',
                         '@radix-ui/react-tabs',
                         '@radix-ui/react-tooltip',
-                        'lucide-react',
-                        'framer-motion',
-                        'gsap',
-                        'class-variance-authority',
-                        'clsx',
-                        'tailwind-merge'
                     ],
-                    'image-vendor': [
-                        'html2canvas',
-                        'konva',
-                        'react-konva',
-                        'stackblur-canvas',
-                        'colorthief',
-                        'chroma-js'
+                    "ui-vendor": [
+                        "lucide-react",
+                        "class-variance-authority",
+                        "clsx",
+                        "tailwind-merge",
                     ],
-                    'utils-vendor': ['p-limit', 'file-saver', 'jszip']
-                }
+                    "motion-vendor": ["framer-motion", "gsap"],
+                    "konva-vendor": ["konva", "react-konva"],
+                    "html2canvas-vendor": ["html2canvas"],
+                    "markdown-vendor": ["react-markdown", "remark-gfm", "rehype-highlight"],
+                    "zip-vendor": ["jszip", "file-saver"],
+                    "image-utils-vendor": ["stackblur-canvas", "colorthief", "chroma-js"],
+                    "utils-vendor": ["p-limit"],
+                    "ai-vendor": ["openai"],
+                },
             },
         },
         minify: "terser",
