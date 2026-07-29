@@ -1,6 +1,5 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import PanelCard from "@/components/PanelCard";
 import { Download, PackageOpen, Send, Trash2 } from "lucide-react";
 import type { TransferTarget } from "@/utils/crop-transfer";
 import type { SavedCropGroup } from "../types";
@@ -27,17 +26,15 @@ export default function RightPanel({
     onRemoveSavedCrop,
 }: RightPanelProps) {
     return (
-        <Card className={`flex h-full min-h-0 flex-col border-border/60 bg-background/90 shadow-sm ${className}`}>
-            <CardHeader className="px-4 py-3">
-                <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <PackageOpen className="h-4 w-4" />
-                        暂存结果
-                    </CardTitle>
-                    <Badge variant="secondary">{savedCropCount} 张</Badge>
-                </div>
-            </CardHeader>
-            <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
+        <PanelCard
+            title="暂存结果"
+            icon={<PackageOpen className="h-4 w-4" />}
+            count={`${savedCropCount} 张`}
+            className={`flex h-full min-h-0 flex-col border-border/60 bg-background/90 shadow-sm ${className}`}
+            headerClassName="px-4 py-3"
+            titleClassName="text-base"
+            contentClassName="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-6 pt-0"
+        >
                 <div className="grid gap-2">
                     <Button onClick={onExportBatch} disabled={!savedCropCount}>
                         <Download className="mr-2 h-4 w-4" />
@@ -120,7 +117,6 @@ export default function RightPanel({
                         </div>
                     )}
                 </div>
-            </CardContent>
-        </Card>
+        </PanelCard>
     );
 }

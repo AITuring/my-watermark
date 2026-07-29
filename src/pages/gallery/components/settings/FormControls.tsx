@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 
+import SliderNumberField from "@/components/SliderNumberField";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 
 type ColorPickerControlProps = {
     value: string;
@@ -55,41 +54,17 @@ export function SliderField({
     badgeValue = false,
 }: SliderFieldProps) {
     return (
-        <div className="space-y-2">
-            <div
-                className={`flex items-center justify-between${
-                    mutedLabel ? " pt-1" : ""
-                }`}
-            >
-                <Label
-                    className={
-                        mutedLabel
-                            ? "text-xs text-muted-foreground"
-                            : "text-xs"
-                    }
-                >
-                    {label}
-                </Label>
-                <span
-                    className={
-                        compact
-                            ? "text-xs font-mono text-muted-foreground"
-                            : badgeValue
-                              ? "text-xs font-mono bg-muted px-1.5 py-0.5 rounded"
-                              : "text-xs font-mono"
-                    }
-                >
-                    {valueLabel}
-                </span>
-            </div>
-            <Slider
-                value={value}
-                onValueChange={onChange}
-                min={min}
-                max={max}
-                step={step}
-                className="py-1"
-            />
-        </div>
+        <SliderNumberField
+            label={label}
+            value={value[0] ?? min}
+            valueLabel={valueLabel}
+            min={min}
+            max={max}
+            step={step}
+            onChange={(nextValue) => onChange([nextValue])}
+            compact={compact}
+            mutedLabel={mutedLabel}
+            badgeValue={badgeValue}
+        />
     );
 }

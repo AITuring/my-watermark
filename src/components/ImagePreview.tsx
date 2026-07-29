@@ -22,6 +22,8 @@ interface ImagePreviewProps {
     currentIndex: number;
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onIndexChange?: (index: number) => void;
+    footerActions?: React.ReactNode | ((index: number) => React.ReactNode);
 }
 
 const ImagePreview: React.FC<ImagePreviewProps> = ({
@@ -29,6 +31,8 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
     currentIndex,
     open,
     onOpenChange,
+    onIndexChange,
+    footerActions,
 }) => {
     const [index, setIndex] = useState(currentIndex);
     const [scale, setScale] = useState(1);
@@ -126,6 +130,12 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
             setPosition({ x: 0, y: 0 });
         }
     }, [open, currentIndex]);
+
+    useEffect(() => {
+        if (open) {
+            onIndexChange?.(index);
+        }
+    }, [index, onIndexChange, open]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -235,6 +245,9 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
             handleZoomOut();
         }
     };
+
+    const renderedFooterActions =
+        typeof footerActions === "function" ? footerActions(index) : footerActions;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -383,6 +396,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                                     <span>{sizeText}</span>
                                 </div>
                             )}
+                            {renderedFooterActions}
                         </div>
                     </div>
                 </div>

@@ -1,12 +1,6 @@
+import ImagePreview from "@/components/ImagePreview";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import type { SplitImage } from '@/pages/split/types';
 import { loadSaveAs } from '@/utils/lazy-deps';
 
@@ -84,55 +78,20 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
         </CardContent>
       </Card>
 
-      <Dialog open={isPreviewOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>生成图预览</DialogTitle>
-            <DialogDescription>{previewImage?.fileName ?? ''}</DialogDescription>
-          </DialogHeader>
-
-          {previewImage && (
-            <div className="space-y-4">
-              <div className="overflow-hidden rounded-lg border">
-                <img
-                  src={previewImage.url}
-                  alt={previewImage.fileName}
-                  className="mx-auto max-h-[70vh] w-auto"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      onPreviewIndexChange((previewIndex ?? 0) > 0 ? (previewIndex ?? 0) - 1 : 0)
-                    }
-                    disabled={(previewIndex ?? 0) <= 0}
-                  >
-                    上一张
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      onPreviewIndexChange(
-                        (previewIndex ?? 0) < images.length - 1
-                          ? (previewIndex ?? 0) + 1
-                          : images.length - 1
-                      )
-                    }
-                    disabled={(previewIndex ?? 0) >= images.length - 1}
-                  >
-                    下一张
-                  </Button>
-                </div>
-                <Button onClick={() => void handleDownloadSingle()}>
-                  下载此图
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ImagePreview
+        images={images.map((image) => image.url)}
+        currentIndex={previewIndex ?? 0}
+        open={isPreviewOpen}
+        onOpenChange={onOpenChange}
+        onIndexChange={(index) => onPreviewIndexChange(index)}
+        footerActions={
+          previewImage ? (
+            <Button onClick={() => void handleDownloadSingle()}>
+              下载此图
+            </Button>
+          ) : null
+        }
+      />
     </>
   );
 }

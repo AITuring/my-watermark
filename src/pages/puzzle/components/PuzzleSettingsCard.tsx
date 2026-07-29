@@ -1,3 +1,4 @@
+import SliderNumberField from "@/components/SliderNumberField";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
@@ -9,44 +10,6 @@ import { Icon } from "@iconify/react";
 
 import { aspectRatioOptions } from "../constants";
 import type { AspectRatio, PuzzleLayout } from "../types";
-
-type NumberControlProps = {
-    label: string;
-    value: number;
-    min: number;
-    max: number;
-    onChange: (value: number) => void;
-};
-
-function NumberControl({
-    label,
-    value,
-    min,
-    max,
-    onChange,
-}: NumberControlProps) {
-    return (
-        <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
-            <div className="text-xs sm:text-sm">{label}</div>
-            <Slider
-                className="w-24 sm:w-28 ml-2"
-                value={[value]}
-                min={min}
-                max={max}
-                step={1}
-                onValueChange={(nextValue) => onChange(nextValue[0])}
-            />
-            <input
-                type="number"
-                className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
-                min={min}
-                max={max}
-                value={value}
-                onChange={(event) => onChange(Number(event.target.value))}
-            />
-        </div>
-    );
-}
 
 type PuzzleSettingsCardProps = {
     imagesCount: number;
@@ -121,30 +84,48 @@ export function PuzzleSettingsCard({
                     </div>
 
                     {layout !== "rows" && (
-                        <NumberControl
+                        <SliderNumberField
                             label="图片列数:"
                             value={typeof inputColumns === "number" ? inputColumns : 0}
                             min={0}
                             max={15}
                             onChange={onInputColumnsChange}
+                            step={1}
+                            layout="inline"
+                            showInput
+                            className="my-1 sm:my-2 text-xs sm:text-sm"
+                            sliderClassName="ml-2 w-24 sm:w-28"
+                            inputClassName="ml-2 w-12 sm:w-14 px-1 py-0.5"
                         />
                     )}
 
-                    <NumberControl
+                    <SliderNumberField
                         label="图片间距:"
                         value={margin}
                         min={0}
                         max={50}
                         onChange={onMarginChange}
+                        step={1}
+                        layout="inline"
+                        showInput
+                        className="my-1 sm:my-2 text-xs sm:text-sm"
+                        sliderClassName="ml-2 w-24 sm:w-28"
+                        inputClassName="ml-2 w-12 sm:w-14 px-1 py-0.5"
                     />
 
                     {margin > 0 && (
-                        <NumberControl
+                        <SliderNumberField
                             label="图片圆角:"
                             value={radius}
                             min={0}
                             max={50}
                             onChange={onRadiusChange}
+                            step={1}
+                            layout="inline"
+                            showInput
+                            className="my-1 sm:my-2 text-xs sm:text-sm"
+                            sliderClassName="ml-2 w-24 sm:w-28"
+                            inputClassName="ml-2 w-12 sm:w-14 px-1 py-0.5"
                         />
                     )}
 

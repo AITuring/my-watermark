@@ -1,11 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+import PanelCard from "@/components/PanelCard";
 import { Progress } from "@/components/ui/progress";
 import type { FocusStackStatusSummary, PreviewPanel } from "../types";
 
@@ -33,14 +27,12 @@ export default function ProcessingStatusPanel({
     } = summary;
 
     return (
-        <Card className="border-white/60 bg-white/80 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-none">
-            <CardHeader>
-                <CardTitle>处理状态</CardTitle>
-                <CardDescription>
-                    先在低分辨率下逐张对齐，再按局部清晰度累计更清晰的来源。
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        <PanelCard
+            title="处理状态"
+            description="先在低分辨率下逐张对齐，再按局部清晰度累计更清晰的来源。"
+            className="border-white/60 bg-white/80 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-none"
+            contentClassName="space-y-4"
+        >
                 <div className="flex flex-wrap gap-2">
                     <Badge variant="outline">当前步骤: {progressLabel}</Badge>
                     <Badge variant="outline">已上传: {imagesCount} 张</Badge>
@@ -131,7 +123,6 @@ export default function ProcessingStatusPanel({
                     如果边缘仍有轻微重影，优先微调水平/垂直位移，其次再小范围调整缩放补偿；多张时请先看
                     `累计来源图` 判断全局归属，再用最后一轮调试图排查局部问题。
                 </p>
-            </CardContent>
-        </Card>
+        </PanelCard>
     );
 }

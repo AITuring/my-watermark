@@ -1,3 +1,4 @@
+import SliderNumberField from "@/components/SliderNumberField";
 import {
     Select,
     SelectContent,
@@ -6,7 +7,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 
 import type { GalleryLayout } from "../../types";
 
@@ -20,43 +20,6 @@ type LayoutSectionProps = {
     outerPadding: number;
     onOuterPaddingChange: (value: number) => void;
 };
-
-function LabeledSlider({
-    label,
-    valueLabel,
-    value,
-    min,
-    max,
-    step,
-    onChange,
-}: {
-    label: string;
-    valueLabel: string;
-    value: number[];
-    min: number;
-    max: number;
-    step: number;
-    onChange: (value: number[]) => void;
-}) {
-    return (
-        <div className="space-y-2">
-            <div className="flex items-center justify-between">
-                <Label className="text-xs">{label}</Label>
-                <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
-                    {valueLabel}
-                </span>
-            </div>
-            <Slider
-                value={value}
-                min={min}
-                max={max}
-                step={step}
-                onValueChange={onChange}
-                className="py-1"
-            />
-        </div>
-    );
-}
 
 export function LayoutSection({
     layout,
@@ -94,39 +57,42 @@ export function LayoutSection({
             </div>
 
             {layout !== "rows" && (
-                <LabeledSlider
+                <SliderNumberField
                     label="Columns"
                     valueLabel={
                         typeof inputColumns === "number"
                             ? String(inputColumns)
                             : "Auto"
                     }
-                    value={[typeof inputColumns === "number" ? inputColumns : 0]}
+                    value={typeof inputColumns === "number" ? inputColumns : 0}
                     min={1}
                     max={15}
                     step={1}
-                    onChange={(value) => onInputColumnsChange(value[0])}
+                    onChange={onInputColumnsChange}
+                    badgeValue
                 />
             )}
 
-            <LabeledSlider
+            <SliderNumberField
                 label="Spacing (Gap)"
                 valueLabel={`${margin}px`}
-                value={[margin]}
+                value={margin}
                 min={0}
                 max={50}
                 step={1}
-                onChange={(value) => onMarginChange(value[0])}
+                onChange={onMarginChange}
+                badgeValue
             />
 
-            <LabeledSlider
+            <SliderNumberField
                 label="Outer Padding"
                 valueLabel={`${outerPadding}px`}
-                value={[outerPadding]}
+                value={outerPadding}
                 min={0}
                 max={100}
                 step={1}
-                onChange={(value) => onOuterPaddingChange(value[0])}
+                onChange={onOuterPaddingChange}
+                badgeValue
             />
         </div>
     );

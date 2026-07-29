@@ -1,4 +1,11 @@
-import React, { Suspense, lazy, useState, useRef, useEffect } from "react";
+import React, {
+    Suspense,
+    lazy,
+    useState,
+    useRef,
+    useEffect,
+    useCallback,
+} from "react";
 import "highlight.js/styles/github.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -197,16 +204,62 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
     const [showPreview, setShowPreview] = useState(false);
     const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
     const [exportContent, setExportContent] = useState("");
+    const [exportRenderToken, setExportRenderToken] = useState(0);
 
     // Auto-scroll ref
     const scrollRef = useRef<HTMLDivElement>(null);
     const exportRef = useRef<HTMLDivElement>(null);
+    const exportRenderResolverRef = useRef<(() => void) | null>(null);
+    const exportRenderRequestRef = useRef(0);
 
     useEffect(() => {
         if ((loading || result || doubaoResult) && autoScrollEnabled) {
             scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
         }
     }, [thought, result, doubaoThought, doubaoResult, loading, autoScrollEnabled]);
+
+    useEffect(() => {
+        return () => {
+            exportRenderResolverRef.current = null;
+        };
+    }, []);
+
+    const handleExportRenderComplete = useCallback((token: number) => {
+        if (token !== exportRenderRequestRef.current) {
+            return;
+        }
+
+        const resolve = exportRenderResolverRef.current;
+        if (!resolve) {
+            return;
+        }
+
+        exportRenderResolverRef.current = null;
+        resolve();
+    }, []);
+
+    const waitForExportContentReady = useCallback((content: string) => {
+        return new Promise<void>((resolve, reject) => {
+            const nextToken = exportRenderRequestRef.current + 1;
+            exportRenderRequestRef.current = nextToken;
+
+            const timeoutId = window.setTimeout(() => {
+                if (exportRenderRequestRef.current !== nextToken) {
+                    return;
+                }
+                exportRenderResolverRef.current = null;
+                reject(new Error("导出内容渲染超时"));
+            }, 5000);
+
+            exportRenderResolverRef.current = () => {
+                window.clearTimeout(timeoutId);
+                resolve();
+            };
+
+            setExportContent(content);
+            setExportRenderToken(nextToken);
+        });
+    }, []);
 
     const performStream = async (
         messages: any[],
@@ -523,12 +576,15 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
     };
 
     const handleShare = async (content: string) => {
-        setExportContent(content);
         if (!exportRef.current) return;
         setIsExporting(true);
         try {
-            // Wait for images to load if any (though we mostly have text)
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            await waitForExportContentReady(content);
+            await new Promise<void>((resolve) => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => resolve());
+                });
+            });
 
             const html2canvas = await loadHtml2Canvas();
             const canvas = await html2canvas(exportRef.current, {
@@ -1105,6 +1161,8 @@ const ArtifactAI: React.FC<ArtifactAIProps> = () => {
                                     content={exportContent || result}
                                     components={exportComponents}
                                     highlight={false}
+                                    renderToken={exportRenderToken}
+                                    onRenderComplete={handleExportRenderComplete}
                                 />
                             </Suspense>
                         ) : null}

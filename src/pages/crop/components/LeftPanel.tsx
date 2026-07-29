@@ -1,6 +1,5 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import PanelCard from "@/components/PanelCard";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Crop, ImagePlus, Images, RotateCcw, Scissors, Trash2 } from "lucide-react";
@@ -53,17 +52,15 @@ export default function LeftPanel({
     onRemoveImage,
 }: LeftPanelProps) {
     return (
-        <Card className={`flex h-full min-h-0 flex-col border-border/60 bg-background/90 shadow-sm ${className}`}>
-            <CardHeader className="px-4 py-3">
-                <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                        <Scissors className="h-4 w-4" />
-                        图片裁切
-                    </CardTitle>
-                    <Badge variant="secondary">{images.length} 张</Badge>
-                </div>
-            </CardHeader>
-            <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
+        <PanelCard
+            title="图片裁切"
+            icon={<Scissors className="h-4 w-4" />}
+            count={`${images.length} 张`}
+            className={`flex h-full min-h-0 flex-col border-border/60 bg-background/90 shadow-sm ${className}`}
+            headerClassName="px-4 py-3"
+            titleClassName="text-base"
+            contentClassName="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-6 pt-0"
+        >
                 <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                         <Button asChild className="w-full">
@@ -218,7 +215,6 @@ export default function LeftPanel({
                         )}
                     </div>
                 </div>
-            </CardContent>
-        </Card>
+        </PanelCard>
     );
 }
