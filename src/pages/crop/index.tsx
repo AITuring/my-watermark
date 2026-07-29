@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -373,11 +373,12 @@ export default function ImageCropper() {
         };
     }, []);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (!activeImage) return;
+        if (viewportSize.width <= 0 || viewportSize.height <= 0) return;
         const nextZoom = Math.max(fitZoom, 0.1);
         setZoom(nextZoom);
-    }, [activeImage?.id, fitZoom]);
+    }, [activeImage?.id, fitZoom, viewportSize.height, viewportSize.width]);
 
     useEffect(() => {
         updateViewportRect();
@@ -396,7 +397,7 @@ export default function ImageCropper() {
         };
     }, [activeId, zoom]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const viewport = viewportRef.current;
         if (!viewport) return;
 
@@ -1022,7 +1023,7 @@ export default function ImageCropper() {
                             </label>
                         </Button>
                         <Button variant="secondary" onClick={resetAllCrop} disabled={!images.length}>
-                            <RotateCcw className="mr-2 h-4 w-4" />
+                            <RotateCcw className="h-4 w-4" />
                             重置全部
                         </Button>
                     </div>
@@ -1382,10 +1383,10 @@ export default function ImageCropper() {
                                                     <Maximize className="h-4 w-4" />
                                                     <span className="hidden sm:inline">适应窗口</span>
                                                 </Button>
-                                                <Button variant="secondary" size="sm" onClick={() => setZoom(1)}>
+                                                {/* <Button variant="secondary" size="sm" onClick={() => setZoom(1)}>
                                                     <ScanSearch className="h-4 w-4" />
                                                     <span className="hidden sm:inline">100%</span>
-                                                </Button>
+                                                </Button> */}
                                                 <Button variant="secondary" size="sm" onClick={() => setZoom((prev) => clamp(prev * 1.5, fitZoom * 0.5, 4))}>
                                                     <Maximize className="h-4 w-4" />
                                                     <span className="hidden sm:inline">放大</span>
@@ -1394,9 +1395,9 @@ export default function ImageCropper() {
                                                     <Minimize className="h-4 w-4" />
                                                     <span className="hidden sm:inline">缩小</span>
                                                 </Button>
-                                                <div className="ml-auto hidden text-[11px] text-muted-foreground lg:block">
+                                                {/* <div className="ml-auto hidden text-[11px] text-muted-foreground lg:block">
                                                     放大到 100% 或更高时会自动切到高清图源
-                                                </div>
+                                                </div> */}
                                             </div>
                                         </div>
                                         <div className="relative min-h-0 flex-1">
