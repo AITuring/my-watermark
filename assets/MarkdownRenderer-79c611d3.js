@@ -1,1 +1,0 @@
-import{j as r}from"./three-vendor-b2506157.js";import{M as e,r as n,a as o}from"./markdown-vendor-8bd87019.js";import"./react-vendor-25b1506d.js";function t({content:t,components:s,highlight:a=!0}){return r.jsx(e,{remarkPlugins:[n],rehypePlugins:a?[o]:[],components:s,children:t})}export{t as default};
