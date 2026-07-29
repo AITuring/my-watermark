@@ -1,11 +1,9 @@
+import PanelCard from "@/components/PanelCard";
+import { SettingsSection } from "@/components/SettingsSection";
 import SliderNumberField from "@/components/SliderNumberField";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Icon } from "@iconify/react";
 
 import { aspectRatioOptions } from "../constants";
@@ -48,22 +46,26 @@ export function PuzzleSettingsCard({
     onAddMore,
     onClear,
 }: PuzzleSettingsCardProps) {
+    const inlineFieldClassName = "my-1 sm:my-2 text-xs sm:text-sm";
+    const inlineSliderClassName = "ml-2 w-24 sm:w-28";
+    const inlineInputClassName = "ml-2 w-12 sm:w-14 px-1 py-0.5";
+
     return (
-        <Card className="mx-auto max-w-5xl sticky top-0 z-20 bg-white/80 dark:bg-gray-900/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border rounded-lg">
-            <CardHeader className="py-1 px-2 sm:py-2 sm:px-3">
-                <CardTitle className="flex items-center gap-1 text-xs sm:text-sm">
-                    <Icon
-                        icon="tabler:settings"
-                        className="w-3 h-3 sm:w-4 sm:h-4"
-                    />
-                    拼图设置
-                    <Badge variant="outline" className="ml-auto text-[10px] sm:text-xs">
-                        {imagesCount} 张
-                    </Badge>
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="py-1 px-2 sm:py-2 sm:px-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 sm:gap-2">
+        <PanelCard
+            title="拼图设置"
+            icon={<Icon icon="tabler:settings" className="w-3 h-3 sm:w-4 sm:h-4" />}
+            count={`${imagesCount} 张`}
+            className="sticky top-0 z-20 mx-auto max-w-5xl rounded-lg border bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:bg-gray-900/80"
+            headerClassName="px-2 py-1 sm:px-3 sm:py-2"
+            titleClassName="text-xs sm:text-sm"
+            countClassName="text-[10px] sm:text-xs"
+            contentClassName="px-2 py-1 sm:px-3 sm:py-2"
+        >
+            <SettingsSection
+                title="Layout"
+                className="pb-3"
+                bodyClassName="grid grid-cols-1 gap-1 sm:grid-cols-2 sm:gap-2 lg:grid-cols-3"
+            >
                     <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
                         <div className="text-xs sm:text-sm">布局方式:</div>
                         <Select
@@ -93,9 +95,9 @@ export function PuzzleSettingsCard({
                             step={1}
                             layout="inline"
                             showInput
-                            className="my-1 sm:my-2 text-xs sm:text-sm"
-                            sliderClassName="ml-2 w-24 sm:w-28"
-                            inputClassName="ml-2 w-12 sm:w-14 px-1 py-0.5"
+                            className={inlineFieldClassName}
+                            sliderClassName={inlineSliderClassName}
+                            inputClassName={inlineInputClassName}
                         />
                     )}
 
@@ -108,9 +110,9 @@ export function PuzzleSettingsCard({
                         step={1}
                         layout="inline"
                         showInput
-                        className="my-1 sm:my-2 text-xs sm:text-sm"
-                        sliderClassName="ml-2 w-24 sm:w-28"
-                        inputClassName="ml-2 w-12 sm:w-14 px-1 py-0.5"
+                        className={inlineFieldClassName}
+                        sliderClassName={inlineSliderClassName}
+                        inputClassName={inlineInputClassName}
                     />
 
                     {margin > 0 && (
@@ -123,12 +125,18 @@ export function PuzzleSettingsCard({
                             step={1}
                             layout="inline"
                             showInput
-                            className="my-1 sm:my-2 text-xs sm:text-sm"
-                            sliderClassName="ml-2 w-24 sm:w-28"
-                            inputClassName="ml-2 w-12 sm:w-14 px-1 py-0.5"
+                            className={inlineFieldClassName}
+                            sliderClassName={inlineSliderClassName}
+                            inputClassName={inlineInputClassName}
                         />
                     )}
+            </SettingsSection>
 
+            <SettingsSection
+                title="Export"
+                className="py-3"
+                bodyClassName="grid grid-cols-1 gap-1 sm:grid-cols-2 sm:gap-2"
+            >
                     <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
                         <div className="text-xs sm:text-sm">生成图片长宽比:</div>
                         <Select
@@ -149,55 +157,50 @@ export function PuzzleSettingsCard({
                         </Select>
                     </div>
 
-                    <div className="flex items-center gap-1 sm:gap-2 my-1 sm:my-2 text-xs sm:text-sm">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <div className="cursor-help text-xs sm:text-sm">
-                                        导出图片规模:
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    规模越大，导出图片尺寸越大，导出更加耗时
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                    <SliderNumberField
+                        label={
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span className="cursor-help text-xs sm:text-sm">
+                                            导出图片规模:
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        规模越大，导出图片尺寸越大，导出更加耗时
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        }
+                        value={inputScale}
+                        valueLabel={`${inputScale}x`}
+                        min={1}
+                        max={10}
+                        step={1}
+                        onChange={onInputScaleChange}
+                        layout="inline"
+                        showInput
+                        className={inlineFieldClassName}
+                        sliderClassName={inlineSliderClassName}
+                        inputClassName={inlineInputClassName}
+                    />
+            </SettingsSection>
 
-                        <Slider
-                            className="w-24 sm:w-28 ml-2"
-                            value={[inputScale]}
-                            min={1}
-                            max={10}
-                            step={1}
-                            onValueChange={(value) => onInputScaleChange(value[0])}
-                        />
-                        <input
-                            type="number"
-                            className="w-12 sm:w-14 ml-2 border rounded px-1 py-0.5 text-xs sm:text-sm"
-                            min={1}
-                            max={10}
-                            value={inputScale}
-                            onChange={(event) =>
-                                onInputScaleChange(Number(event.target.value))
-                            }
-                        />
-                    </div>
-                </div>
-
-                <Separator className="my-2" />
-
-                <div className="flex flex-wrap items-center gap-8 justify-center">
-                    <Button size="sm" onClick={onDownload}>
-                        下载大图
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={onAddMore}>
-                        继续添加
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={onClear}>
-                        清空
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
+            <SettingsSection
+                title="Actions"
+                className="pt-3"
+                bodyClassName="flex flex-wrap items-center justify-center gap-4 sm:gap-8"
+            >
+                <Button size="sm" onClick={onDownload}>
+                    下载大图
+                </Button>
+                <Button size="sm" variant="secondary" onClick={onAddMore}>
+                    继续添加
+                </Button>
+                <Button size="sm" variant="secondary" onClick={onClear}>
+                    清空
+                </Button>
+            </SettingsSection>
+        </PanelCard>
     );
 }

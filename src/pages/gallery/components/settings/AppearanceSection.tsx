@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Icon } from "@iconify/react";
 import { ColorPickerControl, SliderField } from "./FormControls";
+import { SettingsSection, SettingsSectionHeader } from "./SettingsSection";
 
 type AppearanceSectionProps = {
     wallColor: string;
@@ -46,22 +46,22 @@ export function AppearanceSection({
     onMatSizeChange,
 }: AppearanceSectionProps) {
     return (
-        <div className="space-y-5 mb-6">
+        <SettingsSection title="Appearance">
             <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Wall
-                    </Label>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 hover:bg-muted"
-                        onClick={onRandomizeWall}
-                        title="Random Color"
-                    >
-                        <Icon icon="mdi:dice-5" className="w-3.5 h-3.5" />
-                    </Button>
-                </div>
+                <SettingsSectionHeader
+                    title="Wall"
+                    action={
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 hover:bg-muted"
+                            onClick={onRandomizeWall}
+                            title="Random Color"
+                        >
+                            <Icon icon="mdi:dice-5" className="w-3.5 h-3.5" />
+                        </Button>
+                    }
+                />
                 <ColorPickerControl
                     value={wallColor}
                     onChange={onWallColorChange}
@@ -69,20 +69,20 @@ export function AppearanceSection({
             </div>
 
             <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Frame
-                    </Label>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-5 w-5 hover:bg-muted"
-                        onClick={onRandomizeAllFrames}
-                        title="Randomize All Frames"
-                    >
-                        <Icon icon="mdi:dice-multiple" className="w-3.5 h-3.5" />
-                    </Button>
-                </div>
+                <SettingsSectionHeader
+                    title="Frame"
+                    action={
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-5 w-5 hover:bg-muted"
+                            onClick={onRandomizeAllFrames}
+                            title="Randomize All Frames"
+                        >
+                            <Icon icon="mdi:dice-multiple" className="w-3.5 h-3.5" />
+                        </Button>
+                    }
+                />
                 <div className="space-y-2">
                     <ColorPickerControl
                         value={frameColor}
@@ -124,16 +124,16 @@ export function AppearanceSection({
             </div>
 
             <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Matting
-                    </Label>
-                    <Switch
-                        checked={hasMat}
-                        onCheckedChange={onHasMatChange}
-                        className="scale-75 origin-right"
-                    />
-                </div>
+                <SettingsSectionHeader
+                    title="Matting"
+                    action={
+                        <Switch
+                            checked={hasMat}
+                            onCheckedChange={onHasMatChange}
+                            className="scale-75 origin-right"
+                        />
+                    }
+                />
 
                 {hasMat && (
                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -154,6 +154,6 @@ export function AppearanceSection({
                     </div>
                 )}
             </div>
-        </div>
+        </SettingsSection>
     );
 }

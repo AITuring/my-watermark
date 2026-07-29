@@ -7,6 +7,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { SettingsSection } from "./SettingsSection";
 
 import type { GalleryLayout } from "../../types";
 
@@ -32,11 +33,7 @@ export function LayoutSection({
     onOuterPaddingChange,
 }: LayoutSectionProps) {
     return (
-        <div className="space-y-5 mb-6">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-3">
-                Layout
-            </Label>
-
+        <SettingsSection title="Layout">
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
                     <Label className="text-xs">Mode</Label>
@@ -94,6 +91,6 @@ export function LayoutSection({
                 onChange={onOuterPaddingChange}
                 badgeValue
             />
-        </div>
+        </SettingsSection>
     );
 }

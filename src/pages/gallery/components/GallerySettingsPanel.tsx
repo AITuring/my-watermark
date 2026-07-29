@@ -1,13 +1,13 @@
-import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import PanelCard from "@/components/PanelCard";
+import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 import type { AspectRatio, GalleryLayout } from "../types";
 import { ActionsSection } from "./settings/ActionsSection";
 import { AppearanceSection } from "./settings/AppearanceSection";
 import { LayoutSection } from "./settings/LayoutSection";
-import { PanelHeader } from "./settings/PanelHeader";
 import { ViewExportSection } from "./settings/ViewExportSection";
+import { Icon } from "@iconify/react";
 
 type GallerySettingsPanelProps = {
     settingsOpen: boolean;
@@ -110,6 +110,23 @@ export function GallerySettingsPanel({
     onAddMore,
     onClear,
 }: GallerySettingsPanelProps) {
+    const headerAction = (
+        <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+                "h-8 w-8 ml-auto hover:bg-muted",
+                !settingsOpen && "h-full w-full rounded-full p-0"
+            )}
+            onClick={onToggleOpen}
+        >
+            <Icon
+                icon={settingsOpen ? "mdi:chevron-left" : "mdi:cog"}
+                className="w-5 h-5"
+            />
+        </Button>
+    );
+
     return (
         <div
             className={cn(
@@ -119,19 +136,23 @@ export function GallerySettingsPanel({
                     : "w-10 h-10 overflow-hidden rounded-full"
             )}
         >
-            <Card className="h-full bg-white/95 backdrop-blur-sm shadow-2xl border flex flex-col overflow-hidden">
-                <PanelHeader
-                    settingsOpen={settingsOpen}
-                    imagesCount={imagesCount}
-                    onToggleOpen={onToggleOpen}
-                />
-
-                <div
-                    className={cn(
-                        "flex-1 overflow-y-auto custom-scrollbar transition-opacity duration-200",
-                        settingsOpen ? "opacity-100 p-4" : "opacity-0 p-0 hidden"
-                    )}
-                >
+            <PanelCard
+                title={settingsOpen ? "拼图设置" : undefined}
+                icon={settingsOpen ? <Icon icon="tabler:settings" className="w-4 h-4" /> : undefined}
+                count={settingsOpen ? `${imagesCount}` : undefined}
+                actions={headerAction}
+                className="h-full border bg-white/95 shadow-2xl backdrop-blur-sm flex flex-col overflow-hidden"
+                headerClassName={cn(
+                    "shrink-0 border-b bg-muted/30",
+                    settingsOpen ? "h-12 px-3 py-3" : "h-full border-b-0 p-0"
+                )}
+                titleClassName="truncate text-sm font-semibold"
+                countClassName="h-5 px-1.5 text-xs"
+                contentClassName={cn(
+                    "flex-1 overflow-y-auto custom-scrollbar transition-opacity duration-200",
+                    settingsOpen ? "p-4 opacity-100" : "hidden p-0 opacity-0"
+                )}
+            >
                     <AppearanceSection
                         wallColor={wallColor}
                         onWallColorChange={onWallColorChange}
@@ -153,8 +174,6 @@ export function GallerySettingsPanel({
                         onMatSizeChange={onMatSizeChange}
                     />
 
-                    <Separator className="my-6" />
-
                     <LayoutSection
                         layout={layout}
                         onLayoutChange={onLayoutChange}
@@ -165,8 +184,6 @@ export function GallerySettingsPanel({
                         outerPadding={outerPadding}
                         onOuterPaddingChange={onOuterPaddingChange}
                     />
-
-                    <Separator className="my-6" />
 
                     <ViewExportSection
                         selectedRatioLabel={selectedRatioLabel}
@@ -187,15 +204,12 @@ export function GallerySettingsPanel({
                         onShowPagePreviewChange={onShowPagePreviewChange}
                     />
 
-                    <Separator className="my-6" />
-
                     <ActionsSection
                         onDownload={onDownload}
                         onAddMore={onAddMore}
                         onClear={onClear}
                     />
-                </div>
-            </Card>
+            </PanelCard>
         </div>
     );
 }

@@ -16,6 +16,7 @@ import {
 
 import type { AspectRatio } from "../../types";
 import { SliderField } from "./FormControls";
+import { SettingsSection } from "./SettingsSection";
 
 type ViewExportSectionProps = {
     selectedRatioLabel: string;
@@ -55,11 +56,7 @@ export function ViewExportSection({
     onShowPagePreviewChange,
 }: ViewExportSectionProps) {
     return (
-        <div className="space-y-5 mb-6">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-3">
-                View & Export
-            </Label>
-
+        <SettingsSection title="View & Export">
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
                     <Label className="text-xs">Target Ratio</Label>
@@ -160,6 +157,6 @@ export function ViewExportSection({
                     </div>
                 </div>
             </div>
-        </div>
+        </SettingsSection>
     );
 }

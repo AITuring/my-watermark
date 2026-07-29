@@ -19,6 +19,7 @@ type PanelCardProps = {
     className?: string;
     headerClassName?: string;
     contentClassName?: string;
+    headerInnerClassName?: string;
     titleClassName?: string;
     descriptionClassName?: string;
     countClassName?: string;
@@ -34,36 +35,46 @@ export default function PanelCard({
     className,
     headerClassName,
     contentClassName,
+    headerInnerClassName,
     titleClassName,
     descriptionClassName,
     countClassName,
     children,
 }: PanelCardProps) {
     const hasHeader = title || description || actions || count;
+    const hasLeading = title || description;
 
     return (
         <Card className={className}>
             {hasHeader ? (
                 <CardHeader className={headerClassName}>
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 space-y-1">
-                            {title ? (
-                                <CardTitle
-                                    className={cn(
-                                        "flex items-center gap-2",
-                                        titleClassName
-                                    )}
-                                >
-                                    {icon}
-                                    {title}
-                                </CardTitle>
-                            ) : null}
-                            {description ? (
-                                <CardDescription className={descriptionClassName}>
-                                    {description}
-                                </CardDescription>
-                            ) : null}
-                        </div>
+                    <div
+                        className={cn(
+                            "flex items-start justify-between gap-3",
+                            !hasLeading && "justify-end",
+                            headerInnerClassName
+                        )}
+                    >
+                        {hasLeading ? (
+                            <div className="min-w-0 space-y-1">
+                                {title ? (
+                                    <CardTitle
+                                        className={cn(
+                                            "flex items-center gap-2",
+                                            titleClassName
+                                        )}
+                                    >
+                                        {icon}
+                                        {title}
+                                    </CardTitle>
+                                ) : null}
+                                {description ? (
+                                    <CardDescription className={descriptionClassName}>
+                                        {description}
+                                    </CardDescription>
+                                ) : null}
+                            </div>
+                        ) : null}
                         {count !== undefined || actions ? (
                             <div className="flex shrink-0 items-center gap-2">
                                 {count !== undefined ? (
