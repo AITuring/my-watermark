@@ -135,7 +135,7 @@ export default function ImageCropper() {
     useLayoutEffect(() => {
         if (!activeImage) return;
         if (viewportSize.width <= 0 || viewportSize.height <= 0) return;
-        setZoom(Math.max(fitZoom, 0.1));
+        setZoom(Math.max(fitZoom, 0.01));
     }, [activeImage?.id, fitZoom, viewportSize.height, viewportSize.width]);
 
     useEffect(() => {
@@ -347,6 +347,37 @@ export default function ImageCropper() {
         event.target.value = "";
     };
 
+    const swapAspect = () => {
+        if (mode === "fixed") {
+            setTargetWidth(targetHeight);
+            setTargetHeight(targetWidth);
+            return;
+        }
+
+        if (mode !== "ratio") return;
+
+        if (ratioPreset === "自定义") {
+            setCustomRatioW(customRatioH);
+            setCustomRatioH(customRatioW);
+            return;
+        }
+
+        const ratioMatch = /^(\d+):(\d+)$/.exec(ratioPreset);
+        if (!ratioMatch) return;
+
+        const [, width, height] = ratioMatch;
+        const swappedPreset = `${height}:${width}`;
+        const hasSwappedPreset = ratioOptions.some((item) => item.label === swappedPreset);
+        if (hasSwappedPreset) {
+            setRatioPreset(swappedPreset);
+            return;
+        }
+
+        setRatioPreset("自定义");
+        setCustomRatioW(Number(height));
+        setCustomRatioH(Number(width));
+    };
+
     const removeImage = (id: string) => {
         setImages((prev) => {
             const removeIndex = prev.findIndex((item) => item.id === id);
@@ -426,6 +457,7 @@ export default function ImageCropper() {
                             onClearAllImages={clearAllImages}
                             onSelectImage={setActiveId}
                             onRemoveImage={removeImage}
+                            onSwapAspect={swapAspect}
                         />
                     </div>
 

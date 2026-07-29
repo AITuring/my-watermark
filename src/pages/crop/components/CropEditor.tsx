@@ -68,7 +68,7 @@ export default function CropEditor({
     onMinimapPointer,
 }: CropEditorProps) {
     return (
-        <Card className="flex min-h-0 flex-1 flex-col border-border/60 bg-background/95 shadow-sm">
+        <Card className="flex min-h-0 flex-1 flex-col rounded-lg border-border/60 bg-background/95 shadow-sm">
             <CardHeader className="px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex items-center gap-2">
@@ -105,7 +105,7 @@ export default function CropEditor({
             </CardHeader>
             <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
                 {!activeImage ? (
-                    <div className="flex h-full min-h-0 items-center justify-center rounded-[28px] border border-dashed bg-muted/20 text-sm text-muted-foreground">
+                    <div className="flex h-full min-h-0 items-center justify-center rounded-lg border border-dashed bg-muted/20 text-sm text-muted-foreground">
                         从左侧选择一张原图开始裁切
                     </div>
                 ) : (
@@ -119,7 +119,7 @@ export default function CropEditor({
                             <Badge variant="outline">{currentDisplayLabel}</Badge>
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col gap-3">
-                            <div className="rounded-2xl border border-border/60 bg-muted/20 px-3 py-2">
+                            <div className="rounded bg-muted/20">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Button
                                         variant="secondary"
@@ -165,7 +165,7 @@ export default function CropEditor({
                                         variant="secondary"
                                         size="sm"
                                         onClick={() =>
-                                            onZoomChange((prev) => clamp(prev * 1.5, fitZoom * 0.5, 4))
+                                            onZoomChange((prev) => clamp(prev * 1.5, Math.max(fitZoom * 0.5, 0.01), 4))
                                         }
                                     >
                                         <Maximize className="h-4 w-4" />
@@ -175,7 +175,7 @@ export default function CropEditor({
                                         variant="secondary"
                                         size="sm"
                                         onClick={() =>
-                                            onZoomChange((prev) => clamp(prev / 1.5, fitZoom * 0.5, 4))
+                                            onZoomChange((prev) => clamp(prev / 1.5, Math.max(fitZoom * 0.5, 0.01), 4))
                                         }
                                     >
                                         <Minimize className="h-4 w-4" />
@@ -203,7 +203,7 @@ export default function CropEditor({
                                             <img
                                                 src={currentDisplayUrl}
                                                 alt={activeImage.name}
-                                                className="block rounded-xl"
+                                                className="block rounded-lg"
                                                 style={{
                                                     width: `${displayWidth}px`,
                                                     height: `${displayHeight}px`,
@@ -293,10 +293,10 @@ export default function CropEditor({
                                 </div>
                                 {shouldShowMinimap && (
                                     <div className="pointer-events-none absolute bottom-4 right-4 z-10">
-                                        <div className="pointer-events-auto w-[168px] rounded-2xl border border-border/70 bg-background/92 p-3 shadow-lg backdrop-blur-sm">
+                                        <div className="pointer-events-auto w-[168px] rounded-lg border border-border/70 bg-background/92 p-3 shadow-lg backdrop-blur-sm">
                                             <div className="mb-2 text-sm font-medium">Minimap</div>
                                             <div
-                                                className="relative overflow-hidden rounded-xl border bg-background"
+                                                className="relative overflow-hidden rounded-lg border bg-background"
                                                 style={{
                                                     aspectRatio: `${activeImage.width} / ${activeImage.height}`,
                                                 }}

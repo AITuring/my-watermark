@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import { toast } from "sonner";
-import { buildSavedCropFileName, getOutputSize, sanitizeFileSegment } from "../helpers";
+import { buildSavedCropFileName, getOutputSize } from "../helpers";
 import { drawCropToBlob } from "../image-utils";
 import type { CropImage, CropMode, SavedCrop, SavedCropGroup } from "../types";
 import { setPendingCropTransfer, type TransferTarget } from "@/utils/crop-transfer";
@@ -130,17 +130,15 @@ export function useCropExports({
         const JSZip = (await loadJSZip()) as ZipConstructor;
         const saveAs = await loadSaveAs();
         const zip = new JSZip();
-        groupedSavedCrops.forEach((group) => {
-            const folder = zip.folder(sanitizeFileSegment(group.sourceName));
-            group.items.forEach((item) => {
-                folder?.file(item.file.name, item.file);
-            });
+        const folder = zip.folder("crop-batch");
+        savedCrops.forEach((item) => {
+            folder?.file(item.file.name, item.file);
         });
 
         const zipBlob = await zip.generateAsync({ type: "blob" });
         saveAs(zipBlob, `crop-batch-${Date.now()}.zip`);
         toast.success(`已批量导出 ${savedCrops.length} 张`);
-    }, [groupedSavedCrops, savedCrops.length]);
+    }, [savedCrops]);
 
     const routeWithCrops = useCallback(
         async (target: TransferTarget) => {

@@ -30,7 +30,7 @@ export default function RightPanel({
             title="暂存结果"
             icon={<PackageOpen className="h-4 w-4" />}
             count={`${savedCropCount} 张`}
-            className={`flex h-full min-h-0 flex-col border-border/60 bg-background/90 shadow-sm ${className}`}
+            className={`flex h-full min-h-0 flex-col rounded-lg border-border/60 bg-background/90 shadow-sm ${className}`}
             headerClassName="px-4 py-3"
             titleClassName="text-base"
             contentClassName="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-6 pt-0"
@@ -67,7 +67,7 @@ export default function RightPanel({
                         groupedSavedCrops.map((group) => (
                             <div
                                 key={group.sourceImageId}
-                                className="space-y-2 rounded-2xl border border-border/60 bg-muted/20 p-3"
+                                className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3"
                             >
                                 <div className="flex items-center justify-between gap-2">
                                     <div className="min-w-0">
@@ -81,12 +81,12 @@ export default function RightPanel({
                                     {group.items.map((item) => (
                                         <div
                                             key={item.id}
-                                            className="flex items-center gap-3 rounded-xl bg-background px-3 py-2"
+                                            className="flex items-center gap-3 rounded-lg bg-background px-3 py-2"
                                         >
                                             <img
                                                 src={item.previewUrl}
                                                 alt={item.file.name}
-                                                className="h-14 w-14 rounded-lg bg-black/5 object-cover"
+                                                className="h-14 w-14 rounded-md bg-black/5 object-cover"
                                             />
                                             <div className="min-w-0 flex-1">
                                                 <div className="text-xs">第 {item.index} 张</div>
@@ -112,7 +112,7 @@ export default function RightPanel({
                             </div>
                         ))
                     ) : (
-                        <div className="rounded-2xl border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
+                        <div className="rounded-lg border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
                             暂存区还是空的。先在中间裁一张，再点“暂存当前裁切”。
                         </div>
                     )}

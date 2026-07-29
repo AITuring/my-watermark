@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import PanelCard from "@/components/PanelCard";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Crop, ImagePlus, Images, RotateCcw, Scissors, Trash2 } from "lucide-react";
+import { ArrowUpDown, Crop, ImagePlus, Images, RotateCcw, Scissors, Trash2 } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { ratioOptions, type CropImage, type CropMode } from "../types";
 
@@ -27,6 +27,7 @@ type LeftPanelProps = {
     onClearAllImages: () => void;
     onSelectImage: (id: string) => void;
     onRemoveImage: (id: string) => void;
+    onSwapAspect: () => void;
 };
 
 export default function LeftPanel({
@@ -50,13 +51,14 @@ export default function LeftPanel({
     onClearAllImages,
     onSelectImage,
     onRemoveImage,
+    onSwapAspect,
 }: LeftPanelProps) {
     return (
         <PanelCard
             title="图片裁切"
             icon={<Scissors className="h-4 w-4" />}
             count={`${images.length} 张`}
-            className={`flex h-full min-h-0 flex-col border-border/60 bg-background/90 shadow-sm ${className}`}
+            className={`flex h-full min-h-0 flex-col rounded-lg border-border/60 bg-background/90 shadow-sm ${className}`}
             headerClassName="px-4 py-3"
             titleClassName="text-base"
             contentClassName="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-6 pt-0"
@@ -92,7 +94,7 @@ export default function LeftPanel({
                     </Button>
                 </div>
 
-                <div className="space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-3">
+                <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
                     <div className="flex items-center gap-2 text-sm font-medium">
                         <Crop className="h-4 w-4" />
                         导出规则
@@ -109,34 +111,58 @@ export default function LeftPanel({
                             </SelectContent>
                         </Select>
                         {mode === "fixed" ? (
-                            <div className="grid grid-cols-2 gap-2">
-                                <Input
-                                    type="number"
-                                    value={targetWidth}
-                                    min={1}
-                                    onChange={(e) => onTargetWidthChange(Number(e.target.value || 1))}
-                                />
-                                <Input
-                                    type="number"
-                                    value={targetHeight}
-                                    min={1}
-                                    onChange={(e) => onTargetHeightChange(Number(e.target.value || 1))}
-                                />
+                            <div className="flex items-center gap-2">
+                                <div className="grid flex-1 grid-cols-2 gap-2">
+                                    <Input
+                                        type="number"
+                                        value={targetWidth}
+                                        min={1}
+                                        onChange={(e) => onTargetWidthChange(Number(e.target.value || 1))}
+                                    />
+                                    <Input
+                                        type="number"
+                                        value={targetHeight}
+                                        min={1}
+                                        onChange={(e) => onTargetHeightChange(Number(e.target.value || 1))}
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="shrink-0"
+                                    onClick={onSwapAspect}
+                                    title="切换宽高比例"
+                                >
+                                    <ArrowUpDown className="h-4 w-4" />
+                                </Button>
                             </div>
                         ) : mode === "ratio" ? (
                             <div className="space-y-2">
-                                <Select value={ratioPreset} onValueChange={onRatioPresetChange}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {ratioOptions.map((item) => (
-                                            <SelectItem key={item.label} value={item.label}>
-                                                {item.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <div className="flex items-center gap-2">
+                                    <Select value={ratioPreset} onValueChange={onRatioPresetChange}>
+                                        <SelectTrigger className="flex-1">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {ratioOptions.map((item) => (
+                                                <SelectItem key={item.label} value={item.label}>
+                                                    {item.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon"
+                                        className="shrink-0"
+                                        onClick={onSwapAspect}
+                                        title="切换宽高比例"
+                                    >
+                                        <ArrowUpDown className="h-4 w-4" />
+                                    </Button>
+                                </div>
                                 {ratioPreset === "自定义" && (
                                     <div className="grid grid-cols-2 gap-2">
                                         <Input
@@ -155,7 +181,7 @@ export default function LeftPanel({
                                 )}
                             </div>
                         ) : (
-                            <div className="rounded-xl bg-background px-3 py-2 text-xs text-muted-foreground">
+                            <div className="rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground">
                                 自由裁切会按当前选区的原始像素导出。
                             </div>
                         )}
@@ -177,7 +203,7 @@ export default function LeftPanel({
                                     key={item.id}
                                     type="button"
                                     onClick={() => onSelectImage(item.id)}
-                                    className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition ${
+                                    className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${
                                         activeId === item.id
                                             ? "border-primary bg-primary/5 shadow-sm"
                                             : "border-border/60 bg-background hover:bg-muted/30"
@@ -186,7 +212,7 @@ export default function LeftPanel({
                                     <img
                                         src={item.previewUrl}
                                         alt={item.name}
-                                        className="h-14 w-14 rounded-xl bg-black/5 object-cover"
+                                        className="h-14 w-14 rounded-md bg-black/5 object-cover"
                                     />
                                     <div className="min-w-0 flex-1">
                                         <div className="truncate text-sm">{item.name}</div>
@@ -209,7 +235,7 @@ export default function LeftPanel({
                                 </button>
                             ))
                         ) : (
-                            <div className="rounded-2xl border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+                            <div className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
                                 先上传一批原图，再从这里选择要裁切的图片。
                             </div>
                         )}
