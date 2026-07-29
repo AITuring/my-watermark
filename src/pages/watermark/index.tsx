@@ -53,7 +53,7 @@ const Watermark: React.FC = () => {
     >({});
     const [uploading, setUploading] = useState(false);
     const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
-    const [quality, setQuality] = useState(1);
+    const [quality, setQuality] = useState(0.95);
     const [watermarkBlur, setWatermarkBlur] = useState(true);
     const [watermarkOpacity, setWatermarkOpacity] = useState(0.8);
     const [mobileView, setMobileView] = useState<"editor" | "gallery">(

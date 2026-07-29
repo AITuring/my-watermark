@@ -12,6 +12,13 @@ interface UseWatermarkBatchProcessorOptions {
     quality: number;
 }
 
+function getDownloadExtension(mimeType: string): string {
+    if (mimeType === "image/webp") {
+        return "webp";
+    }
+    return "jpg";
+}
+
 export function useWatermarkBatchProcessor({
     watermarkUrl,
     watermarkColorUrls,
@@ -123,7 +130,7 @@ export function useWatermarkBatchProcessor({
                                 watermarkOpacity,
                             });
 
-                            const { url, name } = await processImage(
+                            const { url, name, mimeType } = await processImage(
                                 file,
                                 watermarkImg,
                                 position,
@@ -145,7 +152,9 @@ export function useWatermarkBatchProcessor({
 
                             const sliceName = name.split(".")[0];
                             downloadLink.href = url;
-                            downloadLink.download = `${sliceName}-mark.jpeg`;
+                            downloadLink.download = `${sliceName}-mark.${getDownloadExtension(
+                                mimeType
+                            )}`;
                             downloadLink.click();
                             generatedDownloadUrls.push(url);
 

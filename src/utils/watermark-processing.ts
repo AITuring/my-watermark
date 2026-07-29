@@ -123,6 +123,88 @@ interface LoadImageDataResult {
     failedFiles: string[];
 }
 
+const HIGH_QUALITY_FLOOR = 0.88;
+const MAX_AUTO_QUALITY_DROP = 0.04;
+const EXPORT_QUALITY_STEP = 0.02;
+const SOFT_MAX_SIZE_RATIO = 1.2;
+
+function clampExportQuality(quality: number): number {
+    return Math.max(0.01, Math.min(1, quality));
+}
+
+function getExportMimeType(file: File): "image/jpeg" | "image/webp" {
+    return file.type === "image/webp" ? "image/webp" : "image/jpeg";
+}
+
+function canvasToBlob(
+    canvas: HTMLCanvasElement,
+    type: "image/jpeg" | "image/webp",
+    quality: number
+): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(
+            (blob) => {
+                if (!blob) {
+                    reject(new Error("图片导出失败"));
+                    return;
+                }
+                resolve(blob);
+            },
+            type,
+            quality
+        );
+    });
+}
+
+async function exportCanvasWithSizeBudget(
+    canvas: HTMLCanvasElement,
+    file: File,
+    quality: number
+): Promise<{ blob: Blob; mimeType: string }> {
+    const exportType = getExportMimeType(file);
+    const requestedQuality = clampExportQuality(quality);
+    const minAutoQuality =
+        requestedQuality >= HIGH_QUALITY_FLOOR
+            ? Math.max(
+                  HIGH_QUALITY_FLOOR,
+                  Number(
+                      (requestedQuality - MAX_AUTO_QUALITY_DROP).toFixed(2)
+                  )
+              )
+            : requestedQuality;
+    const softSizeLimit = Math.max(
+        file.size,
+        Math.round(file.size * SOFT_MAX_SIZE_RATIO)
+    );
+
+    let currentQuality = requestedQuality;
+    let blob = await canvasToBlob(canvas, exportType, currentQuality);
+    let bestBlob = blob;
+
+    if (blob.size <= softSizeLimit) {
+        return { blob, mimeType: blob.type || exportType };
+    }
+
+    while (
+        blob.size > softSizeLimit &&
+        currentQuality > minAutoQuality + Number.EPSILON
+    ) {
+        currentQuality = Math.max(
+            minAutoQuality,
+            Number((currentQuality - EXPORT_QUALITY_STEP).toFixed(2))
+        );
+        blob = await canvasToBlob(canvas, exportType, currentQuality);
+        if (blob.size < bestBlob.size) {
+            bestBlob = blob;
+        }
+        if (blob.size <= softSizeLimit) {
+            return { blob, mimeType: blob.type || exportType };
+        }
+    }
+
+    return { blob: bestBlob, mimeType: bestBlob.type || exportType };
+}
+
 export async function loadImageData(
     files: File[]
 ): Promise<LoadImageDataResult> {
@@ -347,7 +429,7 @@ export async function processImage(
     watermarkOpacity = 1,
     onProgress?: (progress: number) => void,
     mixedConfig?: MixedWatermarkConfig
-): Promise<{ url: string; name: string }> {
+): Promise<{ url: string; name: string; mimeType: string }> {
     const memoryManager = MemoryManager.getInstance();
 
     return new Promise((resolve, reject) => {
@@ -600,25 +682,24 @@ export async function processImage(
 
                 ctx.restore();
                 exportStarted = true;
-                canvas.toBlob(
-                    (blob) => {
+                void exportCanvasWithSizeBudget(canvas, file, quality)
+                    .then(({ blob, mimeType }) => {
                         try {
-                            if (!blob) {
-                                reject(new Error("图片导出失败"));
-                                return;
-                            }
                             const url = memoryManager.createObjectURL(blob);
                             onProgress?.(100);
-                            resolve({ url, name: file.name });
+                            resolve({ url, name: file.name, mimeType });
                         } finally {
                             if (canvas) {
                                 memoryManager.releaseCanvas(canvas);
                             }
                         }
-                    },
-                    "image/jpeg",
-                    quality
-                );
+                    })
+                    .catch((error) => {
+                        if (canvas) {
+                            memoryManager.releaseCanvas(canvas);
+                        }
+                        reject(error);
+                    });
             } catch (error) {
                 if (canvas && !exportStarted) {
                     memoryManager.releaseCanvas(canvas);
