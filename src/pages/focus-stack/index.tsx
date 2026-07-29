@@ -1,210 +1,39 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import {
-    closestCenter,
-    DndContext,
     MouseSensor,
     TouchSensor,
     useSensor,
     useSensors,
     type DragEndEvent,
 } from "@dnd-kit/core";
-import {
-    SortableContext,
-    arrayMove,
-    rectSortingStrategy,
-    useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { arrayMove } from "@dnd-kit/sortable";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import ImageUploader from "@/components/ImageUploader";
 import {
     createFocusStackResult,
-    getFocusStackOwnershipColor,
     type FocusStackLivePreview,
     type FocusStackOptions,
     type FocusStackResult,
 } from "@/utils/focus-stack";
 import { createPreviewUrl } from "@/utils/image-loading";
-
-interface UploadState {
-    id: string;
-    file: File | null;
-    previewUrl: string;
-    status: "loading" | "ready" | "error";
-    errorMessage?: string;
-}
-
-function revokeUploadPreview(state: UploadState) {
-    if (state.previewUrl) {
-        URL.revokeObjectURL(state.previewUrl);
-    }
-}
-
-function revokeFocusStackResult(result: FocusStackResult | null) {
-    if (!result) {
-        return;
-    }
-    URL.revokeObjectURL(result.resultUrl);
-    URL.revokeObjectURL(result.ownershipMapUrl);
-    URL.revokeObjectURL(result.maskUrl);
-    URL.revokeObjectURL(result.winnerOverlayUrl);
-    URL.revokeObjectURL(result.basePreviewUrl);
-    URL.revokeObjectURL(result.alignedPreviewUrl);
-    URL.revokeObjectURL(result.sharpnessAUrl);
-    URL.revokeObjectURL(result.sharpnessBUrl);
-}
-
-function revokeLivePreview(preview: FocusStackLivePreview | null) {
-    if (!preview) {
-        return;
-    }
-    URL.revokeObjectURL(preview.baseUrl);
-    URL.revokeObjectURL(preview.candidateUrl);
-    URL.revokeObjectURL(preview.maskUrl);
-    URL.revokeObjectURL(preview.winnerOverlayUrl);
-    URL.revokeObjectURL(preview.mergedUrl);
-}
-
-interface SortableImageItemProps {
-    image: UploadState;
-    index: number;
-    onRemove: (index: number) => void;
-}
-
-interface InspectViewport {
-    x: number;
-    y: number;
-}
-
-interface InspectMetrics {
-    viewportWidth: number;
-    viewportHeight: number;
-}
-
-const MIN_INSPECT_ZOOM = 1;
-const MAX_INSPECT_ZOOM = 4;
-const DOUBLE_CLICK_ZOOM = 2;
-
-function clamp(value: number, min: number, max: number) {
-    return Math.min(max, Math.max(min, value));
-}
-
-function yieldToBrowser(): Promise<void> {
-    return new Promise((resolve) => {
-        if (typeof document !== "undefined" && document.visibilityState === "hidden") {
-            window.setTimeout(resolve, 0);
-            return;
-        }
-        requestAnimationFrame(() => resolve());
-    });
-}
-
-function SortableImageItem({ image, index, onRemove }: SortableImageItemProps) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-        useSortable({
-            id: image.id,
-            disabled: image.status === "loading",
-        });
-
-    return (
-        <div
-            ref={setNodeRef}
-            style={{
-                transform: CSS.Transform.toString(transform),
-                transition,
-            }}
-            className={`overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 ${
-                isDragging ? "opacity-70" : ""
-            }`}
-        >
-            <div className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-900">
-                {image.previewUrl ? (
-                    <img
-                        src={image.previewUrl}
-                        alt={`图片 ${index + 1} 预览`}
-                        className="aspect-[4/3] h-full w-full object-cover"
-                    />
-                ) : image.status === "loading" ? (
-                    <div className="flex aspect-[4/3] h-full w-full items-center justify-center text-slate-500 dark:text-slate-400">
-                        <Icon icon="mdi:loading" className="h-8 w-8 animate-spin" />
-                    </div>
-                ) : (
-                    <div className="flex aspect-[4/3] h-full w-full items-center justify-center text-rose-500 dark:text-rose-300">
-                        <Icon icon="mdi:alert-circle-outline" className="h-8 w-8" />
-                    </div>
-                )}
-                <div className="absolute left-2 top-2 flex flex-wrap gap-2">
-                    <Badge variant="secondary">#{index + 1}</Badge>
-                    {index === 0 && <Badge variant="default">初始参考</Badge>}
-                </div>
-                <div className="absolute right-2 top-2 flex gap-2">
-                    <button
-                        type="button"
-                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/35 text-white transition hover:bg-black/50 disabled:cursor-not-allowed disabled:opacity-40"
-                        {...attributes}
-                        {...listeners}
-                        disabled={image.status === "loading"}
-                        aria-label={`拖拽调整图片 ${index + 1} 顺序`}
-                    >
-                        <Icon icon="mdi:drag" className="h-5 w-5" />
-                    </button>
-                    <button
-                        type="button"
-                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/35 text-white transition hover:bg-rose-500"
-                        onClick={() => onRemove(index)}
-                        aria-label={`移除图片 ${index + 1}`}
-                    >
-                        <Icon icon="mdi:close" className="h-5 w-5" />
-                    </button>
-                </div>
-            </div>
-            <div className="space-y-2 pt-3">
-                <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">
-                        {image.status === "ready"
-                            ? "已就绪"
-                            : image.status === "loading"
-                              ? "生成预览中"
-                              : "加载失败"}
-                    </Badge>
-                </div>
-                <p className="truncate text-sm text-slate-700 dark:text-slate-200">
-                    {image.file?.name}
-                </p>
-                {image.status === "loading" && (
-                    <p className="text-xs text-blue-600 dark:text-blue-300">
-                        TIFF 预览较慢，正在后台逐张解码
-                    </p>
-                )}
-                {image.status === "error" && (
-                    <p className="text-xs text-rose-600 dark:text-rose-300">
-                        {image.errorMessage || "图片不可用"}
-                    </p>
-                )}
-            </div>
-        </div>
-    );
-}
+import ImageManagerDialog from "./components/ImageManagerDialog";
+import InspectDialog from "./components/InspectDialog";
+import ParametersPanel from "./components/ParametersPanel";
+import ProcessingStatusPanel from "./components/ProcessingStatusPanel";
+import ResultPreviewPanel from "./components/ResultPreviewPanel";
+import UploadPanel from "./components/UploadPanel";
+import {
+    revokeFocusStackResult,
+    revokeLivePreview,
+    revokeUploadPreview,
+    yieldToBrowser,
+} from "./helpers";
+import {
+    getProcessingPreviewPanels,
+    getResultPrimaryPanels,
+    getResultSecondaryPanels,
+} from "./panels";
+import type { FocusStackStatusSummary, UploadState } from "./types";
 
 const FocusStacking = () => {
     const [images, setImages] = useState<UploadState[]>([]);
@@ -215,15 +44,6 @@ const FocusStacking = () => {
     const [progress, setProgress] = useState(0);
     const [progressLabel, setProgressLabel] = useState("等待开始");
     const [isInspectOpen, setIsInspectOpen] = useState(false);
-    const [inspectZoom, setInspectZoom] = useState(1);
-    const [inspectViewport, setInspectViewport] = useState<InspectViewport>({
-        x: 0,
-        y: 0,
-    });
-    const [inspectMetrics, setInspectMetrics] = useState<InspectMetrics>({
-        viewportWidth: 0,
-        viewportHeight: 0,
-    });
 
     const [autoAlign, setAutoAlign] = useState(true);
     const [manualShiftX, setManualShiftX] = useState(0);
@@ -234,19 +54,10 @@ const FocusStacking = () => {
     const [confidenceThreshold, setConfidenceThreshold] = useState(0.04);
     const [featherRadius, setFeatherRadius] = useState(1);
     const [foregroundProtect, setForegroundProtect] = useState(8);
+
     const imagesRef = useRef<UploadState[]>([]);
     const resultRef = useRef<FocusStackResult | null>(null);
     const livePreviewRef = useRef<FocusStackLivePreview | null>(null);
-    const inspectContainersRef = useRef<Record<string, HTMLDivElement | null>>({});
-    const syncScrollRef = useRef(false);
-    const dragStateRef = useRef<{
-        pointerId: number;
-        panelKey: string;
-        startX: number;
-        startY: number;
-        startScrollLeft: number;
-        startScrollTop: number;
-    } | null>(null);
 
     useEffect(() => {
         imagesRef.current = images;
@@ -273,6 +84,7 @@ const FocusStacking = () => {
     const errorCount = images.filter((image) => image.status === "error").length;
     const canProcess = readyImages.length >= 2 && loadingCount === 0 && !isProcessing;
     const stackPreviewImages = images.slice(0, 4);
+
     const sensors = useSensors(
         useSensor(MouseSensor, {
             activationConstraint: {
@@ -299,6 +111,42 @@ const FocusStacking = () => {
             y: result.estimatedOffset.y + manualShiftY,
         };
     }, [manualShiftX, manualShiftY, result]);
+
+    const processingPreviewPanels = useMemo(
+        () => getProcessingPreviewPanels(livePreview),
+        [livePreview]
+    );
+    const resultPrimaryPanels = useMemo(() => getResultPrimaryPanels(result), [result]);
+    const resultSecondaryPanels = useMemo(() => getResultSecondaryPanels(result), [result]);
+
+    const statusSummary = useMemo<FocusStackStatusSummary>(
+        () => ({
+            imagesCount: images.length,
+            readyCount: readyImages.length,
+            loadingCount,
+            errorCount,
+            progress,
+            progressLabel,
+            isProcessing,
+            effectiveOffset,
+            result,
+            livePreview,
+            autoAlign,
+        }),
+        [
+            autoAlign,
+            effectiveOffset,
+            errorCount,
+            images.length,
+            isProcessing,
+            livePreview,
+            loadingCount,
+            progress,
+            progressLabel,
+            readyImages.length,
+            result,
+        ]
+    );
 
     const clearGeneratedResult = () => {
         setResult((current) => {
@@ -469,406 +317,6 @@ const FocusStacking = () => {
         link.click();
     };
 
-    const openInspectDialog = () => {
-        setInspectZoom(1);
-        setInspectViewport({
-            x: 0,
-            y: 0,
-        });
-        setIsInspectOpen(true);
-    };
-
-    const previewPanels = result
-        ? [
-              {
-                  key: "result",
-                  label: "合成结果",
-                  url: result.resultUrl,
-              },
-              {
-                  key: "ownership",
-                  label: result.sourceCount > 2 ? "累计来源图" : "来源分布",
-                  url: result.ownershipMapUrl,
-              },
-              {
-                  key: "winner-overlay",
-                  label: result.sourceCount > 2 ? "最后一轮叠色" : "选区叠色",
-                  url: result.winnerOverlayUrl,
-              },
-              {
-                  key: "base",
-                  label: result.sourceCount > 2 ? "上一轮结果" : "参考图",
-                  url: result.basePreviewUrl,
-              },
-              {
-                  key: "candidate",
-                  label: result.sourceCount > 2 ? "最后候选图" : "对齐后",
-                  url: result.alignedPreviewUrl,
-              },
-              {
-                  key: "sharp-a",
-                  label: result.sourceCount > 2 ? "最后一轮基准清晰度" : "清晰度 A",
-                  url: result.sharpnessAUrl,
-              },
-              {
-                  key: "sharp-b",
-                  label: result.sourceCount > 2 ? "最后一轮候选清晰度" : "清晰度 B",
-                  url: result.sharpnessBUrl,
-              },
-              {
-                  key: "mask",
-                  label: result.sourceCount > 2 ? "最后一轮掩膜" : "清晰掩膜",
-                  url: result.maskUrl,
-              },
-          ]
-        : [];
-
-    const processingPreviewPanels = livePreview
-        ? [
-              {
-                  key: "merged",
-                  label: "当前累计结果",
-                  url: livePreview.mergedUrl,
-              },
-              {
-                  key: "overlay",
-                  label: "深度叠加",
-                  url: livePreview.winnerOverlayUrl,
-              },
-              {
-                  key: "mask",
-                  label: "当前深度图",
-                  url: livePreview.maskUrl,
-              },
-              {
-                  key: "base",
-                  label: "当前基准图",
-                  url: livePreview.baseUrl,
-              },
-              {
-                  key: "candidate",
-                  label: "当前候选图",
-                  url: livePreview.candidateUrl,
-              },
-          ]
-        : [];
-
-    const resultPrimaryPanels = result
-        ? [
-              {
-                  key: "result",
-                  label: "合成结果",
-                  url: result.resultUrl,
-              },
-              {
-                  key: "ownership",
-                  label: result.sourceCount > 2 ? "累计来源图" : "来源分布",
-                  url: result.ownershipMapUrl,
-              },
-          ]
-        : [];
-
-    const resultSecondaryPanels = result
-        ? previewPanels.filter((panel) => !["result", "ownership"].includes(panel.key))
-        : [];
-
-    const inspectImageSize = useMemo(
-        () => ({
-            width: result?.width ?? 1,
-            height: result?.height ?? 1,
-        }),
-        [result]
-    );
-
-    const getInspectRenderScale = (container: HTMLDivElement, zoom: number) => {
-        const fitScale = Math.min(
-            container.clientWidth / Math.max(inspectImageSize.width, 1),
-            container.clientHeight / Math.max(inspectImageSize.height, 1)
-        );
-        return fitScale * zoom;
-    };
-
-    const getInspectBounds = (container: HTMLDivElement, zoom: number) => {
-        const renderScale = getInspectRenderScale(container, zoom);
-        const contentWidth = inspectImageSize.width * renderScale;
-        const contentHeight = inspectImageSize.height * renderScale;
-        const maxScrollLeft = Math.max(0, contentWidth - container.clientWidth);
-        const maxScrollTop = Math.max(0, contentHeight - container.clientHeight);
-        return {
-            renderScale,
-            contentWidth,
-            contentHeight,
-            maxScrollLeft,
-            maxScrollTop,
-        };
-    };
-
-    const updateInspectMetrics = () => {
-        const firstContainer = Object.values(inspectContainersRef.current).find(Boolean);
-        if (!firstContainer) {
-            return;
-        }
-        setInspectMetrics({
-            viewportWidth: firstContainer.clientWidth,
-            viewportHeight: firstContainer.clientHeight,
-        });
-    };
-
-    const getInspectLayout = (panelKey: string) => {
-        const container = inspectContainersRef.current[panelKey];
-        const viewportWidth = container?.clientWidth || inspectMetrics.viewportWidth || 1;
-        const viewportHeight = container?.clientHeight || inspectMetrics.viewportHeight || 1;
-        const fitScale = Math.min(
-            viewportWidth / Math.max(inspectImageSize.width, 1),
-            viewportHeight / Math.max(inspectImageSize.height, 1)
-        );
-        const renderScale = fitScale * inspectZoom;
-        const renderedWidth = inspectImageSize.width * renderScale;
-        const renderedHeight = inspectImageSize.height * renderScale;
-        return {
-            renderedWidth,
-            renderedHeight,
-            wrapperWidth: Math.max(viewportWidth, renderedWidth),
-            wrapperHeight: Math.max(viewportHeight, renderedHeight),
-        };
-    };
-
-    const syncInspectScroll = (viewport: InspectViewport) => {
-        syncScrollRef.current = true;
-        Object.values(inspectContainersRef.current).forEach((container) => {
-            if (!container) {
-                return;
-            }
-            const { maxScrollLeft, maxScrollTop } = getInspectBounds(container, inspectZoom);
-            container.scrollLeft = maxScrollLeft * viewport.x;
-            container.scrollTop = maxScrollTop * viewport.y;
-        });
-        requestAnimationFrame(() => {
-            syncScrollRef.current = false;
-        });
-        updateInspectMetrics();
-    };
-
-    const updateViewportFromScroll = (container: HTMLDivElement) => {
-        const { maxScrollLeft, maxScrollTop } = getInspectBounds(container, inspectZoom);
-        const nextViewport = {
-            x: maxScrollLeft > 0 ? container.scrollLeft / maxScrollLeft : 0,
-            y: maxScrollTop > 0 ? container.scrollTop / maxScrollTop : 0,
-        };
-        setInspectViewport(nextViewport);
-        setInspectMetrics({
-            viewportWidth: container.clientWidth,
-            viewportHeight: container.clientHeight,
-        });
-        return nextViewport;
-    };
-
-    const zoomToPoint = (
-        container: HTMLDivElement,
-        clientX: number,
-        clientY: number,
-        nextZoom: number
-    ) => {
-        const rect = container.getBoundingClientRect();
-        const offsetX = clientX - rect.left + container.scrollLeft;
-        const offsetY = clientY - rect.top + container.scrollTop;
-        const currentScale = getInspectRenderScale(container, inspectZoom);
-        const imageX = offsetX / currentScale;
-        const imageY = offsetY / currentScale;
-        const { renderScale: nextScale, maxScrollLeft, maxScrollTop } = getInspectBounds(
-            container,
-            nextZoom
-        );
-        const nextScrollLeft = clamp(
-            imageX * nextScale - (clientX - rect.left),
-            0,
-            maxScrollLeft
-        );
-        const nextScrollTop = clamp(
-            imageY * nextScale - (clientY - rect.top),
-            0,
-            maxScrollTop
-        );
-        const nextViewport = {
-            x: maxScrollLeft > 0 ? nextScrollLeft / maxScrollLeft : 0,
-            y: maxScrollTop > 0 ? nextScrollTop / maxScrollTop : 0,
-        };
-        setInspectZoom(nextZoom);
-        setInspectViewport(nextViewport);
-    };
-
-    const handleInspectScroll = (panelKey: string) => {
-        const container = inspectContainersRef.current[panelKey];
-        if (!container || syncScrollRef.current) {
-            return;
-        }
-        const nextViewport = updateViewportFromScroll(container);
-        syncScrollRef.current = true;
-        Object.entries(inspectContainersRef.current).forEach(([key, target]) => {
-            if (!target || key === panelKey) {
-                return;
-            }
-            const { maxScrollLeft, maxScrollTop } = getInspectBounds(target, inspectZoom);
-            target.scrollLeft = maxScrollLeft * nextViewport.x;
-            target.scrollTop = maxScrollTop * nextViewport.y;
-        });
-        requestAnimationFrame(() => {
-            syncScrollRef.current = false;
-        });
-    };
-
-    const handleInspectWheel = (panelKey: string, event: React.WheelEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        const container = inspectContainersRef.current[panelKey];
-        if (!container) {
-            return;
-        }
-        const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
-        const nextZoom = clamp(inspectZoom * factor, MIN_INSPECT_ZOOM, MAX_INSPECT_ZOOM);
-        if (nextZoom === inspectZoom) {
-            return;
-        }
-        zoomToPoint(container, event.clientX, event.clientY, nextZoom);
-    };
-
-    const handleInspectDoubleClick = (
-        panelKey: string,
-        event: React.MouseEvent<HTMLDivElement>
-    ) => {
-        const container = inspectContainersRef.current[panelKey];
-        if (!container) {
-            return;
-        }
-        const nextZoom =
-            Math.abs(inspectZoom - DOUBLE_CLICK_ZOOM) < 0.05
-                ? MIN_INSPECT_ZOOM
-                : DOUBLE_CLICK_ZOOM;
-        zoomToPoint(container, event.clientX, event.clientY, nextZoom);
-    };
-
-    const handleInspectPointerDown = (
-        panelKey: string,
-        event: React.PointerEvent<HTMLDivElement>
-    ) => {
-        if (event.button !== 0) {
-            return;
-        }
-        const container = inspectContainersRef.current[panelKey];
-        if (!container) {
-            return;
-        }
-        dragStateRef.current = {
-            pointerId: event.pointerId,
-            panelKey,
-            startX: event.clientX,
-            startY: event.clientY,
-            startScrollLeft: container.scrollLeft,
-            startScrollTop: container.scrollTop,
-        };
-        container.setPointerCapture(event.pointerId);
-    };
-
-    const handleInspectPointerMove = (
-        panelKey: string,
-        event: React.PointerEvent<HTMLDivElement>
-    ) => {
-        const dragState = dragStateRef.current;
-        if (!dragState || dragState.panelKey !== panelKey || dragState.pointerId !== event.pointerId) {
-            return;
-        }
-        const container = inspectContainersRef.current[panelKey];
-        if (!container) {
-            return;
-        }
-        const { maxScrollLeft, maxScrollTop } = getInspectBounds(container, inspectZoom);
-        const nextScrollLeft = clamp(
-            dragState.startScrollLeft - (event.clientX - dragState.startX),
-            0,
-            maxScrollLeft
-        );
-        const nextScrollTop = clamp(
-            dragState.startScrollTop - (event.clientY - dragState.startY),
-            0,
-            maxScrollTop
-        );
-        const nextViewport = {
-            x: maxScrollLeft > 0 ? nextScrollLeft / maxScrollLeft : 0,
-            y: maxScrollTop > 0 ? nextScrollTop / maxScrollTop : 0,
-        };
-        setInspectViewport(nextViewport);
-        syncInspectScroll(nextViewport);
-    };
-
-    const handleInspectPointerUp = (
-        panelKey: string,
-        event: React.PointerEvent<HTMLDivElement>
-    ) => {
-        const dragState = dragStateRef.current;
-        if (!dragState || dragState.panelKey !== panelKey || dragState.pointerId !== event.pointerId) {
-            return;
-        }
-        const container = inspectContainersRef.current[panelKey];
-        if (container?.hasPointerCapture(event.pointerId)) {
-            container.releasePointerCapture(event.pointerId);
-        }
-        dragStateRef.current = null;
-    };
-
-    const handleMinimapJump = (panelKey: string, event: React.PointerEvent<HTMLButtonElement>) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const container = inspectContainersRef.current[panelKey];
-        if (!container) {
-            return;
-        }
-        const rect = event.currentTarget.getBoundingClientRect();
-        const { contentWidth, contentHeight } = getInspectBounds(container, inspectZoom);
-        const viewportRatioX = Math.min(1, container.clientWidth / contentWidth);
-        const viewportRatioY = Math.min(1, container.clientHeight / contentHeight);
-        const nextViewport = {
-            x: clamp(
-                ((event.clientX - rect.left) / rect.width - viewportRatioX / 2) /
-                    Math.max(1 - viewportRatioX, 0.0001),
-                0,
-                1
-            ),
-            y: clamp(
-                ((event.clientY - rect.top) / rect.height - viewportRatioY / 2) /
-                    Math.max(1 - viewportRatioY, 0.0001),
-                0,
-                1
-            ),
-        };
-        setInspectViewport(nextViewport);
-        syncInspectScroll(nextViewport);
-    };
-
-    useEffect(() => {
-        if (!isInspectOpen) {
-            return;
-        }
-        const frame = requestAnimationFrame(() => {
-            syncInspectScroll(inspectViewport);
-        });
-        return () => cancelAnimationFrame(frame);
-    }, [inspectViewport, inspectZoom, isInspectOpen]);
-
-    useEffect(() => {
-        if (!isInspectOpen) {
-            return;
-        }
-        const handleResize = () => {
-            updateInspectMetrics();
-            syncInspectScroll(inspectViewport);
-        };
-        window.addEventListener("resize", handleResize);
-        const frame = requestAnimationFrame(handleResize);
-        return () => {
-            cancelAnimationFrame(frame);
-            window.removeEventListener("resize", handleResize);
-        };
-    }, [inspectViewport, isInspectOpen, inspectZoom]);
-
     return (
         <div className="min-h-screen w-full bg-stone-100 dark:bg-slate-950">
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6">
@@ -895,872 +343,85 @@ const FocusStacking = () => {
 
                 <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
                     <div className="flex flex-col gap-6">
-                        <Card className="border-white/60 bg-white/80 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-none">
-                            <CardHeader>
-                                <CardTitle>上传图片</CardTitle>
-                                <CardDescription>
-                                    第一张作为初始参考图，后续图片会按顺序自动对齐并并入清晰区域。
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-200">
-                                    多张模式下，主视图里的 `累计来源图` 表示最终每个像素来自哪一张原图；`最后一轮叠色/掩膜` 只用于调试最后一步，不代表整组图片的全局归属。
-                                </div>
+                        <UploadPanel
+                            images={images}
+                            readyCount={readyImages.length}
+                            loadingCount={loadingCount}
+                            errorCount={errorCount}
+                            canProcess={canProcess}
+                            isProcessing={isProcessing}
+                            stackPreviewImages={stackPreviewImages}
+                            onUpload={appendUploads}
+                            onOpenManager={() => setIsManagerOpen(true)}
+                            onClearImages={handleClearImages}
+                            onProcess={handleProcess}
+                        />
 
-                                {images.length === 0 ? (
-                                    <div className="space-y-2">
-                                        <Label>焦点序列</Label>
-                                        <ImageUploader
-                                            onUpload={appendUploads}
-                                            fileType="焦点序列"
-                                        >
-                                            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 transition-colors hover:border-blue-400 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-950 dark:hover:border-blue-500 dark:hover:bg-slate-900">
-                                                <div className="flex aspect-[4/3] flex-col items-center justify-center gap-3 rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-                                                    <Icon icon="mdi:image-multiple-outline" className="h-8 w-8" />
-                                                    <span className="text-sm">拖拽或点击添加一张或多张图</span>
-                                                    <span className="text-xs text-slate-400 dark:text-slate-500">
-                                                        支持 JPG/PNG/WEBP/GIF/TIF/TIFF，第一张作为初始参考
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </ImageUploader>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsManagerOpen(true)}
-                                            className="group w-full rounded-3xl border border-slate-200 bg-slate-50 p-4 text-left transition hover:border-blue-400 hover:bg-blue-50/60 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-blue-500 dark:hover:bg-slate-900"
-                                        >
-                                            <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-200 dark:bg-slate-900">
-                                                {stackPreviewImages
-                                                    .slice()
-                                                    .reverse()
-                                                    .map((image, stackIndex) => (
-                                                        <div
-                                                            key={image.id}
-                                                            className="absolute overflow-hidden rounded-2xl border border-white/80 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-950"
-                                                            style={{
-                                                                top: 12 + stackIndex * 14,
-                                                                left: 18 + stackIndex * 12,
-                                                                right: 18 - stackIndex * 4,
-                                                                bottom: 18 - stackIndex * 6,
-                                                                transform: `rotate(${(stackIndex - 1.5) * 3}deg)`,
-                                                            }}
-                                                        >
-                                                            {image.previewUrl ? (
-                                                                <img
-                                                                    src={image.previewUrl}
-                                                                    alt={`图片 ${stackIndex + 1}`}
-                                                                    className="h-full w-full object-cover"
-                                                                />
-                                                            ) : image.status === "loading" ? (
-                                                                <div className="flex h-full w-full items-center justify-center text-slate-500 dark:text-slate-400">
-                                                                    <Icon
-                                                                        icon="mdi:loading"
-                                                                        className="h-7 w-7 animate-spin"
-                                                                    />
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex h-full w-full items-center justify-center text-rose-500 dark:text-rose-300">
-                                                                    <Icon
-                                                                        icon="mdi:alert-circle-outline"
-                                                                        className="h-7 w-7"
-                                                                    />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-black/50 px-4 py-3 text-white backdrop-blur-sm">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <div>
-                                                            <div className="text-sm font-medium">
-                                                                {images.length} 张图片已堆叠
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-white/80">
-                                                                点击展开，查看全部图片并调整顺序
-                                                            </div>
-                                                        </div>
-                                                        <Icon
-                                                            icon="mdi:arrow-expand-all"
-                                                            className="h-6 w-6 text-white/90"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </button>
-                                        <div className="flex flex-wrap gap-2">
-                                            <Badge variant="secondary">
-                                                可用 {readyImages.length} 张
-                                            </Badge>
-                                            {loadingCount > 0 && (
-                                                <Badge variant="secondary">
-                                                    加载中 {loadingCount} 张
-                                                </Badge>
-                                            )}
-                                            {errorCount > 0 && (
-                                                <Badge variant="secondary">
-                                                    失败 {errorCount} 张
-                                                </Badge>
-                                            )}
-                                            <Badge variant="secondary">
-                                                {loadingCount > 0
-                                                    ? "等待预览生成"
-                                                    : readyImages.length >= 2
-                                                      ? "可开始合成"
-                                                      : "至少 2 张"}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                )}
+                        <ImageManagerDialog
+                            open={isManagerOpen}
+                            onOpenChange={setIsManagerOpen}
+                            images={images}
+                            readyCount={readyImages.length}
+                            loadingCount={loadingCount}
+                            sensors={sensors}
+                            onUpload={appendUploads}
+                            onDragEnd={handleDragEnd}
+                            onRemoveImage={handleRemoveImage}
+                            onClearImages={handleClearImages}
+                        />
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button
-                                        variant="ghost"
-                                        onClick={handleClearImages}
-                                        disabled={images.length === 0}
-                                    >
-                                        清空全部
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleProcess}
-                                        disabled={!canProcess}
-                                    >
-                                        {isProcessing ? "处理中..." : "开始合成"}
-                                    </Button>
-                                </div>
-
-                                <div className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600 dark:bg-slate-950 dark:text-slate-300">
-                                    建议使用脚架和定时快门拍摄，曝光参数固定，仅改变对焦点；多张序列建议按从前到后或从后到前的焦点顺序整理。
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Dialog open={isManagerOpen} onOpenChange={setIsManagerOpen}>
-                            <DialogContent className="max-w-5xl w-[95vw] max-h-[92vh] p-0">
-                                <div className="flex max-h-[92vh] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
-                                    <DialogHeader className="border-b border-slate-200 px-6 py-5 dark:border-slate-800">
-                                        <DialogTitle>管理焦点序列</DialogTitle>
-                                        <DialogDescription>
-                                            第一张作为初始参考图。拖拽可调整顺序，删除或继续添加都在这里完成。
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="flex-1 overflow-auto px-6 py-5">
-                                        <div className="space-y-5">
-                                            <ImageUploader
-                                                onUpload={appendUploads}
-                                                fileType="焦点序列"
-                                            >
-                                                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 transition-colors hover:border-blue-400 hover:bg-blue-50/60 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-blue-500 dark:hover:bg-slate-950">
-                                                    <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                                                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white">
-                                                            <Icon
-                                                                icon="mdi:image-plus"
-                                                                className="h-6 w-6"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <div className="text-sm font-medium">
-                                                                继续添加图片
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                                支持批量添加，新增图片会接到当前序列末尾
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </ImageUploader>
-
-                                            {images.length > 0 ? (
-                                                <DndContext
-                                                    sensors={sensors}
-                                                    collisionDetection={closestCenter}
-                                                    onDragEnd={handleDragEnd}
-                                                >
-                                                    <SortableContext
-                                                        items={images.map((image) => image.id)}
-                                                        strategy={rectSortingStrategy}
-                                                    >
-                                                        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
-                                                            {images.map((image, index) => (
-                                                                <SortableImageItem
-                                                                    key={image.id}
-                                                                    image={image}
-                                                                    index={index}
-                                                                    onRemove={handleRemoveImage}
-                                                                />
-                                                            ))}
-                                                        </div>
-                                                    </SortableContext>
-                                                </DndContext>
-                                            ) : (
-                                                <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-center dark:border-slate-700 dark:bg-slate-900">
-                                                    <Icon
-                                                        icon="mdi:image-multiple-outline"
-                                                        className="h-10 w-10 text-slate-400"
-                                                    />
-                                                    <p className="mt-4 text-sm font-medium text-slate-700 dark:text-slate-200">
-                                                        还没有图片
-                                                    </p>
-                                                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                        先添加至少两张不同对焦点的图片
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-6 py-4 dark:border-slate-800">
-                                        <div className="flex flex-wrap gap-2">
-                                            <Badge variant="outline">总数 {images.length} 张</Badge>
-                                            <Badge variant="outline">可用 {readyImages.length} 张</Badge>
-                                            {loadingCount > 0 && (
-                                                <Badge variant="outline">
-                                                    加载中 {loadingCount} 张
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        <Button
-                                            variant="ghost"
-                                            onClick={handleClearImages}
-                                            disabled={images.length === 0}
-                                        >
-                                            清空全部
-                                        </Button>
-                                    </div>
-                                </div>
-                            </DialogContent>
-                        </Dialog>
-
-                        <Card className="border-white/60 bg-white/80 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-none">
-                            <CardHeader>
-                                <CardTitle>合成参数</CardTitle>
-                                <CardDescription>
-                                    自动对齐负责消除轻微位移，以下参数会应用到每一张候选图。
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-5">
-                                <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-800">
-                                    <div>
-                                        <div className="text-sm font-medium">自动对齐</div>
-                                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                                            适合脚架下的轻微平移误差
-                                        </div>
-                                    </div>
-                                    <Switch
-                                        checked={autoAlign}
-                                        onCheckedChange={setAutoAlign}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <Label>搜索范围</Label>
-                                        <span className="text-slate-500 dark:text-slate-400">
-                                            {searchRadius}px
-                                        </span>
-                                    </div>
-                                    <Slider
-                                        value={[searchRadius]}
-                                        onValueChange={(value) => setSearchRadius(value[0])}
-                                        min={2}
-                                        max={30}
-                                        step={1}
-                                        disabled={!autoAlign}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <Label>手动水平微调</Label>
-                                        <span className="text-slate-500 dark:text-slate-400">
-                                            {manualShiftX.toFixed(1)}px
-                                        </span>
-                                    </div>
-                                    <Slider
-                                        value={[manualShiftX]}
-                                        onValueChange={(value) => setManualShiftX(value[0])}
-                                        min={-40}
-                                        max={40}
-                                        step={0.5}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <Label>手动垂直微调</Label>
-                                        <span className="text-slate-500 dark:text-slate-400">
-                                            {manualShiftY.toFixed(1)}px
-                                        </span>
-                                    </div>
-                                    <Slider
-                                        value={[manualShiftY]}
-                                        onValueChange={(value) => setManualShiftY(value[0])}
-                                        min={-40}
-                                        max={40}
-                                        step={0.5}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <Label>缩放补偿</Label>
-                                        <span className="text-slate-500 dark:text-slate-400">
-                                            {scale.toFixed(3)}x
-                                        </span>
-                                    </div>
-                                    <Slider
-                                        value={[scale]}
-                                        onValueChange={(value) => setScale(value[0])}
-                                        min={0.96}
-                                        max={1.04}
-                                        step={0.001}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <Label>区域平滑</Label>
-                                        <span className="text-slate-500 dark:text-slate-400">
-                                            {smoothRadius}px
-                                        </span>
-                                    </div>
-                                    <Slider
-                                        value={[smoothRadius]}
-                                        onValueChange={(value) => setSmoothRadius(value[0])}
-                                        min={1}
-                                        max={20}
-                                        step={1}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <Label>清晰度门限</Label>
-                                        <span className="text-slate-500 dark:text-slate-400">
-                                            {confidenceThreshold.toFixed(3)}
-                                        </span>
-                                    </div>
-                                    <Slider
-                                        value={[confidenceThreshold]}
-                                        onValueChange={(value) =>
-                                            setConfidenceThreshold(value[0])
-                                        }
-                                        min={0}
-                                        max={0.2}
-                                        step={0.005}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <Label>边缘羽化</Label>
-                                        <span className="text-slate-500 dark:text-slate-400">
-                                            {featherRadius}px
-                                        </span>
-                                    </div>
-                                    <Slider
-                                        value={[featherRadius]}
-                                        onValueChange={(value) => setFeatherRadius(value[0])}
-                                        min={0}
-                                        max={5}
-                                        step={1}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <Label>边缘光晕抑制</Label>
-                                        <span className="text-slate-500 dark:text-slate-400">
-                                            {foregroundProtect}px
-                                        </span>
-                                    </div>
-                                    <Slider
-                                        value={[foregroundProtect]}
-                                        onValueChange={(value) =>
-                                            setForegroundProtect(value[0])
-                                        }
-                                        min={0}
-                                        max={30}
-                                        step={1}
-                                    />
-                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        让清晰的一方认领紧贴自己的边缘：既消除玉璧内缘的溢出光晕，也用干净背景盖掉陶俑等主体轮廓外的一圈亮边。调大更干净，过大会吃掉紧贴的细节。
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3 pt-2">
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleDownload}
-                                        disabled={!result}
-                                    >
-                                        下载结果
-                                    </Button>
-                                    <div className="rounded-xl border border-dashed border-slate-200 px-3 py-2 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                                        当前按列表顺序依次合成
-                                    </div>
-                                </div>
-
-                                <Button
-                                    variant="ghost"
-                                    className="w-full"
-                                    onClick={() => {
-                                        setManualShiftX(0);
-                                        setManualShiftY(0);
-                                        setScale(1);
-                                    }}
-                                >
-                                    重置微调参数
-                                </Button>
-                            </CardContent>
-                        </Card>
+                        <ParametersPanel
+                            autoAlign={autoAlign}
+                            manualShiftX={manualShiftX}
+                            manualShiftY={manualShiftY}
+                            scale={scale}
+                            searchRadius={searchRadius}
+                            smoothRadius={smoothRadius}
+                            confidenceThreshold={confidenceThreshold}
+                            featherRadius={featherRadius}
+                            foregroundProtect={foregroundProtect}
+                            hasResult={Boolean(result)}
+                            onAutoAlignChange={setAutoAlign}
+                            onManualShiftXChange={setManualShiftX}
+                            onManualShiftYChange={setManualShiftY}
+                            onScaleChange={setScale}
+                            onSearchRadiusChange={setSearchRadius}
+                            onSmoothRadiusChange={setSmoothRadius}
+                            onConfidenceThresholdChange={setConfidenceThreshold}
+                            onFeatherRadiusChange={setFeatherRadius}
+                            onForegroundProtectChange={setForegroundProtect}
+                            onDownload={handleDownload}
+                            onResetAdjustment={() => {
+                                setManualShiftX(0);
+                                setManualShiftY(0);
+                                setScale(1);
+                            }}
+                        />
                     </div>
 
                     <div className="flex flex-col gap-6">
-                        <Card className="border-white/60 bg-white/80 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-none">
-                            <CardHeader>
-                                <CardTitle>处理状态</CardTitle>
-                                <CardDescription>
-                                    先在低分辨率下逐张对齐，再按局部清晰度累计更清晰的来源。
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="flex flex-wrap gap-2">
-                                    <Badge variant="outline">当前步骤: {progressLabel}</Badge>
-                                    <Badge variant="outline">已上传: {images.length} 张</Badge>
-                                    <Badge variant="outline">可用: {readyImages.length} 张</Badge>
-                                    {loadingCount > 0 && (
-                                        <Badge variant="outline">待解码: {loadingCount} 张</Badge>
-                                    )}
-                                    {errorCount > 0 && (
-                                        <Badge variant="outline">失败: {errorCount} 张</Badge>
-                                    )}
-                                    {livePreview && isProcessing && (
-                                        <Badge variant="outline">
-                                            进行中: 第 {livePreview.stepIndex + 1} /{" "}
-                                            {livePreview.sourceCount} 张
-                                        </Badge>
-                                    )}
-                                    {result && (
-                                        <Badge variant="outline">
-                                            输出尺寸: {result.width} × {result.height}
-                                        </Badge>
-                                    )}
-                                    {result && (
-                                        <Badge variant="outline">
-                                            来源数量: {result.sourceCount} 张
-                                        </Badge>
-                                    )}
-                                    <Badge variant="outline">
-                                        最后一步偏移: {effectiveOffset.x.toFixed(1)}px /{" "}
-                                        {effectiveOffset.y.toFixed(1)}px
-                                    </Badge>
-                                    {result && autoAlign && (
-                                        <Badge variant="outline">
-                                            最后一步自动估计: {result.estimatedOffset.x.toFixed(1)}px /{" "}
-                                            {result.estimatedOffset.y.toFixed(1)}px
-                                        </Badge>
-                                    )}
-                                    {livePreview && isProcessing && (
-                                        <Badge variant="outline">
-                                            当前自动估计:{" "}
-                                            {livePreview.estimatedOffset.x.toFixed(1)}px /{" "}
-                                            {livePreview.estimatedOffset.y.toFixed(1)}px
-                                        </Badge>
-                                    )}
-                                </div>
-                                <Progress value={progress} className="h-2.5" />
-                                {livePreview && isProcessing && (
-                                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(260px,0.7fr)]">
-                                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 p-3 dark:border-slate-800">
-                                            <div className="mb-3 flex items-center justify-between text-xs text-slate-300">
-                                                <span>{livePreview.stageLabel}</span>
-                                                <span>
-                                                    步骤 {livePreview.stepIndex} /{" "}
-                                                    {livePreview.totalSteps}
-                                                </span>
-                                            </div>
-                                            <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black">
-                                                <img
-                                                    src={livePreview.baseUrl}
-                                                    alt="当前基准图"
-                                                    className="absolute inset-0 h-full w-full object-contain opacity-90"
-                                                />
-                                                <img
-                                                    src={livePreview.candidateUrl}
-                                                    alt="当前候选图"
-                                                    className="absolute inset-0 h-full w-full object-contain opacity-45"
-                                                />
-                                                <img
-                                                    src={livePreview.winnerOverlayUrl}
-                                                    alt="深度叠加图"
-                                                    className="absolute inset-0 h-full w-full object-contain mix-blend-screen animate-pulse"
-                                                />
-                                            </div>
-                                            <p className="mt-3 text-xs leading-5 text-slate-400">
-                                                红色保留当前基准，蓝色并入当前候选；叠加图会随每轮堆叠刷新，方便观察深度归属推进。
-                                            </p>
-                                        </div>
-                                        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                                            {processingPreviewPanels.map((panel) => (
-                                                <div
-                                                    key={panel.key}
-                                                    className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950"
-                                                >
-                                                    <div className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-                                                        {panel.label}
-                                                    </div>
-                                                    <img
-                                                        src={panel.url}
-                                                        alt={panel.label}
-                                                        className="aspect-[4/3] w-full rounded-xl object-contain"
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                <p className="text-sm text-slate-600 dark:text-slate-300">
-                                    如果边缘仍有轻微重影，优先微调水平/垂直位移，其次再小范围调整缩放补偿；多张时请先看 `累计来源图` 判断全局归属，再用最后一轮调试图排查局部问题。
-                                </p>
-                            </CardContent>
-                        </Card>
+                        <ProcessingStatusPanel
+                            summary={statusSummary}
+                            processingPreviewPanels={processingPreviewPanels}
+                        />
 
-                        <Card className="min-h-[720px] border-white/60 bg-white/80 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-none">
-                            <CardHeader>
-                                <CardTitle>预览结果</CardTitle>
-                                <CardDescription>
-                                    同步查看合成结果和累计来源图，点击主图可放大预览；其他调试图保留在下方辅助判断。
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {result ? (
-                                    <div className="space-y-5">
-                                        {result.sourceCount > 2 && (
-                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
-                                                <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
-                                                    累计来源图图例
-                                                </div>
-                                                <div className="mt-3 flex flex-wrap gap-2">
-                                                    {Array.from({ length: result.sourceCount }, (_, index) => (
-                                                        <div
-                                                            key={`legend-${index + 1}`}
-                                                            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                                                        >
-                                                            <span
-                                                                className="h-3 w-3 rounded-full"
-                                                                style={{
-                                                                    backgroundColor:
-                                                                        getFocusStackOwnershipColor(index),
-                                                                }}
-                                                            />
-                                                            <span>图片 {index + 1}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                        <div className="grid gap-4 xl:grid-cols-2">
-                                            {resultPrimaryPanels.map((panel) => (
-                                                <button
-                                                    key={panel.key}
-                                                    type="button"
-                                                    onClick={openInspectDialog}
-                                                    className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 text-left transition hover:border-blue-400 dark:border-slate-800 dark:bg-slate-950"
-                                                >
-                                                    <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-                                                        <div>
-                                                            <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                {panel.label}
-                                                            </div>
-                                                            <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                                                点击放大查看原始分辨率细节
-                                                            </div>
-                                                        </div>
-                                                        <Icon
-                                                            icon="mdi:magnify-plus-outline"
-                                                            className="h-5 w-5 text-slate-500 dark:text-slate-400"
-                                                        />
-                                                    </div>
-                                                    <div className="bg-slate-100 p-3 dark:bg-slate-950">
-                                                        <img
-                                                            src={panel.url}
-                                                            alt={panel.label}
-                                                            className="h-[420px] w-full rounded-xl object-contain xl:h-[560px]"
-                                                        />
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </div>
+                        <ResultPreviewPanel
+                            result={result}
+                            livePreview={livePreview}
+                            isProcessing={isProcessing}
+                            processingPreviewPanels={processingPreviewPanels}
+                            resultPrimaryPanels={resultPrimaryPanels}
+                            resultSecondaryPanels={resultSecondaryPanels}
+                            onOpenInspect={() => setIsInspectOpen(true)}
+                        />
 
-                                        {resultSecondaryPanels.length > 0 && (
-                                            <div className="space-y-3">
-                                                <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                                                    其他调试图
-                                                </div>
-                                                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                                                    {resultSecondaryPanels.map((panel) => (
-                                                        <div
-                                                            key={panel.key}
-                                                            className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950"
-                                                        >
-                                                            <div className="border-b border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                                                                {panel.label}
-                                                            </div>
-                                                            <div className="p-3">
-                                                                <img
-                                                                    src={panel.url}
-                                                                    alt={panel.label}
-                                                                    className="aspect-[4/3] w-full rounded-xl object-contain"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : livePreview && isProcessing ? (
-                                    <div className="flex min-h-[520px] flex-col gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-base font-medium text-slate-700 dark:text-slate-200">
-                                                    正在堆叠深度图
-                                                </p>
-                                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                                    当前展示第 {livePreview.stepIndex + 1} 张并入时的动态叠加视图。
-                                                </p>
-                                            </div>
-                                            <Badge variant="outline">{livePreview.stageLabel}</Badge>
-                                        </div>
-                                        <div className="grid flex-1 gap-4 xl:grid-cols-2">
-                                            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-                                                <div className="border-b border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                                                    当前累计结果
-                                                </div>
-                                                <div className="bg-slate-100 p-3 dark:bg-slate-950">
-                                                    <img
-                                                        src={livePreview.mergedUrl}
-                                                        alt="当前累计结果"
-                                                        className="h-[380px] w-full rounded-xl object-contain xl:h-[520px]"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-                                                <div className="border-b border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                                                    当前深度图
-                                                </div>
-                                                <div className="bg-slate-100 p-3 dark:bg-slate-950">
-                                                    <img
-                                                        src={livePreview.maskUrl}
-                                                        alt="当前深度图"
-                                                        className="h-[380px] w-full rounded-xl object-contain xl:h-[520px]"
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="grid gap-3 sm:grid-cols-3">
-                                            {processingPreviewPanels
-                                                .filter((panel) => !["merged", "mask"].includes(panel.key))
-                                                .map((panel) => (
-                                                    <div
-                                                        key={panel.key}
-                                                        className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"
-                                                    >
-                                                        <div className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
-                                                            {panel.label}
-                                                        </div>
-                                                        <img
-                                                            src={panel.url}
-                                                            alt={panel.label}
-                                                            className="aspect-[4/3] w-full rounded-xl object-contain"
-                                                        />
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex min-h-[520px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-center dark:border-slate-700 dark:bg-slate-950">
-                                        <Icon
-                                            icon="mdi:layers-triple-outline"
-                                            className="h-12 w-12 text-slate-400"
-                                        />
-                                        <div>
-                                            <p className="text-base font-medium text-slate-700 dark:text-slate-200">
-                                                结果会显示在这里
-                                            </p>
-                                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                                上传至少两张图后点击“开始合成”，即可查看最终输出、累计来源图和最后一轮调试图。
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <Dialog open={isInspectOpen} onOpenChange={setIsInspectOpen}>
-                            <DialogContent className="h-[94vh] w-[96vw] max-w-[96vw] p-0">
-                                <div className="flex h-full flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-                                    <DialogHeader className="border-b border-slate-200 px-6 py-5 dark:border-slate-800">
-                                        <DialogTitle>放大预览</DialogTitle>
-                                        <DialogDescription>
-                                            两张图同步缩放和平移。支持拖拽查看、鼠标滚轮缩放、双击切换到固定倍率，并带 minimap 视口指示。
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="border-b border-slate-200 px-6 py-4 dark:border-slate-800">
-                                        <div className="flex flex-wrap items-center gap-4">
-                                            <Label className="shrink-0">缩放</Label>
-                                            <Slider
-                                                value={[inspectZoom]}
-                                                onValueChange={(value) => setInspectZoom(value[0])}
-                                                min={MIN_INSPECT_ZOOM}
-                                                max={MAX_INSPECT_ZOOM}
-                                                step={0.1}
-                                            />
-                                            <span className="w-14 text-right text-sm text-slate-500 dark:text-slate-400">
-                                                {inspectZoom.toFixed(1)}x
-                                            </span>
-                                            <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-                                                <Badge variant="outline">双击: {DOUBLE_CLICK_ZOOM.toFixed(1)}x</Badge>
-                                                <Badge variant="outline">拖拽: 联动平移</Badge>
-                                                <Badge variant="outline">滚轮: 联动缩放</Badge>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="grid min-h-0 flex-1 gap-4 p-4 xl:grid-cols-2">
-                                        {resultPrimaryPanels.map((panel) => {
-                                            const layout = getInspectLayout(panel.key);
-                                            return (
-                                                <div
-                                                    key={panel.key}
-                                                    className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900"
-                                                >
-                                                    <div className="border-b border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200">
-                                                        {panel.label}
-                                                    </div>
-                                                    <div
-                                                        ref={(node) => {
-                                                            inspectContainersRef.current[panel.key] = node;
-                                                        }}
-                                                        className={`relative min-h-0 flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950 ${
-                                                            dragStateRef.current?.panelKey === panel.key
-                                                                ? "cursor-grabbing"
-                                                                : "cursor-grab"
-                                                        }`}
-                                                        onScroll={() => handleInspectScroll(panel.key)}
-                                                        onWheel={(event) =>
-                                                            handleInspectWheel(panel.key, event)
-                                                        }
-                                                        onDoubleClick={(event) =>
-                                                            handleInspectDoubleClick(panel.key, event)
-                                                        }
-                                                        onPointerDown={(event) =>
-                                                            handleInspectPointerDown(panel.key, event)
-                                                        }
-                                                        onPointerMove={(event) =>
-                                                            handleInspectPointerMove(panel.key, event)
-                                                        }
-                                                        onPointerUp={(event) =>
-                                                            handleInspectPointerUp(panel.key, event)
-                                                        }
-                                                        onPointerCancel={(event) =>
-                                                            handleInspectPointerUp(panel.key, event)
-                                                        }
-                                                    >
-                                                        <div
-                                                            className="relative"
-                                                            style={{
-                                                                width: layout.wrapperWidth,
-                                                                height: layout.wrapperHeight,
-                                                            }}
-                                                        >
-                                                            <img
-                                                                src={panel.url}
-                                                                alt={panel.label}
-                                                                draggable={false}
-                                                                className="absolute left-0 top-0 rounded-xl object-contain select-none"
-                                                                style={{
-                                                                    width: layout.renderedWidth,
-                                                                    height: layout.renderedHeight,
-                                                                }}
-                                                            />
-
-                                                            <button
-                                                                type="button"
-                                                                className="absolute bottom-4 right-4 w-32 overflow-hidden rounded-xl border border-white/70 bg-white/90 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-950/90"
-                                                                style={{
-                                                                    aspectRatio: `${inspectImageSize.width} / ${inspectImageSize.height}`,
-                                                                }}
-                                                                onPointerDown={(event) =>
-                                                                    handleMinimapJump(panel.key, event)
-                                                                }
-                                                            >
-                                                                <img
-                                                                    src={panel.url}
-                                                                    alt={`${panel.label} minimap`}
-                                                                    draggable={false}
-                                                                    className="h-full w-full object-cover"
-                                                                />
-                                                                <div
-                                                                    className="pointer-events-none absolute border-2 border-blue-500 bg-blue-500/15"
-                                                                    style={{
-                                                                        left: `${
-                                                                            inspectViewport.x *
-                                                                            Math.max(
-                                                                                0,
-                                                                                100 -
-                                                                                    (inspectMetrics.viewportWidth /
-                                                                                        Math.max(
-                                                                                            layout.renderedWidth,
-                                                                                            1
-                                                                                        )) *
-                                                                                        100
-                                                                            )
-                                                                        }%`,
-                                                                        top: `${
-                                                                            inspectViewport.y *
-                                                                            Math.max(
-                                                                                0,
-                                                                                100 -
-                                                                                    (inspectMetrics.viewportHeight /
-                                                                                        Math.max(
-                                                                                            layout.renderedHeight,
-                                                                                            1
-                                                                                        )) *
-                                                                                        100
-                                                                            )
-                                                                        }%`,
-                                                                        width: `${Math.min(
-                                                                            100,
-                                                                            (inspectMetrics.viewportWidth /
-                                                                                Math.max(
-                                                                                    layout.renderedWidth,
-                                                                                    1
-                                                                                )) *
-                                                                                100
-                                                                        )}%`,
-                                                                        height: `${Math.min(
-                                                                            100,
-                                                                            (inspectMetrics.viewportHeight /
-                                                                                Math.max(
-                                                                                    layout.renderedHeight,
-                                                                                    1
-                                                                                )) *
-                                                                                100
-                                                                        )}%`,
-                                                                    }}
-                                                                />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </DialogContent>
-                        </Dialog>
+                        <InspectDialog
+                            open={isInspectOpen}
+                            onOpenChange={setIsInspectOpen}
+                            panels={resultPrimaryPanels}
+                            imageWidth={result?.width ?? 1}
+                            imageHeight={result?.height ?? 1}
+                        />
                     </div>
                 </div>
             </div>
