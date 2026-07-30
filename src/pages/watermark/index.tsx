@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
+import {
     adjustBatchSizeAndConcurrency,
     debounce,
 } from "@/utils/watermark-common";
@@ -10,7 +17,7 @@ import {
     MixedWatermarkConfig,
     WatermarkPosition,
 } from "@/types";
-import { Edit } from "lucide-react";
+import { ArrowRight, Download, Edit, Sparkles } from "lucide-react";
 import WatermarkEditor from "@/pages/watermark/components/WatermarkEditor";
 import MobileWatermarkEditor from "@/pages/watermark/components/MobileWatermarkEditor";
 import VerticalCarousel from "@/pages/watermark/components/VerticalCarousel";
@@ -27,9 +34,21 @@ import {
 } from "@/pages/watermark/helpers";
 import { useWatermarkBatchProcessor } from "@/pages/watermark/hooks/useWatermarkBatchProcessor";
 import "./watermark.css";
-import { consumePendingCropTransfer } from "@/utils/crop-transfer";
+import {
+    consumePendingCropTransfer,
+    setPendingCropTransfer,
+} from "@/utils/crop-transfer";
+
+const WATERMARK_OVERSIZE_THRESHOLD_BYTES = 30 * 1024 * 1024;
+
+type OversizePromptState = {
+    files: File[];
+    thresholdBytes: number;
+    largestFileSizeBytes: number;
+} | null;
 
 const Watermark: React.FC = () => {
+    const navigate = useNavigate();
     const [images, setImages] = useState<ImageType[]>([]);
     const deviceType = useDeviceDetect();
     const isMobile = deviceType === "mobile";
@@ -59,9 +78,14 @@ const Watermark: React.FC = () => {
     const [mobileView, setMobileView] = useState<"editor" | "gallery">(
         "editor"
     );
+    const [oversizePrompt, setOversizePrompt] =
+        useState<OversizePromptState>(null);
 
     const dropzoneRef = useRef<HTMLDivElement>(null);
     const managedPreviewUrlsRef = useRef<Set<string>>(new Set());
+    const oversizeDecisionResolverRef = useRef<
+        ((decision: "download" | "compress") => void) | null
+    >(null);
     const {
         loading,
         downloadFinalizing,
@@ -73,6 +97,17 @@ const Watermark: React.FC = () => {
         watermarkOpacity,
         watermarkBlur,
         quality,
+        oversizeThresholdBytes: WATERMARK_OVERSIZE_THRESHOLD_BYTES,
+        onOversizedFiles: (files) => {
+            setPendingCropTransfer("compress", files);
+            navigate("/compress");
+        },
+        confirmOversizedFiles: async (payload) => {
+            setOversizePrompt(payload);
+            return await new Promise<"download" | "compress">((resolve) => {
+                oversizeDecisionResolverRef.current = resolve;
+            });
+        },
     });
 
     const stackPreviews = useMemo(
@@ -129,6 +164,10 @@ const Watermark: React.FC = () => {
                 URL.revokeObjectURL(url);
             });
             managedPreviewUrlsRef.current.clear();
+            if (oversizeDecisionResolverRef.current) {
+                oversizeDecisionResolverRef.current("download");
+                oversizeDecisionResolverRef.current = null;
+            }
         };
     }, []);
 
@@ -286,6 +325,15 @@ const Watermark: React.FC = () => {
     };
 
     const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
+
+    const resolveOversizeDecision = (decision: "download" | "compress") => {
+        oversizeDecisionResolverRef.current?.(decision);
+        oversizeDecisionResolverRef.current = null;
+        setOversizePrompt(null);
+    };
+
+    const formatSizeInMB = (bytes: number) =>
+        `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
     const renderMobileUI = () => {
         if (imageUploaderVisible) {
@@ -471,6 +519,98 @@ const Watermark: React.FC = () => {
 
             {imageUploaderVisible && <div className="watermarkBg" />}
             <div>{isMobile ? renderMobileUI() : renderDesktopUI()}</div>
+            <Dialog
+                open={Boolean(oversizePrompt)}
+                onOpenChange={(open) => {
+                    if (!open && oversizePrompt) {
+                        resolveOversizeDecision("download");
+                    }
+                }}
+            >
+                <DialogContent className="[&>button]:hidden">
+                    <div className="overflow-hidden rounded-[32px] border border-white/55 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.94))] shadow-[0_30px_120px_rgba(15,23,42,0.22)] backdrop-blur-xl">
+                        <div className="relative overflow-hidden px-7 pb-6 pt-7">
+                            <div className="absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.18),transparent_58%)]" />
+                            <div className="relative space-y-5">
+                                <div className="flex items-start gap-4">
+                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-900/15">
+                                        <Sparkles className="h-5 w-5" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <DialogTitle className="text-xl font-semibold text-slate-900">
+                                            导出结果偏大
+                                        </DialogTitle>
+                                        <DialogDescription className="text-sm leading-6 text-slate-600">
+                                            {oversizePrompt
+                                                ? oversizePrompt.files.length === 1
+                                                    ? `这张图生成后约 ${formatSizeInMB(
+                                                          oversizePrompt.largestFileSizeBytes
+                                                      )}，已经超过 ${formatSizeInMB(
+                                                          oversizePrompt.thresholdBytes
+                                                      )}。`
+                                                    : `${oversizePrompt.files.length} 张图片超过 ${formatSizeInMB(
+                                                          oversizePrompt.thresholdBytes
+                                                      )}，最大约 ${formatSizeInMB(
+                                                          oversizePrompt.largestFileSizeBytes
+                                                      )}。`
+                                                : ""}
+                                        </DialogDescription>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-[24px] border border-slate-200/80 bg-white/80 p-4 shadow-sm">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-slate-500">接下来怎么处理</span>
+                                        <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700">
+                                            大图更建议先压缩
+                                        </span>
+                                    </div>
+                                    <div className="mt-3 space-y-2 text-sm text-slate-700">
+                                        <div className="flex items-center gap-2">
+                                            <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
+                                                继续下载
+                                            </span>
+                                            <ArrowRight className="h-4 w-4 text-slate-400" />
+                                            <span>保留当前结果，直接下载原始导出图</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="rounded-full bg-slate-900 px-3 py-1 font-medium text-white">
+                                                发送到压缩
+                                            </span>
+                                            <ArrowRight className="h-4 w-4 text-slate-400" />
+                                            <span>跳转到压缩页，把图片压小后再下载或发布</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-12 rounded-2xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                                        onClick={() =>
+                                            resolveOversizeDecision("download")
+                                        }
+                                    >
+                                        <Download className="mr-2 h-4 w-4" />
+                                        继续下载
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        className="h-12 rounded-2xl bg-slate-900 text-white hover:bg-slate-800"
+                                        onClick={() =>
+                                            resolveOversizeDecision("compress")
+                                        }
+                                    >
+                                        <Sparkles className="mr-2 h-4 w-4" />
+                                        发送到压缩
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

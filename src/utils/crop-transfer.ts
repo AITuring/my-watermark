@@ -1,4 +1,4 @@
-export type TransferTarget = "watermark" | "puzzle" | "crop";
+export type TransferTarget = "watermark" | "puzzle" | "crop" | "compress";
 
 type PendingTransfer = {
     target: TransferTarget;

@@ -429,7 +429,7 @@ export async function processImage(
     watermarkOpacity = 1,
     onProgress?: (progress: number) => void,
     mixedConfig?: MixedWatermarkConfig
-): Promise<{ url: string; name: string; mimeType: string }> {
+): Promise<{ blob: Blob; name: string; mimeType: string }> {
     const memoryManager = MemoryManager.getInstance();
 
     return new Promise((resolve, reject) => {
@@ -685,9 +685,8 @@ export async function processImage(
                 void exportCanvasWithSizeBudget(canvas, file, quality)
                     .then(({ blob, mimeType }) => {
                         try {
-                            const url = memoryManager.createObjectURL(blob);
                             onProgress?.(100);
-                            resolve({ url, name: file.name, mimeType });
+                            resolve({ blob, name: file.name, mimeType });
                         } finally {
                             if (canvas) {
                                 memoryManager.releaseCanvas(canvas);

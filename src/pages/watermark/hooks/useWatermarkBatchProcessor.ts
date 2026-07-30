@@ -10,7 +10,16 @@ interface UseWatermarkBatchProcessorOptions {
     watermarkOpacity: number;
     watermarkBlur: boolean;
     quality: number;
+    oversizeThresholdBytes?: number;
+    onOversizedFiles?: (files: File[]) => void;
+    confirmOversizedFiles?: (payload: {
+        files: File[];
+        thresholdBytes: number;
+        largestFileSizeBytes: number;
+    }) => Promise<"download" | "compress">;
 }
+
+const DEFAULT_OVERSIZE_THRESHOLD_BYTES = 30 * 1024 * 1024;
 
 function getDownloadExtension(mimeType: string): string {
     if (mimeType === "image/webp") {
@@ -25,6 +34,9 @@ export function useWatermarkBatchProcessor({
     watermarkOpacity,
     watermarkBlur,
     quality,
+    oversizeThresholdBytes = DEFAULT_OVERSIZE_THRESHOLD_BYTES,
+    onOversizedFiles,
+    confirmOversizedFiles,
 }: UseWatermarkBatchProcessorOptions) {
     const [loading, setLoading] = useState(false);
     const [downloadFinalizing, setDownloadFinalizing] = useState(false);
@@ -45,6 +57,8 @@ export function useWatermarkBatchProcessor({
                 string,
                 Promise<HTMLImageElement>
             >();
+            const oversizedFiles: File[] = [];
+            let downloadedCount = 0;
 
             setLoading(true);
             downloadLink.style.display = "none";
@@ -81,6 +95,15 @@ export function useWatermarkBatchProcessor({
 
                 watermarkImageCache.set(src, promise);
                 return promise;
+            };
+
+            const triggerDownload = (file: File) => {
+                const url = URL.createObjectURL(file);
+                downloadLink.href = url;
+                downloadLink.download = file.name;
+                downloadLink.click();
+                generatedDownloadUrls.push(url);
+                downloadedCount += 1;
             };
 
             let completed = false;
@@ -130,7 +153,7 @@ export function useWatermarkBatchProcessor({
                                 watermarkOpacity,
                             });
 
-                            const { url, name, mimeType } = await processImage(
+                            const { blob, name, mimeType } = await processImage(
                                 file,
                                 watermarkImg,
                                 position,
@@ -145,18 +168,25 @@ export function useWatermarkBatchProcessor({
                                 mixedConfig
                             );
 
+                            const sliceName = name.split(".")[0];
+                            const outputFile = new File(
+                                [blob],
+                                `${sliceName}-mark.${getDownloadExtension(
+                                    mimeType
+                                )}`,
+                                { type: mimeType }
+                            );
+
                             console.log(`图片 ${img.id} 处理完成`, {
-                                url: `${url.substring(0, 50)}...`,
+                                size: outputFile.size,
                                 name,
                             });
 
-                            const sliceName = name.split(".")[0];
-                            downloadLink.href = url;
-                            downloadLink.download = `${sliceName}-mark.${getDownloadExtension(
-                                mimeType
-                            )}`;
-                            downloadLink.click();
-                            generatedDownloadUrls.push(url);
+                            if (outputFile.size > oversizeThresholdBytes) {
+                                oversizedFiles.push(outputFile);
+                            } else {
+                                triggerDownload(outputFile);
+                            }
 
                             const progress =
                                 ((i + index + 1) / imgPositionList.length) *
@@ -169,14 +199,39 @@ export function useWatermarkBatchProcessor({
                     await new Promise((resolve) => setTimeout(resolve, 100));
                 }
 
-                setDownloadFinalizing(true);
-                const finalizeDelay = Math.min(
-                    10000,
-                    Math.max(1200, imgPositionList.length * 25)
-                );
-                await new Promise((resolve) =>
-                    setTimeout(resolve, finalizeDelay)
-                );
+                if (oversizedFiles.length > 0) {
+                    setLoading(false);
+                    const largestOversizedFile = oversizedFiles.reduce(
+                        (largest, current) =>
+                            current.size > largest.size ? current : largest,
+                        oversizedFiles[0]
+                    );
+                    const decision = confirmOversizedFiles
+                        ? await confirmOversizedFiles({
+                              files: oversizedFiles,
+                              thresholdBytes: oversizeThresholdBytes,
+                              largestFileSizeBytes:
+                                  largestOversizedFile.size,
+                          })
+                        : "download";
+
+                    if (decision === "download") {
+                        oversizedFiles.forEach(triggerDownload);
+                    } else if (onOversizedFiles) {
+                        onOversizedFiles(oversizedFiles);
+                    }
+                }
+
+                if (downloadedCount > 0) {
+                    setDownloadFinalizing(true);
+                    const finalizeDelay = Math.min(
+                        10000,
+                        Math.max(1200, imgPositionList.length * 25)
+                    );
+                    await new Promise((resolve) =>
+                        setTimeout(resolve, finalizeDelay)
+                    );
+                }
                 completed = true;
             } finally {
                 setDownloadFinalizing(false);
@@ -201,6 +256,9 @@ export function useWatermarkBatchProcessor({
         [
             quality,
             resetProgress,
+            confirmOversizedFiles,
+            onOversizedFiles,
+            oversizeThresholdBytes,
             updateProgressSmoothly,
             watermarkBlur,
             watermarkColorUrls,
