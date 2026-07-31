@@ -1,5 +1,12 @@
 import { RawImage } from '../types';
 import { loadExifReader } from '@/utils/lazy-deps';
+import LibRawWorkerClient from '@/utils/libraw-wasm';
+
+export type RawDecodeMode = 'high' | 'fast';
+
+export interface RawDecodeOptions {
+  mode?: RawDecodeMode;
+}
 
 type LibRawImageData = {
   width?: number;
@@ -22,7 +29,55 @@ type DecodeAttemptResult = {
   pixels: Uint8Array | Uint16Array;
 };
 
+function isTypedPixelSource(value: unknown): value is Uint8Array | Uint16Array {
+  return value instanceof Uint8Array || value instanceof Uint16Array;
+}
+
+function hasArrayLikeLength(value: unknown): value is ArrayLike<number> {
+  return Boolean(value)
+    && typeof (value as { length?: unknown }).length === 'number'
+    && Number((value as { length: number }).length) > 0;
+}
+
 export class RawDecoder {
+  private normalizeErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+    return String(error || 'Unknown error');
+  }
+
+  private isFrontendWasmUnavailableError(error: unknown): boolean {
+    const message = this.normalizeErrorMessage(error);
+    return (
+      message.includes("Failed to resolve module specifier 'libraw-wasm'") ||
+      message.includes("Cannot find package 'libraw-wasm'") ||
+      message.includes("Failed to fetch dynamically imported module") ||
+      message.includes("RAW worker error") ||
+      message.includes("Failed to construct 'Worker'") ||
+      message.includes("/libraw-wasm/worker.js")
+    );
+  }
+
+  private buildRawDecodeUnavailableError(
+    backendError: unknown,
+    wasmError?: unknown
+  ): Error {
+    const backendMessage = this.normalizeErrorMessage(backendError);
+    const wasmUnavailable = wasmError ? this.isFrontendWasmUnavailableError(wasmError) : true;
+
+    if (wasmUnavailable) {
+      return new Error(
+        `RAW 解码不可用：后端解码失败（${backendMessage}），且当前前端 WASM 解码资源不可用。请检查 /public/libraw-wasm 资源是否存在，或改用后端解码。`
+      );
+    }
+
+    const wasmMessage = this.normalizeErrorMessage(wasmError);
+    return new Error(
+      `RAW 解码失败：后端解码失败（${backendMessage}），WASM 解码也失败（${wasmMessage}）。`
+    );
+  }
+
   private withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
     return new Promise((resolve, reject) => {
       const timer = window.setTimeout(() => reject(new Error(`RAW ${label} timeout`)), ms);
@@ -38,7 +93,7 @@ export class RawDecoder {
     });
   }
 
-  async decode(file: File): Promise<RawImage> {
+  async decode(file: File, options?: RawDecodeOptions): Promise<RawImage> {
     // Extract EXIF data
     let exifData: any = {};
     try {
@@ -66,22 +121,30 @@ export class RawDecoder {
     const isRaw = /\.(cr2|cr3|nef|nrw|arw|sr2|srf|dng|raf|orf|rw2|pef|iiq|3fr|srw)$/i.test(file.name);
 
     if (isRaw) {
-      const strategy = ((import.meta as any).env?.VITE_RAW_DECODE_STRATEGY as string | undefined) || 'backend-first';
+      const strategy = ((import.meta as any).env?.VITE_RAW_DECODE_STRATEGY as string | undefined) || 'wasm-first';
 
       if (strategy === 'wasm-first') {
         try {
-          return await this.decodeRawWithLibRaw(file, exifData);
+          return await this.decodeRawWithLibRaw(file, exifData, options);
         } catch (e) {
           console.warn('libraw-wasm decode failed, fallback to backend', e);
-          return this.decodeRawWithBackend(file, exifData);
+          try {
+            return await this.decodeRawWithBackend(file, exifData, options);
+          } catch (backendError) {
+            throw this.buildRawDecodeUnavailableError(backendError, e);
+          }
         }
       }
 
       try {
-        return await this.decodeRawWithBackend(file, exifData);
+        return await this.decodeRawWithBackend(file, exifData, options);
       } catch (e) {
         console.warn('backend RAW decode failed, fallback to libraw-wasm', e);
-        return this.decodeRawWithLibRaw(file, exifData);
+        try {
+          return await this.decodeRawWithLibRaw(file, exifData, options);
+        } catch (wasmError) {
+          throw this.buildRawDecodeUnavailableError(e, wasmError);
+        }
       }
     }
 
@@ -143,7 +206,7 @@ export class RawDecoder {
     });
   }
 
-  private async decodeRawWithBackend(file: File, exifData: any): Promise<RawImage> {
+  private async decodeRawWithBackend(file: File, exifData: any, options?: RawDecodeOptions): Promise<RawImage> {
     const apiBase = ((import.meta as any).env?.VITE_RAW_API_BASE_URL as string | undefined) || 'http://localhost:8000';
     const formData = new FormData();
     formData.append('file', file);
@@ -241,6 +304,10 @@ export class RawDecoder {
         size: file.size,
         width,
         height,
+        sourceWidth: width,
+        sourceHeight: height,
+        rawDecodeMode: options?.mode ?? 'high',
+        rawDecodePreset: 'high-quality',
         exif: {
           ...exifData,
           ...(payload?.metadata?.exif || {})
@@ -249,42 +316,51 @@ export class RawDecoder {
     };
   }
 
-  private async decodeRawWithLibRaw(file: File, exifData: any): Promise<RawImage> {
-    const moduleName = 'libraw-wasm';
-    const librawModule = await import(/* @vite-ignore */ moduleName) as { default: any };
-    const LibRaw = librawModule.default;
+  private async decodeRawWithLibRaw(file: File, exifData: any, options?: RawDecodeOptions): Promise<RawImage> {
     const sourceBytes = new Uint8Array(await file.arrayBuffer());
     const openTimeoutMs = Math.max(45000, Math.ceil(file.size / (1024 * 1024)) * 1200);
+    const selectedMode = options?.mode ?? 'high';
 
     const decodeOnce = async (settings: Record<string, unknown>, timeoutMs: number): Promise<DecodeAttemptResult> => {
-      const raw = new LibRaw();
+      const raw = new LibRawWorkerClient();
       try {
         const inputBytes = sourceBytes.slice();
         await this.withTimeout(raw.open(inputBytes, settings), openTimeoutMs, 'open');
 
-        const [metaRaw, decodedRaw] = await Promise.all([
-          this.withTimeout<Record<string, any>>(raw.metadata(false) as Promise<Record<string, any>>, 8000, 'metadata').catch(() => ({})),
-          this.withTimeout<unknown>(raw.imageData() as Promise<unknown>, timeoutMs, 'imageData')
-        ]);
+        const metaRaw = await this.withTimeout<Record<string, any>>(
+          raw.metadata(false) as Promise<Record<string, any>>,
+          8000,
+          'metadata'
+        ).catch(() => ({}));
+        const decodedRaw = await this.withTimeout<unknown>(
+          raw.imageData() as Promise<unknown>,
+          timeoutMs,
+          'imageData'
+        );
 
         const meta = (metaRaw || {}) as Record<string, any>;
         const decoded = ((decodedRaw || {}) as LibRawImageData) as Record<string, any>;
 
-        const width = Number(decoded.width ?? decoded.sizes?.width ?? meta.sizes?.width ?? 0);
-        const height = Number(decoded.height ?? decoded.sizes?.height ?? meta.sizes?.height ?? 0);
+        const width = Number(decoded.width ?? decoded.sizes?.width ?? meta.sizes?.width ?? meta.width ?? 0);
+        const height = Number(decoded.height ?? decoded.sizes?.height ?? meta.sizes?.height ?? meta.height ?? 0);
         const channels = Number(decoded.channels ?? decoded.components ?? 3);
         const bps = Number(decoded.outputBps ?? decoded.bitsPerSample ?? 16);
-        const source = (decoded.data ?? decoded.pixels ?? decoded) as any;
+        const rawSource = decoded.data ?? decoded.pixels ?? decodedRaw;
 
-        if (!source) {
+        const hasBufferLikeSource = Boolean(rawSource && typeof rawSource === 'object' && 'buffer' in rawSource);
+        if (!rawSource || (!isTypedPixelSource(rawSource) && !hasArrayLikeLength(rawSource) && !hasBufferLikeSource)) {
           throw new Error('libraw-wasm decode succeeded but pixel buffer missing');
         }
 
-        const view = source instanceof Uint16Array || source instanceof Uint8Array
-          ? source
-          : source && typeof source === 'object' && 'buffer' in source
-            ? (bps === 16 ? new Uint16Array((source as { buffer: ArrayBufferLike }).buffer) : new Uint8Array((source as { buffer: ArrayBufferLike }).buffer))
-            : (bps === 16 ? new Uint16Array(source as ArrayLike<number>) : new Uint8Array(source as ArrayLike<number>));
+        const view = isTypedPixelSource(rawSource)
+          ? rawSource
+          : rawSource && typeof rawSource === 'object' && 'buffer' in rawSource
+            ? (bps === 16 ? new Uint16Array((rawSource as { buffer: ArrayBufferLike }).buffer) : new Uint8Array((rawSource as { buffer: ArrayBufferLike }).buffer))
+            : (bps === 16 ? new Uint16Array(rawSource as ArrayLike<number>) : new Uint8Array(rawSource as ArrayLike<number>));
+
+        if (view.length === 0) {
+          throw new Error('libraw-wasm decode returned an empty pixel buffer');
+        }
 
         const stablePixels = bps === 16 ? new Uint16Array(view.length) : new Uint8Array(view.length);
         stablePixels.set(view as any);
@@ -295,30 +371,43 @@ export class RawDecoder {
       }
     };
 
+    const highQualitySettings = {
+      outputBps: 16,
+      outputColor: 1,
+      noAutoBright: true,
+      useCameraWb: true,
+      useAutoWb: false,
+      userQual: 5,
+      highlight: 2,
+      fbddNoiserd: 1
+    };
+
+    const fastPreviewSettings = {
+      outputBps: 16,
+      outputColor: 1,
+      noAutoBright: true,
+      useCameraWb: true,
+      useAutoWb: false,
+      userQual: 3,
+      highlight: 1,
+      fbddNoiserd: 0,
+      halfSize: true
+    };
+
     let result: DecodeAttemptResult;
-    try {
-      result = await decodeOnce({
-        outputBps: 16,
-        outputColor: 1,
-        noAutoBright: true,
-        useCameraWb: true,
-        useAutoWb: false,
-        userQual: 5,
-        highlight: 2,
-        fbddNoiserd: 1
-      }, 45000);
-    } catch {
-      result = await decodeOnce({
-        outputBps: 16,
-        outputColor: 1,
-        noAutoBright: true,
-        useCameraWb: true,
-        useAutoWb: false,
-        userQual: 3,
-        highlight: 1,
-        fbddNoiserd: 0,
-        halfSize: true
-      }, 25000);
+    let appliedPreset: 'high-quality' | 'fast-preview';
+
+    if (selectedMode === 'fast') {
+      result = await decodeOnce(fastPreviewSettings, 25000);
+      appliedPreset = 'fast-preview';
+    } else {
+      try {
+        result = await decodeOnce(highQualitySettings, 45000);
+        appliedPreset = 'high-quality';
+      } catch {
+        result = await decodeOnce(fastPreviewSettings, 25000);
+        appliedPreset = 'fast-preview';
+      }
     }
 
     const { meta, width, height, channels, bps, pixels: typed } = result;
@@ -351,8 +440,12 @@ export class RawDecoder {
         name: file.name,
         type: file.type || 'image/x-raw',
         size: file.size,
-        width,
-        height,
+        width: Number(meta.width ?? width),
+        height: Number(meta.height ?? height),
+        sourceWidth: Number(meta.width ?? width),
+        sourceHeight: Number(meta.height ?? height),
+        rawDecodeMode: selectedMode,
+        rawDecodePreset: appliedPreset,
         exif: {
           ...exifData,
           ...meta
