@@ -38,6 +38,7 @@ import {
     consumePendingCropTransfer,
     setPendingCropTransfer,
 } from "@/utils/crop-transfer";
+import { importWithRecovery } from "@/utils/import-recovery";
 
 const WATERMARK_OVERSIZE_THRESHOLD_BYTES = 30 * 1024 * 1024;
 
@@ -126,8 +127,9 @@ const Watermark: React.FC = () => {
         if (watermarkMode === "mixed") {
             const generate = async () => {
                 if (!mixedWatermarkConfig.icon) return;
-                const { createMixedWatermark } = await import(
-                    "@/utils/watermark-processing"
+                const { createMixedWatermark } = await importWithRecovery(
+                    () => import("@/utils/watermark-processing"),
+                    "utils:watermark-processing"
                 );
                 const url = await createMixedWatermark(mixedWatermarkConfig);
                 if (url) {
@@ -180,7 +182,10 @@ const Watermark: React.FC = () => {
     const handleImagesUpload = async (files: File[]) => {
         setUploading(true);
         try {
-            const { loadImageData } = await import("@/utils/watermark-processing");
+            const { loadImageData } = await importWithRecovery(
+                () => import("@/utils/watermark-processing"),
+                "utils:watermark-processing"
+            );
             const { images: uploadImages, failedFiles } = await loadImageData(
                 files
             );

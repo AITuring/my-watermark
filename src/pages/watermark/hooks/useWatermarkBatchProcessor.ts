@@ -3,6 +3,7 @@ import pLimit from "p-limit";
 import confetti from "canvas-confetti";
 import { ImgWithPosition, MixedWatermarkConfig } from "@/types";
 import { useSmoothProgress } from "@/pages/watermark/hooks/useSmoothProgress";
+import { importWithRecovery } from "@/utils/import-recovery";
 
 interface UseWatermarkBatchProcessorOptions {
     watermarkUrl: string;
@@ -109,7 +110,10 @@ export function useWatermarkBatchProcessor({
             let completed = false;
 
             try {
-                const { processImage } = await import("@/utils/watermark-processing");
+                const { processImage } = await importWithRecovery(
+                    () => import("@/utils/watermark-processing"),
+                    "utils:watermark-processing"
+                );
                 for (let i = 0; i < imgPositionList.length; i += batchSize) {
                     const batch = imgPositionList.slice(i, i + batchSize);
 
