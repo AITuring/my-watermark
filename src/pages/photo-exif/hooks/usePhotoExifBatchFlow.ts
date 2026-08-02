@@ -158,10 +158,10 @@ export const usePhotoExifBatchFlow = ({
         });
     }, [batchGps.locationName]);
 
-    const batchGpsPoint = editableGpsToPoint({
-        ...batchGps,
-        enabled: true,
-    });
+    const batchGpsPoint = useMemo(
+        () => editableGpsToPoint(batchGps),
+        [batchGps],
+    );
     const { containerRef: batchMapContainerRef, mapState: batchMapState } = usePhotoExifMap({
         point: batchGpsPoint,
         title: batchGps.locationName || "批量 GPS 位置",

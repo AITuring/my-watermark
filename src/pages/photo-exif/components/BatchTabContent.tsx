@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { memo, useEffect, useState, type RefObject } from "react";
 import {
     AlertCircle,
     Download,
@@ -106,6 +106,133 @@ interface BatchTabContentProps {
     onItemDateTimeFieldChange: (itemId: string, key: "dateTimeOriginal" | "dateTimeDigitized", value: string) => void;
 }
 
+const OVERVIEW_AUTO_COLLAPSE_THRESHOLD = 8;
+
+interface BatchItemOverviewBodyProps {
+    items: PhotoExifItem[];
+    secondaryButtonClass: string;
+    onSelectItem: (itemId: string) => void;
+    onItemFileNameChange: (itemId: string, value: string) => void;
+    onItemDateTimeFieldChange: (itemId: string, key: "dateTimeOriginal" | "dateTimeDigitized", value: string) => void;
+}
+
+const BatchItemOverviewBody = memo(({
+    items,
+    secondaryButtonClass,
+    onSelectItem,
+    onItemFileNameChange,
+    onItemDateTimeFieldChange,
+}: BatchItemOverviewBodyProps) => (
+    <ScrollArea className="h-[560px] pr-3">
+        <div className="space-y-3">
+            {items.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-2 min-w-0">
+                            <p className="font-medium break-all">{getEffectiveFileName(item)}</p>
+                            <div className="flex flex-wrap gap-2">
+                                {isDirty(item) && (
+                                    <Badge className="bg-amber-500 text-white hover:bg-amber-500">
+                                        已修改待处理
+                                    </Badge>
+                                )}
+                                {item.gpsCurrent.locationName.trim() && <Badge variant="outline">GPS地址</Badge>}
+                                {!item.gpsCurrent.locationName.trim() && editableGpsToPoint(item.gpsCurrent) && (
+                                    <Badge variant="outline">含 GPS</Badge>
+                                )}
+                            </div>
+                        </div>
+                        <Button variant="outline" className={secondaryButtonClass} onClick={() => onSelectItem(item.id)}>
+                            查看详情
+                        </Button>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-4 text-sm">
+                        <div>
+                            <p className="text-slate-500 dark:text-slate-400">设备</p>
+                            <p className="mt-1 break-words">{`${item.summary.make || "-"} ${item.summary.model || ""}`.trim() || "-"}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-500 dark:text-slate-400">拍摄时间</p>
+                            <p className="mt-1 break-words">{item.summary.dateTimeOriginal || "-"}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-500 dark:text-slate-400">GPS</p>
+                            <p className="mt-1 break-words">{item.summary.gps || "-"}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-500 dark:text-slate-400">GPS 地址</p>
+                            <p className="mt-1 break-words">{item.gpsCurrent.locationName || "-"}</p>
+                        </div>
+                        <div>
+                            <p className="text-slate-500 dark:text-slate-400">原地改写</p>
+                            <p className="mt-1 break-words">{item.fileHandle && item.canOverwriteInPlace ? "支持" : "不支持"}</p>
+                        </div>
+                    </div>
+                    <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                        <div>
+                            <p className="text-sm font-medium">逐张编辑</p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                这里的文件名与时间修改会直接进入批量导出和批量原地写回
+                            </p>
+                        </div>
+                        <div className="grid gap-4 lg:grid-cols-3">
+                            <div className="space-y-2">
+                                <Label htmlFor={`batch-item-file-name-${item.id}`}>文件名</Label>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        id={`batch-item-file-name-${item.id}`}
+                                        value={getFileBaseName(item.currentFileName)}
+                                        placeholder="输入导出或写回时使用的文件名"
+                                        disabled={!item.canWriteExif}
+                                        onChange={(event) => onItemFileNameChange(item.id, event.target.value)}
+                                    />
+                                    {getFileExtension(item.currentFileName) && (
+                                        <div className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
+                                            {getFileExtension(item.currentFileName)}
+                                        </div>
+                                    )}
+                                </div>
+                                <p className={`text-xs ${getFileNameValidationError(getFileBaseName(item.currentFileName)) ? "text-rose-500" : "text-slate-500 dark:text-slate-400"}`}>
+                                    {getFileNameValidationError(getFileBaseName(item.currentFileName)) || `原始文件名：${item.originalFileName}`}
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor={`batch-item-date-time-original-${item.id}`}>拍摄时间</Label>
+                                <Input
+                                    id={`batch-item-date-time-original-${item.id}`}
+                                    type="datetime-local"
+                                    step="1"
+                                    value={exifDateTimeToLocalInputValue(item.editableCurrent.dateTimeOriginal)}
+                                    disabled={!item.canWriteExif}
+                                    onChange={(event) => onItemDateTimeFieldChange(item.id, "dateTimeOriginal", event.target.value)}
+                                />
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    写回 `DateTimeOriginal`
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor={`batch-item-date-time-digitized-${item.id}`}>数字化时间</Label>
+                                <Input
+                                    id={`batch-item-date-time-digitized-${item.id}`}
+                                    type="datetime-local"
+                                    step="1"
+                                    value={exifDateTimeToLocalInputValue(item.editableCurrent.dateTimeDigitized)}
+                                    disabled={!item.canWriteExif}
+                                    onChange={(event) => onItemDateTimeFieldChange(item.id, "dateTimeDigitized", event.target.value)}
+                                />
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    写回 `DateTimeDigitized`
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    </ScrollArea>
+));
+BatchItemOverviewBody.displayName = "BatchItemOverviewBody";
+
 const BatchTabContent = ({
     items,
     renameRules,
@@ -162,8 +289,17 @@ const BatchTabContent = ({
     onSelectItem,
     onItemFileNameChange,
     onItemDateTimeFieldChange,
-}: BatchTabContentProps) => (
-    <TabsContent value="batch" className="space-y-6">
+}: BatchTabContentProps) => {
+    const [isItemOverviewExpanded, setIsItemOverviewExpanded] = useState(items.length <= OVERVIEW_AUTO_COLLAPSE_THRESHOLD);
+
+    useEffect(() => {
+        if (items.length <= OVERVIEW_AUTO_COLLAPSE_THRESHOLD) {
+            setIsItemOverviewExpanded(true);
+        }
+    }, [items.length]);
+
+    return (
+        <TabsContent value="batch" className="space-y-6">
         <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -645,127 +781,53 @@ const BatchTabContent = ({
             </CardContent>
         </Card>
 
-        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <FileImage className="w-5 h-5" />
-                    批量逐张编辑与概览
-                </CardTitle>
-                <CardDescription>
-                    支持逐张调整文件名和时间，并快速查看哪些图片可导出、可原地改写或包含位置信息
-                </CardDescription>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <CardTitle className="flex items-center gap-2">
+                                <FileImage className="w-5 h-5" />
+                                批量逐张编辑与概览
+                            </CardTitle>
+                            <CardDescription>
+                                支持逐张调整文件名和时间，并快速查看哪些图片可导出、可原地改写或包含位置信息
+                            </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline">{items.length} 张</Badge>
+                            {items.length > OVERVIEW_AUTO_COLLAPSE_THRESHOLD && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className={secondaryButtonClass}
+                                    onClick={() => setIsItemOverviewExpanded((previous) => !previous)}
+                                >
+                                    {isItemOverviewExpanded ? "收起列表" : "展开列表"}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
             </CardHeader>
             <CardContent className="pt-0">
-                <ScrollArea className="h-[560px] pr-3">
-                    <div className="space-y-3">
-                        {items.map((item) => (
-                            <div key={item.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                    <div className="space-y-2 min-w-0">
-                                        <p className="font-medium break-all">{getEffectiveFileName(item)}</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {isDirty(item) && (
-                                                <Badge className="bg-amber-500 text-white hover:bg-amber-500">
-                                                    已修改待处理
-                                                </Badge>
-                                            )}
-                                            {item.gpsCurrent.locationName.trim() && <Badge variant="outline">GPS地址</Badge>}
-                                            {!item.gpsCurrent.locationName.trim() && editableGpsToPoint(item.gpsCurrent) && (
-                                                <Badge variant="outline">含 GPS</Badge>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <Button variant="outline" className={secondaryButtonClass} onClick={() => onSelectItem(item.id)}>
-                                        查看详情
-                                    </Button>
-                                </div>
-                                <div className="mt-4 grid gap-3 sm:grid-cols-4 text-sm">
-                                    <div>
-                                        <p className="text-slate-500 dark:text-slate-400">设备</p>
-                                        <p className="mt-1 break-words">{`${item.summary.make || "-"} ${item.summary.model || ""}`.trim() || "-"}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-500 dark:text-slate-400">拍摄时间</p>
-                                        <p className="mt-1 break-words">{item.summary.dateTimeOriginal || "-"}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-500 dark:text-slate-400">GPS</p>
-                                        <p className="mt-1 break-words">{item.summary.gps || "-"}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-500 dark:text-slate-400">GPS 地址</p>
-                                        <p className="mt-1 break-words">{item.gpsCurrent.locationName || "-"}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-500 dark:text-slate-400">原地改写</p>
-                                        <p className="mt-1 break-words">{item.fileHandle && item.canOverwriteInPlace ? "支持" : "不支持"}</p>
-                                    </div>
-                                </div>
-                                <div className="mt-4 rounded-xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
-                                    <div>
-                                        <p className="text-sm font-medium">逐张编辑</p>
-                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                            这里的文件名与时间修改会直接进入批量导出和批量原地写回
-                                        </p>
-                                    </div>
-                                    <div className="grid gap-4 lg:grid-cols-3">
-                                        <div className="space-y-2">
-                                            <Label htmlFor={`batch-item-file-name-${item.id}`}>文件名</Label>
-                                            <div className="flex items-center gap-2">
-                                                <Input
-                                                    id={`batch-item-file-name-${item.id}`}
-                                                    value={getFileBaseName(item.currentFileName)}
-                                                    placeholder="输入导出或写回时使用的文件名"
-                                                    disabled={!item.canWriteExif}
-                                                    onChange={(event) => onItemFileNameChange(item.id, event.target.value)}
-                                                />
-                                                {getFileExtension(item.currentFileName) && (
-                                                    <div className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
-                                                        {getFileExtension(item.currentFileName)}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <p className={`text-xs ${getFileNameValidationError(getFileBaseName(item.currentFileName)) ? "text-rose-500" : "text-slate-500 dark:text-slate-400"}`}>
-                                                {getFileNameValidationError(getFileBaseName(item.currentFileName)) || `原始文件名：${item.originalFileName}`}
-                                            </p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor={`batch-item-date-time-original-${item.id}`}>拍摄时间</Label>
-                                            <Input
-                                                id={`batch-item-date-time-original-${item.id}`}
-                                                type="datetime-local"
-                                                step="1"
-                                                value={exifDateTimeToLocalInputValue(item.editableCurrent.dateTimeOriginal)}
-                                                disabled={!item.canWriteExif}
-                                                onChange={(event) => onItemDateTimeFieldChange(item.id, "dateTimeOriginal", event.target.value)}
-                                            />
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                写回 `DateTimeOriginal`
-                                            </p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor={`batch-item-date-time-digitized-${item.id}`}>数字化时间</Label>
-                                            <Input
-                                                id={`batch-item-date-time-digitized-${item.id}`}
-                                                type="datetime-local"
-                                                step="1"
-                                                value={exifDateTimeToLocalInputValue(item.editableCurrent.dateTimeDigitized)}
-                                                disabled={!item.canWriteExif}
-                                                onChange={(event) => onItemDateTimeFieldChange(item.id, "dateTimeDigitized", event.target.value)}
-                                            />
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                写回 `DateTimeDigitized`
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </ScrollArea>
+                    {isItemOverviewExpanded ? (
+                        <BatchItemOverviewBody
+                            items={items}
+                            secondaryButtonClass={secondaryButtonClass}
+                            onSelectItem={onSelectItem}
+                            onItemFileNameChange={onItemFileNameChange}
+                            onItemDateTimeFieldChange={onItemDateTimeFieldChange}
+                        />
+                    ) : (
+                        <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4 text-sm text-slate-500 dark:text-slate-400 space-y-2">
+                            <p>当前工作台共有 {items.length} 张图片。</p>
+                            <p>为避免批量改名时整页重复渲染，这里的逐张编辑列表在较多图片时默认折叠，按需展开即可。</p>
+                        </div>
+                    )}
             </CardContent>
         </Card>
-    </TabsContent>
-);
+        </TabsContent>
+    );
+};
 
 export default BatchTabContent;
