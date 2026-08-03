@@ -109,7 +109,7 @@ export const usePhotoExifImportFlow = ({
             console.error(error);
             toast.error("读取图片失败，请重试");
         }
-    }, [appendItems, notifyImported, persistenceContext, selectedItemRef]);
+    }, [appendItems, items.length, notifyImported, persistenceContext, selectedItemRef]);
 
     const handleSelectDirectory = useCallback(async () => {
         if (!pickerWindow.showDirectoryPicker) {
