@@ -107,6 +107,14 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("../pages/focus-stack"),
     },
     {
+        id: "focus-visualizer",
+        label: "焦点可视化",
+        url: "/focus-visualizer",
+        icon: "mdi:image-search-outline",
+        description: "对比同视角不同对焦点的图片，直观看每张图清晰区域落在哪",
+        component: () => import("../pages/focus-visualizer"),
+    },
+    {
         id: "artifact-ai",
         label: "文物百科",
         url: "/artifact-ai",

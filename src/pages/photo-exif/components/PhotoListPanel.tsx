@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Image as ImageIcon, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ interface PhotoListPanelProps {
     onToggleImportSource: (itemId: string) => void;
 }
 
-const PhotoListPanel = ({
+const PhotoListPanel = memo(({
     items,
     selectedId,
     selectedImportSourceId,
@@ -118,6 +119,7 @@ const PhotoListPanel = ({
             </ScrollArea>
         </CardContent>
     </Card>
-);
+));
+PhotoListPanel.displayName = "PhotoListPanel";
 
 export default PhotoListPanel;

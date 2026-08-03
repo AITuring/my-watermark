@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ThemeProvider } from "./context";
 import "./App.css";
@@ -6,10 +6,11 @@ import { Toaster } from "sonner";
 import { appCatalog } from "./app/catalog";
 import FloatingButtons from "./app/FloatingButtons";
 import Landing from "./pages/landing";
+import { lazyWithImportRecovery } from "./utils/import-recovery";
 
 const routeItems = appCatalog.map((item) => ({
     ...item,
-    Page: lazy(item.component),
+    Page: lazyWithImportRecovery(item.component, `route:${item.id}`),
 }));
 
 const App = () => {

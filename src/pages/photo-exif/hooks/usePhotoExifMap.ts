@@ -43,6 +43,9 @@ export const usePhotoExifMap = ({
     const mapRef = useRef<MapInstanceLike | null>(null);
     const markerRef = useRef<MarkerLike | null>(null);
     const onPointSelectRef = useRef(onPointSelect);
+    const pointLat = point?.lat ?? null;
+    const pointLng = point?.lng ?? null;
+    const hasPoint = pointLat != null && pointLng != null;
 
     useEffect(() => {
         onPointSelectRef.current = onPointSelect;
@@ -65,7 +68,7 @@ export const usePhotoExifMap = ({
                 if (!mapRef.current) {
                     mapRef.current = new sdk.Map(containerRef.current, {
                         zoom: 15,
-                        center: [point?.lng ?? DEFAULT_MAP_CENTER.lng, point?.lat ?? DEFAULT_MAP_CENTER.lat],
+                        center: [pointLng ?? DEFAULT_MAP_CENTER.lng, pointLat ?? DEFAULT_MAP_CENTER.lat],
                     });
                     mapRef.current.on("click", (event: unknown) => {
                         if (!draggable) return;
@@ -78,10 +81,10 @@ export const usePhotoExifMap = ({
 
                 mapRef.current.clearMap();
                 markerRef.current = null;
-                mapRef.current.setZoomAndCenter(15, [point?.lng ?? DEFAULT_MAP_CENTER.lng, point?.lat ?? DEFAULT_MAP_CENTER.lat]);
-                if (point) {
+                mapRef.current.setZoomAndCenter(15, [pointLng ?? DEFAULT_MAP_CENTER.lng, pointLat ?? DEFAULT_MAP_CENTER.lat]);
+                if (hasPoint) {
                     const marker = new sdk.Marker({
-                        position: [point.lng, point.lat],
+                        position: [pointLng, pointLat],
                         title,
                         draggable,
                     } as Record<string, unknown>);
@@ -112,7 +115,7 @@ export const usePhotoExifMap = ({
         return () => {
             cancelled = true;
         };
-    }, [draggable, errorMessage, point, title]);
+    }, [draggable, errorMessage, hasPoint, pointLat, pointLng, title]);
 
     useEffect(() => () => {
         mapRef.current?.destroy?.();

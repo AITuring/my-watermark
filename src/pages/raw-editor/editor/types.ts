@@ -41,6 +41,10 @@ export interface RawMetadata {
   size: number;
   width: number;
   height: number;
+  sourceWidth?: number;
+  sourceHeight?: number;
+  rawDecodeMode?: 'high' | 'fast';
+  rawDecodePreset?: 'high-quality' | 'fast-preview';
   exif: {
     make?: string;
     model?: string;
