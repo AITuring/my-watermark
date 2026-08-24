@@ -50,6 +50,9 @@ const yieldToMainThread = (): Promise<void> =>
         window.setTimeout(resolve, 0);
     });
 
+const PREVIEW_FALLBACK_BATCH_COUNT = 64;
+const PREVIEW_FALLBACK_TOTAL_BYTES = 120 * 1024 * 1024;
+
 const createPreviewUrl = async (file: File): Promise<string> => {
     if (typeof window === "undefined") {
         return URL.createObjectURL(file);
@@ -80,7 +83,6 @@ const createPreviewUrl = async (file: File): Promise<string> => {
             if (!previewBlob) {
                 return URL.createObjectURL(file);
             }
-
             return URL.createObjectURL(previewBlob);
         } finally {
             disposeImageSource(source);
@@ -919,6 +921,7 @@ export const buildPhotoExifItem = async (
         source?: PhotoExifItem["source"];
         copyrightPreset?: CopyrightPreset;
         copyrightPresetEnabled?: boolean;
+        preferOriginalPreview?: boolean;
     },
 ): Promise<PhotoExifItem> => {
     let tags: Record<string, unknown> = {};
@@ -931,7 +934,9 @@ export const buildPhotoExifItem = async (
         console.warn("读取 EXIF 失败", file.name, error);
     }
 
-    const previewUrl = await createPreviewUrl(file);
+    const previewUrl = options?.preferOriginalPreview
+        ? URL.createObjectURL(file)
+        : await createPreviewUrl(file);
     const gpsPoint = parseGpsPoint(tags);
     const editable = buildEditable(tags);
     const editableGps = buildEditableGps(gpsPoint);
@@ -967,6 +972,9 @@ export const buildPhotoExifItemsSequentially = async (
     },
 ): Promise<PhotoExifItem[]> => {
     const nextItems: PhotoExifItem[] = [];
+    const totalBytes = entries.reduce((sum, entry) => sum + entry.file.size, 0);
+    const preferOriginalPreview = entries.length >= PREVIEW_FALLBACK_BATCH_COUNT
+        || totalBytes >= PREVIEW_FALLBACK_TOTAL_BYTES;
 
     for (const [index, entry] of entries.entries()) {
         nextItems.push(await buildPhotoExifItem(entry.file, {
@@ -974,12 +982,11 @@ export const buildPhotoExifItemsSequentially = async (
             source: entry.source,
             copyrightPreset: options.copyrightPreset,
             copyrightPresetEnabled: options.copyrightPresetEnabled,
+            preferOriginalPreview,
         }));
-
         if (index < entries.length - 1) {
             await yieldToMainThread();
         }
     }
-
     return nextItems;
 };

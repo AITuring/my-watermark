@@ -26,7 +26,7 @@ const PhotoListPanel = memo(({
     onRemove,
     onToggleImportSource,
 }: PhotoListPanelProps) => (
-    <Card className="xl:col-span-3 border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+        <Card className="xl:col-span-3 border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
         <CardHeader>
             <CardTitle className="flex items-center gap-2">
                 <ImageIcon className="w-5 h-5" />
@@ -118,7 +118,7 @@ const PhotoListPanel = memo(({
                 </div>
             </ScrollArea>
         </CardContent>
-    </Card>
+        </Card>
 ));
 PhotoListPanel.displayName = "PhotoListPanel";
 
