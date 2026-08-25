@@ -43,6 +43,7 @@ const ImageSplitter: React.FC = () => {
     setIsPreviewOpen,
     setOverlapPercent,
     setPreviewIndex,
+    sourceFileName,
     sourceImage,
     verticalPlan,
   } = useImageSplitter();
@@ -50,8 +51,8 @@ const ImageSplitter: React.FC = () => {
   return (
     <div className="mx-auto max-w-5xl p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">长图智能切片</h2>
-        <p className="mt-1 text-sm text-slate-500">水平/竖直切割（重叠可选）与按比例网格切分</p>
+        <h2 className="text-2xl font-bold text-foreground">长图智能切片</h2>
+        <p className="mt-1 text-sm text-muted-foreground">水平/竖直切割（重叠可选）与按比例网格切分</p>
       </div>
 
       <SplitSettingsCard
@@ -67,6 +68,7 @@ const ImageSplitter: React.FC = () => {
         activePreviewOrientation={activePreviewOrientation}
         sourceNaturalWidth={sourceImage?.naturalWidth}
         sourceNaturalHeight={sourceImage?.naturalHeight}
+        sourceFileName={sourceFileName}
         verticalPlan={verticalPlan}
         horizontalPlan={horizontalPlan}
         onFileChange={handleFileChange}
@@ -85,7 +87,7 @@ const ImageSplitter: React.FC = () => {
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
       {previewUrl && sourceImage && activePlan && (
-        <Card className="mb-6 overflow-hidden border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.98))]">
+        <Card className="mb-6 overflow-hidden border-border/80 bg-card/95 dark:bg-card/80">
           <CardHeader>
             <CardTitle>实时切片预览</CardTitle>
             <CardDescription>当前仅显示已选方向的预览与微调结果，橙色斜纹表示重叠区域</CardDescription>

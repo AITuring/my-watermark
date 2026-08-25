@@ -17,12 +17,12 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(120, 113, 108, 0.3); /* Stone-500 with opacity */
+    background: hsl(var(--muted-foreground) / 0.28);
     border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(120, 113, 108, 0.5); /* Stone-500 hover */
+    background: hsl(var(--muted-foreground) / 0.44);
 }
 
 .App {

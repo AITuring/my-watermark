@@ -28,9 +28,9 @@ export const menuButtonClass =
     "w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95";
 
 export const inactiveMenuButtonClass =
-    "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800/80";
+    "text-muted-foreground hover:bg-accent hover:text-foreground";
 
 export const activeMenuButtonClass =
-    "bg-blue-600 text-white shadow-md shadow-blue-600/20 dark:bg-blue-500 dark:shadow-blue-500/25";
+    "bg-primary text-primary-foreground shadow-sm";
 
 export const iconClass = "w-4 h-4";

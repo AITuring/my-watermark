@@ -22,7 +22,7 @@ const PhotoExifWorkbench: React.FC = () => {
     const { stats, preferences, selection, importFlow, batchFlow, singleFlow } = workbench;
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 px-4 py-4 lg:px-5">
+        <div className="min-h-screen bg-background px-4 py-4 text-foreground lg:px-5">
             <div className="mx-auto max-w-[1680px] space-y-5">
                 <WorkbenchHeader
                     hasItems={workbench.items.length > 0}

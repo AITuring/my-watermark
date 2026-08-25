@@ -23,6 +23,7 @@ import { setPendingCropTransfer } from '@/utils/crop-transfer';
 export function useImageSplitter() {
   const navigate = useNavigate();
   const [sourceImage, setSourceImage] = useState<HTMLImageElement | null>(null);
+  const [sourceFileName, setSourceFileName] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [aspectW, setAspectW] = useState<number>(1);
   const [aspectH, setAspectH] = useState<number>(1);
@@ -179,6 +180,7 @@ export function useImageSplitter() {
     if (!event.target.files?.[0]) return;
 
     const file = event.target.files[0];
+    setSourceFileName(file.name);
     const originalUrl = URL.createObjectURL(file);
     setPreviewUrl(originalUrl);
 
@@ -301,6 +303,7 @@ export function useImageSplitter() {
     setIsPreviewOpen,
     setOverlapPercent,
     setPreviewIndex,
+    sourceFileName,
     sourceImage,
     verticalPlan,
   };

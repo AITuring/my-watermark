@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
@@ -352,7 +353,7 @@ const FileRenamer: React.FC = () => {
 
   // --- UI Components ---
   return (
-    <div className="min-h-screen bg-[#F8F9FA] dark:bg-[#1a1a1a] p-6 font-sans text-slate-800 dark:text-slate-200 transition-colors duration-300">
+    <div className="min-h-screen bg-background p-6 font-sans text-foreground transition-colors duration-300">
       <div className="max-w-6xl mx-auto space-y-6">
 
         {/* Header */}
@@ -361,7 +362,7 @@ const FileRenamer: React.FC = () => {
             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#8C7CF0] to-[#C6B9FF]">
               文件批量改名
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
+            <p className="mt-2 flex items-center gap-2 text-muted-foreground">
               <Wand2 className="w-4 h-4 text-[#C6B9FF]" />
               简洁 · 优雅 · 智能文件管理
             </p>
@@ -372,7 +373,7 @@ const FileRenamer: React.FC = () => {
                 <Button
                     variant="outline"
                     onClick={clearFiles}
-                    className="h-8 text-sm border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    className="h-8 text-sm text-muted-foreground hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
                 >
                     <Trash2 className="w-4 h-4 mr-2" />
                     清空
@@ -380,7 +381,7 @@ const FileRenamer: React.FC = () => {
              )}
             <Button
                 onClick={handleSelectFiles}
-                className="h-8 text-sm bg-white dark:bg-slate-800 text-[#8C7CF0] border border-[#8C7CF0] hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all shadow-sm rounded-full px-5"
+                className="h-8 rounded-full border border-[#8C7CF0]/40 bg-background/90 px-5 text-sm text-[#8C7CF0] shadow-sm transition-all hover:bg-purple-50 dark:bg-card/80 dark:hover:bg-purple-900/20"
             >
                 <FileText className="w-4 h-4 mr-2" />
                 选择文件
@@ -399,8 +400,8 @@ const FileRenamer: React.FC = () => {
 
           {/* Left Panel: Rules */}
           <div className="lg:col-span-4 space-y-6">
-            <Card className="p-6 border-0 shadow-sm bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl ring-1 ring-slate-100 dark:ring-slate-800">
-              <h2 className="text-lg font-semibold mb-4 text-slate-700 dark:text-slate-200 flex items-center">
+            <Card className="rounded-2xl border-0 bg-card/90 p-6 shadow-sm ring-1 ring-border/60 backdrop-blur-sm dark:bg-card/80">
+              <h2 className="mb-4 flex items-center text-lg font-semibold text-foreground">
                 <RefreshCw className="w-5 h-5 mr-2 text-[#8C7CF0]" />
                 改名规则
               </h2>
@@ -411,9 +412,9 @@ const FileRenamer: React.FC = () => {
                   {RULE_CONFIGS.map(({ type, label, placeholder, id }) => (
                     <div
                       key={type}
-                      className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700"
+                      className="rounded-xl border border-border/70 bg-muted/55 p-3"
                     >
-                      <label className="text-xs font-medium text-slate-400 dark:text-slate-500 mb-1 block" htmlFor={id}>
+                      <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor={id}>
                         {label}
                       </label>
                       <div className="flex gap-2 items-start">
@@ -422,7 +423,7 @@ const FileRenamer: React.FC = () => {
                           rows={3}
                           value={ruleInputs[type]}
                           placeholder={placeholder}
-                          className="flex-1 min-h-[84px] resize-y bg-white dark:bg-black/20 border-slate-200 dark:border-slate-700/50 rounded-lg px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-[#C6B9FF] dark:text-slate-200 dark:placeholder-slate-600"
+                          className="min-h-[84px] flex-1 resize-y rounded-lg border-border/80 bg-background/95 px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:ring-[#C6B9FF]/45"
                           onChange={(e) => updateRuleInput(type, e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -435,13 +436,13 @@ const FileRenamer: React.FC = () => {
                           type="button"
                           size="sm"
                           variant="ghost"
-                          className="text-[#8C7CF0] hover:bg-purple-50 dark:hover:bg-purple-900/20 mt-1"
+                          className="mt-1 text-[#8C7CF0] hover:bg-purple-50 dark:hover:bg-purple-900/20"
                           onClick={() => submitRule(type)}
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
                       </div>
-                      <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                      <p className="mt-2 text-[11px] text-muted-foreground">
                         支持长文本输入，使用 `Cmd/Ctrl + Enter` 或点击 + 添加
                       </p>
                     </div>
@@ -457,19 +458,19 @@ const FileRenamer: React.FC = () => {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-purple-100 dark:border-purple-900/50 rounded-xl shadow-sm group"
+                        className="group flex items-center justify-between rounded-xl border border-purple-200/55 bg-background/90 p-3 shadow-sm dark:border-purple-900/40 dark:bg-card/85"
                       >
                         <div className="flex items-center gap-3">
                           <Badge variant="secondary" className="bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 border-0">
                             {rule.type === 'delete' ? '删除' : rule.type === 'add_prefix' ? '前缀' : '后缀'}
                           </Badge>
-                          <span className="text-sm font-medium text-slate-700">"{rule.value}"</span>
+                          <span className="text-sm font-medium text-foreground">"{rule.value}"</span>
                         </div>
                         <button
                           type="button"
                           aria-label={`删除${rule.type === 'delete' ? '删除' : rule.type === 'add_prefix' ? '前缀' : '后缀'}规则`}
                           onClick={() => removeRule(rule.id)}
-                          className="text-slate-300 hover:text-red-400 transition-colors"
+                          className="text-muted-foreground/60 transition-colors hover:text-red-400"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -477,7 +478,7 @@ const FileRenamer: React.FC = () => {
                     ))}
                   </AnimatePresence>
                   {rules.length === 0 && (
-                    <div className="text-center py-8 text-slate-400 text-sm">
+                    <div className="py-8 text-center text-sm text-muted-foreground">
                       暂无规则，请输入上方内容并点击 + 号添加
                     </div>
                   )}
@@ -498,24 +499,24 @@ const FileRenamer: React.FC = () => {
           {/* Right Panel: File List */}
           <div className="lg:col-span-8">
             <TooltipProvider>
-            <Card className="h-[600px] flex flex-col border-0 shadow-sm bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl overflow-hidden ring-1 ring-slate-100 dark:ring-slate-800">
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white/50 dark:bg-slate-900/50">
+            <Card className="flex h-[600px] flex-col overflow-hidden rounded-2xl border-0 bg-card/90 shadow-sm ring-1 ring-border/60 backdrop-blur-sm dark:bg-card/80">
+              <div className="flex items-center justify-between border-b border-border/60 bg-background/45 p-4 dark:bg-card/55">
                 <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-400" />
-                  <span className="font-semibold text-slate-700 dark:text-slate-200">文件预览</span>
-                  <Badge variant="outline" className="ml-2 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-semibold text-foreground">文件预览</span>
+                  <Badge variant="outline" className="ml-2 border-border/70 text-muted-foreground">
                     {processedFiles.length !== files.length ? `${processedFiles.length} / ${files.length}` : files.length} 个文件
                   </Badge>
                 </div>
                 {files.length > 0 && (
                    <div className="relative">
-                     <Search className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                     <input
+                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                     <Input
                        type="text"
                        value={filterKeyword}
                        onChange={(e) => setFilterKeyword(e.target.value)}
                        placeholder="筛选文件名..."
-                       className="pl-8 pr-3 py-1 text-xs h-7 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#8C7CF0] w-40 transition-all placeholder:text-slate-400 text-slate-600 dark:text-slate-300"
+                       className="h-7 w-40 rounded-lg border-border/70 bg-background/95 py-1 pl-8 pr-3 text-xs placeholder:text-muted-foreground focus-visible:ring-[#8C7CF0]/40"
                      />
                    </div>
                 )}
@@ -524,9 +525,9 @@ const FileRenamer: React.FC = () => {
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-2">
                   {processedFiles.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 min-h-[400px]">
-                      <div className="w-32 h-32 bg-slate-50 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
-                        <FolderOpen className="w-12 h-12 text-slate-300 dark:text-slate-600" />
+                    <div className="flex min-h-[400px] h-full flex-col items-center justify-center text-muted-foreground">
+                      <div className="mb-4 flex h-32 w-32 items-center justify-center rounded-full bg-muted/60">
+                        <FolderOpen className="h-12 w-12 text-muted-foreground/65" />
                       </div>
                       <p className="text-lg font-medium">尚未选择文件</p>
                       <p className="text-sm mt-2">请选择文件夹或文件开始重命名</p>
@@ -539,26 +540,26 @@ const FileRenamer: React.FC = () => {
                         className={`group p-3 rounded-xl border flex items-center justify-between transition-colors
                           ${file.status === 'success' ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30' :
                             file.status === 'error' ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30' :
-                            'bg-white dark:bg-slate-800/40 border-slate-100 dark:border-slate-700/50 hover:border-purple-200 dark:hover:border-purple-700/50'}`}
+                            'bg-background/88 dark:bg-card/72 border-border/70 hover:border-purple-200 dark:hover:border-purple-700/50'}`}
                       >
                         <div className="flex items-center gap-4 flex-1 overflow-hidden">
-                          <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-slate-400 dark:text-slate-400 shrink-0">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground">
                              <FileText className="w-4 h-4" />
                           </div>
 
                           <div className="flex-1 min-w-0 grid grid-cols-2 gap-4">
                             <FileNameTooltip
                               name={file.originalName}
-                              className="truncate text-slate-500 dark:text-slate-400 text-sm"
+                              className="truncate text-sm text-muted-foreground"
                             />
                             <div className="flex items-center gap-2 min-w-0">
-                              <ArrowRight className="w-3 h-3 text-slate-300 dark:text-slate-600 shrink-0" />
+                              <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground/60" />
                               <FileNameTooltip
                                 name={file.newName}
                                 className={`truncate text-sm font-medium ${
                                   file.originalName !== file.newName
                                     ? 'text-[#8C7CF0] dark:text-[#A79AF5]'
-                                    : 'text-slate-700 dark:text-slate-200'
+                                    : 'text-foreground'
                                 }`}
                               />
                             </div>

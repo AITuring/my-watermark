@@ -59,7 +59,7 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
             {images.map((image, index) => (
               <div
                 key={image.id}
-                className="cursor-pointer overflow-hidden rounded-lg border bg-white shadow-sm transition hover:bg-slate-50"
+                className="cursor-pointer overflow-hidden rounded-lg border border-border/70 bg-card/90 shadow-sm transition hover:bg-accent/55 dark:bg-card/80"
                 onClick={() => {
                   onPreviewIndexChange(index);
                   onOpenChange(true);
@@ -71,7 +71,7 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
                     {index + 1}
                   </div>
                 </div>
-                <div className="px-3 py-2 text-center text-xs text-slate-600">{image.fileName}</div>
+                <div className="px-3 py-2 text-center text-xs text-muted-foreground">{image.fileName}</div>
               </div>
             ))}
           </div>

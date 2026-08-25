@@ -16,7 +16,7 @@ const routeItems = appCatalog.map((item) => ({
 const App = () => {
     return (
         <ThemeProvider>
-            <div className="w-screen min-h-screen text-gray-800 bg-transparent dark:text-white">
+            <div className="min-h-screen w-screen bg-background text-foreground">
                 <BrowserRouter>
                     {/* <ChineseStyleNavbar /> */}
                     <div
@@ -30,7 +30,7 @@ const App = () => {
                                     key={item.id}
                                     path={item.url}
                                     element={
-                                        <Suspense fallback={<div className="p-6 text-sm text-gray-500">正在加载页面...</div>}>
+                                        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">正在加载页面...</div>}>
                                             <item.Page />
                                         </Suspense>
                                     }

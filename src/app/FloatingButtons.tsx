@@ -125,8 +125,8 @@ const FloatingButtons = () => {
                         onClick={toggleTheme}
                         className={`${menuButtonClass} ${
                             isDark
-                                ? "bg-indigo-500 text-white hover:bg-indigo-600 shadow-md shadow-indigo-500/20"
-                                : "bg-pink-500 text-white hover:bg-pink-600 shadow-md shadow-pink-500/20"
+                                ? "bg-amber-300 text-slate-950 hover:bg-amber-200 shadow-sm shadow-amber-400/20"
+                                : "bg-slate-900 text-slate-50 hover:bg-slate-800 shadow-sm shadow-slate-900/15"
                         }`}
                     >
                         <ThemeIcon className={iconClass} />
@@ -151,7 +151,7 @@ const FloatingButtons = () => {
                     onPointerMove={onDragMove}
                     onPointerUp={endDragOrClick}
                     onPointerCancel={cancelDrag}
-                    className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-all mt-1"
+                    className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-muted-foreground transition-all hover:bg-accent/80 hover:text-foreground"
                 >
                     <X className={iconClass} />
                 </button>
@@ -168,14 +168,14 @@ const FloatingButtons = () => {
         >
             {open ? (
                 <div
-                    className="bg-white/80 backdrop-blur-xl shadow-2xl shadow-black/10 border border-white/60 rounded-[2rem] p-2 flex flex-col items-center gap-2 transition-all hover:bg-white hover:shadow-black/15 dark:bg-slate-900/85 dark:border-white/10 dark:shadow-black/40 dark:hover:bg-slate-900/95"
+                    className="flex flex-col items-center gap-2 rounded-[2rem] border border-border/70 bg-background/88 p-2 shadow-2xl shadow-black/10 backdrop-blur-xl transition-all hover:bg-background dark:bg-card/88 dark:shadow-black/35"
                     style={{ transform: expandUp ? "translateY(-100%)" : undefined }}
                 >
                     <TooltipProvider>
                         {expandUp ? (
                             <>
                                 {menuItems.map(renderMenuButton)}
-                                <div className="w-6 h-px bg-slate-200 dark:bg-white/10 my-0.5"></div>
+                                <div className="my-0.5 h-px w-6 bg-border"></div>
                                 {renderThemeButton()}
                                 {renderCloseButton()}
                             </>
@@ -183,7 +183,7 @@ const FloatingButtons = () => {
                             <>
                                 {renderCloseButton()}
                                 {menuItems.map(renderMenuButton)}
-                                <div className="w-6 h-px bg-slate-200 dark:bg-white/10 my-0.5"></div>
+                                <div className="my-0.5 h-px w-6 bg-border"></div>
                                 {renderThemeButton()}
                             </>
                         )}
@@ -199,7 +199,7 @@ const FloatingButtons = () => {
                                 onPointerMove={onDragMove}
                                 onPointerUp={endDragOrClick}
                                 onPointerCancel={cancelDrag}
-                                className="w-10 h-10 rounded-full bg-white shadow-xl shadow-slate-300/30 border border-slate-200 flex items-center justify-center text-slate-600 hover:scale-110 hover:text-blue-600 transition-all cursor-pointer group dark:bg-slate-900/90 dark:border-white/10 dark:shadow-black/40 dark:text-slate-200 dark:hover:text-blue-400"
+                                className="group flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-border/70 bg-background/92 text-muted-foreground shadow-xl shadow-black/10 transition-all hover:scale-110 hover:text-foreground dark:bg-card/92 dark:shadow-black/35"
                             >
                                 <PanelRightOpen className="w-5 h-5 group-hover:rotate-12 transition-transform" />
                             </div>

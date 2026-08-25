@@ -170,16 +170,16 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
   };
 
   return (
-    <div className="space-y-4 rounded-[1.5rem] border border-slate-200/80 bg-white/90 p-4 shadow-sm">
+    <div className="space-y-4 rounded-[1.5rem] border border-border/70 bg-card/90 p-4 shadow-sm shadow-black/5 dark:bg-card/80 dark:shadow-black/20">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-          <p className="text-xs text-slate-500">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <p className="text-xs text-muted-foreground">
             {axisLabel}，预计 {plan.numSlices} 块，单块约 {otherDimension}px
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="rounded-full bg-slate-100 px-3 py-1 text-[11px] text-slate-600">
+          <div className="rounded-full border border-border/60 bg-muted/70 px-3 py-1 text-[11px] text-muted-foreground">
             {draftPlan.overlaps.length > 0 ? `重叠区域 ${draftPlan.overlaps.length} 处` : '无重叠'}
           </div>
           {isAdjusted && onReset && (
@@ -196,14 +196,14 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-3 text-xs text-slate-600">
+      <div className="rounded-2xl border border-border/70 bg-muted/60 px-4 py-3 text-xs text-muted-foreground">
         拖拽彩色切片区域可微调位置，切片尺寸保持不变，导出时会直接使用当前预览中的位置。
       </div>
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Original</div>
-          <div className="max-h-[70vh] overflow-auto rounded-2xl border border-slate-200 bg-slate-50 pb-2 [contain:layout_paint_style]">
+          <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/80">Original</div>
+          <div className="max-h-[70vh] overflow-auto rounded-2xl border border-border/70 bg-muted/50 pb-2 [contain:layout_paint_style]">
             <div
               className="overflow-hidden"
               style={{ width: viewportSize.width, height: viewportSize.height }}
@@ -222,10 +222,10 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">Preview</div>
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+            <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/80">Preview</div>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
               <span className="inline-flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full border border-slate-400 bg-white" />
+                <span className="h-2.5 w-2.5 rounded-full border border-border bg-background" />
                 切片区域
               </span>
               <span className="inline-flex items-center gap-1">
@@ -234,7 +234,7 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
               </span>
             </div>
           </div>
-          <div className="max-h-[70vh] overflow-auto rounded-2xl border border-slate-200 bg-slate-950/5 pb-2 [contain:layout_paint_style]">
+          <div className="max-h-[70vh] overflow-auto rounded-2xl border border-border/70 bg-muted/35 pb-2 [contain:layout_paint_style]">
             <div
               ref={previewFrameRef}
               className="relative overflow-hidden"
@@ -308,14 +308,14 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
                           backgroundColor: getSliceColor(index, 0.95),
                         }}
                       />
-                      <div className="absolute left-2 top-2 rounded-full border border-white/60 bg-slate-950/82 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
+                      <div className="absolute left-2 top-2 rounded-full border border-background/25 bg-foreground/80 px-2.5 py-1 text-[11px] font-semibold text-background shadow-sm backdrop-blur-sm">
                         切片 {String(index + 1).padStart(2, '0')}
                       </div>
-                      <div className="absolute left-2 bottom-2 rounded-full border border-white/70 bg-white/88 px-2.5 py-1 text-[10px] font-medium text-slate-800 shadow-sm">
+                      <div className="absolute left-2 bottom-2 rounded-full border border-border/70 bg-background/90 px-2.5 py-1 text-[10px] font-medium text-foreground shadow-sm backdrop-blur-sm">
                         {region.size}px
                       </div>
                       <div className={`absolute ${isVertical ? 'bottom-3 left-1/2 -translate-x-1/2' : 'right-3 top-1/2 -translate-y-1/2'}`}>
-                        <div className={`rounded-full border border-slate-200 bg-white/92 px-2 py-1 text-[10px] font-medium text-slate-700 shadow-sm ${axisCursor}`}>
+                        <div className={`rounded-full border border-border/70 bg-background/92 px-2 py-1 text-[10px] font-medium text-foreground shadow-sm backdrop-blur-sm ${axisCursor}`}>
                           {isVertical ? '左右拖动' : '上下拖动'}
                         </div>
                       </div>
@@ -364,7 +364,7 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
                         <div className="absolute left-2 top-2 rounded-full border border-orange-200/70 bg-orange-500/92 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm">
                           重叠 {overlap.fromSlice + 1}-{overlap.toSlice + 1}
                         </div>
-                        <div className="absolute bottom-2 right-2 rounded-full border border-white/70 bg-white/90 px-2 py-1 text-[10px] font-medium text-orange-700 shadow-sm">
+                        <div className="absolute bottom-2 right-2 rounded-full border border-border/70 bg-background/90 px-2 py-1 text-[10px] font-medium text-orange-700 shadow-sm backdrop-blur-sm">
                           {overlap.size}px
                         </div>
                       </div>
@@ -381,7 +381,7 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
         {draftPlan.regions.map((region, index) => (
           <div
             key={region.id}
-            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] text-slate-700 shadow-sm"
+            className="rounded-full border border-border/70 bg-muted/55 px-3 py-1 text-[11px] text-foreground shadow-sm"
             style={{
               boxShadow: `inset 0 0 0 1px ${getSliceColor(index, 0.22)}`,
               borderColor: getSliceColor(index, 0.45),

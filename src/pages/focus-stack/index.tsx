@@ -318,7 +318,7 @@ const FocusStacking = () => {
     };
 
     return (
-        <div className="min-h-screen w-full bg-stone-100 dark:bg-slate-950">
+        <div className="min-h-screen w-full bg-background">
             <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6">
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-3">

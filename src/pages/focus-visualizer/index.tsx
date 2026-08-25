@@ -181,7 +181,7 @@ const FocusVisualizerPage = () => {
     };
 
     return (
-        <div className="min-h-screen w-full bg-stone-100 dark:bg-slate-950">
+        <div className="min-h-screen w-full bg-background">
             <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-4 px-3 py-4 md:px-4 xl:px-4">
                 <div className="flex flex-col gap-2.5">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
