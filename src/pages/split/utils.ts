@@ -71,10 +71,10 @@ export const clampValue = (value: number, min: number, max: number) =>
 
 export const buildPreviewViewportSize = (
   naturalWidth: number,
-  naturalHeight: number
+  naturalHeight: number,
+  maxWidth = 1120,
+  maxHeight = 1800
 ): PreviewViewportSize => {
-  const maxWidth = 1120;
-  const maxHeight = 1800;
   const scale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight, 1);
 
   return {

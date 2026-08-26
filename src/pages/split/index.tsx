@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { AxisSplitPreview } from '@/pages/split/components/AxisSplitPreview';
 import { GeneratedImagesCard } from '@/pages/split/components/GeneratedImagesCard';
 import { SplitSettingsCard } from '@/pages/split/components/SplitSettingsCard';
@@ -47,65 +47,66 @@ const ImageSplitter: React.FC = () => {
     sourceImage,
     verticalPlan,
   } = useImageSplitter();
+  const hasPreview = Boolean(previewUrl && sourceImage && activePlan);
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
-      <div className="mb-6">
+    <div className="mx-auto max-w-[1760px] px-3 py-3 lg:px-4">
+      <div className="mb-3">
         <h2 className="text-2xl font-bold text-foreground">长图智能切片</h2>
-        <p className="mt-1 text-sm text-muted-foreground">水平/竖直切割（重叠可选）与按比例网格切分</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">上传长图后，可连续切长图或生成规则网格。</p>
       </div>
-
-      <SplitSettingsCard
-        hasSourceImage={Boolean(sourceImage)}
-        isProcessing={isProcessing}
-        hvMode={hvMode}
-        hvRatioW={hvRatioW}
-        hvRatioH={hvRatioH}
-        hvCount={hvCount}
-        overlapPercent={overlapPercent}
-        aspectW={aspectW}
-        aspectH={aspectH}
-        activePreviewOrientation={activePreviewOrientation}
-        sourceNaturalWidth={sourceImage?.naturalWidth}
-        sourceNaturalHeight={sourceImage?.naturalHeight}
-        sourceFileName={sourceFileName}
-        verticalPlan={verticalPlan}
-        horizontalPlan={horizontalPlan}
-        onFileChange={handleFileChange}
-        onHvModeChange={setHvMode}
-        onHvRatioWChange={setHvRatioW}
-        onHvRatioHChange={setHvRatioH}
-        onHvCountChange={setHvCount}
-        onOverlapPercentChange={setOverlapPercent}
-        onAspectWChange={setAspectW}
-        onAspectHChange={setAspectH}
-        onVerticalSplit={handleVerticalSplit}
-        onHorizontalSplit={handleHorizontalSplit}
-        onGridSplit={handleGridSplit}
-      />
 
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-      {previewUrl && sourceImage && activePlan && (
-        <Card className="mb-6 overflow-hidden border-border/80 bg-card/95 dark:bg-card/80">
-          <CardHeader>
-            <CardTitle>实时切片预览</CardTitle>
-            <CardDescription>当前仅显示已选方向的预览与微调结果，橙色斜纹表示重叠区域</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <AxisSplitPreview
-              title={activeTitle}
-              imageUrl={previewUrl}
-              naturalWidth={sourceImage.naturalWidth}
-              naturalHeight={sourceImage.naturalHeight}
-              plan={activePlan}
-              isAdjusted={activeIsAdjusted}
-              onCommitStarts={(starts) => commitManualRegionStarts(activePreviewOrientation, starts)}
-              onReset={() => resetManualRegionStart(activePreviewOrientation)}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <div className={hasPreview ? 'grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]' : ''}>
+        <div className={hasPreview ? 'xl:sticky xl:top-4 xl:self-start' : ''}>
+          <SplitSettingsCard
+            hasSourceImage={Boolean(sourceImage)}
+            isProcessing={isProcessing}
+            hvMode={hvMode}
+            hvRatioW={hvRatioW}
+            hvRatioH={hvRatioH}
+            hvCount={hvCount}
+            overlapPercent={overlapPercent}
+            aspectW={aspectW}
+            aspectH={aspectH}
+            activePreviewOrientation={activePreviewOrientation}
+            sourceNaturalWidth={sourceImage?.naturalWidth}
+            sourceNaturalHeight={sourceImage?.naturalHeight}
+            sourceFileName={sourceFileName}
+            verticalPlan={verticalPlan}
+            horizontalPlan={horizontalPlan}
+            onFileChange={handleFileChange}
+            onHvModeChange={setHvMode}
+            onHvRatioWChange={setHvRatioW}
+            onHvRatioHChange={setHvRatioH}
+            onHvCountChange={setHvCount}
+            onOverlapPercentChange={setOverlapPercent}
+            onAspectWChange={setAspectW}
+            onAspectHChange={setAspectH}
+            onVerticalSplit={handleVerticalSplit}
+            onHorizontalSplit={handleHorizontalSplit}
+            onGridSplit={handleGridSplit}
+          />
+        </div>
+
+        {hasPreview && (
+          <Card className="overflow-hidden border-border/70 bg-card/92 dark:bg-card/78">
+            <CardContent className="space-y-2 p-3">
+              <AxisSplitPreview
+                title={activeTitle}
+                imageUrl={previewUrl!}
+                naturalWidth={sourceImage!.naturalWidth}
+                naturalHeight={sourceImage!.naturalHeight}
+                plan={activePlan!}
+                isAdjusted={activeIsAdjusted}
+                onCommitStarts={(starts) => commitManualRegionStarts(activePreviewOrientation, starts)}
+                onReset={() => resetManualRegionStart(activePreviewOrientation)}
+              />
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <GeneratedImagesCard
         images={generatedImages}

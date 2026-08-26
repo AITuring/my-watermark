@@ -22,11 +22,18 @@ interface AxisSplitPreviewProps {
 
 export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
   const { title, imageUrl, naturalWidth, naturalHeight, plan, isAdjusted, onCommitStarts, onReset } = props;
-  const viewportSize = React.useMemo(
-    () => buildPreviewViewportSize(naturalWidth, naturalHeight),
-    [naturalWidth, naturalHeight]
-  );
+  const previewStageMeasureRef = useRef<HTMLDivElement>(null);
   const previewFrameRef = useRef<HTMLDivElement>(null);
+  const [previewStageWidth, setPreviewStageWidth] = useState(0);
+  const availableStageWidth = previewStageWidth > 0 ? Math.max(220, previewStageWidth - 28) : 960;
+  const previewViewportSize = React.useMemo(
+    () => buildPreviewViewportSize(naturalWidth, naturalHeight, availableStageWidth, 460),
+    [naturalWidth, naturalHeight, availableStageWidth]
+  );
+  const originalViewportSize = React.useMemo(
+    () => buildPreviewViewportSize(naturalWidth, naturalHeight, availableStageWidth, 220),
+    [naturalWidth, naturalHeight, availableStageWidth]
+  );
   const dragStateRef = useRef<{
     pointerId: number;
     regionIndex: number;
@@ -57,6 +64,25 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
     ? `${draftPlan.tileSize} x ${naturalHeight}`
     : `${naturalWidth} x ${draftPlan.tileSize}`;
   const hasHoveredRegion = hoveredRegionId !== null;
+
+  React.useEffect(() => {
+    const element = previewStageMeasureRef.current;
+    if (!element) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setPreviewStageWidth(entry.contentRect.width);
+      }
+    });
+
+    setPreviewStageWidth(element.clientWidth);
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   React.useEffect(() => {
     return () => {
@@ -170,25 +196,37 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
   };
 
   return (
-    <div className="space-y-4 rounded-[1.5rem] border border-border/70 bg-card/90 p-4 shadow-sm shadow-black/5 dark:bg-card/80 dark:shadow-black/20">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-          <p className="text-xs text-muted-foreground">
-            {axisLabel}，预计 {plan.numSlices} 块，单块约 {otherDimension}px
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="rounded-full border border-border/60 bg-muted/70 px-3 py-1 text-[11px] text-muted-foreground">
-            {draftPlan.overlaps.length > 0 ? `重叠区域 ${draftPlan.overlaps.length} 处` : '无重叠'}
+    <div className="space-y-3" ref={previewStageMeasureRef}>
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-border/70 bg-muted/18 px-4 py-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="space-y-1">
+            <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground/80">Preview</div>
+            <div className="text-base font-semibold text-foreground">{title}</div>
           </div>
+          <div className="hidden h-9 w-px bg-border/70 sm:block" />
+          <div className="hidden flex-wrap items-center gap-3 text-[11px] text-muted-foreground sm:flex">
+            <span>{axisLabel}</span>
+            <span>预计 {plan.numSlices} 块</span>
+            <span>单块约 {otherDimension}px</span>
+            <span>{draftPlan.overlaps.length > 0 ? `重叠 ${draftPlan.overlaps.length} 处` : '无重叠'}</span>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1 rounded-full bg-background/75 px-2.5 py-1">
+            <span className="h-2.5 w-2.5 rounded-full border border-border bg-background" />
+            切片区域
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-background/75 px-2.5 py-1">
+            <span className="h-2.5 w-2.5 rounded-full bg-orange-400/80" />
+            重叠区域
+          </span>
           {isAdjusted && onReset && (
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onReset}
-              className="h-8 rounded-full px-3 text-xs"
+              className="h-8 rounded-full px-3 text-[11px]"
             >
               恢复自动切片
             </Button>
@@ -196,22 +234,26 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border/70 bg-muted/60 px-4 py-3 text-xs text-muted-foreground">
-        拖拽彩色切片区域可微调位置，切片尺寸保持不变，导出时会直接使用当前预览中的位置。
-      </div>
-
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/80">Original</div>
-          <div className="max-h-[70vh] overflow-auto rounded-2xl border border-border/70 bg-muted/50 pb-2 [contain:layout_paint_style]">
+      <div className="grid gap-3 xl:min-h-[760px] xl:grid-rows-[220px_minmax(0,1fr)]">
+        <div className="rounded-2xl border border-border/70 bg-muted/16 p-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold text-foreground">原图</div>
+              <p className="text-[11px] text-muted-foreground">按原图比例展示，用来确认整体内容和构图。</p>
+            </div>
+            <div className="rounded-full bg-background/75 px-2 py-0.5 text-[10px] text-muted-foreground">
+              原图 {naturalWidth} x {naturalHeight}
+            </div>
+          </div>
+          <div className="flex h-[160px] items-center justify-center overflow-hidden rounded-xl bg-background/72 p-2 sm:h-[172px] xl:h-[176px]">
             <div
-              className="overflow-hidden"
-              style={{ width: viewportSize.width, height: viewportSize.height }}
+              className="max-w-full overflow-hidden rounded-lg bg-background/65"
+              style={{ width: originalViewportSize.width, height: originalViewportSize.height }}
             >
               <img
                 src={imageUrl}
                 alt={`${title} 原图`}
-                className="block h-full w-full object-fill"
+                className="block h-full w-full object-contain"
                 loading="lazy"
                 decoding="async"
                 draggable={false}
@@ -220,30 +262,32 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground/80">Preview</div>
+        <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/14 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-foreground">分块示意图</div>
+              <p className="text-[11px] text-muted-foreground">拖拽彩色区域可微调切片位置，导出直接使用当前预览。</p>
+            </div>
             <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full border border-border bg-background" />
-                切片区域
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2.5 w-2.5 rounded-full bg-orange-400/80" />
-                重叠区域
-              </span>
+              <div className="rounded-full bg-background/75 px-2 py-0.5">
+                预览 {previewViewportSize.width} x {previewViewportSize.height}
+              </div>
+              <div className="rounded-full bg-background/75 px-2 py-0.5">
+                {draftPlan.overlaps.length > 0 ? `重叠区域 ${draftPlan.overlaps.length} 处` : '无重叠'}
+              </div>
             </div>
           </div>
-          <div className="max-h-[70vh] overflow-auto rounded-2xl border border-border/70 bg-muted/35 pb-2 [contain:layout_paint_style]">
+
+          <div className="flex min-h-[360px] items-center justify-center overflow-hidden rounded-2xl bg-background/68 p-2 [contain:layout_paint_style] xl:min-h-[440px]">
             <div
               ref={previewFrameRef}
-              className="relative overflow-hidden"
-              style={{ width: viewportSize.width, height: viewportSize.height }}
+              className="relative max-w-full overflow-hidden rounded-xl bg-background/72 shadow-sm shadow-black/5"
+              style={{ width: previewViewportSize.width, height: previewViewportSize.height }}
             >
               <img
                 src={imageUrl}
                 alt={`${title} 预览`}
-                className="block h-full w-full select-none object-fill"
+                className="block h-full w-full select-none object-contain"
                 loading="lazy"
                 decoding="async"
                 draggable={false}
@@ -374,26 +418,26 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="flex flex-wrap gap-2">
-        {draftPlan.regions.map((region, index) => (
-          <div
-            key={region.id}
-            className="rounded-full border border-border/70 bg-muted/55 px-3 py-1 text-[11px] text-foreground shadow-sm"
-            style={{
-              boxShadow: `inset 0 0 0 1px ${getSliceColor(index, 0.22)}`,
-              borderColor: getSliceColor(index, 0.45),
-              backgroundColor: getSliceColor(index, 0.08),
-              opacity: hasHoveredRegion && hoveredRegionId !== region.id ? 0.45 : 1,
-              transform: hoveredRegionId === region.id ? 'translateY(-1px)' : undefined,
-              transition: 'opacity 150ms ease, transform 150ms ease',
-            }}
-          >
-            第 {index + 1} 块: {region.size}px
+          <div className="flex flex-wrap gap-2">
+            {draftPlan.regions.map((region, index) => (
+              <div
+                key={region.id}
+                className="rounded-full border border-border/70 bg-muted/55 px-3 py-1 text-[11px] text-foreground shadow-sm"
+                style={{
+                  boxShadow: `inset 0 0 0 1px ${getSliceColor(index, 0.22)}`,
+                  borderColor: getSliceColor(index, 0.45),
+                  backgroundColor: getSliceColor(index, 0.08),
+                  opacity: hasHoveredRegion && hoveredRegionId !== region.id ? 0.45 : 1,
+                  transform: hoveredRegionId === region.id ? 'translateY(-1px)' : undefined,
+                  transition: 'opacity 150ms ease, transform 150ms ease',
+                }}
+              >
+                第 {index + 1} 块: {region.size}px
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );
