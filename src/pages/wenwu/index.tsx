@@ -6,7 +6,6 @@ import { Search } from "lucide-react";
 import {
     historyIcon,
     historyImages,
-    resolveArtifactImageUrl,
     wenwuTypeIcons,
 } from "./assets";
 import { ArtifactCard } from "./ArtifactCard";
@@ -317,7 +316,6 @@ const Wenwu: React.FC = () => {
                         isOpen={isArtifactPanelOpen}
                         onClose={closeArtifactPanel}
                         onFocusMuseum={focusMuseumForArtifact}
-                        resolveArtifactImageUrl={resolveArtifactImageUrl}
                         wenwuTypeIcons={wenwuTypeIcons}
                         getEraIcon={getEraIcon}
                         getEraColor={getEraColor}

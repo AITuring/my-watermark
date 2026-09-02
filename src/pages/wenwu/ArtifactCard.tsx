@@ -1,6 +1,7 @@
 import React from "react";
 import { Landmark } from "lucide-react";
 
+import { ArtifactImage } from "./ArtifactImage";
 import { HighlightText, MarkdownContent } from "./components";
 import type { Artifact } from "./types";
 
@@ -38,6 +39,12 @@ export const ArtifactCard: React.FC<ArtifactCardProps> = ({
             "
         >
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <ArtifactImage
+                artifact={artifact}
+                alt={artifact.name}
+                className="h-44 border-b border-slate-200/70 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.08),transparent_55%),linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,0.92))] p-3 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.14),transparent_55%),linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.92))]"
+                imageClassName="h-full w-full rounded-lg object-contain shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition-transform duration-300 group-hover:scale-[1.01] dark:shadow-none"
+            />
             <div className="p-5 flex flex-col h-full">
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex gap-2.5">

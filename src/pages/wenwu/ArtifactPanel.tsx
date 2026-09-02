@@ -3,6 +3,7 @@ import { Calendar, ExternalLink, FileText, Landmark, MapPin, X } from "lucide-re
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+import { ArtifactImage } from "./ArtifactImage";
 import { MarkdownContent } from "./components";
 import type { Artifact } from "./types";
 
@@ -11,7 +12,6 @@ interface ArtifactPanelProps {
     isOpen: boolean;
     onClose: () => void;
     onFocusMuseum: (artifact: Artifact) => void;
-    resolveArtifactImageUrl: (imagePath?: string) => string | undefined;
     wenwuTypeIcons: Record<string, string>;
     getEraIcon: (era: string) => string | undefined;
     getEraColor: (era: string) => string;
@@ -23,7 +23,6 @@ export const ArtifactPanel: React.FC<ArtifactPanelProps> = ({
     isOpen,
     onClose,
     onFocusMuseum,
-    resolveArtifactImageUrl,
     wenwuTypeIcons,
     getEraIcon,
     getEraColor,
@@ -31,7 +30,6 @@ export const ArtifactPanel: React.FC<ArtifactPanelProps> = ({
 }) => {
     if (!artifact) return null;
 
-    const artifactImage = resolveArtifactImageUrl(artifact.image);
     const eraIcon = getEraIcon(artifact.era);
     const typeIcon = wenwuTypeIcons[artifact.type];
 
@@ -86,15 +84,13 @@ export const ArtifactPanel: React.FC<ArtifactPanelProps> = ({
 
             <ScrollArea className="flex-1 px-8">
                 <div className="space-y-8 pt-4 pb-6">
-                    {artifact.image && artifactImage && (
-                        <div className="w-full h-[280px] md:h-[340px] overflow-hidden rounded-xl bg-slate-50/60 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                            <img
-                                src={artifactImage}
-                                alt={artifact.name}
-                                className="w-full h-full object-contain"
-                            />
-                        </div>
-                    )}
+                    <ArtifactImage
+                        artifact={artifact}
+                        alt={artifact.name}
+                        eager
+                        className="w-full h-[280px] md:h-[340px] rounded-xl border border-slate-100 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-800/60"
+                        imageClassName="h-full w-full object-contain"
+                    />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1">
