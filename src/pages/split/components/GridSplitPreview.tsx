@@ -43,6 +43,10 @@ export const GridSplitPreview = React.memo((props: GridSplitPreviewProps) => {
     () => buildPreviewViewportSize(naturalWidth, naturalHeight, availableStageWidth, 220),
     [naturalWidth, naturalHeight, availableStageWidth]
   );
+  const originalPreviewShellHeight = React.useMemo(
+    () => Math.max(140, originalViewportSize.height + 16),
+    [originalViewportSize.height]
+  );
   const widths = React.useMemo(() => plan.regions.map((region) => region.width), [plan.regions]);
   const heights = React.useMemo(() => plan.regions.map((region) => region.height), [plan.regions]);
   const widthMin = widths.length > 0 ? Math.min(...widths) : 0;
@@ -117,7 +121,7 @@ export const GridSplitPreview = React.memo((props: GridSplitPreviewProps) => {
         </div>
       </div>
 
-      <div className="grid gap-3 xl:min-h-[760px] xl:grid-rows-[220px_minmax(0,1fr)]">
+      <div className="grid gap-3 xl:min-h-[760px] xl:grid-rows-[auto_minmax(0,1fr)]">
         <div className="rounded-2xl border border-border/70 bg-muted/16 p-3">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -135,7 +139,10 @@ export const GridSplitPreview = React.memo((props: GridSplitPreviewProps) => {
               </div>
             </div>
           </div>
-          <div className="flex h-[160px] items-center justify-center overflow-hidden rounded-xl bg-background/72 p-2 sm:h-[172px] xl:h-[176px]">
+          <div
+            className="flex items-center justify-center overflow-hidden rounded-xl bg-background/72 p-2"
+            style={{ height: originalPreviewShellHeight }}
+          >
             <div
               className="relative max-w-full overflow-hidden rounded-lg bg-background/65"
               style={{ width: originalViewportSize.width, height: originalViewportSize.height }}

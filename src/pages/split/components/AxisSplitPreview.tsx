@@ -34,6 +34,10 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
     () => buildPreviewViewportSize(naturalWidth, naturalHeight, availableStageWidth, 220),
     [naturalWidth, naturalHeight, availableStageWidth]
   );
+  const originalPreviewShellHeight = React.useMemo(
+    () => Math.max(140, originalViewportSize.height + 16),
+    [originalViewportSize.height]
+  );
   const dragStateRef = useRef<{
     pointerId: number;
     regionIndex: number;
@@ -234,7 +238,7 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
         </div>
       </div>
 
-      <div className="grid gap-3 xl:min-h-[760px] xl:grid-rows-[220px_minmax(0,1fr)]">
+      <div className="grid gap-3 xl:min-h-[760px] xl:grid-rows-[auto_minmax(0,1fr)]">
         <div className="rounded-2xl border border-border/70 bg-muted/16 p-3">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -245,7 +249,10 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
               原图 {naturalWidth} x {naturalHeight}
             </div>
           </div>
-          <div className="flex h-[160px] items-center justify-center overflow-hidden rounded-xl bg-background/72 p-2 sm:h-[172px] xl:h-[176px]">
+          <div
+            className="flex items-center justify-center overflow-hidden rounded-xl bg-background/72 p-2"
+            style={{ height: originalPreviewShellHeight }}
+          >
             <div
               className="max-w-full overflow-hidden rounded-lg bg-background/65"
               style={{ width: originalViewportSize.width, height: originalViewportSize.height }}
