@@ -1,4 +1,6 @@
 import type {
+  GridCropRegion,
+  GridSplitPlan,
   Orientation,
   OverlapRegion,
   PreviewViewportSize,
@@ -293,26 +295,192 @@ export const buildAxisSplitImages = async (
   return newImages;
 };
 
+export const buildGridCropRegion = (
+  naturalWidth: number,
+  naturalHeight: number,
+  cols: number,
+  rows: number,
+  ratioW?: number | null,
+  ratioH?: number | null
+) => {
+  if (!ratioW || !ratioH || ratioW <= 0 || ratioH <= 0) {
+    return {
+      startX: 0,
+      startY: 0,
+      width: naturalWidth,
+      height: naturalHeight,
+    } satisfies GridCropRegion;
+  }
+
+  const targetRatio = (cols * ratioW) / (rows * ratioH);
+  const sourceRatio = naturalWidth / naturalHeight;
+
+  if (!Number.isFinite(targetRatio) || targetRatio <= 0) {
+    return {
+      startX: 0,
+      startY: 0,
+      width: naturalWidth,
+      height: naturalHeight,
+    } satisfies GridCropRegion;
+  }
+
+  if (sourceRatio > targetRatio) {
+    const width = Math.max(1, Math.min(naturalWidth, Math.round(naturalHeight * targetRatio)));
+    return {
+      startX: Math.max(0, Math.round((naturalWidth - width) / 2)),
+      startY: 0,
+      width,
+      height: naturalHeight,
+    } satisfies GridCropRegion;
+  }
+
+  const height = Math.max(1, Math.min(naturalHeight, Math.round(naturalWidth / targetRatio)));
+  return {
+    startX: 0,
+    startY: Math.max(0, Math.round((naturalHeight - height) / 2)),
+    width: naturalWidth,
+    height,
+  } satisfies GridCropRegion;
+};
+
+const buildGridAxisLayout = (
+  axisSize: number,
+  tileSize: number,
+  count: number
+) => {
+  if (count <= 1) {
+    return {
+      roundedTileSize: axisSize,
+      step: 0,
+      overlap: 0,
+      overlapPercent: 0,
+      starts: [0],
+    };
+  }
+
+  const safeTileSize = Math.max(axisSize / count, tileSize);
+  const step = (axisSize - safeTileSize) / (count - 1);
+  const overlap = Math.max(0, safeTileSize - step);
+  const roundedTileSize = Math.max(1, Math.round(safeTileSize));
+  const starts = Array.from({ length: count }, (_, index) => {
+    if (index === count - 1) {
+      return Math.max(0, axisSize - roundedTileSize);
+    }
+    return Math.max(0, Math.round(index * step));
+  });
+
+  return {
+    roundedTileSize,
+    step,
+    overlap,
+    overlapPercent: safeTileSize <= 0 ? 0 : overlap / safeTileSize,
+    starts,
+  };
+};
+
+export const buildGridSplitPlan = (
+  naturalWidth: number,
+  naturalHeight: number,
+  cols: number,
+  rows: number,
+  ratioW?: number | null,
+  ratioH?: number | null,
+  overlapPercent = 0
+): GridSplitPlan => {
+  const safeCols = Math.max(1, Math.floor(cols));
+  const safeRows = Math.max(1, Math.floor(rows));
+  const cropRegion = buildGridCropRegion(naturalWidth, naturalHeight, safeCols, safeRows, null, null);
+  const isRatioApplied = Boolean(ratioW && ratioH);
+  const overlap = clampValue(overlapPercent, 0, 90) / 100;
+  const colDenominator = safeCols <= 1 ? 1 : 1 + (safeCols - 1) * (1 - overlap);
+  const rowDenominator = safeRows <= 1 ? 1 : 1 + (safeRows - 1) * (1 - overlap);
+
+  let tileWidth = naturalWidth / colDenominator;
+  let tileHeight = naturalHeight / rowDenominator;
+
+  if (isRatioApplied) {
+    const targetRatio = Math.max(0.1, (ratioW as number) / (ratioH as number));
+    tileWidth = Math.max(tileWidth, tileHeight * targetRatio);
+    tileHeight = tileWidth / targetRatio;
+  }
+
+  const xLayout = buildGridAxisLayout(naturalWidth, tileWidth, safeCols);
+  const yLayout = buildGridAxisLayout(naturalHeight, tileHeight, safeRows);
+  const regions: GridSplitPlan['regions'] = [];
+  let index = 0;
+
+  for (let row = 0; row < safeRows; row++) {
+    const startY = yLayout.starts[row] ?? 0;
+    const endY = row === safeRows - 1
+      ? naturalHeight
+      : Math.min(naturalHeight, startY + yLayout.roundedTileSize);
+    const height = Math.max(1, endY - startY);
+
+    for (let col = 0; col < safeCols; col++) {
+      const startX = xLayout.starts[col] ?? 0;
+      const endX = col === safeCols - 1
+        ? naturalWidth
+        : Math.min(naturalWidth, startX + xLayout.roundedTileSize);
+      const width = Math.max(1, endX - startX);
+
+      regions.push({
+        id: index,
+        row,
+        col,
+        startX,
+        startY,
+        width,
+        height,
+        fileName: `split_${String(index + 1).padStart(3, '0')}.jpg`,
+      });
+      index += 1;
+    }
+  }
+
+  return {
+    cols: safeCols,
+    rows: safeRows,
+    ratioW: ratioW ?? null,
+    ratioH: ratioH ?? null,
+    overlapPercent: Math.round(overlap * 100),
+    isRatioApplied,
+    cropRegion,
+    tileWidth: xLayout.roundedTileSize,
+    tileHeight: yLayout.roundedTileSize,
+    stepX: xLayout.step,
+    stepY: yLayout.step,
+    overlapX: xLayout.overlap,
+    overlapY: yLayout.overlap,
+    overlapPercentX: xLayout.overlapPercent,
+    overlapPercentY: yLayout.overlapPercent,
+    regions,
+  };
+};
+
 export const buildGridSplitImages = async (
   sourceImage: HTMLImageElement,
   canvas: HTMLCanvasElement,
   cols: number,
-  rows: number
+  rows: number,
+  ratioW?: number | null,
+  ratioH?: number | null,
+  overlapPercent = 0
 ) => {
   const { naturalWidth, naturalHeight } = sourceImage;
-  const baseTileWidth = Math.floor(naturalWidth / cols);
-  const baseTileHeight = Math.floor(naturalHeight / rows);
+  const plan = buildGridSplitPlan(
+    naturalWidth,
+    naturalHeight,
+    cols,
+    rows,
+    ratioW,
+    ratioH,
+    overlapPercent
+  );
   const newImages: SplitImage[] = [];
 
-  let index = 0;
-  for (let r = 0; r < rows; r++) {
-    const startY = r * baseTileHeight;
-    const tileHeight = r === rows - 1 ? naturalHeight - startY : baseTileHeight;
-    for (let c = 0; c < cols; c++) {
-      const startX = c * baseTileWidth;
-      const tileWidth = c === cols - 1 ? naturalWidth - startX : baseTileWidth;
-      canvas.width = tileWidth;
-      canvas.height = tileHeight;
+  for (const region of plan.regions) {
+      canvas.width = region.width;
+      canvas.height = region.height;
       const ctx = canvas.getContext('2d');
 
       if (!ctx) {
@@ -321,29 +489,27 @@ export const buildGridSplitImages = async (
 
       ctx.drawImage(
         sourceImage,
-        startX,
-        startY,
-        tileWidth,
-        tileHeight,
+        region.startX,
+        region.startY,
+        region.width,
+        region.height,
         0,
         0,
-        tileWidth,
-        tileHeight
+        region.width,
+        region.height
       );
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/jpeg', 0.95)
       );
 
       if (blob) {
-        index += 1;
         newImages.push({
-          id: index - 1,
+          id: region.id,
           url: URL.createObjectURL(blob),
           blob,
-          fileName: `split_${String(index).padStart(3, '0')}.jpg`,
+          fileName: region.fileName,
         });
       }
-    }
   }
 
   return newImages;

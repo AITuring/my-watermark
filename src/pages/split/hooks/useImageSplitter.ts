@@ -12,6 +12,7 @@ import {
   applyManualStartsToPlan,
   buildAxisSplitImages,
   buildAxisSplitPlan,
+  buildGridSplitPlan,
   buildGridSplitImages,
   buildTransferFiles,
   exportSplitImagesZip,
@@ -27,6 +28,8 @@ export function useImageSplitter() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [aspectW, setAspectW] = useState<number>(1);
   const [aspectH, setAspectH] = useState<number>(1);
+  const [gridRatioW, setGridRatioW] = useState<number | null>(null);
+  const [gridRatioH, setGridRatioH] = useState<number | null>(null);
   const [hvMode, setHvMode] = useState<'ratio' | 'count'>('ratio');
   const [hvRatioW, setHvRatioW] = useState<number>(1);
   const [hvRatioH, setHvRatioH] = useState<number>(1);
@@ -88,6 +91,21 @@ export function useImageSplitter() {
   const horizontalPlan = useMemo(
     () => applyManualStartsToPlan(baseHorizontalPlan, manualSliceStarts.horizontal),
     [baseHorizontalPlan, manualSliceStarts.horizontal]
+  );
+  const gridPlan = useMemo(
+    () =>
+      sourceImage
+        ? buildGridSplitPlan(
+            sourceImage.naturalWidth,
+            sourceImage.naturalHeight,
+            aspectW,
+            aspectH,
+            gridRatioW,
+            gridRatioH,
+            overlapPercent
+          )
+        : null,
+    [aspectH, aspectW, gridRatioH, gridRatioW, overlapPercent, sourceImage]
   );
 
   const activePlan = activePreviewOrientation === 'vertical' ? verticalPlan : horizontalPlan;
@@ -245,7 +263,15 @@ export function useImageSplitter() {
     try {
       const cols = Math.max(1, Math.floor(aspectW));
       const rows = Math.max(1, Math.floor(aspectH));
-      const newImages = await buildGridSplitImages(sourceImage, canvasRef.current, cols, rows);
+      const newImages = await buildGridSplitImages(
+        sourceImage,
+        canvasRef.current,
+        cols,
+        rows,
+        gridRatioW,
+        gridRatioH,
+        overlapPercent
+      );
       setGeneratedImagesWithCleanup(newImages);
     } catch (error) {
       console.error('Error processing images:', error);
@@ -253,7 +279,7 @@ export function useImageSplitter() {
     } finally {
       setIsProcessing(false);
     }
-  }, [aspectH, aspectW, setGeneratedImagesWithCleanup, sourceImage]);
+  }, [aspectH, aspectW, gridRatioH, gridRatioW, overlapPercent, setGeneratedImagesWithCleanup, sourceImage]);
 
   const handleExport = useCallback(async () => {
     if (generatedImages.length === 0) return;
@@ -277,6 +303,9 @@ export function useImageSplitter() {
     canvasRef,
     commitManualRegionStarts,
     generatedImages,
+    gridPlan,
+    gridRatioH,
+    gridRatioW,
     handleExport,
     handleFileChange,
     handleGridSplit,
@@ -296,6 +325,8 @@ export function useImageSplitter() {
     resetManualRegionStart,
     setAspectH,
     setAspectW,
+    setGridRatioH,
+    setGridRatioW,
     setHvCount,
     setHvMode,
     setHvRatioH,
