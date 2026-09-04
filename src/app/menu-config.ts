@@ -9,11 +9,13 @@ import {
     LayoutGrid,
     Pencil,
     PanelsTopLeft,
+    ScanSearch,
 } from "lucide-react";
 
 export const menuItems = [
     { path: "/", icon: LayoutGrid, label: "应用库" },
     { path: "/watermark", icon: ImagePlus, label: "水印添加" },
+    { path: "/mosaic", icon: ScanSearch, label: "图片马赛克" },
     { path: "/puzzle", icon: PanelsTopLeft, label: "图片拼接" },
     { path: "/crop", icon: Crop, label: "图片裁切" },
     { path: "/rename", icon: Pencil, label: "图片重命名" },
