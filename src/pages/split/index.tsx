@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { AxisSplitPreview } from '@/pages/split/components/AxisSplitPreview';
 import { GeneratedImagesCard } from '@/pages/split/components/GeneratedImagesCard';
+import { GridSplitPreview } from '@/pages/split/components/GridSplitPreview';
 import { SplitSettingsCard } from '@/pages/split/components/SplitSettingsCard';
 import { useImageSplitter } from '@/pages/split/hooks/useImageSplitter';
 
@@ -17,6 +18,9 @@ const ImageSplitter: React.FC = () => {
     canvasRef,
     commitManualRegionStarts,
     generatedImages,
+    gridPlan,
+    gridRatioH,
+    gridRatioW,
     handleExport,
     handleFileChange,
     handleGridSplit,
@@ -36,6 +40,8 @@ const ImageSplitter: React.FC = () => {
     resetManualRegionStart,
     setAspectH,
     setAspectW,
+    setGridRatioH,
+    setGridRatioW,
     setHvCount,
     setHvMode,
     setHvRatioH,
@@ -47,7 +53,8 @@ const ImageSplitter: React.FC = () => {
     sourceImage,
     verticalPlan,
   } = useImageSplitter();
-  const hasPreview = Boolean(previewUrl && sourceImage && activePlan);
+  const [splitMethod, setSplitMethod] = React.useState<'axis' | 'grid'>('axis');
+  const hasPreview = Boolean(previewUrl && sourceImage && (splitMethod === 'grid' ? gridPlan : activePlan));
 
   return (
     <div className="mx-auto max-w-[1760px] px-3 py-3 lg:px-4">
@@ -63,11 +70,14 @@ const ImageSplitter: React.FC = () => {
           <SplitSettingsCard
             hasSourceImage={Boolean(sourceImage)}
             isProcessing={isProcessing}
+            splitMethod={splitMethod}
             hvMode={hvMode}
             hvRatioW={hvRatioW}
             hvRatioH={hvRatioH}
             hvCount={hvCount}
             overlapPercent={overlapPercent}
+            gridRatioW={gridRatioW}
+            gridRatioH={gridRatioH}
             aspectW={aspectW}
             aspectH={aspectH}
             activePreviewOrientation={activePreviewOrientation}
@@ -77,11 +87,14 @@ const ImageSplitter: React.FC = () => {
             verticalPlan={verticalPlan}
             horizontalPlan={horizontalPlan}
             onFileChange={handleFileChange}
+            onSplitMethodChange={setSplitMethod}
             onHvModeChange={setHvMode}
             onHvRatioWChange={setHvRatioW}
             onHvRatioHChange={setHvRatioH}
             onHvCountChange={setHvCount}
             onOverlapPercentChange={setOverlapPercent}
+            onGridRatioWChange={setGridRatioW}
+            onGridRatioHChange={setGridRatioH}
             onAspectWChange={setAspectW}
             onAspectHChange={setAspectH}
             onVerticalSplit={handleVerticalSplit}
@@ -93,16 +106,26 @@ const ImageSplitter: React.FC = () => {
         {hasPreview && (
           <Card className="overflow-hidden border-border/70 bg-card/92 dark:bg-card/78">
             <CardContent className="space-y-2 p-3">
-              <AxisSplitPreview
-                title={activeTitle}
-                imageUrl={previewUrl!}
-                naturalWidth={sourceImage!.naturalWidth}
-                naturalHeight={sourceImage!.naturalHeight}
-                plan={activePlan!}
-                isAdjusted={activeIsAdjusted}
-                onCommitStarts={(starts) => commitManualRegionStarts(activePreviewOrientation, starts)}
-                onReset={() => resetManualRegionStart(activePreviewOrientation)}
-              />
+              {splitMethod === 'axis' ? (
+                <AxisSplitPreview
+                  title={activeTitle}
+                  imageUrl={previewUrl!}
+                  naturalWidth={sourceImage!.naturalWidth}
+                  naturalHeight={sourceImage!.naturalHeight}
+                  plan={activePlan!}
+                  isAdjusted={activeIsAdjusted}
+                  onCommitStarts={(starts) => commitManualRegionStarts(activePreviewOrientation, starts)}
+                  onReset={() => resetManualRegionStart(activePreviewOrientation)}
+                />
+              ) : (
+                <GridSplitPreview
+                  title="规则网格预览"
+                  imageUrl={previewUrl!}
+                  naturalWidth={sourceImage!.naturalWidth}
+                  naturalHeight={sourceImage!.naturalHeight}
+                  plan={gridPlan!}
+                />
+              )}
             </CardContent>
           </Card>
         )}

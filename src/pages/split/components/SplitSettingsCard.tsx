@@ -16,11 +16,14 @@ import type { Orientation, SlicePlan } from '@/pages/split/types';
 interface SplitSettingsCardProps {
   hasSourceImage: boolean;
   isProcessing: boolean;
+  splitMethod: 'axis' | 'grid';
   hvMode: 'ratio' | 'count';
   hvRatioW: number;
   hvRatioH: number;
   hvCount: number;
   overlapPercent: number;
+  gridRatioW: number | null;
+  gridRatioH: number | null;
   aspectW: number;
   aspectH: number;
   activePreviewOrientation: Orientation;
@@ -30,11 +33,14 @@ interface SplitSettingsCardProps {
   verticalPlan: SlicePlan | null;
   horizontalPlan: SlicePlan | null;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onSplitMethodChange: (value: 'axis' | 'grid') => void;
   onHvModeChange: (value: 'ratio' | 'count') => void;
   onHvRatioWChange: (value: number) => void;
   onHvRatioHChange: (value: number) => void;
   onHvCountChange: (value: number) => void;
   onOverlapPercentChange: (value: number) => void;
+  onGridRatioWChange: (value: number | null) => void;
+  onGridRatioHChange: (value: number | null) => void;
   onAspectWChange: (value: number) => void;
   onAspectHChange: (value: number) => void;
   onVerticalSplit: () => void;
@@ -46,11 +52,14 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
   const {
     hasSourceImage,
     isProcessing,
+    splitMethod,
     hvMode,
     hvRatioW,
     hvRatioH,
     hvCount,
     overlapPercent,
+    gridRatioW,
+    gridRatioH,
     aspectW,
     aspectH,
     activePreviewOrientation,
@@ -60,11 +69,14 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
     verticalPlan,
     horizontalPlan,
     onFileChange,
+    onSplitMethodChange,
     onHvModeChange,
     onHvRatioWChange,
     onHvRatioHChange,
     onHvCountChange,
     onOverlapPercentChange,
+    onGridRatioWChange,
+    onGridRatioHChange,
     onAspectWChange,
     onAspectHChange,
     onVerticalSplit,
@@ -81,12 +93,13 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
   const numberInputClassName =
     'h-9 border-border/80 bg-background text-foreground placeholder:text-muted-foreground dark:bg-card/80 dark:shadow-none';
   const fileInputId = useId();
-  const [splitMethod, setSplitMethod] = useState<'axis' | 'grid'>('axis');
   const currentMethodLabel = splitMethod === 'axis' ? '连续切长图' : '规则网格切块';
   const [hvRatioWDraft, setHvRatioWDraft] = useState(String(hvRatioW));
   const [hvRatioHDraft, setHvRatioHDraft] = useState(String(hvRatioH));
   const [hvCountDraft, setHvCountDraft] = useState(String(hvCount));
   const [overlapPercentDraft, setOverlapPercentDraft] = useState(String(overlapPercent));
+  const [gridRatioWDraft, setGridRatioWDraft] = useState(gridRatioW === null ? '' : String(gridRatioW));
+  const [gridRatioHDraft, setGridRatioHDraft] = useState(gridRatioH === null ? '' : String(gridRatioH));
   const [aspectWDraft, setAspectWDraft] = useState(String(aspectW));
   const [aspectHDraft, setAspectHDraft] = useState(String(aspectH));
 
@@ -105,6 +118,14 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
   useEffect(() => {
     setOverlapPercentDraft(String(overlapPercent));
   }, [overlapPercent]);
+
+  useEffect(() => {
+    setGridRatioWDraft(gridRatioW === null ? '' : String(gridRatioW));
+  }, [gridRatioW]);
+
+  useEffect(() => {
+    setGridRatioHDraft(gridRatioH === null ? '' : String(gridRatioH));
+  }, [gridRatioH]);
 
   useEffect(() => {
     setAspectWDraft(String(aspectW));
@@ -165,6 +186,47 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
     onChange(nextValue);
   };
 
+  const handleOptionalIntegerDraftChange = (
+    rawValue: string,
+    setDraft: (value: string) => void,
+    onChange: (value: number | null) => void,
+    options: { min: number; max?: number }
+  ) => {
+    const normalized = sanitizeIntegerDraft(rawValue);
+    setDraft(normalized);
+
+    if (normalized === '') {
+      onChange(null);
+      return;
+    }
+
+    const parsedValue = Number(normalized);
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    onChange(clampIntegerValue(parsedValue, options));
+  };
+
+  const commitOptionalIntegerDraft = (
+    draftValue: string,
+    setDraft: (value: string) => void,
+    onChange: (value: number | null) => void,
+    options: { min: number; max?: number }
+  ) => {
+    const normalized = sanitizeIntegerDraft(draftValue);
+
+    if (normalized === '') {
+      setDraft('');
+      onChange(null);
+      return;
+    }
+
+    const nextValue = clampIntegerValue(Number(normalized), options);
+    setDraft(String(nextValue));
+    onChange(nextValue);
+  };
+
   return (
     <Card className="h-fit">
       <CardHeader className="space-y-1 px-4 pb-3 pt-4">
@@ -219,7 +281,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
             <div className="grid gap-2">
             <button
               type="button"
-              onClick={() => setSplitMethod('axis')}
+              onClick={() => onSplitMethodChange('axis')}
               className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${
                 splitMethod === 'axis'
                   ? 'border-primary/45 bg-primary/10 shadow-sm'
@@ -239,7 +301,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
 
             <button
               type="button"
-              onClick={() => setSplitMethod('grid')}
+              onClick={() => onSplitMethodChange('grid')}
               className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${
                 splitMethod === 'grid'
                   ? 'border-primary/45 bg-primary/10 shadow-sm'
@@ -411,8 +473,76 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-[11px] text-muted-foreground">按列和行平均切成规则网格。</p>
+                <p className="text-[11px] text-muted-foreground">
+                  原图外框保持不变，内部按网格铺满；填写比例后单张切片会尽量保持目标比例。
+                </p>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-[11px] text-muted-foreground">可选切片比例</span>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={gridRatioWDraft}
+                      placeholder="宽"
+                      aria-label="规则网格切片比例宽度"
+                      title="规则网格切片比例宽度"
+                      onFocus={handleNumberInputFocus}
+                      onWheel={handleNumberInputWheel}
+                      onBlur={() =>
+                        commitOptionalIntegerDraft(
+                          gridRatioWDraft,
+                          setGridRatioWDraft,
+                          onGridRatioWChange,
+                          { min: 1 }
+                        )
+                      }
+                      onChange={(event) =>
+                        handleOptionalIntegerDraftChange(
+                          event.target.value,
+                          setGridRatioWDraft,
+                          onGridRatioWChange,
+                          { min: 1 }
+                        )
+                      }
+                      className={`w-20 ${numberInputClassName}`}
+                    />
+                    <span className="text-sm font-bold">:</span>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={gridRatioHDraft}
+                      placeholder="高"
+                      aria-label="规则网格切片比例高度"
+                      title="规则网格切片比例高度"
+                      onFocus={handleNumberInputFocus}
+                      onWheel={handleNumberInputWheel}
+                      onBlur={() =>
+                        commitOptionalIntegerDraft(
+                          gridRatioHDraft,
+                          setGridRatioHDraft,
+                          onGridRatioHChange,
+                          { min: 1 }
+                        )
+                      }
+                      onChange={(event) =>
+                        handleOptionalIntegerDraftChange(
+                          event.target.value,
+                          setGridRatioHDraft,
+                          onGridRatioHChange,
+                          { min: 1 }
+                        )
+                      }
+                      className={`w-20 ${numberInputClassName}`}
+                    />
+                  </div>
+                  <p className="text-[10px] leading-4 text-muted-foreground">
+                    宽高都填写后，会在原图外框内按该比例铺满切片；相邻切片可通过重叠来覆盖整张图。
+                  </p>
+                </div>
                 <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-[11px] text-muted-foreground">规则网格</span>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -448,7 +578,38 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
                     }
                     className={`w-20 ${numberInputClassName}`}
                   />
-                  <span className="text-[11px] text-muted-foreground">切片之间不重叠</span>
+                  <span className="text-[11px] text-muted-foreground">预计 {Math.max(1, aspectW) * Math.max(1, aspectH)} 张</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-[11px] text-muted-foreground">重叠比例 (%)</span>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={overlapPercentDraft}
+                    aria-label="规则网格重叠比例"
+                    title="规则网格重叠比例"
+                    onFocus={handleNumberInputFocus}
+                    onWheel={handleNumberInputWheel}
+                    onBlur={() =>
+                      commitIntegerDraft(
+                        overlapPercentDraft,
+                        setOverlapPercentDraft,
+                        onOverlapPercentChange,
+                        { min: 0, max: 90 }
+                      )
+                    }
+                    onChange={(event) =>
+                      handleIntegerDraftChange(
+                        event.target.value,
+                        setOverlapPercentDraft,
+                        onOverlapPercentChange,
+                        { min: 0, max: 90 }
+                      )
+                    }
+                    className={`w-24 ${numberInputClassName}`}
+                  />
+                  <span className="text-[11px] text-muted-foreground">外框不变，内部按需要重叠</span>
                 </div>
                 <Button
                   onClick={onGridSplit}

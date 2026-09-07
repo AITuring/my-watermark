@@ -26,7 +26,15 @@ export const appCatalog: AppCatalogItem[] = [
         description: "批量给图片加文字或图标水印，快速保护版权",
         component: () => import("../pages/watermark"),
     },
-     {
+    {
+        id: "mosaic",
+        label: "图片打马赛克",
+        url: "/mosaic",
+        icon: "material-symbols:blur-on-outline-rounded",
+        description: "给敏感区域加马赛克，支持多区域拖拽和批量导出",
+        component: () => import("../pages/mosaic"),
+    },
+    {
         id: "puzzle",
         label: "长图拼版",
         url: "/puzzle",
