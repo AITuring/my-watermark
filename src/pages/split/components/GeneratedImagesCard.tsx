@@ -11,7 +11,8 @@ interface GeneratedImagesCardProps {
   onOpenChange: (open: boolean) => void;
   onPreviewIndexChange: (index: number | null) => void;
   onSendToWatermark: () => void;
-  onExport: () => void;
+  onBatchDownload: () => void;
+  onExportZip: () => void;
 }
 
 export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
@@ -22,7 +23,8 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
     onOpenChange,
     onPreviewIndexChange,
     onSendToWatermark,
-    onExport,
+    onBatchDownload,
+    onExportZip,
   } = props;
 
   if (images.length === 0) {
@@ -49,8 +51,11 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
             <Button onClick={onSendToWatermark} variant="outline">
               转到水印
             </Button>
-            <Button onClick={onExport} variant="outline">
-              下载全部 (.zip)
+            <Button onClick={onExportZip} variant="outline">
+              导出 ZIP
+            </Button>
+            <Button onClick={onBatchDownload} variant="outline">
+              批量下载
             </Button>
           </div>
         </CardHeader>

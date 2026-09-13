@@ -5,6 +5,13 @@ export interface SplitImage {
   fileName: string;
 }
 
+export interface SplitSourceItemSummary {
+  id: string;
+  fileName: string;
+  naturalWidth: number;
+  naturalHeight: number;
+}
+
 export interface SliceRegion {
   id: number;
   start: number;
