@@ -51,6 +51,14 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("../pages/compress"),
     },
     {
+        id: "batch-workbench",
+        label: "批量工作台",
+        url: "/batch-workbench",
+        icon: "material-symbols:workspaces-outline-rounded",
+        description: "一站式批量旋转、裁切、压缩并导出图片，适合素材整理和统一出图",
+        component: () => import("../pages/batch-workbench"),
+    },
+    {
         id: "photo",
         label: "Google 相册",
         url: "/google-photo",

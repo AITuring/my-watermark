@@ -10,6 +10,7 @@ import {
     Pencil,
     PanelsTopLeft,
     ScanSearch,
+    SlidersHorizontal,
 } from "lucide-react";
 
 export const menuItems = [
@@ -23,6 +24,7 @@ export const menuItems = [
     { path: "/focus-stack", icon: Focus, label: "焦点合成" },
     { path: "/google-photo", icon: Images, label: "Google 相册" },
     { path: "/compress", icon: FileArchive, label: "图片压缩" },
+    { path: "/batch-workbench", icon: SlidersHorizontal, label: "批量工作台" },
     { path: "/wenwu", icon: Landmark, label: "195禁出" },
 ] as const;
 
