@@ -31,15 +31,13 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
     return null;
   }
 
-  const previewImage = previewIndex !== null ? images[previewIndex] : null;
-
-  const handleDownloadSingle = async () => {
-    if (!previewImage) {
+  const handleDownloadSingle = async (image: SplitImage | undefined) => {
+    if (!image) {
       return;
     }
 
     const saveAs = await loadSaveAs();
-    saveAs(previewImage.blob, previewImage.fileName);
+    saveAs(image.blob, image.fileName);
   };
 
   return (
@@ -88,13 +86,12 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
         currentIndex={previewIndex ?? 0}
         open={isPreviewOpen}
         onOpenChange={onOpenChange}
-        onIndexChange={(index) => onPreviewIndexChange(index)}
         footerActions={
-          previewImage ? (
-            <Button onClick={() => void handleDownloadSingle()}>
+          (index) => (
+            <Button onClick={() => void handleDownloadSingle(images[index])}>
               下载此图
             </Button>
-          ) : null
+          )
         }
       />
     </>

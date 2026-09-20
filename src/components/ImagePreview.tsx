@@ -176,13 +176,13 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
 
     const handleNext = useCallback(() => {
         if (images.length <= 1) return;
-        setIndex((prev) => (prev + 1) % images.length);
+        setIndex((prev) => Math.min(prev + 1, images.length - 1));
         resetView();
     }, [images.length]);
 
     const handlePrev = useCallback(() => {
         if (images.length <= 1) return;
-        setIndex((prev) => (prev - 1 + images.length) % images.length);
+        setIndex((prev) => Math.max(prev - 1, 0));
         resetView();
     }, [images.length]);
 
@@ -192,8 +192,8 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
             const img = new Image();
             img.src = src;
         };
-        const next = images[(index + 1) % images.length];
-        const prev = images[(index - 1 + images.length) % images.length];
+        const next = index + 1 < images.length ? images[index + 1] : null;
+        const prev = index > 0 ? images[index - 1] : null;
         next && preload(next);
         prev && preload(prev);
     }, [open, index, images]);
@@ -292,6 +292,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                                 size="icon"
                                 className="absolute left-2 top-1/2 transform -translate-y-1/2 h-10 w-10 rounded-full bg-black/30 text-white hover:bg-black/50"
                                 onClick={handlePrev}
+                                disabled={index <= 0}
                             >
                                 <ChevronLeft className="h-6 w-6" />
                             </Button>
@@ -300,6 +301,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                                 size="icon"
                                 className="absolute right-2 top-1/2 transform -translate-y-1/2 h-10 w-10 rounded-full bg-black/30 text-white hover:bg-black/50"
                                 onClick={handleNext}
+                                disabled={index >= images.length - 1}
                             >
                                 <ChevronRight className="h-6 w-6" />
                             </Button>

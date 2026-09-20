@@ -55,6 +55,7 @@ const calculateSlices = (
   let tileSize: number;
   let numSlices: number;
   let step: number;
+  let starts: number[];
 
   if (mode === 'ratio') {
     const rW = Math.max(0.1, ratioW);
@@ -65,27 +66,52 @@ const calculateSlices = (
       : Math.floor(fixedOtherSize * (rH / rW));
 
     if (tileSize >= axisSize) {
-      return { numSlices: 1, tileSize: axisSize, step: 0 };
+      return { numSlices: 1, tileSize: axisSize, step: 0, starts: [0] };
     }
 
-    const maxStep = Math.floor(tileSize * (1 - ov));
-    const safeStep = Math.max(1, maxStep);
+    const safeTileSize = Math.max(1, Math.round(tileSize));
+    const safeStep = Math.max(1, Math.round(safeTileSize * (1 - ov)));
+    const lastStart = Math.max(0, axisSize - safeTileSize);
 
-    numSlices = Math.ceil((axisSize - tileSize) / safeStep) + 1;
-    step = (axisSize - tileSize) / (numSlices - 1);
+    starts = [0];
+
+    while (starts[starts.length - 1] < lastStart) {
+      const prevStart = starts[starts.length - 1] ?? 0;
+      const nextStart = Math.min(lastStart, prevStart + safeStep);
+
+      if (nextStart <= prevStart) {
+        break;
+      }
+
+      starts.push(nextStart);
+    }
+
+    tileSize = safeTileSize;
+    numSlices = starts.length;
+    step = safeStep;
   } else {
     numSlices = Math.max(1, Math.floor(countInput));
     if (numSlices === 1) {
       tileSize = axisSize;
       step = 0;
+      starts = [0];
     } else {
       const denom = (numSlices - 1) * (1 - ov) + 1;
       tileSize = axisSize / denom;
       step = tileSize * (1 - ov);
+      const safeTileSize = Math.max(1, Math.round(tileSize));
+      const lastStart = Math.max(0, axisSize - safeTileSize);
+
+      starts = Array.from({ length: numSlices }, (_, index) => (
+        index === numSlices - 1
+          ? lastStart
+          : Math.min(lastStart, Math.max(0, Math.round(index * step)))
+      ));
+      tileSize = safeTileSize;
     }
   }
 
-  return { numSlices, tileSize: Math.round(tileSize), step };
+  return { numSlices, tileSize: Math.round(tileSize), step, starts };
 };
 
 export const clampValue = (value: number, min: number, max: number) =>
@@ -175,7 +201,7 @@ export const buildAxisSplitPlan = (
   overlapPercent: number,
   sourceFileName?: string
 ): SlicePlan => {
-  const { numSlices, tileSize, step } = calculateSlices(
+  const { numSlices, tileSize, step, starts } = calculateSlices(
     orientation,
     naturalWidth,
     naturalHeight,
@@ -190,22 +216,19 @@ export const buildAxisSplitPlan = (
   const fixedOtherSize = orientation === 'vertical' ? naturalHeight : naturalWidth;
   const safeTileSize = Math.max(1, Math.round(tileSize));
 
-  const regions: SliceRegion[] = [];
-
-  for (let i = 0; i < numSlices; i++) {
-    const startPos = i === numSlices - 1 ? axisSize - safeTileSize : i * step;
-    const start = Math.max(0, Math.round(startPos));
+  const regions: SliceRegion[] = starts.map((startPos, i) => {
+    const start = Math.max(0, Math.min(axisSize - safeTileSize, Math.round(startPos)));
     const end = i === numSlices - 1 ? axisSize : Math.min(axisSize, start + safeTileSize);
     const size = Math.max(1, end - start);
 
-    regions.push({
+    return {
       id: i,
       start,
       end,
       size,
       fileName: buildSplitFileName(i, sourceFileName),
-    });
-  }
+    };
+  });
 
   return {
     orientation,
