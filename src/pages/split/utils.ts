@@ -17,6 +17,8 @@ type ZipInstance = {
 };
 
 type ZipConstructor = new () => ZipInstance;
+const MIN_OVERLAP_PERCENT = -90;
+const MAX_OVERLAP_PERCENT = 90;
 
 const getSourceBaseName = (sourceFileName?: string) => {
   const trimmedName = sourceFileName?.trim() ?? '';
@@ -46,16 +48,20 @@ const calculateSlices = (
   ratioW: number,
   ratioH: number,
   countInput: number,
-  overlapPercent: number
+  overlapPercent: number,
+  countReduction = 0
 ) => {
   const axisSize = orientation === 'vertical' ? naturalWidth : naturalHeight;
   const fixedOtherSize = orientation === 'vertical' ? naturalHeight : naturalWidth;
-  const ov = Math.min(Math.max(overlapPercent, 0), 90) / 100;
+  const ov = clampValue(overlapPercent, MIN_OVERLAP_PERCENT, MAX_OVERLAP_PERCENT) / 100;
 
   let tileSize: number;
   let numSlices: number;
   let step: number;
   let starts: number[];
+  let baseNumSlices: number;
+  let gapSize = 0;
+  let appliedCountReduction = 0;
 
   if (mode === 'ratio') {
     const rW = Math.max(0.1, ratioW);
@@ -66,31 +72,66 @@ const calculateSlices = (
       : Math.floor(fixedOtherSize * (rH / rW));
 
     if (tileSize >= axisSize) {
-      return { numSlices: 1, tileSize: axisSize, step: 0, starts: [0] };
+      return {
+        numSlices: 1,
+        baseNumSlices: 1,
+        countReduction: 0,
+        tileSize: axisSize,
+        step: 0,
+        gapSize: 0,
+        starts: [0],
+      };
     }
 
-    const safeTileSize = Math.max(1, Math.round(tileSize));
-    const safeStep = Math.max(1, Math.round(safeTileSize * (1 - ov)));
-    const lastStart = Math.max(0, axisSize - safeTileSize);
+    const targetTileSize = Math.max(1, Math.round(tileSize));
+    baseNumSlices = Math.max(1, Math.ceil(axisSize / targetTileSize));
+    appliedCountReduction = clampValue(
+      Math.floor(countReduction),
+      0,
+      Math.max(0, Math.min(2, baseNumSlices - 1))
+    );
 
-    starts = [0];
+    if (appliedCountReduction > 0) {
+      numSlices = Math.max(1, baseNumSlices - appliedCountReduction);
+      tileSize = targetTileSize;
 
-    while (starts[starts.length - 1] < lastStart) {
-      const prevStart = starts[starts.length - 1] ?? 0;
-      const nextStart = Math.min(lastStart, prevStart + safeStep);
+      if (numSlices === 1) {
+        step = 0;
+        starts = [0];
+        gapSize = axisSize - targetTileSize;
+      } else {
+        const totalGapSpace = Math.max(0, axisSize - numSlices * targetTileSize);
+        gapSize = totalGapSpace / (numSlices - 1);
+        step = targetTileSize + gapSize;
+        const lastStart = Math.max(0, axisSize - targetTileSize);
+        starts = Array.from({ length: numSlices }, (_, index) => (
+          index === numSlices - 1 ? lastStart : index * step
+        ));
+      }
+    } else {
+      const safeStep = targetTileSize;
+      const lastStart = Math.max(0, axisSize - targetTileSize);
+      starts = [0];
 
-      if (nextStart <= prevStart) {
-        break;
+      while (starts[starts.length - 1] < lastStart) {
+        const prevStart = starts[starts.length - 1] ?? 0;
+        const nextStart = Math.min(lastStart, prevStart + safeStep);
+
+        if (nextStart <= prevStart) {
+          break;
+        }
+
+        starts.push(nextStart);
       }
 
-      starts.push(nextStart);
+      tileSize = targetTileSize;
+      baseNumSlices = starts.length;
+      numSlices = starts.length;
+      step = safeStep;
     }
-
-    tileSize = safeTileSize;
-    numSlices = starts.length;
-    step = safeStep;
   } else {
     numSlices = Math.max(1, Math.floor(countInput));
+    baseNumSlices = numSlices;
     if (numSlices === 1) {
       tileSize = axisSize;
       step = 0;
@@ -108,10 +149,19 @@ const calculateSlices = (
           : Math.min(lastStart, Math.max(0, Math.round(index * step)))
       ));
       tileSize = safeTileSize;
+      gapSize = Math.max(0, step - safeTileSize);
     }
   }
 
-  return { numSlices, tileSize: Math.round(tileSize), step, starts };
+  return {
+    numSlices,
+    baseNumSlices,
+    countReduction: appliedCountReduction,
+    tileSize: Math.round(tileSize),
+    step,
+    gapSize,
+    starts,
+  };
 };
 
 export const clampValue = (value: number, min: number, max: number) =>
@@ -199,9 +249,10 @@ export const buildAxisSplitPlan = (
   ratioH: number,
   countInput: number,
   overlapPercent: number,
+  countReduction = 0,
   sourceFileName?: string
 ): SlicePlan => {
-  const { numSlices, tileSize, step, starts } = calculateSlices(
+  const { tileSize, step, starts, baseNumSlices, countReduction: appliedCountReduction, gapSize } = calculateSlices(
     orientation,
     naturalWidth,
     naturalHeight,
@@ -209,16 +260,16 @@ export const buildAxisSplitPlan = (
     ratioW,
     ratioH,
     countInput,
-    overlapPercent
+    overlapPercent,
+    countReduction
   );
 
   const axisSize = orientation === 'vertical' ? naturalWidth : naturalHeight;
   const fixedOtherSize = orientation === 'vertical' ? naturalHeight : naturalWidth;
   const safeTileSize = Math.max(1, Math.round(tileSize));
-
   const regions: SliceRegion[] = starts.map((startPos, i) => {
     const start = Math.max(0, Math.min(axisSize - safeTileSize, Math.round(startPos)));
-    const end = i === numSlices - 1 ? axisSize : Math.min(axisSize, start + safeTileSize);
+    const end = Math.min(axisSize, start + safeTileSize);
     const size = Math.max(1, end - start);
 
     return {
@@ -232,9 +283,12 @@ export const buildAxisSplitPlan = (
 
   return {
     orientation,
-    numSlices,
+    numSlices: regions.length,
+    baseNumSlices,
+    countReduction: appliedCountReduction,
     tileSize: safeTileSize,
     step,
+    gapSize,
     axisSize,
     fixedOtherSize,
     regions,
@@ -402,9 +456,9 @@ const buildGridAxisLayout = (
     };
   }
 
-  const safeTileSize = Math.max(axisSize / count, tileSize);
+  const safeTileSize = Math.max(1, tileSize);
   const step = (axisSize - safeTileSize) / (count - 1);
-  const overlap = Math.max(0, safeTileSize - step);
+  const overlap = safeTileSize - step;
   const roundedTileSize = Math.max(1, Math.round(safeTileSize));
   const starts = Array.from({ length: count }, (_, index) => {
     if (index === count - 1) {
@@ -436,7 +490,7 @@ export const buildGridSplitPlan = (
   const safeRows = Math.max(1, Math.floor(rows));
   const cropRegion = buildGridCropRegion(naturalWidth, naturalHeight, safeCols, safeRows, null, null);
   const isRatioApplied = Boolean(ratioW && ratioH);
-  const overlap = clampValue(overlapPercent, 0, 90) / 100;
+  const overlap = clampValue(overlapPercent, MIN_OVERLAP_PERCENT, MAX_OVERLAP_PERCENT) / 100;
   const colDenominator = safeCols <= 1 ? 1 : 1 + (safeCols - 1) * (1 - overlap);
   const rowDenominator = safeRows <= 1 ? 1 : 1 + (safeRows - 1) * (1 - overlap);
 

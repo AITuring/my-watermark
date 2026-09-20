@@ -31,6 +31,7 @@ const ImageSplitter: React.FC = () => {
     handleVerticalSplit,
     horizontalPlan,
     hvCount,
+    hvCountReduction,
     hvMode,
     hvRatioH,
     hvRatioW,
@@ -45,6 +46,7 @@ const ImageSplitter: React.FC = () => {
     setGridRatioH,
     setGridRatioW,
     setHvCount,
+    setHvCountReduction,
     setHvMode,
     setHvRatioH,
     setHvRatioW,
@@ -83,6 +85,7 @@ const ImageSplitter: React.FC = () => {
             hvRatioW={hvRatioW}
             hvRatioH={hvRatioH}
             hvCount={hvCount}
+            hvCountReduction={hvCountReduction}
             overlapPercent={overlapPercent}
             gridRatioW={gridRatioW}
             gridRatioH={gridRatioH}
@@ -101,6 +104,7 @@ const ImageSplitter: React.FC = () => {
             onHvRatioWChange={setHvRatioW}
             onHvRatioHChange={setHvRatioH}
             onHvCountChange={setHvCount}
+            onHvCountReductionChange={setHvCountReduction}
             onOverlapPercentChange={setOverlapPercent}
             onGridRatioWChange={setGridRatioW}
             onGridRatioHChange={setGridRatioH}

@@ -73,6 +73,7 @@ export function useImageSplitter() {
   const [hvRatioW, setHvRatioW] = useState<number>(1);
   const [hvRatioH, setHvRatioH] = useState<number>(1);
   const [hvCount, setHvCount] = useState<number>(1);
+  const [hvCountReduction, setHvCountReduction] = useState<number>(0);
   const [overlapPercent, setOverlapPercent] = useState<number>(10);
   const [generatedImages, setGeneratedImages] = useState<SplitImage[]>([]);
   const [generatedMode, setGeneratedMode] = useState<GeneratedResultMode>(null);
@@ -116,10 +117,11 @@ export function useImageSplitter() {
             hvRatioH,
             hvCount,
             overlapPercent,
+            hvCountReduction,
             sourceFileName
           )
         : null,
-    [sourceImage, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent, sourceFileName]
+    [sourceImage, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent, hvCountReduction, sourceFileName]
   );
 
   const baseHorizontalPlan = useMemo(
@@ -134,10 +136,11 @@ export function useImageSplitter() {
             hvRatioH,
             hvCount,
             overlapPercent,
+            hvCountReduction,
             sourceFileName
           )
         : null,
-    [sourceImage, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent, sourceFileName]
+    [sourceImage, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent, hvCountReduction, sourceFileName]
   );
 
   const verticalPlan = useMemo(
@@ -199,7 +202,7 @@ export function useImageSplitter() {
       vertical: null,
       horizontal: null,
     });
-  }, [activeSourceId, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent, sourceItems.length]);
+  }, [activeSourceId, hvMode, hvRatioW, hvRatioH, hvCount, hvCountReduction, overlapPercent, sourceItems.length]);
 
   useEffect(() => {
     generatedImagesRef.current = generatedImages;
@@ -311,6 +314,7 @@ export function useImageSplitter() {
           hvRatioH,
           hvCount,
           overlapPercent,
+          hvCountReduction,
           item.fileName
         );
 
@@ -339,6 +343,7 @@ export function useImageSplitter() {
   }, [
     activeSourceId,
     hvCount,
+    hvCountReduction,
     hvMode,
     hvRatioH,
     hvRatioW,
@@ -433,6 +438,7 @@ export function useImageSplitter() {
     handleVerticalSplit,
     horizontalPlan,
     hvCount,
+    hvCountReduction,
     hvMode,
     hvRatioH,
     hvRatioW,
@@ -447,6 +453,7 @@ export function useImageSplitter() {
     setGridRatioH,
     setGridRatioW,
     setHvCount,
+    setHvCountReduction,
     setHvMode,
     setHvRatioH,
     setHvRatioW,

@@ -68,6 +68,7 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
     ? `${draftPlan.tileSize} x ${naturalHeight}`
     : `${naturalWidth} x ${draftPlan.tileSize}`;
   const hasHoveredRegion = hoveredRegionId !== null;
+  const hasGap = draftPlan.gapSize > 0;
 
   React.useEffect(() => {
     const element = previewStageMeasureRef.current;
@@ -212,7 +213,16 @@ export const AxisSplitPreview = React.memo((props: AxisSplitPreviewProps) => {
             <span>{axisLabel}</span>
             <span>预计 {plan.numSlices} 块</span>
             <span>单块约 {otherDimension}px</span>
-            <span>{draftPlan.overlaps.length > 0 ? `重叠 ${draftPlan.overlaps.length} 处` : '无重叠'}</span>
+            {draftPlan.countReduction > 0 && (
+              <span>基础 {draftPlan.baseNumSlices} 块，当前减少 {draftPlan.countReduction} 块</span>
+            )}
+            <span>
+              {hasGap
+                ? `平均间隙约 ${Math.round(draftPlan.gapSize)}px`
+                : draftPlan.overlaps.length > 0
+                  ? `重叠 ${draftPlan.overlaps.length} 处`
+                  : '无重叠'}
+            </span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">

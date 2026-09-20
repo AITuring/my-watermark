@@ -24,6 +24,7 @@ interface SplitSettingsCardProps {
   hvRatioW: number;
   hvRatioH: number;
   hvCount: number;
+  hvCountReduction: number;
   overlapPercent: number;
   gridRatioW: number | null;
   gridRatioH: number | null;
@@ -42,6 +43,7 @@ interface SplitSettingsCardProps {
   onHvRatioWChange: (value: number) => void;
   onHvRatioHChange: (value: number) => void;
   onHvCountChange: (value: number) => void;
+  onHvCountReductionChange: (value: number) => void;
   onOverlapPercentChange: (value: number) => void;
   onGridRatioWChange: (value: number | null) => void;
   onGridRatioHChange: (value: number | null) => void;
@@ -64,6 +66,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
     hvRatioW,
     hvRatioH,
     hvCount,
+    hvCountReduction,
     overlapPercent,
     gridRatioW,
     gridRatioH,
@@ -82,6 +85,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
     onHvRatioWChange,
     onHvRatioHChange,
     onHvCountChange,
+    onHvCountReductionChange,
     onOverlapPercentChange,
     onGridRatioWChange,
     onGridRatioHChange,
@@ -156,6 +160,19 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
     return digitsOnly.replace(/^0+(?=\d)/, '');
   };
 
+  const sanitizeSignedIntegerDraft = (rawValue: string) => {
+    const sign = rawValue.trim().startsWith('-') ? '-' : '';
+    const digitsOnly = rawValue.replace(/[^\d]/g, '');
+    const normalizedDigits = digitsOnly.replace(/^0+(?=\d)/, '');
+
+    if (normalizedDigits === '') {
+      return sign;
+    }
+
+    const normalized = `${sign}${normalizedDigits}`;
+    return Number(normalized) === 0 ? '0' : normalized;
+  };
+
   const clampIntegerValue = (value: number, options: { min: number; max?: number }) => {
     return options.max === undefined
       ? Math.max(options.min, value)
@@ -191,6 +208,43 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
   ) => {
     const normalized = sanitizeIntegerDraft(draftValue);
     const nextValue = normalized === '' ? options.min : clampIntegerValue(Number(normalized), options);
+    setDraft(String(nextValue));
+    onChange(nextValue);
+  };
+
+  const handleSignedIntegerDraftChange = (
+    rawValue: string,
+    setDraft: (value: string) => void,
+    onChange: (value: number) => void,
+    options: { min: number; max?: number }
+  ) => {
+    const normalized = sanitizeSignedIntegerDraft(rawValue);
+    setDraft(normalized);
+
+    if (normalized === '' || normalized === '-') {
+      return;
+    }
+
+    const parsedValue = Number(normalized);
+    if (!Number.isFinite(parsedValue)) {
+      return;
+    }
+
+    onChange(clampIntegerValue(parsedValue, options));
+  };
+
+  const commitSignedIntegerDraft = (
+    draftValue: string,
+    setDraft: (value: string) => void,
+    onChange: (value: number) => void,
+    options: { min: number; max?: number; fallback?: number }
+  ) => {
+    const normalized = sanitizeSignedIntegerDraft(draftValue);
+    const fallback = options.fallback ?? 0;
+    const nextValue = normalized === '' || normalized === '-'
+      ? fallback
+      : clampIntegerValue(Number(normalized), options);
+
     setDraft(String(nextValue));
     onChange(nextValue);
   };
@@ -439,36 +493,66 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-[11px] text-muted-foreground">重叠比例 (%)</span>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={overlapPercentDraft}
-                    aria-label="重叠比例"
-                    title="重叠比例"
-                    onFocus={handleNumberInputFocus}
-                    onWheel={handleNumberInputWheel}
-                    onBlur={() =>
-                      commitIntegerDraft(
-                        overlapPercentDraft,
-                        setOverlapPercentDraft,
-                        onOverlapPercentChange,
-                        { min: 0, max: 90 }
-                      )
-                    }
-                    onChange={(event) =>
-                      handleIntegerDraftChange(
-                        event.target.value,
-                        setOverlapPercentDraft,
-                        onOverlapPercentChange,
-                        { min: 0, max: 90 }
-                      )
-                    }
-                    className={`w-24 ${numberInputClassName}`}
-                  />
-                </div>
+                {hvMode === 'ratio' ? (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] text-muted-foreground">减少张数</span>
+                      {[0, 1, 2].map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => onHvCountReductionChange(value)}
+                          className={`inline-flex h-8 items-center rounded-full border px-3 text-[11px] transition-colors ${
+                            hvCountReduction === value
+                              ? 'border-primary/45 bg-primary/10 text-foreground'
+                              : 'border-border/70 bg-background/45 text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                          }`}
+                        >
+                          {value === 0 ? '不减少' : `减少 ${value} 张`}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] leading-4 text-muted-foreground">
+                      先按当前比例自动算出基础张数，再把少掉的宽度平均分配成间隙；切片本身保持等宽。
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-[11px] text-muted-foreground">重叠比例 (%)</span>
+                      <Input
+                        type="text"
+                        inputMode="text"
+                        pattern="-?[0-9]*"
+                        value={overlapPercentDraft}
+                        aria-label="重叠比例"
+                        title="重叠比例"
+                        onFocus={handleNumberInputFocus}
+                        onWheel={handleNumberInputWheel}
+                        onBlur={() =>
+                          commitSignedIntegerDraft(
+                            overlapPercentDraft,
+                            setOverlapPercentDraft,
+                            onOverlapPercentChange,
+                            { min: -90, max: 90, fallback: 0 }
+                          )
+                        }
+                        onChange={(event) =>
+                          handleSignedIntegerDraftChange(
+                            event.target.value,
+                            setOverlapPercentDraft,
+                            onOverlapPercentChange,
+                            { min: -90, max: 90 }
+                          )
+                        }
+                        className={`w-24 ${numberInputClassName}`}
+                      />
+                    </div>
+                    <p className="text-[10px] leading-4 text-muted-foreground">
+                      支持负数；负数表示切片之间留缝，导出后画面不会连续。
+                    </p>
+                  </>
+                )}
 
                 <div className="grid gap-2">
                   <div className="flex flex-col gap-1">
@@ -483,6 +567,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
                     {verticalPlan && (
                       <span className="text-[10px] leading-4 text-muted-foreground">
                         预计 {verticalPlan.numSlices} 张，单张约 {verticalPlan.tileSize} x {sourceNaturalHeight}
+                        {verticalPlan.gapSize > 0 ? `，平均间隙约 ${Math.round(verticalPlan.gapSize)}px` : ''}
                       </span>
                     )}
                   </div>
@@ -499,6 +584,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
                     {horizontalPlan && (
                       <span className="text-[10px] leading-4 text-muted-foreground">
                         预计 {horizontalPlan.numSlices} 张，单张约 {sourceNaturalWidth} x {horizontalPlan.tileSize}
+                        {horizontalPlan.gapSize > 0 ? `，平均间隙约 ${Math.round(horizontalPlan.gapSize)}px` : ''}
                       </span>
                     )}
                   </div>
@@ -617,32 +703,32 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
                   <span className="text-[11px] text-muted-foreground">重叠比例 (%)</span>
                   <Input
                     type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
+                    inputMode="text"
+                    pattern="-?[0-9]*"
                     value={overlapPercentDraft}
                     aria-label="规则网格重叠比例"
                     title="规则网格重叠比例"
                     onFocus={handleNumberInputFocus}
                     onWheel={handleNumberInputWheel}
                     onBlur={() =>
-                      commitIntegerDraft(
+                      commitSignedIntegerDraft(
                         overlapPercentDraft,
                         setOverlapPercentDraft,
                         onOverlapPercentChange,
-                        { min: 0, max: 90 }
+                        { min: -90, max: 90, fallback: 0 }
                       )
                     }
                     onChange={(event) =>
-                      handleIntegerDraftChange(
+                      handleSignedIntegerDraftChange(
                         event.target.value,
                         setOverlapPercentDraft,
                         onOverlapPercentChange,
-                        { min: 0, max: 90 }
+                        { min: -90, max: 90 }
                       )
                     }
                     className={`w-24 ${numberInputClassName}`}
                   />
-                  <span className="text-[11px] text-muted-foreground">外框不变，内部按需要重叠</span>
+                  <span className="text-[11px] text-muted-foreground">支持负数；负数表示网格块之间留缝</span>
                 </div>
                 <Button
                   onClick={onGridSplit}

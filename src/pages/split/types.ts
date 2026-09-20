@@ -32,8 +32,11 @@ export interface OverlapRegion {
 export interface SlicePlan {
   orientation: 'vertical' | 'horizontal';
   numSlices: number;
+  baseNumSlices: number;
+  countReduction: number;
   tileSize: number;
   step: number;
+  gapSize: number;
   axisSize: number;
   fixedOtherSize: number;
   regions: SliceRegion[];
