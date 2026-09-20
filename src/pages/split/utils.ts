@@ -18,6 +18,26 @@ type ZipInstance = {
 
 type ZipConstructor = new () => ZipInstance;
 
+const getSourceBaseName = (sourceFileName?: string) => {
+  const trimmedName = sourceFileName?.trim() ?? '';
+
+  if (!trimmedName) {
+    return '';
+  }
+
+  const extIndex = trimmedName.lastIndexOf('.');
+  const baseName = extIndex > 0 ? trimmedName.slice(0, extIndex) : trimmedName;
+
+  return baseName.trim();
+};
+
+const buildSplitFileName = (index: number, sourceFileName?: string) => {
+  const sourceBaseName = getSourceBaseName(sourceFileName);
+  const suffix = `split_${String(index + 1).padStart(3, '0')}.jpg`;
+
+  return sourceBaseName ? `${sourceBaseName}-${suffix}` : suffix;
+};
+
 const calculateSlices = (
   orientation: Orientation,
   naturalWidth: number,
@@ -152,7 +172,8 @@ export const buildAxisSplitPlan = (
   ratioW: number,
   ratioH: number,
   countInput: number,
-  overlapPercent: number
+  overlapPercent: number,
+  sourceFileName?: string
 ): SlicePlan => {
   const { numSlices, tileSize, step } = calculateSlices(
     orientation,
@@ -182,7 +203,7 @@ export const buildAxisSplitPlan = (
       start,
       end,
       size,
-      fileName: `split_${String(i + 1).padStart(3, '0')}.jpg`,
+      fileName: buildSplitFileName(i, sourceFileName),
     });
   }
 
@@ -385,7 +406,8 @@ export const buildGridSplitPlan = (
   rows: number,
   ratioW?: number | null,
   ratioH?: number | null,
-  overlapPercent = 0
+  overlapPercent = 0,
+  sourceFileName?: string
 ): GridSplitPlan => {
   const safeCols = Math.max(1, Math.floor(cols));
   const safeRows = Math.max(1, Math.floor(rows));
@@ -431,7 +453,7 @@ export const buildGridSplitPlan = (
         startY,
         width,
         height,
-        fileName: `split_${String(index + 1).padStart(3, '0')}.jpg`,
+        fileName: buildSplitFileName(index, sourceFileName),
       });
       index += 1;
     }
@@ -464,7 +486,8 @@ export const buildGridSplitImages = async (
   rows: number,
   ratioW?: number | null,
   ratioH?: number | null,
-  overlapPercent = 0
+  overlapPercent = 0,
+  sourceFileName?: string
 ) => {
   const { naturalWidth, naturalHeight } = sourceImage;
   const plan = buildGridSplitPlan(
@@ -474,7 +497,8 @@ export const buildGridSplitImages = async (
     rows,
     ratioW,
     ratioH,
-    overlapPercent
+    overlapPercent,
+    sourceFileName
   );
   const newImages: SplitImage[] = [];
 
@@ -515,6 +539,11 @@ export const buildGridSplitImages = async (
   return newImages;
 };
 
+const waitForNextDownload = () =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(resolve, 120);
+  });
+
 export const exportSplitImagesZip = async (images: SplitImage[]) => {
   const JSZip = (await loadJSZip()) as ZipConstructor;
   const saveAs = await loadSaveAs();
@@ -527,6 +556,15 @@ export const exportSplitImagesZip = async (images: SplitImage[]) => {
 
   const content = await zip.generateAsync({ type: 'blob' });
   saveAs(content, 'split_images.zip');
+};
+
+export const exportSplitImagesIndividually = async (images: SplitImage[]) => {
+  const saveAs = await loadSaveAs();
+
+  for (const image of images) {
+    saveAs(image.blob, image.fileName);
+    await waitForNextDownload();
+  }
 };
 
 export const buildTransferFiles = (images: SplitImage[]) =>

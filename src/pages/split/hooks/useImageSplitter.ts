@@ -7,6 +7,7 @@ import type {
   ManualSliceStarts,
   Orientation,
   SplitImage,
+  SplitSourceItemSummary,
 } from '@/pages/split/types';
 import {
   applyManualStartsToPlan,
@@ -16,16 +17,54 @@ import {
   buildGridSplitImages,
   buildTransferFiles,
   exportSplitImagesZip,
+  exportSplitImagesIndividually,
   generatePreviewImageUrl,
   revokeGeneratedImageUrls,
 } from '@/pages/split/utils';
 import { setPendingCropTransfer } from '@/utils/crop-transfer';
 
+interface SourceImageItem extends SplitSourceItemSummary {
+  image: HTMLImageElement;
+  originalUrl: string;
+  previewUrl: string;
+}
+
+const revokeSourceImageUrls = (items: SourceImageItem[]) => {
+  items.forEach((item) => {
+    URL.revokeObjectURL(item.originalUrl);
+    if (item.previewUrl !== item.originalUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+  });
+};
+
+const loadSourceImageItem = async (file: File, index: number): Promise<SourceImageItem> => {
+  const originalUrl = URL.createObjectURL(file);
+  const image = new Image();
+
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error(`无法读取图片：${file.name}`));
+    image.src = originalUrl;
+  });
+
+  const previewUrl = await generatePreviewImageUrl(image, originalUrl);
+
+  return {
+    id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+    fileName: file.name,
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+    image,
+    originalUrl,
+    previewUrl,
+  };
+};
+
 export function useImageSplitter() {
   const navigate = useNavigate();
-  const [sourceImage, setSourceImage] = useState<HTMLImageElement | null>(null);
-  const [sourceFileName, setSourceFileName] = useState<string>('');
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [sourceItems, setSourceItems] = useState<SourceImageItem[]>([]);
+  const [activeSourceId, setActiveSourceId] = useState<string | null>(null);
   const [aspectW, setAspectW] = useState<number>(1);
   const [aspectH, setAspectH] = useState<number>(1);
   const [gridRatioW, setGridRatioW] = useState<number | null>(null);
@@ -45,9 +84,25 @@ export function useImageSplitter() {
     horizontal: null,
   });
   const [activePreviewOrientation, setActivePreviewOrientation] = useState<Orientation>('vertical');
-  const previewObjectUrlRef = useRef<string | null>(null);
+  const sourceItemsRef = useRef<SourceImageItem[]>([]);
   const generatedImagesRef = useRef<SplitImage[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const activeSource = useMemo(
+    () => sourceItems.find((item) => item.id === activeSourceId) ?? sourceItems[0] ?? null,
+    [activeSourceId, sourceItems]
+  );
+  const sourceImage = activeSource?.image ?? null;
+  const sourceFileName = activeSource?.fileName ?? '';
+  const previewUrl = activeSource?.previewUrl ?? null;
+  const sourceImageSummaries = useMemo<SplitSourceItemSummary[]>(
+    () => sourceItems.map(({ id, fileName, naturalWidth, naturalHeight }) => ({
+      id,
+      fileName,
+      naturalWidth,
+      naturalHeight,
+    })),
+    [sourceItems]
+  );
 
   const baseVerticalPlan = useMemo(
     () =>
@@ -60,10 +115,11 @@ export function useImageSplitter() {
             hvRatioW,
             hvRatioH,
             hvCount,
-            overlapPercent
+            overlapPercent,
+            sourceFileName
           )
         : null,
-    [sourceImage, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent]
+    [sourceImage, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent, sourceFileName]
   );
 
   const baseHorizontalPlan = useMemo(
@@ -77,10 +133,11 @@ export function useImageSplitter() {
             hvRatioW,
             hvRatioH,
             hvCount,
-            overlapPercent
+            overlapPercent,
+            sourceFileName
           )
         : null,
-    [sourceImage, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent]
+    [sourceImage, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent, sourceFileName]
   );
 
   const verticalPlan = useMemo(
@@ -102,10 +159,11 @@ export function useImageSplitter() {
             aspectH,
             gridRatioW,
             gridRatioH,
-            overlapPercent
+            overlapPercent,
+            sourceFileName
           )
         : null,
-    [aspectH, aspectW, gridRatioH, gridRatioW, overlapPercent, sourceImage]
+    [aspectH, aspectW, gridRatioH, gridRatioW, overlapPercent, sourceFileName, sourceImage]
   );
 
   const activePlan = activePreviewOrientation === 'vertical' ? verticalPlan : horizontalPlan;
@@ -122,11 +180,26 @@ export function useImageSplitter() {
   }, []);
 
   useEffect(() => {
+    sourceItemsRef.current = sourceItems;
+  }, [sourceItems]);
+
+  useEffect(() => {
+    if (!activeSourceId && sourceItems.length > 0) {
+      setActiveSourceId(sourceItems[0].id);
+      return;
+    }
+
+    if (activeSourceId && !sourceItems.some((item) => item.id === activeSourceId)) {
+      setActiveSourceId(sourceItems[0]?.id ?? null);
+    }
+  }, [activeSourceId, sourceItems]);
+
+  useEffect(() => {
     setManualSliceStarts({
       vertical: null,
       horizontal: null,
     });
-  }, [sourceImage, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent]);
+  }, [activeSourceId, hvMode, hvRatioW, hvRatioH, hvCount, overlapPercent, sourceItems.length]);
 
   useEffect(() => {
     generatedImagesRef.current = generatedImages;
@@ -134,9 +207,7 @@ export function useImageSplitter() {
 
   useEffect(() => {
     return () => {
-      if (previewObjectUrlRef.current) {
-        URL.revokeObjectURL(previewObjectUrlRef.current);
-      }
+      revokeSourceImageUrls(sourceItemsRef.current);
       revokeGeneratedImageUrls(generatedImagesRef.current);
     };
   }, []);
@@ -151,7 +222,7 @@ export function useImageSplitter() {
 
   useEffect(() => {
     const syncGeneratedPreview = async () => {
-      if (isProcessing || !generatedMode || generatedMode === 'grid') return;
+      if (isProcessing || !generatedMode || generatedMode === 'grid' || sourceItems.length !== 1) return;
       if (!sourceImage || !canvasRef.current || generatedImages.length === 0) return;
 
       const targetPlan = generatedMode === 'vertical' ? verticalPlan : horizontalPlan;
@@ -174,6 +245,7 @@ export function useImageSplitter() {
     isProcessing,
     setGeneratedImagesWithCleanup,
     sourceImage,
+    sourceItems.length,
     verticalPlan,
   ]);
 
@@ -195,55 +267,87 @@ export function useImageSplitter() {
   }, []);
 
   const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files?.[0]) return;
+    if (!event.target.files?.length) return;
 
-    const file = event.target.files[0];
-    setSourceFileName(file.name);
-    const originalUrl = URL.createObjectURL(file);
-    setPreviewUrl(originalUrl);
-
-    const img = new Image();
-    img.src = originalUrl;
-    img.onload = async () => {
-      setSourceImage(img);
-      setGeneratedMode(null);
-      setGeneratedImagesWithCleanup([]);
-
-      const nextPreviewUrl = await generatePreviewImageUrl(img, originalUrl);
-      if (previewObjectUrlRef.current && previewObjectUrlRef.current !== originalUrl) {
-        URL.revokeObjectURL(previewObjectUrlRef.current);
+    const files = Array.from(event.target.files);
+    void (async () => {
+      try {
+        const nextSourceItems = await Promise.all(files.map((file, index) => loadSourceImageItem(file, index)));
+        revokeSourceImageUrls(sourceItemsRef.current);
+        setSourceItems(nextSourceItems);
+        setActiveSourceId(nextSourceItems[0]?.id ?? null);
+        setGeneratedMode(null);
+        setGeneratedImagesWithCleanup([]);
+      } catch (error) {
+        console.error('Error loading source images:', error);
+        alert('读取图片时出错');
       }
-      previewObjectUrlRef.current = nextPreviewUrl === originalUrl ? null : nextPreviewUrl;
-      setPreviewUrl(nextPreviewUrl);
-    };
+    })();
   }, [setGeneratedImagesWithCleanup]);
 
-  const handleAxisSplit = useCallback(async (orientation: Orientation) => {
-    const plan = orientation === 'vertical' ? verticalPlan : horizontalPlan;
+  const handleActiveSourceChange = useCallback((id: string) => {
+    setActiveSourceId(id);
+  }, []);
 
-    if (!sourceImage || !canvasRef.current || !plan) return;
+  const handleAxisSplit = useCallback(async (orientation: Orientation) => {
+    if (sourceItems.length === 0 || !canvasRef.current) return;
 
     setActivePreviewOrientation(orientation);
     setIsProcessing(true);
     setGeneratedMode(orientation);
     setGeneratedImagesWithCleanup([]);
 
-    if (plan.tileSize <= 0) {
-      alert('切片尺寸计算错误');
-      setIsProcessing(false);
-      return;
-    }
-
     try {
-      const newImages = await buildAxisSplitImages(sourceImage, canvasRef.current, orientation, plan);
-      setGeneratedImagesWithCleanup(newImages);
+      const nextImages: SplitImage[] = [];
+      let nextId = 0;
+
+      for (const item of sourceItems) {
+        let plan = buildAxisSplitPlan(
+          orientation,
+          item.image.naturalWidth,
+          item.image.naturalHeight,
+          hvMode,
+          hvRatioW,
+          hvRatioH,
+          hvCount,
+          overlapPercent,
+          item.fileName
+        );
+
+        if (sourceItems.length === 1 && item.id === activeSourceId) {
+          plan = applyManualStartsToPlan(
+            plan,
+            orientation === 'vertical' ? manualSliceStarts.vertical : manualSliceStarts.horizontal
+          ) ?? plan;
+        }
+
+        if (plan.tileSize <= 0) {
+          throw new Error(`切片尺寸计算错误：${item.fileName}`);
+        }
+
+        const itemImages = await buildAxisSplitImages(item.image, canvasRef.current, orientation, plan);
+        nextImages.push(...itemImages.map((image) => ({ ...image, id: nextId++ })));
+      }
+
+      setGeneratedImagesWithCleanup(nextImages);
     } catch (error) {
       console.error('Error processing images:', error);
       alert('处理图片时出错');
     } finally {
       setIsProcessing(false);
     }
-  }, [horizontalPlan, setGeneratedImagesWithCleanup, sourceImage, verticalPlan]);
+  }, [
+    activeSourceId,
+    hvCount,
+    hvMode,
+    hvRatioH,
+    hvRatioW,
+    manualSliceStarts.horizontal,
+    manualSliceStarts.vertical,
+    overlapPercent,
+    setGeneratedImagesWithCleanup,
+    sourceItems,
+  ]);
 
   const handleVerticalSplit = useCallback(() => {
     void handleAxisSplit('vertical');
@@ -254,7 +358,7 @@ export function useImageSplitter() {
   }, [handleAxisSplit]);
 
   const handleGridSplit = useCallback(async () => {
-    if (!sourceImage || !canvasRef.current) return;
+    if (sourceItems.length === 0 || !canvasRef.current) return;
 
     setIsProcessing(true);
     setGeneratedMode('grid');
@@ -263,27 +367,40 @@ export function useImageSplitter() {
     try {
       const cols = Math.max(1, Math.floor(aspectW));
       const rows = Math.max(1, Math.floor(aspectH));
-      const newImages = await buildGridSplitImages(
-        sourceImage,
-        canvasRef.current,
-        cols,
-        rows,
-        gridRatioW,
-        gridRatioH,
-        overlapPercent
-      );
-      setGeneratedImagesWithCleanup(newImages);
+      const nextImages: SplitImage[] = [];
+      let nextId = 0;
+
+      for (const item of sourceItems) {
+        const itemImages = await buildGridSplitImages(
+          item.image,
+          canvasRef.current,
+          cols,
+          rows,
+          gridRatioW,
+          gridRatioH,
+          overlapPercent,
+          item.fileName
+        );
+        nextImages.push(...itemImages.map((image) => ({ ...image, id: nextId++ })));
+      }
+
+      setGeneratedImagesWithCleanup(nextImages);
     } catch (error) {
       console.error('Error processing images:', error);
       alert('处理图片时出错');
     } finally {
       setIsProcessing(false);
     }
-  }, [aspectH, aspectW, gridRatioH, gridRatioW, overlapPercent, setGeneratedImagesWithCleanup, sourceImage]);
+  }, [aspectH, aspectW, gridRatioH, gridRatioW, overlapPercent, setGeneratedImagesWithCleanup, sourceItems]);
 
-  const handleExport = useCallback(async () => {
+  const handleExportZip = useCallback(async () => {
     if (generatedImages.length === 0) return;
     await exportSplitImagesZip(generatedImages);
+  }, [generatedImages]);
+
+  const handleBatchDownload = useCallback(async () => {
+    if (generatedImages.length === 0) return;
+    await exportSplitImagesIndividually(generatedImages);
   }, [generatedImages]);
 
   const handleSendToWatermark = useCallback(() => {
@@ -306,7 +423,9 @@ export function useImageSplitter() {
     gridPlan,
     gridRatioH,
     gridRatioW,
-    handleExport,
+    handleActiveSourceChange,
+    handleBatchDownload,
+    handleExportZip,
     handleFileChange,
     handleGridSplit,
     handleHorizontalSplit,
@@ -334,8 +453,11 @@ export function useImageSplitter() {
     setIsPreviewOpen,
     setOverlapPercent,
     setPreviewIndex,
+    sourceImageSummaries,
     sourceFileName,
     sourceImage,
+    sourceItemsCount: sourceItems.length,
+    activeSourceId,
     verticalPlan,
   };
 }

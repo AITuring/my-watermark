@@ -21,7 +21,9 @@ const ImageSplitter: React.FC = () => {
     gridPlan,
     gridRatioH,
     gridRatioW,
-    handleExport,
+    handleActiveSourceChange,
+    handleBatchDownload,
+    handleExportZip,
     handleFileChange,
     handleGridSplit,
     handleHorizontalSplit,
@@ -49,8 +51,11 @@ const ImageSplitter: React.FC = () => {
     setIsPreviewOpen,
     setOverlapPercent,
     setPreviewIndex,
+    sourceImageSummaries,
     sourceFileName,
+    sourceItemsCount,
     sourceImage,
+    activeSourceId,
     verticalPlan,
   } = useImageSplitter();
   const [splitMethod, setSplitMethod] = React.useState<'axis' | 'grid'>('axis');
@@ -60,7 +65,7 @@ const ImageSplitter: React.FC = () => {
     <div className="mx-auto max-w-[1760px] px-3 py-3 lg:px-4">
       <div className="mb-3">
         <h2 className="text-2xl font-bold text-foreground">长图智能切片</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">上传长图后，可连续切长图或生成规则网格。</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">支持多图上传，统一参数批量切图，并可批量下载或导出 ZIP。</p>
       </div>
 
       <canvas ref={canvasRef} style={{ display: 'none' }} />
@@ -71,6 +76,9 @@ const ImageSplitter: React.FC = () => {
             hasSourceImage={Boolean(sourceImage)}
             isProcessing={isProcessing}
             splitMethod={splitMethod}
+            sourceItems={sourceImageSummaries}
+            sourceItemsCount={sourceItemsCount}
+            activeSourceId={activeSourceId}
             hvMode={hvMode}
             hvRatioW={hvRatioW}
             hvRatioH={hvRatioH}
@@ -87,6 +95,7 @@ const ImageSplitter: React.FC = () => {
             verticalPlan={verticalPlan}
             horizontalPlan={horizontalPlan}
             onFileChange={handleFileChange}
+            onActiveSourceChange={handleActiveSourceChange}
             onSplitMethodChange={setSplitMethod}
             onHvModeChange={setHvMode}
             onHvRatioWChange={setHvRatioW}
@@ -138,7 +147,8 @@ const ImageSplitter: React.FC = () => {
         onOpenChange={setIsPreviewOpen}
         onPreviewIndexChange={setPreviewIndex}
         onSendToWatermark={handleSendToWatermark}
-        onExport={() => void handleExport()}
+        onBatchDownload={() => void handleBatchDownload()}
+        onExportZip={() => void handleExportZip()}
       />
     </div>
   );

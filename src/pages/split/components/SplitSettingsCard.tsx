@@ -11,12 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Orientation, SlicePlan } from '@/pages/split/types';
+import type { Orientation, SlicePlan, SplitSourceItemSummary } from '@/pages/split/types';
 
 interface SplitSettingsCardProps {
   hasSourceImage: boolean;
   isProcessing: boolean;
   splitMethod: 'axis' | 'grid';
+  sourceItems: SplitSourceItemSummary[];
+  sourceItemsCount: number;
+  activeSourceId: string | null;
   hvMode: 'ratio' | 'count';
   hvRatioW: number;
   hvRatioH: number;
@@ -33,6 +36,7 @@ interface SplitSettingsCardProps {
   verticalPlan: SlicePlan | null;
   horizontalPlan: SlicePlan | null;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onActiveSourceChange: (id: string) => void;
   onSplitMethodChange: (value: 'axis' | 'grid') => void;
   onHvModeChange: (value: 'ratio' | 'count') => void;
   onHvRatioWChange: (value: number) => void;
@@ -53,6 +57,9 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
     hasSourceImage,
     isProcessing,
     splitMethod,
+    sourceItems,
+    sourceItemsCount,
+    activeSourceId,
     hvMode,
     hvRatioW,
     hvRatioH,
@@ -69,6 +76,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
     verticalPlan,
     horizontalPlan,
     onFileChange,
+    onActiveSourceChange,
     onSplitMethodChange,
     onHvModeChange,
     onHvRatioWChange,
@@ -94,6 +102,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
     'h-9 border-border/80 bg-background text-foreground placeholder:text-muted-foreground dark:bg-card/80 dark:shadow-none';
   const fileInputId = useId();
   const currentMethodLabel = splitMethod === 'axis' ? '连续切长图' : '规则网格切块';
+  const hasMultipleSources = sourceItemsCount > 1;
   const [hvRatioWDraft, setHvRatioWDraft] = useState(String(hvRatioW));
   const [hvRatioHDraft, setHvRatioHDraft] = useState(String(hvRatioH));
   const [hvCountDraft, setHvCountDraft] = useState(String(hvCount));
@@ -241,12 +250,13 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
           <div className="space-y-2.5">
             <div className="space-y-0.5 px-3">
               <div className="text-sm font-semibold text-foreground">上传长图</div>
-              <p className="text-[11px] text-muted-foreground">选择一张要切片的图片。</p>
+              <p className="text-[11px] text-muted-foreground">支持一次选择多张图片，当前参数会批量应用到全部图片。</p>
             </div>
             <input
               id={fileInputId}
               type="file"
               accept="image/*"
+              multiple
               aria-label="上传要切片的长图"
               title="上传要切片的长图"
               onClick={(event) => {
@@ -260,11 +270,34 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
                 htmlFor={fileInputId}
                 className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-primary/25 bg-primary px-3.5 text-sm font-medium text-primary-foreground shadow-sm transition-[background-color,box-shadow,transform] hover:bg-primary/92 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 dark:border-primary/20 dark:bg-primary dark:hover:bg-primary/88"
               >
-                选择文件
+                选择文件{hasMultipleSources ? `（已选 ${sourceItemsCount} 张）` : ''}
               </label>
               <div className="flex h-9 min-w-0 items-center rounded-lg border border-border/70 bg-muted/45 px-3 text-[11px] text-muted-foreground dark:bg-card/65">
-                <span className="truncate">{sourceFileName || '未选择文件'}</span>
+                <span className="truncate">
+                  {sourceFileName || (sourceItemsCount > 0 ? `已选择 ${sourceItemsCount} 张图片` : '未选择文件')}
+                </span>
               </div>
+              {sourceItemsCount > 1 && (
+                <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-border/70 bg-background/45 p-2">
+                  {sourceItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => onActiveSourceChange(item.id)}
+                      className={`flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-2 text-left text-xs transition-colors ${
+                        item.id === activeSourceId
+                          ? 'bg-primary/12 text-foreground'
+                          : 'bg-transparent text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+                      }`}
+                    >
+                      <span className="truncate">{item.fileName}</span>
+                      <span className="shrink-0 text-[10px] text-muted-foreground">
+                        {item.naturalWidth} x {item.naturalHeight}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -445,7 +478,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
                       variant={activePreviewOrientation === 'vertical' ? 'default' : 'outline'}
                       className={`h-9 justify-between text-sm ${preferVertical ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-background' : ''}`}
                     >
-                      {isProcessing ? '生成中...' : '按宽度连续切'}
+                      {isProcessing ? '生成中...' : hasMultipleSources ? '批量按宽度连续切' : '按宽度连续切'}
                     </Button>
                     {verticalPlan && (
                       <span className="text-[10px] leading-4 text-muted-foreground">
@@ -461,7 +494,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
                       variant={activePreviewOrientation === 'horizontal' ? 'default' : 'outline'}
                       className={`h-9 justify-between text-sm ${preferHorizontal ? 'ring-2 ring-blue-500 ring-offset-1 ring-offset-background' : ''}`}
                     >
-                      {isProcessing ? '生成中...' : '按高度连续切'}
+                      {isProcessing ? '生成中...' : hasMultipleSources ? '批量按高度连续切' : '按高度连续切'}
                     </Button>
                     {horizontalPlan && (
                       <span className="text-[10px] leading-4 text-muted-foreground">
@@ -616,7 +649,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
                   disabled={!hasSourceImage || isProcessing}
                   className="h-9 w-full text-sm"
                 >
-                  {isProcessing ? '生成中...' : '生成规则网格'}
+                  {isProcessing ? '生成中...' : hasMultipleSources ? '批量生成规则网格' : '生成规则网格'}
                 </Button>
               </div>
             )}
