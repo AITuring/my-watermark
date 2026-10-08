@@ -10,6 +10,14 @@ export interface AppCatalogItem {
 }
 
 export const appCatalog: AppCatalogItem[] = [
+    {
+        id: "ancient-waves",
+        label: "古画水纹",
+        url: "/ancient-waves",
+        icon: "material-symbols:water-outline",
+        description: "以 SVG 线条重绘古画中的层叠海浪",
+        component: () => import("../pages/ancient-waves"),
+    },
     // {
     //     id: "reading-notes",
     //     label: "读书笔记合集",
