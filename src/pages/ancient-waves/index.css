@@ -58,6 +58,13 @@
     letter-spacing: 0.12em;
 }
 
+.ancient-waves-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ancient-waves-motion,
 .ancient-waves-download {
     display: inline-flex;
     align-items: center;
@@ -66,14 +73,28 @@
     flex-shrink: 0;
     min-height: 42px;
     padding: 0 17px;
-    border: 1px solid #4c453c;
     border-radius: 4px;
-    background: #4c453c;
-    color: #f4eee5;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: background 160ms ease, transform 160ms ease;
+}
+
+.ancient-waves-motion {
+    border: 1px solid #b8ad9d;
+    background: #eee7dc;
+    color: #4c453c;
+}
+
+.ancient-waves-motion:hover {
+    background: #ddd1c0;
+    transform: translateY(-1px);
+}
+
+.ancient-waves-download {
+    border: 1px solid #4c453c;
+    background: #4c453c;
+    color: #f4eee5;
 }
 
 .ancient-waves-download:hover {
@@ -82,21 +103,29 @@
 }
 
 .ancient-waves-back:focus-visible,
+.ancient-waves-motion:focus-visible,
 .ancient-waves-download:focus-visible {
     outline: 2px solid #7b4b36;
     outline-offset: 3px;
 }
 
 .ancient-waves-stage {
+    width: min(100%, calc((100dvh - 175px) * 1.589));
+    margin-inline: auto;
     overflow: hidden;
     background: #d4c7b3;
     box-shadow: 0 18px 42px rgb(49 40 30 / 14%), 0 2px 9px rgb(49 40 30 / 11%);
 }
 
-.ancient-waves-stage svg {
+.ancient-waves-canvas {
+    width: 100%;
+    aspect-ratio: 1532 / 964;
+}
+
+.ancient-waves-canvas canvas {
     display: block;
     width: 100%;
-    height: auto;
+    height: 100%;
 }
 
 .ancient-waves-caption {
@@ -114,6 +143,7 @@
 
     .ancient-waves-header {
         align-items: flex-start;
+        flex-wrap: wrap;
         margin-bottom: 18px;
     }
 
@@ -126,6 +156,12 @@
         height: 36px;
     }
 
+    .ancient-waves-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .ancient-waves-motion,
     .ancient-waves-download {
         min-height: 36px;
         padding: 0 10px;
@@ -134,5 +170,13 @@
 
     .ancient-waves-caption {
         text-align: left;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ancient-waves-back,
+    .ancient-waves-motion,
+    .ancient-waves-download {
+        transition: none;
     }
 }
