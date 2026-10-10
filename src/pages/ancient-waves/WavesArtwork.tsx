@@ -1,11 +1,13 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
+import { AnimatedInk } from "./AnimatedInk";
+import { BreakingWater } from "./BreakingWater";
 import { ShallowWater } from "./ShallowWater";
-import { tracedWavePaths } from "./tracedPaths";
 
 const WIDTH = 1532;
 const HEIGHT = 964;
 const PAINTING = { x: 69, y: 39, width: 1380, height: 896 };
+const MAX_BREAK_SEGMENTS = 1200;
 
 const paperVertexShader = `
 varying vec2 vUv;
@@ -20,93 +22,6 @@ uniform sampler2D uPaper;
 varying vec2 vUv;
 void main() {
     gl_FragColor = texture2D(uPaper, vUv);
-    #include <colorspace_fragment>
-}
-`;
-
-const waveVertexShader = `
-uniform sampler2D uFlow;
-varying vec2 vUv;
-varying vec2 vSlope;
-varying float vWave;
-
-// Raised, curved crest bands follow the major arcs in the painting.
-float crest(vec2 p, vec4 shape, float rise, float height) {
-    float dx = (p.x - shape.x) / shape.z;
-    float center = shape.y - rise * exp(-dx * dx);
-    float across = (p.y - center) / shape.w;
-    float extent = exp(-pow(abs(dx) * 0.72, 4.0));
-    return height * exp(-across * across) * extent;
-}
-
-float paintedRelief(vec2 p) {
-    float h = 0.0;
-    h += crest(p, vec4(425.0, 490.0, 290.0, 52.0), 90.0, 8.0);
-    h += crest(p, vec4(800.0, 510.0, 300.0, 58.0), 100.0, 8.0);
-    h += crest(p, vec4(1150.0, 490.0, 290.0, 55.0), 88.0, 7.0);
-    h += crest(p, vec4(245.0, 610.0, 250.0, 72.0), 105.0, 17.0);
-    h += crest(p, vec4(600.0, 660.0, 300.0, 75.0), 112.0, 17.0);
-    h += crest(p, vec4(1010.0, 665.0, 270.0, 72.0), 105.0, 18.0);
-    h += crest(p, vec4(160.0, 790.0, 260.0, 86.0), 100.0, 19.0);
-    h += crest(p, vec4(515.0, 840.0, 270.0, 86.0), 110.0, 18.0);
-    h += crest(p, vec4(850.0, 815.0, 255.0, 80.0), 93.0, 19.0);
-    h += crest(p, vec4(1230.0, 820.0, 250.0, 78.0), 103.0, 18.0);
-    return h;
-}
-
-vec2 waterState(vec2 p) {
-    vec2 uv = clamp(vec2(p.x / 1380.0, p.y / 896.0), 0.0, 1.0);
-    vec4 state = texture2D(uFlow, uv);
-    return vec2(state.r - 0.5, (state.g - 0.5) * 70.0);
-}
-
-float surfaceHeight(vec2 p) {
-    float activeWater = smoothstep(270.0, 490.0, p.y);
-    return paintedRelief(p) + waterState(p).x * 230.0 * activeWater;
-}
-
-void main() {
-    vUv = uv;
-    vec2 p = vec2(uv.x * 1380.0, (1.0 - uv.y) * 896.0);
-    vec2 state = waterState(p);
-    float activeWater = smoothstep(270.0, 490.0, p.y);
-    float height = surfaceHeight(p);
-    float stepSize = 9.0;
-    vSlope = vec2(
-        (surfaceHeight(p + vec2(stepSize, 0.0)) - surfaceHeight(p - vec2(stepSize, 0.0))) / (2.0 * stepSize),
-        (surfaceHeight(p + vec2(0.0, stepSize)) - surfaceHeight(p - vec2(0.0, stepSize))) / (2.0 * stepSize)
-    );
-    vWave = state.x * activeWater;
-    // Only the solved free surface moves; paper and the major painted crests stay put.
-    float edgeFade = smoothstep(0.0, 40.0, p.x)
-        * (1.0 - smoothstep(1340.0, 1380.0, p.x))
-        * (1.0 - smoothstep(856.0, 896.0, p.y));
-    gl_Position = projectionMatrix * modelViewMatrix
-        * vec4(position.xy + vec2(state.y * 0.85, state.x * 225.0) * activeWater * edgeFade, height, 1.0);
-}
-`;
-
-const waveFragmentShader = `
-uniform sampler2D uPaper;
-uniform sampler2D uInk;
-uniform vec2 uViewport;
-varying vec2 vUv;
-varying vec2 vSlope;
-varying float vWave;
-
-void main() {
-    vec2 point = vec2(vUv.x * 1380.0, (1.0 - vUv.y) * 896.0);
-    float waveDepth = smoothstep(290.0, 650.0, point.y);
-    vec4 ink = texture2D(uInk, vUv);
-    // Read paper in screen space so the mount and grain never move with the water.
-    vec2 paperUv = gl_FragCoord.xy / uViewport;
-    vec3 paper = texture2D(uPaper, paperUv).rgb;
-    vec3 normal = normalize(vec3(-vSlope.x, -vSlope.y, 1.0));
-    float diffuse = dot(normal, normalize(vec3(-0.58, -0.30, 0.76)));
-    float reliefShade = clamp((diffuse - 0.72) * 1.5, -0.28, 0.22);
-    float shaded = 1.0 + waveDepth * reliefShade + clamp(vWave * 0.12, -0.025, 0.045);
-    vec3 color = mix(paper * shaded, ink.rgb, ink.a);
-    gl_FragColor = vec4(color, 1.0);
     #include <colorspace_fragment>
 }
 `;
@@ -167,22 +82,6 @@ function makePaperTexture() {
     return texture;
 }
 
-function makeInkTexture() {
-    const canvas = document.createElement("canvas");
-    canvas.width = PAINTING.width;
-    canvas.height = PAINTING.height;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Canvas 2D is unavailable");
-    context.fillStyle = "rgba(52, 56, 50, 0.62)";
-    context.fill(new Path2D(tracedWavePaths));
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    return texture;
-}
-
 interface WavesArtworkProps {
     playing: boolean;
     canvasRef: MutableRefObject<HTMLCanvasElement | null>;
@@ -202,10 +101,8 @@ export default function WavesArtwork({ playing, canvasRef }: WavesArtworkProps) 
 
         let renderer: THREE.WebGLRenderer;
         let paper: THREE.CanvasTexture;
-        let ink: THREE.CanvasTexture;
         try {
             paper = makePaperTexture();
-            ink = makeInkTexture();
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
         } catch (error) {
             container.textContent = "当前浏览器无法显示水纹动画";
@@ -217,7 +114,7 @@ export default function WavesArtwork({ playing, canvasRef }: WavesArtworkProps) 
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.autoClear = false;
         renderer.domElement.setAttribute("role", "img");
-        renderer.domElement.setAttribute("aria-label", "无题字的原画水纹；墨线上的流动从左向右传递");
+        renderer.domElement.setAttribute("aria-label", "无题字的原画水纹；每根墨线随波浪起伏，浪尖向右翻卷破碎");
         container.append(renderer.domElement);
         canvasRef.current = renderer.domElement;
 
@@ -234,34 +131,65 @@ export default function WavesArtwork({ playing, canvasRef }: WavesArtworkProps) 
         paperScene.add(new THREE.Mesh(paperGeometry, paperMaterial));
 
         const water = new ShallowWater();
-        const flow = new THREE.DataTexture(water.rgba, water.columns, water.rows, THREE.RGBAFormat);
-        flow.minFilter = THREE.LinearFilter;
-        flow.magFilter = THREE.LinearFilter;
-        flow.generateMipmaps = false;
-        flow.needsUpdate = true;
+        const breakingWater = new BreakingWater();
 
         const waterScene = new THREE.Scene();
         const waterCamera = new THREE.OrthographicCamera(-WIDTH / 2, WIDTH / 2, HEIGHT / 2, -HEIGHT / 2, 1, 1000);
         waterCamera.position.z = 500;
         waterCamera.lookAt(0, 0, 0);
-        const waveGeometry = new THREE.PlaneGeometry(PAINTING.width, PAINTING.height, 140, 105);
-        const waveMaterial = new THREE.ShaderMaterial({
-            vertexShader: waveVertexShader,
-            fragmentShader: waveFragmentShader,
-            uniforms: {
-                uPaper: { value: paper },
-                uInk: { value: ink },
-                uFlow: { value: flow },
-                uViewport: { value: new THREE.Vector2(1, 1) },
-            },
+        const animatedInk = new AnimatedInk();
+        animatedInk.updateGeometry();
+        waterScene.add(animatedInk.mesh);
+
+        // A separate particle surface can fold over itself; a height-field mesh cannot.
+        const breakPositions = new Float32Array(MAX_BREAK_SEGMENTS * 6 * 3);
+        const breakAttribute = new THREE.BufferAttribute(breakPositions, 3);
+        breakAttribute.setUsage(THREE.DynamicDrawUsage);
+        const breakGeometry = new THREE.BufferGeometry();
+        breakGeometry.setAttribute("position", breakAttribute);
+        breakGeometry.setDrawRange(0, 0);
+        const breakMaterial = new THREE.MeshBasicMaterial({
+            color: 0x343832,
+            transparent: true,
+            opacity: 0.72,
             depthTest: false,
             depthWrite: false,
+            side: THREE.DoubleSide,
         });
-        const waveMesh = new THREE.Mesh(waveGeometry, waveMaterial);
-        waveMesh.position.set(PAINTING.x + PAINTING.width / 2 - WIDTH / 2,
-            HEIGHT / 2 - PAINTING.y - PAINTING.height / 2, 0);
-        waveMesh.frustumCulled = false;
-        waterScene.add(waveMesh);
+        const breakMesh = new THREE.Mesh(breakGeometry, breakMaterial);
+        breakMesh.renderOrder = 5;
+        breakMesh.frustumCulled = false;
+        waterScene.add(breakMesh);
+
+        const updateBreakingGeometry = () => {
+            let segments = 0;
+            breakingWater.forEachInkSegment((ax, ay, bx, by, width) => {
+                if (segments >= MAX_BREAK_SEGMENTS || ax < 0 || bx >= PAINTING.width
+                    || ay < 0 || by < 0 || ay >= PAINTING.height || by >= PAINTING.height) return;
+                const dx = bx - ax;
+                const dy = by - ay;
+                const length = Math.hypot(dx, dy);
+                if (length < 0.01) return;
+                const nx = -dy / length * width * 0.5;
+                const ny = dx / length * width * 0.5;
+                const x1 = PAINTING.x + ax + nx - WIDTH / 2;
+                const y1 = HEIGHT / 2 - PAINTING.y - ay - ny;
+                const x2 = PAINTING.x + ax - nx - WIDTH / 2;
+                const y2 = HEIGHT / 2 - PAINTING.y - ay + ny;
+                const x3 = PAINTING.x + bx + nx - WIDTH / 2;
+                const y3 = HEIGHT / 2 - PAINTING.y - by - ny;
+                const x4 = PAINTING.x + bx - nx - WIDTH / 2;
+                const y4 = HEIGHT / 2 - PAINTING.y - by + ny;
+                const offset = segments * 18;
+                breakPositions.set([
+                    x1, y1, 80, x2, y2, 80, x3, y3, 80,
+                    x3, y3, 80, x2, y2, 80, x4, y4, 80,
+                ], offset);
+                segments++;
+            });
+            breakGeometry.setDrawRange(0, segments * 6);
+            breakAttribute.needsUpdate = true;
+        };
 
         const render = () => {
             const width = container.clientWidth;
@@ -274,7 +202,6 @@ export default function WavesArtwork({ playing, canvasRef }: WavesArtworkProps) 
         };
         const resize = () => {
             renderer.setSize(container.clientWidth, container.clientHeight, false);
-            renderer.getDrawingBufferSize(waveMaterial.uniforms.uViewport.value);
             render();
         };
         const observer = new ResizeObserver(resize);
@@ -291,10 +218,12 @@ export default function WavesArtwork({ playing, canvasRef }: WavesArtworkProps) 
                 accumulator += delta;
                 while (accumulator >= 1 / 60) {
                     water.step(1 / 60);
+                    breakingWater.step(1 / 60, water);
+                    animatedInk.step(water, 1 / 60);
                     accumulator -= 1 / 60;
                 }
-                water.writePixels();
-                flow.needsUpdate = true;
+                animatedInk.updateGeometry();
+                updateBreakingGeometry();
                 render();
             }
             frame = requestAnimationFrame(animate);
@@ -308,11 +237,10 @@ export default function WavesArtwork({ playing, canvasRef }: WavesArtworkProps) 
             container.removeChild(renderer.domElement);
             paperGeometry.dispose();
             paperMaterial.dispose();
-            waveGeometry.dispose();
-            waveMaterial.dispose();
-            flow.dispose();
+            animatedInk.dispose();
+            breakGeometry.dispose();
+            breakMaterial.dispose();
             paper.dispose();
-            ink.dispose();
             renderer.dispose();
         };
     }, [canvasRef]);

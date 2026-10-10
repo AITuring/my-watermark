@@ -164,6 +164,63 @@ export class ShallowWater {
         return value;
     }
 
+    sample(x: number, y: number) {
+        const gx = Math.max(0, Math.min(this.columns - 1.001, x / this.dx));
+        const gy = Math.max(0, Math.min(this.rows - 1.001, y / this.dy));
+        const col = Math.floor(gx);
+        const row = Math.floor(gy);
+        const tx = gx - col;
+        const ty = gy - row;
+        const index = row * this.columns + col;
+        const interpolate = (field: Float32Array) => {
+            const top = field[index] * (1 - tx) + field[index + 1] * tx;
+            const bottom = field[index + this.columns] * (1 - tx) + field[index + this.columns + 1] * tx;
+            return top * (1 - ty) + bottom * ty;
+        };
+        return {
+            elevation: interpolate(this.eta),
+            velocityX: this.current + interpolate(this.qx),
+            velocityY: interpolate(this.qy),
+        };
+    }
+
+    /** Reuse the caller's buffer while updating thousands of separate ink vertices. */
+    sampleMotion(x: number, y: number, result: Float32Array) {
+        const gx = Math.max(0, Math.min(this.columns - 1.001, x / this.dx));
+        const gy = Math.max(0, Math.min(this.rows - 1.001, y / this.dy));
+        const col = Math.floor(gx);
+        const row = Math.floor(gy);
+        const tx = gx - col;
+        const ty = gy - row;
+        const index = row * this.columns + col;
+        const a = (1 - tx) * (1 - ty);
+        const b = tx * (1 - ty);
+        const c = (1 - tx) * ty;
+        const d = tx * ty;
+        result[0] = this.eta[index] * a + this.eta[index + 1] * b
+            + this.eta[index + this.columns] * c + this.eta[index + this.columns + 1] * d;
+        result[1] = this.qx[index] * a + this.qx[index + 1] * b
+            + this.qx[index + this.columns] * c + this.qx[index + this.columns + 1] * d;
+    }
+
+    /** Exchange a parcel's water volume with the four neighboring cells. */
+    exchange(x: number, y: number, level: number, horizontalVelocity: number) {
+        const gx = Math.max(0, Math.min(this.columns - 1.001, x / this.dx));
+        const gy = Math.max(0, Math.min(this.rows - 1.001, y / this.dy));
+        const col = Math.floor(gx);
+        const row = Math.floor(gy);
+        const tx = gx - col;
+        const ty = gy - row;
+        const base = row * this.columns + col;
+        const cells = [base, base + 1, base + this.columns, base + this.columns + 1];
+        const weights = [(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty];
+        for (let index = 0; index < 4; index++) {
+            const amount = level * weights[index];
+            this.eta[cells[index]] += amount;
+            this.qx[cells[index]] += amount * (horizontalVelocity - this.current);
+        }
+    }
+
     writePixels() {
         for (let index = 0; index < this.eta.length; index++) {
             const out = index * 4;

@@ -65,7 +65,7 @@ export default function AncientWaves() {
                 <section className="ancient-waves-stage" aria-label="古画水纹线描作品">
                     <WavesArtwork playing={isPlaying} canvasRef={artworkRef} />
                 </section>
-                <p className="ancient-waves-caption">原画浪纹 · 流动自左向右 · 无题字与印章</p>
+                <p className="ancient-waves-caption">原画浪纹 · 浪尖向右翻卷破碎 · 无题字与印章</p>
             </div>
         </main>
     );
