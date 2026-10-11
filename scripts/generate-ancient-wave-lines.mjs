@@ -126,12 +126,132 @@ const lines = strokes.flatMap((stroke) => {
     return length >= 4 ? [{ points, length }] : [];
 });
 
-lines.sort((a, b) => b.length - a.length);
+// The scan is very faint. Its long parallel contours are interrupted by
+// low-contrast gaps, while many isolated 4-10 px skeleton pieces are noise.
+// Join only nearly horizontal, mutually compatible contour ends; keep curls
+// separate so a bridge cannot cut through a breaking crest.
+const flowing = [];
+const curls = [];
+for (const line of lines) {
+    if (line.length < 12) continue;
+    const xs = line.points.map((point) => point[0]);
+    const ys = line.points.map((point) => point[1]);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const verticalSpan = Math.max(...ys) - Math.min(...ys);
+    const verticalArtifact = verticalSpan > 20 && maxX - minX < verticalSpan * 0.4
+        && (maxX < 22 || minX > width - 25 || (minX > 680 && maxX < 705));
+    if (verticalArtifact) continue;
+    const first = line.points[0];
+    const last = line.points[line.points.length - 1];
+    const horizontalSpan = Math.abs(last[0] - first[0]);
+    if (horizontalSpan < 15 || horizontalSpan / line.length < 0.62) {
+        curls.push(line);
+        continue;
+    }
+    const points = last[0] > first[0] ? line.points : [...line.points].reverse();
+    const tangent = (fromStart) => {
+        const anchor = fromStart ? points[0] : points[points.length - 1];
+        let candidate = anchor;
+        if (fromStart) {
+            for (const point of points) {
+                candidate = point;
+                if (point[0] - anchor[0] >= 9) break;
+            }
+            return Math.max(-0.9, Math.min(0.9,
+                (candidate[1] - anchor[1]) / Math.max(1, candidate[0] - anchor[0])));
+        }
+        for (let index = points.length - 1; index >= 0; index--) {
+            candidate = points[index];
+            if (anchor[0] - candidate[0] >= 9) break;
+        }
+        return Math.max(-0.9, Math.min(0.9,
+            (anchor[1] - candidate[1]) / Math.max(1, anchor[0] - candidate[0])));
+    };
+    flowing.push({ points, length: line.length, startSlope: tangent(true), endSlope: tangent(false) });
+}
+
+const possibilities = [];
+for (let from = 0; from < flowing.length; from++) {
+    const a = flowing[from];
+    const end = a.points[a.points.length - 1];
+    for (let to = 0; to < flowing.length; to++) {
+        if (from === to) continue;
+        const b = flowing[to];
+        const start = b.points[0];
+        const dx = start[0] - end[0];
+        if (dx < 3 || dx > 62) continue;
+        const dy = start[1] - end[1];
+        const joiningSlope = dy / dx;
+        const tangentError = Math.abs(joiningSlope - a.endSlope)
+            + Math.abs(joiningSlope - b.startSlope);
+        const projectedError = Math.abs(dy - dx * (a.endSlope + b.startSlope) * 0.5);
+        if (Math.abs(dy) > 28 || projectedError > 5 + dx * 0.20
+            || tangentError > 1.05) continue;
+        const score = dx * 0.16 + projectedError * 1.6 + tangentError * 8;
+        possibilities.push({ from, to, score });
+    }
+}
+possibilities.sort((a, b) => a.score - b.score);
+const successor = new Int32Array(flowing.length).fill(-1);
+const predecessor = new Int32Array(flowing.length).fill(-1);
+for (const edge of possibilities) {
+    if (successor[edge.from] !== -1 || predecessor[edge.to] !== -1) continue;
+    successor[edge.from] = edge.to;
+    predecessor[edge.to] = edge.from;
+}
+
+function bridge(a, b) {
+    const end = a.points[a.points.length - 1];
+    const start = b.points[0];
+    const dx = start[0] - end[0];
+    const inserted = [];
+    for (let x = end[0] + 3; x < start[0] - 1; x += 3) {
+        const u = (x - end[0]) / dx;
+        const y = (2 * u ** 3 - 3 * u ** 2 + 1) * end[1]
+            + (u ** 3 - 2 * u ** 2 + u) * dx * a.endSlope
+            + (-2 * u ** 3 + 3 * u ** 2) * start[1]
+            + (u ** 3 - u ** 2) * dx * b.startSlope;
+        inserted.push([x, Math.round(y * 10) / 10]);
+    }
+    return inserted;
+}
+
+const joined = [];
+for (let index = 0; index < flowing.length; index++) {
+    if (predecessor[index] !== -1) continue;
+    const points = [...flowing[index].points];
+    let current = index;
+    while (successor[current] !== -1) {
+        const next = successor[current];
+        points.push(...bridge(flowing[current], flowing[next]), ...flowing[next].points);
+        current = next;
+    }
+    // One-pixel skeleton zigzags are smoothed without shifting the crest.
+    const smoothed = points.map((point, position) => {
+        if (position === 0 || position === points.length - 1) return point;
+        const before = points[position - 1];
+        const after = points[position + 1];
+        return [Math.round((before[0] + 2 * point[0] + after[0]) * 2.5) / 10,
+            Math.round((before[1] + 2 * point[1] + after[1]) * 2.5) / 10];
+    });
+    let length = 0;
+    for (let position = 1; position < smoothed.length; position++) {
+        length += Math.hypot(smoothed[position][0] - smoothed[position - 1][0],
+            smoothed[position][1] - smoothed[position - 1][1]);
+    }
+    joined.push({ points: smoothed, length });
+}
+
+const continuousLines = [...joined, ...curls].sort((a, b) => b.length - a.length);
 const output = `// Generated from tracedPaths.ts by scripts/generate-ancient-wave-lines.mjs.\n`
-    + `// Each entry is one independently animated ink stroke in painting coordinates.\n`
+    + `// Continuous contours and separate breaking-crest curls in painting coordinates.\n`
     + `export const tracedWaveLines: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = `
-    + JSON.stringify(lines.map((line) => line.points)) + ";\n";
+    + JSON.stringify(continuousLines.map((line) => line.points)) + ";\n";
 writeFileSync(new URL("../src/pages/ancient-waves/tracedLines.ts", import.meta.url), output);
 console.log({ sourceRectangles: rectangles.length, skeletonPixels: pixels.length,
-    lines: lines.length, points: lines.reduce((sum, line) => sum + line.points.length, 0),
-    longest: Math.round(lines[0]?.length ?? 0), outputBytes: output.length });
+    sourceLines: lines.length, flowing: flowing.length, curls: curls.length,
+    bridges: possibilities.length, joinedBridges: successor.filter((index) => index !== -1).length,
+    lines: continuousLines.length,
+    points: continuousLines.reduce((sum, line) => sum + line.points.length, 0),
+    longest: Math.round(continuousLines[0]?.length ?? 0), outputBytes: output.length });

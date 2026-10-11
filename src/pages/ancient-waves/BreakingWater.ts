@@ -25,14 +25,15 @@ interface PlungingJet {
     site: CrestSite;
     age: number;
     launched: number;
+    propagation: number;
+    slope: number;
     parcels: Parcel[];
 }
 
-const GRAVITY = 270; // Painting pixels per second squared.
+const GRAVITY = 85; // c² / painted depth ~= 80² / 75.
 const AIR_DRAG = 0.055;
-const LAUNCH_RATE = 72;
-const LAUNCH_COUNT = 72;
-const LAUNCH_ANGLE = 68 * Math.PI / 180;
+const LAUNCH_RATE = 120;
+const LAUNCH_COUNT = 36;
 const PARCEL_MASS = 0.0004; // Relative to one shallow-water grid cell's volume.
 const INK_SURFACE_SCALE = 75; // Match the moving ink contour, not the paper plane.
 
@@ -58,14 +59,32 @@ export class BreakingWater {
     step(dt: number, water: ShallowWater) {
         this.time += dt;
         for (const site of this.sites) {
-            const state = water.sample(site.x, site.y);
-            const ahead = water.sample(site.x + 12, site.y).elevation;
-            const behind = water.sample(site.x - 12, site.y).elevation;
-            const leadingSlope = -(ahead - behind) * 225 / 24;
-            if (state.elevation < 0.025) site.armed = true;
-            if (site.armed && state.elevation > 0.045 && leadingSlope > site.slopeThreshold
-                && state.velocityX > 55 && this.time - site.lastBreak > 2.4) {
-                this.jets.push({ site, age: 0, launched: 0, parcels: [] });
+            let frontX = site.x;
+            let frontSlope = -Infinity;
+            let frontElevation = 0;
+            let frontVelocity = 0;
+            for (let offset = -60; offset <= 60; offset += 12) {
+                const x = site.x + offset;
+                const state = water.sample(x, site.y);
+                if (state.elevation < 0.035) continue;
+                const ahead = water.sample(x + 12, site.y).elevation;
+                const behind = water.sample(x - 12, site.y).elevation;
+                const slope = -(ahead - behind) * 225 / 24;
+                if (slope > frontSlope) {
+                    frontX = x;
+                    frontSlope = slope;
+                    frontElevation = state.elevation;
+                    frontVelocity = state.velocityX;
+                }
+            }
+            if (water.sample(site.x, site.y).elevation < 0.025) site.armed = true;
+            if (site.armed && frontElevation > 0.045 && frontSlope > site.slopeThreshold
+                && frontVelocity > 55 && this.time - site.lastBreak > 2.4) {
+                this.jets.push({
+                    site: { ...site, x: frontX }, age: 0, launched: 0,
+                    propagation: water.waveSpeed(frontX, site.y),
+                    slope: frontSlope, parcels: [],
+                });
                 site.lastBreak = this.time;
                 site.armed = false;
                 this.completedBreaks++;
@@ -75,7 +94,7 @@ export class BreakingWater {
         for (const jet of this.jets) {
             jet.age += dt;
             while (jet.launched < LAUNCH_COUNT && jet.launched / LAUNCH_RATE <= jet.age) {
-                jet.parcels.push(this.launch(jet.site, jet.launched, water));
+                jet.parcels.push(this.launch(jet, jet.launched, water));
                 jet.launched++;
             }
             for (const parcel of jet.parcels) {
@@ -114,22 +133,25 @@ export class BreakingWater {
         }
     }
 
-    private launch(site: CrestSite, sequence: number, water: ShallowWater): Parcel {
-        const state = water.sample(site.x, site.y);
-        const head = 24 + Math.max(0, state.elevation) * 260;
-        const pressureSpeed = Math.sqrt(2 * GRAVITY * head);
-        const taper = 1 - 0.10 * sequence / LAUNCH_COUNT;
+    private launch(jet: PlungingJet, sequence: number, water: ShallowWater): Parcel {
+        const { site } = jet;
+        const sourceX = site.x + jet.propagation * sequence / LAUNCH_RATE;
+        const state = water.sample(sourceX, site.y);
+        const head = Math.max(0, state.elevation) * INK_SURFACE_SCALE;
+        const launchSpeed = Math.sqrt(state.velocityX * state.velocityX + 2 * GRAVITY * head);
+        const angle = Math.min(0.88, Math.max(0.58, 0.58 + Math.atan(jet.slope) * 0.7));
+        const taper = 1 - 0.08 * sequence / LAUNCH_COUNT;
         const parcel = {
-            x: site.x,
+            x: sourceX,
             y: site.y - state.elevation * INK_SURFACE_SCALE,
-            vx: state.velocityX + pressureSpeed * Math.cos(LAUNCH_ANGLE) * taper,
-            vy: -pressureSpeed * Math.sin(LAUNCH_ANGLE) * taper,
+            vx: launchSpeed * Math.cos(angle) * taper,
+            vy: -launchSpeed * Math.sin(angle) * taper,
             age: 0,
             sequence,
             alive: true,
             mass: PARCEL_MASS,
         };
-        water.exchange(site.x, site.y, -parcel.mass, state.velocityX);
+        water.exchange(sourceX, site.y, -parcel.mass, state.velocityX);
         return parcel;
     }
 
@@ -172,18 +194,22 @@ export class BreakingWater {
                 const a = jet.parcels[index - 1];
                 const b = jet.parcels[index];
                 const distance = Math.hypot(b.x - a.x, b.y - a.y);
-                if (!a.alive || !b.alive || distance > 14) continue;
-                const tip = Math.min(1, a.age / 1.25);
-                emit(a.x, a.y, b.x, b.y, 4.2 - 1.7 * tip);
+                if (!a.alive || !b.alive || distance > 14 || a.age > 1.15 || b.age > 1.15
+                    || Math.abs(a.x - jet.site.x) > 88 || Math.abs(b.x - jet.site.x) > 88
+                    || Math.abs(a.y - jet.site.y) > 65 || Math.abs(b.y - jet.site.y) > 65) continue;
+                const tip = Math.min(1, a.age / 1.15);
+                emit(a.x, a.y, b.x, b.y, 1.9 - 0.55 * tip);
             }
         }
         for (const parcel of this.spray) {
-            if (!parcel.alive) continue;
-            const length = Math.max(3, 7 * (1 - parcel.age / 1.15));
+            if (!parcel.alive || !parcel.site || parcel.age > 0.55
+                || Math.abs(parcel.x - parcel.site.x) > 78
+                || Math.abs(parcel.y - parcel.site.y) > 62) continue;
+            const length = Math.max(2, 4 * (1 - parcel.age / 0.55));
             const speed = Math.max(1, Math.hypot(parcel.vx, parcel.vy));
             const ux = parcel.vx / speed;
             const uy = parcel.vy / speed;
-            emit(parcel.x - ux * length, parcel.y - uy * length, parcel.x, parcel.y, 2.1);
+            emit(parcel.x - ux * length, parcel.y - uy * length, parcel.x, parcel.y, 1.2);
         }
     }
 

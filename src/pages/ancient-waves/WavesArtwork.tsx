@@ -137,7 +137,7 @@ export default function WavesArtwork({ playing, canvasRef }: WavesArtworkProps) 
         const waterCamera = new THREE.OrthographicCamera(-WIDTH / 2, WIDTH / 2, HEIGHT / 2, -HEIGHT / 2, 1, 1000);
         waterCamera.position.z = 500;
         waterCamera.lookAt(0, 0, 0);
-        const animatedInk = new AnimatedInk();
+        const animatedInk = new AnimatedInk(water);
         animatedInk.updateGeometry();
         waterScene.add(animatedInk.mesh);
 
@@ -151,7 +151,7 @@ export default function WavesArtwork({ playing, canvasRef }: WavesArtworkProps) 
         const breakMaterial = new THREE.MeshBasicMaterial({
             color: 0x343832,
             transparent: true,
-            opacity: 0.72,
+            opacity: 0.62,
             depthTest: false,
             depthWrite: false,
             side: THREE.DoubleSide,
@@ -198,7 +198,15 @@ export default function WavesArtwork({ playing, canvasRef }: WavesArtworkProps) 
             renderer.clear();
             renderer.render(paperScene, paperCamera);
             renderer.clearDepth();
+            renderer.setScissor(
+                (PAINTING.x / WIDTH) * width,
+                ((HEIGHT - PAINTING.y - PAINTING.height) / HEIGHT) * height,
+                (PAINTING.width / WIDTH) * width,
+                (PAINTING.height / HEIGHT) * height,
+            );
+            renderer.setScissorTest(true);
             renderer.render(waterScene, waterCamera);
+            renderer.setScissorTest(false);
         };
         const resize = () => {
             renderer.setSize(container.clientWidth, container.clientHeight, false);
@@ -219,7 +227,7 @@ export default function WavesArtwork({ playing, canvasRef }: WavesArtworkProps) 
                 while (accumulator >= 1 / 60) {
                     water.step(1 / 60);
                     breakingWater.step(1 / 60, water);
-                    animatedInk.step(water, 1 / 60);
+                    animatedInk.step(1 / 60);
                     accumulator -= 1 / 60;
                 }
                 animatedInk.updateGeometry();

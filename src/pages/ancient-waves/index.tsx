@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowLeft, Download, Pause, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import WavesArtwork from "./WavesArtwork";
@@ -6,18 +6,7 @@ import "./index.css";
 
 export default function AncientWaves() {
     const artworkRef = useRef<HTMLCanvasElement | null>(null);
-    const [prefersReducedMotion, setPrefersReducedMotion] = useState(
-        () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    );
-    const [motionOverride, setMotionOverride] = useState<boolean | null>(null);
-    const isPlaying = motionOverride ?? !prefersReducedMotion;
-
-    useEffect(() => {
-        const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
-        const updatePreference = () => setPrefersReducedMotion(preference.matches);
-        preference.addEventListener("change", updatePreference);
-        return () => preference.removeEventListener("change", updatePreference);
-    }, []);
+    const [isPlaying, setIsPlaying] = useState(true);
 
     function downloadPng() {
         if (!artworkRef.current) return;
@@ -49,7 +38,7 @@ export default function AncientWaves() {
                         <button
                             className="ancient-waves-motion"
                             type="button"
-                            onClick={() => setMotionOverride(!isPlaying)}
+                            onClick={() => setIsPlaying(!isPlaying)}
                             aria-label={isPlaying ? "暂停水流" : "播放水流"}
                             aria-pressed={isPlaying}
                         >

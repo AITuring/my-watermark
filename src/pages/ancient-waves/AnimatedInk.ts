@@ -1,33 +1,25 @@
 import * as THREE from "three";
-import { ShallowWater } from "./ShallowWater";
+import type { ShallowWater } from "./ShallowWater";
 import { tracedWaveLines } from "./tracedLines";
 
 const MOUNT_WIDTH = 1532;
 const MOUNT_HEIGHT = 964;
 const PAINTING = { x: 69, y: 39, width: 1380, height: 896 };
+const INK_SURFACE_SCALE = 75;
 
 interface Stroke {
     points: ReadonlyArray<readonly [number, number]>;
     moved: Float32Array;
     normals: Float32Array;
     displacement: Float32Array;
-    velocity: Float32Array;
-    nextDisplacement: Float32Array;
-    sourceWeights: Float32Array;
-    response: number;
+    materialX: Float32Array;
+    meanVelocity: Float32Array;
+    restElevation: Float32Array;
     halfWidth: number;
-    waveCoefficient: number;
-    restoring: number;
-    damping: number;
-    driveFrequency: number;
-    drivePhase: number;
-    driveAmplitude: number;
-    long: boolean;
 }
 
-/** Each traced wave contour is its own damped one-dimensional wave system.
- * Local water pressure and a left-side wavemaker excite it; contour geometry
- * determines its propagation speed, restoring force, and drag.
+/** Every ink vertex samples the same conserved water surface at its painted
+ * position. A shared displacement field keeps adjoining contours together.
  */
 export class AnimatedInk {
     readonly mesh: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
@@ -35,64 +27,30 @@ export class AnimatedInk {
     private readonly strokes: Stroke[];
     private readonly positions: Float32Array;
     private readonly positionAttribute: THREE.BufferAttribute;
-    private readonly sampledMotion = new Float32Array(2);
-    private time = 0;
+    private readonly waterSample = new Float32Array(2);
 
-    constructor() {
+    constructor(private readonly water: ShallowWater) {
         this.strokes = tracedWaveLines.map((points) => {
             const meanY = points.reduce((sum, point) => sum + point[1], 0) / points.length;
-            const arclength = new Float32Array(points.length);
-            let sourceIndex = 0;
-            let leftmostX = Infinity;
-            let minimumY = Infinity;
-            let maximumY = -Infinity;
-            for (let index = 1; index < points.length; index++) {
-                arclength[index] = arclength[index - 1] + Math.hypot(
-                    points[index][0] - points[index - 1][0],
-                    points[index][1] - points[index - 1][1],
-                );
-            }
+            const restElevation = new Float32Array(points.length);
+            const displacement = new Float32Array(points.length * 2);
             for (let index = 0; index < points.length; index++) {
-                if (points[index][0] < leftmostX) {
-                    leftmostX = points[index][0];
-                    sourceIndex = index;
-                }
-                minimumY = Math.min(minimumY, points[index][1]);
-                maximumY = Math.max(maximumY, points[index][1]);
-            }
-            const totalLength = arclength[arclength.length - 1];
-            const bend = Math.min(1, (maximumY - minimumY) / Math.max(20, totalLength));
-            const naturalFrequency = Math.sqrt(270 * 2 * Math.PI
-                / Math.max(100, Math.min(360, totalLength * 1.4)));
-            const propagationSpeed = 48 + 23 * Math.min(1, totalLength / 250) + 8 * bend;
-            const spacing = Math.max(2.5, totalLength / Math.max(1, points.length - 1));
-            const long = totalLength >= 70;
-            const sourceArc = arclength[sourceIndex];
-            const sourceSpread = Math.max(12, Math.min(38, totalLength * 0.18));
-            const sourceWeights = new Float32Array(points.length);
-            for (let index = 0; index < points.length; index++) {
-                const distance = (arclength[index] - sourceArc) / sourceSpread;
-                sourceWeights[index] = long ? Math.exp(-(distance ** 2)) : 1;
+                const [x, y] = points[index];
+                this.water.sampleMotion(x, y, this.waterSample);
+                restElevation[index] = this.waterSample[0];
             }
             return {
                 points,
                 moved: new Float32Array(points.length * 2),
                 normals: new Float32Array(points.length * 2),
-                displacement: new Float32Array(points.length),
-                velocity: new Float32Array(points.length),
-                nextDisplacement: new Float32Array(points.length),
-                sourceWeights,
-                response: 0.70 + 0.30 * Math.min(1, meanY / PAINTING.height),
+                displacement,
+                materialX: new Float32Array(points.length),
+                meanVelocity: new Float32Array(points.length),
+                restElevation,
                 halfWidth: (meanY < 500 ? 0.85 : 1.12),
-                waveCoefficient: (propagationSpeed / spacing) ** 2,
-                restoring: (naturalFrequency * 0.72) ** 2,
-                damping: 0.75 + 0.55 * bend + 0.25 * Math.min(1, totalLength / 250),
-                driveFrequency: naturalFrequency * (0.62 + 0.12 * bend),
-                drivePhase: leftmostX * 0.018 + meanY * 0.012 + totalLength * 0.019 + bend * 3,
-                driveAmplitude: 3.5 + 5.5 * Math.min(1, totalLength / 200),
-                long,
             };
         });
+        this.step(0);
         this.strokeCount = this.strokes.length;
         const segmentCount = this.strokes.reduce((sum, stroke) => sum + stroke.points.length - 1, 0);
         this.positions = new Float32Array(segmentCount * 18);
@@ -114,35 +72,22 @@ export class AnimatedInk {
         this.mesh.frustumCulled = false;
     }
 
-    step(water: ShallowWater, dt: number) {
-        this.time += dt;
+    step(dt: number) {
+        void dt;
         for (const stroke of this.strokes) {
-            const { points, displacement, velocity, nextDisplacement, sourceWeights } = stroke;
-            const phase = stroke.driveFrequency * this.time + stroke.drivePhase;
-            const incomingCrest = stroke.driveAmplitude
-                * (Math.sin(phase) + 0.24 * Math.sin(2 * phase - 0.25));
+            const { points, displacement, materialX, meanVelocity, restElevation } = stroke;
             for (let index = 0; index < points.length; index++) {
-                if (stroke.long && (index === 0 || index === points.length - 1)) {
-                    velocity[index] = 0;
-                    nextDisplacement[index] = 0;
-                    continue;
-                }
                 const [x, y] = points[index];
-                water.sampleMotion(x, y, this.sampledMotion);
-                const left = displacement[Math.max(0, index - 1)];
-                const right = displacement[Math.min(points.length - 1, index + 1)];
-                const laplacian = left - 2 * displacement[index] + right;
-                const waterPressure = -this.sampledMotion[0] * 65;
-                const acceleration = stroke.waveCoefficient * laplacian
-                    - stroke.restoring * displacement[index]
-                    - stroke.damping * velocity[index]
-                    + 6 * waterPressure * stroke.response
-                    + 20 * sourceWeights[index] * (incomingCrest - displacement[index]);
-                velocity[index] = Math.max(-95, Math.min(95, velocity[index] + acceleration * dt));
-                nextDisplacement[index] = Math.max(-20, Math.min(20,
-                    displacement[index] + velocity[index] * dt));
+                this.water.sampleMotion(x + materialX[index], y, this.waterSample);
+                // Show the local orbital excursion in a frame following the
+                // mean current, so the painting's margin stays in place.
+                const velocity = this.waterSample[1] / Math.max(0.05, 1 + this.waterSample[0]);
+                meanVelocity[index] += Math.min(1, dt / 1.1) * (velocity - meanVelocity[index]);
+                materialX[index] = 1.1 * meanVelocity[index];
+                displacement[index * 2] = materialX[index];
+                displacement[index * 2 + 1] = -INK_SURFACE_SCALE
+                    * (this.waterSample[0] - restElevation[index]);
             }
-            displacement.set(nextDisplacement);
         }
     }
 
@@ -152,9 +97,8 @@ export class AnimatedInk {
             const { points, moved, normals } = stroke;
             for (let index = 0; index < points.length; index++) {
                 const [x, y] = points[index];
-                moved[index * 2] = x;
-                const lowerEdgeResponse = Math.min(1, Math.max(0, (PAINTING.height - 1 - y) / 20));
-                moved[index * 2 + 1] = y + stroke.displacement[index] * lowerEdgeResponse;
+                moved[index * 2] = x + stroke.displacement[index * 2];
+                moved[index * 2 + 1] = y + stroke.displacement[index * 2 + 1];
             }
             for (let index = 0; index < points.length; index++) {
                 const before = Math.max(0, index - 1) * 2;
