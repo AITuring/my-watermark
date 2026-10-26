@@ -14,6 +14,7 @@ import {
 import { createEditorPreviewAsset, transformImageAsset } from "./image-utils";
 import { useCropExports } from "./hooks/useCropExports";
 import { useCropInteractions } from "./hooks/useCropInteractions";
+import { useCropHistory } from "./hooks/useCropHistory";
 import type {
     CropImage,
     CropMode,
@@ -46,6 +47,7 @@ export default function ImageCropper() {
     const [viewportSize, setViewportSize] = useState<ViewportSize>(DEFAULT_VIEWPORT_SIZE);
     const [imagesHydrated, setImagesHydrated] = useState(false);
     const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
+    const [selectedSavedCropIds, setSelectedSavedCropIds] = useState<string[]>([]);
     const [storageEstimate, setStorageEstimate] = useState<FileStorageEstimate>(EMPTY_STORAGE_ESTIMATE);
 
     const stageRef = useRef<HTMLDivElement | null>(null);
@@ -74,6 +76,16 @@ export default function ImageCropper() {
         () => images.find((item) => item.id === activeId) ?? null,
         [images, activeId]
     );
+
+    const {
+        canRedo,
+        canUndo,
+        clearHistory,
+        recordCropChange,
+        recordImageChange,
+        redo,
+        undo,
+    } = useCropHistory({ activeId, setImages });
 
     const fitZoom = useMemo(() => {
         if (!activeImage) return 1;
@@ -300,26 +312,13 @@ export default function ImageCropper() {
                 objectUrlsRef.current.push(nextImage.previewUrl);
             }
 
-            setImages((prev) =>
-                prev.map((item) => {
-                    if (item.id !== activeImage.id) return item;
-                    return {
-                        ...item,
-                        url: nextImage.url,
-                        previewUrl: nextImage.previewUrl,
-                        previewWidth: nextImage.previewWidth,
-                        previewHeight: nextImage.previewHeight,
-                        width: nextImage.width,
-                        height: nextImage.height,
-                        crop: getDefaultCrop(nextImage.width, nextImage.height, mode, selectedRatio),
-                    };
-                })
-            );
-
-            releaseUrl(activeImage.url);
-            if (activeImage.previewUrl !== activeImage.url) {
-                releaseUrl(activeImage.previewUrl);
-            }
+            const rotatedImage: CropImage = {
+                ...activeImage,
+                ...nextImage,
+                crop: getDefaultCrop(nextImage.width, nextImage.height, mode, selectedRatio),
+            };
+            recordImageChange(activeImage, rotatedImage);
+            setImages((prev) => prev.map((item) => (item.id === activeImage.id ? rotatedImage : item)));
         } catch (error) {
             console.error(error);
             toast.error("几何变换失败，请重试");
@@ -333,6 +332,7 @@ export default function ImageCropper() {
         selectedRatio,
         setImages,
         stageRef,
+        onCropCommit: recordCropChange,
     });
 
     const {
@@ -349,6 +349,9 @@ export default function ImageCropper() {
         saveCurrentCrop,
         savedCrops,
         batchProgress,
+        batchFailures,
+        cancelBatchCrops,
+        retryFailedCrops,
         saveBatchCrops,
     } = useCropExports({
         activeImage,
@@ -363,6 +366,21 @@ export default function ImageCropper() {
         const files = [...images.map((image) => image.file), ...savedCrops.map((item) => item.file)];
         void estimateFileStorage(files).then(setStorageEstimate);
     }, [images, imagesHydrated, savedCrops]);
+
+    useEffect(() => {
+        setSelectedSavedCropIds((previous) => {
+            const currentIds = new Set(savedCrops.map((item) => item.id));
+            const retained = previous.filter((id) => currentIds.has(id));
+            if (!previous.length && savedCrops.length) {
+                return savedCrops.map((item) => item.id);
+            }
+            const previousIds = new Set(previous);
+            const added = savedCrops
+                .filter((item) => !previousIds.has(item.id))
+                .map((item) => item.id);
+            return [...retained, ...added];
+        });
+    }, [savedCrops]);
 
     const toggleImageSelection = (id: string) => {
         setSelectedImageIds((prev) =>
@@ -380,14 +398,41 @@ export default function ImageCropper() {
         void saveBatchCrops(images.filter((item) => selectedImageIds.includes(item.id)));
     };
 
+    const selectedSavedCrops = useMemo(
+        () => savedCrops.filter((item) => selectedSavedCropIds.includes(item.id)),
+        [savedCrops, selectedSavedCropIds]
+    );
+
+    const toggleSavedCropSelection = (id: string) => {
+        setSelectedSavedCropIds((previous) =>
+            previous.includes(id)
+                ? previous.filter((item) => item !== id)
+                : [...previous, id]
+        );
+    };
+
+    const toggleAllSavedCrops = () => {
+        setSelectedSavedCropIds((previous) =>
+            previous.length === savedCrops.length ? [] : savedCrops.map((item) => item.id)
+        );
+    };
+
+    const removeSelectedSavedCrops = () => {
+        selectedSavedCrops.forEach((item) => removeSavedCrop(item.id));
+    };
+
     const resetAllCrop = () => {
-        setImages((prev) =>
-            prev.map((item) => ({
-                ...item,
-                crop: isFreeMode
+        const nextCrops = new Map(
+            images.map((item) => [
+                item.id,
+                isFreeMode
                     ? createCenteredFreeCrop(item.width, item.height)
                     : createCenteredCrop(item.width, item.height, selectedRatio ?? 1),
-            }))
+            ])
+        );
+        images.forEach((item) => recordCropChange(item, item.crop, nextCrops.get(item.id) ?? item.crop));
+        setImages((prev) =>
+            prev.map((item) => ({ ...item, crop: nextCrops.get(item.id) ?? item.crop }))
         );
     };
 
@@ -455,6 +500,7 @@ export default function ImageCropper() {
             if (removeIndex < 0) return prev;
 
             const removing = prev[removeIndex];
+            clearHistory(id);
             releaseUrl(removing.url);
             if (removing.previewUrl !== removing.url) {
                 releaseUrl(removing.previewUrl);
@@ -479,6 +525,7 @@ export default function ImageCropper() {
         setImages([]);
         setSelectedImageIds([]);
         setActiveId(null);
+        clearHistory();
     };
 
     const centerViewportOnImagePoint = (xRatio: number, yRatio: number) => {
@@ -535,6 +582,9 @@ export default function ImageCropper() {
                             onToggleAllImages={toggleAllImages}
                             onBatchCrop={batchCropSelected}
                             batchProgress={batchProgress}
+                            batchFailures={batchFailures}
+                            onCancelBatch={cancelBatchCrops}
+                            onRetryFailed={retryFailedCrops}
                             storageEstimate={storageEstimate}
                         />
                     </div>
@@ -559,6 +609,10 @@ export default function ImageCropper() {
                             onExportCurrent={exportCurrent}
                             onCustomAngleChange={setCustomAngle}
                             onApplyRotation={applyRotationToActive}
+                            onUndo={undo}
+                            onRedo={redo}
+                            canUndo={canUndo}
+                            canRedo={canRedo}
                             onZoomChange={setZoom}
                             onStartDrag={startDrag}
                             onMinimapPointer={handleMinimapPointer}
@@ -570,14 +624,19 @@ export default function ImageCropper() {
                             className="w-full"
                             savedCropCount={savedCrops.length}
                             groupedSavedCrops={groupedSavedCrops}
+                            selectedSavedCropIds={selectedSavedCropIds}
+                            selectedSavedCropCount={selectedSavedCrops.length}
                             isBatchDownloading={isBatchDownloading}
                             isBatchExporting={isBatchExporting}
                             isRoutingExporting={isRoutingExporting}
-                            onExportBatch={exportBatch}
-                            onDownloadBatch={downloadBatch}
-                            onRouteWithCrops={routeWithCrops}
+                            onExportBatch={() => void exportBatch(selectedSavedCrops)}
+                            onDownloadBatch={() => void downloadBatch(selectedSavedCrops)}
+                            onRouteWithCrops={(target) => void routeWithCrops(target, selectedSavedCrops)}
                             onClearSavedCrops={clearSavedCrops}
                             onRemoveSavedCrop={removeSavedCrop}
+                            onToggleSavedCrop={toggleSavedCropSelection}
+                            onToggleAllSavedCrops={toggleAllSavedCrops}
+                            onRemoveSelectedSavedCrops={removeSelectedSavedCrops}
                         />
                     </div>
                 </div>

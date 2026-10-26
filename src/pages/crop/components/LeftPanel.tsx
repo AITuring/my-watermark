@@ -8,6 +8,7 @@ import type { ChangeEvent } from "react";
 import { ratioOptions, type CropImage, type CropMode } from "../types";
 import StorageStatus from "./StorageStatus";
 import type { FileStorageEstimate } from "@/utils/file-storage";
+import type { CropBatchFailure } from "../hooks/useCropExports";
 
 type LeftPanelProps = {
     className?: string;
@@ -35,7 +36,10 @@ type LeftPanelProps = {
     onToggleImage: (id: string) => void;
     onToggleAllImages: () => void;
     onBatchCrop: () => void;
-    batchProgress: { completed: number; total: number } | null;
+    batchProgress: { completed: number; total: number; currentName: string; failed: number } | null;
+    batchFailures: CropBatchFailure[];
+    onCancelBatch: () => void;
+    onRetryFailed: () => void;
     storageEstimate: FileStorageEstimate;
 };
 
@@ -66,6 +70,9 @@ export default function LeftPanel({
     onToggleAllImages,
     onBatchCrop,
     batchProgress,
+    batchFailures,
+    onCancelBatch,
+    onRetryFailed,
     storageEstimate,
 }: LeftPanelProps) {
     return (
@@ -288,9 +295,9 @@ export default function LeftPanel({
                     {batchProgress && (
                         <div className="space-y-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
                             <div className="flex items-center justify-between gap-2">
-                                <span>批量裁切进度</span>
+                                <span className="min-w-0 truncate">正在裁切：{batchProgress.currentName}</span>
                                 <span className="tabular-nums">
-                                    {batchProgress.completed}/{batchProgress.total}
+                                    {batchProgress.completed}/{batchProgress.total} · 失败 {batchProgress.failed}
                                 </span>
                             </div>
                             <Progress
@@ -301,6 +308,20 @@ export default function LeftPanel({
                                 }
                                 className="h-1.5"
                             />
+                            <Button type="button" variant="outline" size="sm" className="mt-2 w-full" onClick={onCancelBatch}>
+                                取消批量裁切
+                            </Button>
+                        </div>
+                    )}
+                    {batchFailures.length > 0 && !batchProgress && (
+                        <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                                <span>失败 {batchFailures.length} 项</span>
+                                <Button type="button" variant="outline" size="sm" onClick={onRetryFailed}>重试失败项</Button>
+                            </div>
+                            <div className="space-y-1 text-muted-foreground">
+                                {batchFailures.map((item) => <div key={item.image.id} className="truncate">{item.image.name}：{item.message}</div>)}
+                            </div>
                         </div>
                     )}
                     <Button type="button" onClick={onBatchCrop} disabled={!selectedImageIds.length || Boolean(batchProgress)}>

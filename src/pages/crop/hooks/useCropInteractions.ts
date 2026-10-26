@@ -10,6 +10,7 @@ type UseCropInteractionsParams = {
     selectedRatio: number | null;
     setImages: Dispatch<SetStateAction<CropImage[]>>;
     stageRef: RefObject<HTMLDivElement | null>;
+    onCropCommit?: (image: CropImage, before: CropBox, after: CropBox) => void;
 };
 
 export function useCropInteractions({
@@ -19,6 +20,7 @@ export function useCropInteractions({
     selectedRatio,
     setImages,
     stageRef,
+    onCropCommit,
 }: UseCropInteractionsParams) {
     const dragRef = useRef<DragState>({
         active: false,
@@ -145,7 +147,13 @@ export function useCropInteractions({
         };
 
         const onUp = () => {
+            const dragState = dragRef.current;
+            if (!dragState.active) return;
+            const nextCrop = pendingCropRef.current ?? activeImage?.crop;
             flushScheduledCropUpdate();
+            if (activeImage && dragState.startCrop && nextCrop) {
+                onCropCommit?.(activeImage, dragState.startCrop, nextCrop);
+            }
             dragRef.current.active = false;
         };
 
@@ -155,7 +163,7 @@ export function useCropInteractions({
             window.removeEventListener("pointermove", onMove);
             window.removeEventListener("pointerup", onUp);
         };
-    }, [activeImage, flushScheduledCropUpdate, getImagePoint, isFreeMode, scheduleCropUpdate, selectedRatio]);
+    }, [activeImage, flushScheduledCropUpdate, getImagePoint, isFreeMode, onCropCommit, scheduleCropUpdate, selectedRatio]);
 
     useEffect(() => {
         return () => {

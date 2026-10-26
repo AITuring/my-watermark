@@ -31,6 +31,13 @@ type UseCropExportsParams = {
 export type CropBatchProgress = {
     completed: number;
     total: number;
+    currentName: string;
+    failed: number;
+};
+
+export type CropBatchFailure = {
+    image: CropImage;
+    message: string;
 };
 
 export function useCropExports({
@@ -44,11 +51,13 @@ export function useCropExports({
     const [isBatchExporting, setIsBatchExporting] = useState(false);
     const [isBatchDownloading, setIsBatchDownloading] = useState(false);
     const [batchProgress, setBatchProgress] = useState<CropBatchProgress | null>(null);
+    const [batchFailures, setBatchFailures] = useState<CropBatchFailure[]>([]);
     const [savedCrops, setSavedCrops] = useState<SavedCrop[]>([]);
     const [savedCropsHydrated, setSavedCropsHydrated] = useState(false);
     const savedPreviewUrlsRef = useRef<string[]>([]);
     const savedCropSequenceRef = useRef<Record<string, number>>({});
     const restoreSavedCropsStartedRef = useRef(false);
+    const cancelBatchRef = useRef(false);
 
     useEffect(() => {
         if (restoreSavedCropsStartedRef.current) return;
@@ -211,52 +220,66 @@ export function useCropExports({
         }
         if (batchProgress) return;
 
-        setBatchProgress({ completed: 0, total: images.length });
-        const generated: SavedCrop[] = [];
-        try {
-            for (const image of images) {
+        cancelBatchRef.current = false;
+        setBatchFailures([]);
+        setBatchProgress({ completed: 0, total: images.length, currentName: images[0]?.name ?? "", failed: 0 });
+        let processed = 0;
+        let succeeded = 0;
+        const failures: CropBatchFailure[] = [];
+        for (const image of images) {
+            if (cancelBatchRef.current) break;
+            setBatchProgress({ completed: processed, total: images.length, currentName: image.name, failed: failures.length });
+            try {
                 const { outputW, outputH } = getOutputSize(image.crop, mode, targetWidth, targetHeight);
                 const blob = await drawCropToBlob(image, image.crop, outputW, outputH);
-                if (!blob) throw new Error(`${image.name} 裁切失败`);
-
+                if (!blob) throw new Error("裁切失败");
+                if (cancelBatchRef.current) break;
                 const sequenceKey = image.name;
                 const nextIndex = (savedCropSequenceRef.current[sequenceKey] ?? 0) + 1;
                 savedCropSequenceRef.current[sequenceKey] = nextIndex;
-                const fileName = buildSavedCropFileName(image.name, nextIndex, outputW, outputH);
-                const file = new File([blob], fileName, { type: "image/jpeg" });
+                const file = new File([blob], buildSavedCropFileName(image.name, nextIndex, outputW, outputH), { type: "image/jpeg" });
                 const previewUrl = URL.createObjectURL(file);
                 savedPreviewUrlsRef.current.push(previewUrl);
-                generated.push({
+                setSavedCrops((prev) => [...prev, {
                     id: `${image.id}-${nextIndex}-${Date.now()}`,
-                    sourceImageId: image.id,
-                    sourceName: image.name,
-                    index: nextIndex,
-                    previewUrl,
-                    outputW,
-                    outputH,
-                    file,
-                });
-                setBatchProgress({ completed: generated.length, total: images.length });
+                    sourceImageId: image.id, sourceName: image.name, index: nextIndex, previewUrl, outputW, outputH, file,
+                }]);
+                succeeded += 1;
+                processed += 1;
+                setBatchProgress({ completed: processed, total: images.length, currentName: image.name, failed: failures.length });
+            } catch (error) {
+                if (cancelBatchRef.current) break;
+                failures.push({ image, message: error instanceof Error ? error.message : "裁切失败" });
+                processed += 1;
+                setBatchProgress({ completed: processed, total: images.length, currentName: image.name, failed: failures.length });
             }
-            setSavedCrops((prev) => [...prev, ...generated]);
-            toast.success(`已批量暂存 ${generated.length} 张裁切图`);
-        } catch (error) {
-            generated.forEach((item) => releaseSavedPreviewUrl(item.previewUrl));
-            toast.error(error instanceof Error ? error.message : "批量裁切失败，请重试");
-        } finally {
-            setBatchProgress(null);
         }
-    }, [batchProgress, mode, releaseSavedPreviewUrl, targetHeight, targetWidth]);
+        setBatchFailures(failures);
+        setBatchProgress(null);
+        if (cancelBatchRef.current) toast.info(`已取消批量裁切，已处理 ${processed} 张，成功暂存 ${succeeded} 张`);
+        else if (failures.length) toast.warning(`批量裁切完成：成功 ${succeeded} 张，失败 ${failures.length} 张`);
+        else toast.success(`已批量暂存 ${succeeded} 张裁切图`);
+    }, [batchProgress, mode, targetHeight, targetWidth]);
 
-    const exportBatch = useCallback(async () => {
-        if (!savedCrops.length) {
+    const cancelBatchCrops = useCallback(() => {
+        if (batchProgress) cancelBatchRef.current = true;
+    }, [batchProgress]);
+
+    const retryFailedCrops = useCallback(() => {
+        if (!batchFailures.length || batchProgress) return;
+        void saveBatchCrops(batchFailures.map((item) => item.image));
+    }, [batchFailures, batchProgress, saveBatchCrops]);
+
+    const exportBatch = useCallback(async (requestedItems?: SavedCrop[]) => {
+        const items = requestedItems ?? savedCrops;
+        if (!items.length) {
             toast.error("请先暂存裁切结果");
             return;
         }
 
         if (isBatchExporting) return;
 
-        const items = [...savedCrops];
+        const exportItems = [...items];
         setIsBatchExporting(true);
 
         try {
@@ -265,7 +288,7 @@ export function useCropExports({
                 loadSaveAs(),
             ]);
             const zip = new JSZip();
-            items.forEach((item) => {
+            exportItems.forEach((item) => {
                 zip.file(item.file.name, item.file);
             });
 
@@ -278,7 +301,7 @@ export function useCropExports({
             }
 
             saveAs(zipBlob, `crop-batch-${Date.now()}.zip`);
-            toast.success(`已批量导出 ${items.length} 张`);
+            toast.success(`已批量导出 ${exportItems.length} 张`);
         } catch (error) {
             console.error("导出裁切 ZIP 失败", error);
             toast.error(
@@ -291,15 +314,15 @@ export function useCropExports({
         }
     }, [isBatchExporting, savedCrops]);
 
-    const downloadBatch = useCallback(async () => {
-        if (!savedCrops.length) {
+    const downloadBatch = useCallback(async (requestedItems?: SavedCrop[]) => {
+        const items = requestedItems ?? savedCrops;
+        if (!items.length) {
             toast.error("请先暂存裁切结果");
             return;
         }
 
         if (isBatchDownloading) return;
 
-        const items = [...savedCrops];
         setIsBatchDownloading(true);
         try {
             await downloadFilesIndividually(
@@ -312,7 +335,7 @@ export function useCropExports({
                           duration: 8000,
                           action: {
                               label: "导出 ZIP",
-                              onClick: () => void exportBatch(),
+                              onClick: () => void exportBatch(items),
                           },
                       }
                     : undefined
@@ -324,7 +347,7 @@ export function useCropExports({
                     items.length > 1
                         ? {
                               label: "改用 ZIP",
-                              onClick: () => void exportBatch(),
+                              onClick: () => void exportBatch(items),
                           }
                         : undefined,
             });
@@ -334,15 +357,16 @@ export function useCropExports({
     }, [exportBatch, isBatchDownloading, savedCrops]);
 
     const routeWithCrops = useCallback(
-        async (target: TransferTarget) => {
-            if (!savedCrops.length) {
+        async (target: TransferTarget, requestedItems?: SavedCrop[]) => {
+            const items = requestedItems ?? savedCrops;
+            if (!items.length) {
                 toast.error("请先暂存裁切结果");
                 return;
             }
 
             try {
                 setIsRoutingExporting(true);
-                const files = savedCrops.map((item) => item.file);
+                const files = items.map((item) => item.file);
                 if (!files.length) {
                     toast.error("裁切结果生成失败");
                     return;
@@ -397,6 +421,9 @@ export function useCropExports({
         isBatchDownloading,
         isBatchExporting,
         batchProgress,
+        batchFailures,
+        cancelBatchCrops,
+        retryFailedCrops,
         isRoutingExporting,
         removeSavedCrop,
         downloadBatch,

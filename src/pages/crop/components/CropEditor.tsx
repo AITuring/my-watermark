@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Download, Maximize, Minimize, RotateCcw, ScanSearch, Scissors } from "lucide-react";
+import { Download, Maximize, Minimize, Redo2, RotateCcw, ScanSearch, Scissors, Undo2 } from "lucide-react";
 import React from "react";
 import { clamp } from "../helpers";
 import type {
@@ -32,6 +32,10 @@ type CropEditorProps = {
     onExportCurrent: () => void;
     onCustomAngleChange: (value: number) => void;
     onApplyRotation: (angle: number) => void;
+    onUndo: () => void;
+    onRedo: () => void;
+    canUndo: boolean;
+    canRedo: boolean;
     onZoomChange: React.Dispatch<React.SetStateAction<number>>;
     onStartDrag: (mode: DragMode, event: React.PointerEvent) => void;
     onMinimapPointer: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -63,6 +67,10 @@ export default function CropEditor({
     onExportCurrent,
     onCustomAngleChange,
     onApplyRotation,
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
     onZoomChange,
     onStartDrag,
     onMinimapPointer,
@@ -121,6 +129,15 @@ export default function CropEditor({
                         <div className="flex min-h-0 flex-1 flex-col gap-3">
                             <div className="rounded bg-muted/20">
                                 <div className="flex flex-wrap items-center gap-2">
+                                    <Button variant="secondary" size="sm" onClick={onUndo} disabled={!canUndo} title="撤销">
+                                        <Undo2 className="h-4 w-4" />
+                                        <span className="hidden sm:inline">撤销</span>
+                                    </Button>
+                                    <Button variant="secondary" size="sm" onClick={onRedo} disabled={!canRedo} title="重做">
+                                        <Redo2 className="h-4 w-4" />
+                                        <span className="hidden sm:inline">重做</span>
+                                    </Button>
+                                    <div className="mx-1 hidden h-5 w-px bg-border lg:block" />
                                     <Button
                                         variant="secondary"
                                         size="sm"

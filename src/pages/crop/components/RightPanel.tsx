@@ -8,6 +8,8 @@ type RightPanelProps = {
     className?: string;
     savedCropCount: number;
     groupedSavedCrops: SavedCropGroup[];
+    selectedSavedCropIds: string[];
+    selectedSavedCropCount: number;
     isBatchDownloading: boolean;
     isBatchExporting: boolean;
     isRoutingExporting: boolean;
@@ -16,12 +18,17 @@ type RightPanelProps = {
     onRouteWithCrops: (target: TransferTarget) => void;
     onClearSavedCrops: () => void;
     onRemoveSavedCrop: (id: string) => void;
+    onToggleSavedCrop: (id: string) => void;
+    onToggleAllSavedCrops: () => void;
+    onRemoveSelectedSavedCrops: () => void;
 };
 
 export default function RightPanel({
     className = "",
     savedCropCount,
     groupedSavedCrops,
+    selectedSavedCropIds,
+    selectedSavedCropCount,
     isBatchDownloading,
     isBatchExporting,
     isRoutingExporting,
@@ -30,7 +37,13 @@ export default function RightPanel({
     onRouteWithCrops,
     onClearSavedCrops,
     onRemoveSavedCrop,
+    onToggleSavedCrop,
+    onToggleAllSavedCrops,
+    onRemoveSelectedSavedCrops,
 }: RightPanelProps) {
+    const hasSavedCrops = savedCropCount > 0;
+    const allSavedCropsSelected = hasSavedCrops && selectedSavedCropCount === savedCropCount;
+
     return (
         <PanelCard
             title="暂存结果"
@@ -41,46 +54,69 @@ export default function RightPanel({
             titleClassName="text-base"
             contentClassName="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-6 pt-0"
         >
-                <div className="grid gap-2">
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <span>已选 {selectedSavedCropCount} / {savedCropCount} 张</span>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={onToggleAllSavedCrops}
+                            disabled={!hasSavedCrops}
+                        >
+                            {allSavedCropsSelected ? "取消全选" : "全选"}
+                        </Button>
+                    </div>
+                    <div className="grid gap-2">
                     <Button
                         onClick={onExportBatch}
-                        disabled={!savedCropCount || isBatchExporting || isBatchDownloading}
+                        disabled={!selectedSavedCropCount || isBatchExporting || isBatchDownloading}
                     >
                         <Download className="mr-2 h-4 w-4" />
-                        {isBatchExporting ? "正在生成 ZIP..." : "导出 ZIP"}
+                        {isBatchExporting ? "正在生成 ZIP..." : "导出选中 ZIP"}
                     </Button>
                     <Button
                         variant="outline"
                         onClick={onDownloadBatch}
-                        disabled={!savedCropCount || isBatchExporting || isBatchDownloading}
+                        disabled={!selectedSavedCropCount || isBatchExporting || isBatchDownloading}
                     >
                         <Download className="mr-2 h-4 w-4" />
-                        {isBatchDownloading ? "正在准备下载..." : "批量下载"}
+                        {isBatchDownloading ? "正在准备下载..." : "下载选中"}
                     </Button>
                     <Button
                         variant="secondary"
                         onClick={() => onRouteWithCrops("watermark")}
-                        disabled={!savedCropCount || isRoutingExporting || isBatchExporting || isBatchDownloading}
+                        disabled={!selectedSavedCropCount || isRoutingExporting || isBatchExporting || isBatchDownloading}
                     >
                         <Send className="mr-2 h-4 w-4" />
-                        发送到水印
+                        发送选中到水印
                     </Button>
                     <Button
                         variant="secondary"
                         onClick={() => onRouteWithCrops("puzzle")}
-                        disabled={!savedCropCount || isRoutingExporting || isBatchExporting || isBatchDownloading}
+                        disabled={!selectedSavedCropCount || isRoutingExporting || isBatchExporting || isBatchDownloading}
                     >
                         <Send className="mr-2 h-4 w-4" />
-                        发送到拼图
+                        发送选中到拼图
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={onRemoveSelectedSavedCrops}
+                        disabled={!selectedSavedCropCount || isBatchExporting || isBatchDownloading}
+                    >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        删除选中
                     </Button>
                     <Button
                         variant="ghost"
                         onClick={onClearSavedCrops}
-                        disabled={!savedCropCount || isBatchExporting || isBatchDownloading}
+                        disabled={!hasSavedCrops || isBatchExporting || isBatchDownloading}
                     >
                         <Trash2 className="mr-2 h-4 w-4" />
                         清空暂存
                     </Button>
+                    </div>
                 </div>
 
                 <div className="min-h-0 flex-1 space-y-3 overflow-auto pr-1">
@@ -104,6 +140,13 @@ export default function RightPanel({
                                             key={item.id}
                                             className="flex items-center gap-3 rounded-lg bg-background px-3 py-2"
                                         >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedSavedCropIds.includes(item.id)}
+                                                onChange={() => onToggleSavedCrop(item.id)}
+                                                aria-label={`选择 ${item.file.name}`}
+                                                className="h-4 w-4 shrink-0 accent-primary"
+                                            />
                                             <img
                                                 src={item.previewUrl}
                                                 alt={item.file.name}
