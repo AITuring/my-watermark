@@ -36,6 +36,7 @@ type LeftPanelProps = {
     onToggleImage: (id: string) => void;
     onToggleAllImages: () => void;
     onBatchCrop: () => void;
+    onApplyRuleToSelected: () => void;
     batchProgress: { completed: number; total: number; currentName: string; failed: number } | null;
     batchFailures: CropBatchFailure[];
     onCancelBatch: () => void;
@@ -69,6 +70,7 @@ export default function LeftPanel({
     onToggleImage,
     onToggleAllImages,
     onBatchCrop,
+    onApplyRuleToSelected,
     batchProgress,
     batchFailures,
     onCancelBatch,
@@ -207,6 +209,15 @@ export default function LeftPanel({
                                 自由裁切会按当前选区的原始像素导出。
                             </div>
                         )}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            onClick={onApplyRuleToSelected}
+                            disabled={!selectedImageIds.length}
+                        >
+                            应用规则到选中 ({selectedImageIds.length})
+                        </Button>
                     </div>
                 </div>
 

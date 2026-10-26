@@ -90,9 +90,11 @@ export const transformImageAsset = async (image: CropImage, angleDeg: number) =>
     }
 
     const nextUrl = URL.createObjectURL(blob);
+    const file = new File([blob], `${image.name}.jpg`, { type: "image/jpeg" });
     const preview = await createEditorPreviewAsset(canvas, canvas.width, canvas.height, nextUrl);
 
     return {
+        file,
         url: nextUrl,
         previewUrl: preview.url,
         previewWidth: preview.width,

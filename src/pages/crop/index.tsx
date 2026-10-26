@@ -9,6 +9,7 @@ import {
     clamp,
     createCenteredCrop,
     createCenteredFreeCrop,
+    fitBoxInImage,
     getDefaultCrop,
 } from "./helpers";
 import { createEditorPreviewAsset, transformImageAsset } from "./image-utils";
@@ -30,6 +31,48 @@ const DEFAULT_VIEWPORT_RECT: ViewportRect = { left: 0, top: 0, width: 1, height:
 const DEFAULT_VIEWPORT_SIZE: ViewportSize = { width: 0, height: 0 };
 const EMPTY_STORAGE_ESTIMATE: FileStorageEstimate = { fileBytes: 0, quotaBytes: null };
 const CROP_SESSION_WARNING_BYTES = 80 * 1024 * 1024;
+const CROP_SESSION_KEY = "my-watermark:crop-session";
+const CROP_SESSION_VERSION = 1;
+
+type CropSessionImage = {
+    name: string;
+    crop: CropImage["crop"];
+};
+
+type CropSessionState = {
+    version: number;
+    images: CropSessionImage[];
+    activeIndex: number | null;
+    selectedIndexes: number[];
+    mode: CropMode;
+    targetWidth: number;
+    targetHeight: number;
+    ratioPreset: string;
+    customRatioW: number;
+    customRatioH: number;
+    customAngle: number;
+};
+
+const readCropSession = (): CropSessionState | null => {
+    try {
+        const raw = window.localStorage.getItem(CROP_SESSION_KEY);
+        if (!raw) return null;
+        const parsed: unknown = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        const state = parsed as Partial<CropSessionState>;
+        if (
+            state.version !== CROP_SESSION_VERSION ||
+            !Array.isArray(state.images) ||
+            !["fixed", "ratio", "free"].includes(state.mode ?? "")
+        ) {
+            return null;
+        }
+        return state as CropSessionState;
+    } catch (error) {
+        console.warn("读取裁切会话失败", error);
+        return null;
+    }
+};
 
 export default function ImageCropper() {
     const navigate = useNavigate();
@@ -196,12 +239,12 @@ export default function ImageCropper() {
         };
     }, [activeId]);
 
-    const loadFiles = async (files: File[]) => {
-        if (!files.length) return;
+    const loadFiles = async (files: File[], restoredImages: CropSessionImage[] = []): Promise<CropImage[]> => {
+        if (!files.length) return [];
 
         const loaded = await Promise.all(
             files.map(
-                (file) =>
+                (file, index) =>
                     new Promise<CropImage | null>((resolve) => {
                         const url = URL.createObjectURL(file);
                         const img = new Image();
@@ -212,10 +255,12 @@ export default function ImageCropper() {
                             if (preview.url !== url) {
                                 objectUrlsRef.current.push(preview.url);
                             }
-                            const crop =
-                                mode === "free"
-                                    ? createCenteredFreeCrop(img.width, img.height)
-                                    : createCenteredCrop(img.width, img.height, selectedRatio ?? 1);
+                            const restoredCrop = restoredImages[index]?.crop;
+                            const crop = restoredCrop
+                                ? fitBoxInImage(restoredCrop, img.width, img.height)
+                                : mode === "free"
+                                  ? createCenteredFreeCrop(img.width, img.height)
+                                  : createCenteredCrop(img.width, img.height, selectedRatio ?? 1);
                             resolve({
                                 id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
                                 name: file.name.replace(/\.[^/.]+$/, "") || "image",
@@ -240,7 +285,7 @@ export default function ImageCropper() {
         const valid = loaded.filter((item): item is CropImage => Boolean(item));
         if (!valid.length) {
             toast.error("图片读取失败");
-            return;
+            return [];
         }
 
         const uniqueNames = buildUniqueNames(
@@ -249,13 +294,14 @@ export default function ImageCropper() {
         );
         const nextImages = valid.map((item, index) => ({
             ...item,
-            name: uniqueNames[index],
+            name: restoredImages[index]?.name || uniqueNames[index],
         }));
 
         setImages((prev) => [...prev, ...nextImages]);
         setSelectedImageIds((prev) => [...prev, ...nextImages.map((item) => item.id)]);
         setActiveId((prev) => prev ?? nextImages[0].id);
         toast.success(`已加载 ${valid.length} 张图片`);
+        return nextImages;
     };
 
     useEffect(() => {
@@ -267,9 +313,27 @@ export default function ImageCropper() {
             const files = incomingFiles.length
                 ? incomingFiles
                 : await loadFileSession("crop-images");
+            const session = incomingFiles.length ? null : readCropSession();
+
+            if (session) {
+                setMode(session.mode);
+                setTargetWidth(session.targetWidth);
+                setTargetHeight(session.targetHeight);
+                setRatioPreset(session.ratioPreset);
+                setCustomRatioW(session.customRatioW);
+                setCustomRatioH(session.customRatioH);
+                setCustomAngle(session.customAngle);
+            }
 
             if (files.length) {
-                await loadFiles(files);
+                const restored = await loadFiles(files, session?.images);
+                if (session) {
+                    const selected = session.selectedIndexes
+                        .map((index) => restored[index]?.id)
+                        .filter((id): id is string => Boolean(id));
+                    setSelectedImageIds(selected.length ? selected : restored.map((item) => item.id));
+                    setActiveId(restored[session.activeIndex ?? 0]?.id ?? restored[0]?.id ?? null);
+                }
             }
 
             setImagesHydrated(true);
@@ -288,6 +352,47 @@ export default function ImageCropper() {
         persistedImagesKeyRef.current = filesKey;
         void saveFileSession("crop-images", files);
     }, [images, imagesHydrated]);
+
+    useEffect(() => {
+        if (!imagesHydrated) return;
+        const timer = window.setTimeout(() => {
+            const activeIndex = activeId ? images.findIndex((item) => item.id === activeId) : -1;
+            const session: CropSessionState = {
+                version: CROP_SESSION_VERSION,
+                images: images.map((item) => ({ name: item.name, crop: item.crop })),
+                activeIndex: activeIndex >= 0 ? activeIndex : null,
+                selectedIndexes: images.reduce<number[]>((indexes, item, index) => {
+                    if (selectedImageIds.includes(item.id)) indexes.push(index);
+                    return indexes;
+                }, []),
+                mode,
+                targetWidth,
+                targetHeight,
+                ratioPreset,
+                customRatioW,
+                customRatioH,
+                customAngle,
+            };
+            try {
+                window.localStorage.setItem(CROP_SESSION_KEY, JSON.stringify(session));
+            } catch (error) {
+                console.warn("保存裁切会话失败", error);
+            }
+        }, 180);
+        return () => window.clearTimeout(timer);
+    }, [
+        activeId,
+        customAngle,
+        customRatioH,
+        customRatioW,
+        images,
+        imagesHydrated,
+        mode,
+        ratioPreset,
+        selectedImageIds,
+        targetHeight,
+        targetWidth,
+    ]);
 
     const releaseUrl = (url: string) => {
         URL.revokeObjectURL(url);
@@ -398,6 +503,33 @@ export default function ImageCropper() {
         void saveBatchCrops(images.filter((item) => selectedImageIds.includes(item.id)));
     };
 
+    const applyRuleToSelected = () => {
+        if (!selectedImageIds.length) {
+            toast.error("请先选择要应用规则的图片");
+            return;
+        }
+        const selectedIds = new Set(selectedImageIds);
+        const nextCrops = new Map(
+            images
+                .filter((item) => selectedIds.has(item.id))
+                .map((item) => [
+                    item.id,
+                    isFreeMode
+                        ? createCenteredFreeCrop(item.width, item.height)
+                        : createCenteredCrop(item.width, item.height, selectedRatio ?? 1),
+                ])
+        );
+        images.forEach((item) => {
+            if (nextCrops.has(item.id)) {
+                recordCropChange(item, item.crop, nextCrops.get(item.id) ?? item.crop);
+            }
+        });
+        setImages((previous) =>
+            previous.map((item) => ({ ...item, crop: nextCrops.get(item.id) ?? item.crop }))
+        );
+        toast.success(`已将规则应用到 ${nextCrops.size} 张图片`);
+    };
+
     const selectedSavedCrops = useMemo(
         () => savedCrops.filter((item) => selectedSavedCropIds.includes(item.id)),
         [savedCrops, selectedSavedCropIds]
@@ -435,17 +567,6 @@ export default function ImageCropper() {
             prev.map((item) => ({ ...item, crop: nextCrops.get(item.id) ?? item.crop }))
         );
     };
-
-    useEffect(() => {
-        if (selectedRatio === null) return;
-        if (!images.length) return;
-        setImages((prev) =>
-            prev.map((item) => ({
-                ...item,
-                crop: createCenteredCrop(item.width, item.height, selectedRatio),
-            }))
-        );
-    }, [selectedRatio, images.length]);
 
     const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files ?? []);
@@ -581,6 +702,7 @@ export default function ImageCropper() {
                             onToggleImage={toggleImageSelection}
                             onToggleAllImages={toggleAllImages}
                             onBatchCrop={batchCropSelected}
+                            onApplyRuleToSelected={applyRuleToSelected}
                             batchProgress={batchProgress}
                             batchFailures={batchFailures}
                             onCancelBatch={cancelBatchCrops}
