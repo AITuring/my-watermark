@@ -1,10 +1,13 @@
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import PanelCard from "@/components/PanelCard";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowUpDown, Crop, ImagePlus, Images, RotateCcw, Scissors, Trash2 } from "lucide-react";
+import { ArrowUpDown, Check, Crop, ImagePlus, Images, RotateCcw, Scissors, Trash2 } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { ratioOptions, type CropImage, type CropMode } from "../types";
+import StorageStatus from "./StorageStatus";
+import type { FileStorageEstimate } from "@/utils/file-storage";
 
 type LeftPanelProps = {
     className?: string;
@@ -28,6 +31,12 @@ type LeftPanelProps = {
     onSelectImage: (id: string) => void;
     onRemoveImage: (id: string) => void;
     onSwapAspect: () => void;
+    selectedImageIds: string[];
+    onToggleImage: (id: string) => void;
+    onToggleAllImages: () => void;
+    onBatchCrop: () => void;
+    batchProgress: { completed: number; total: number } | null;
+    storageEstimate: FileStorageEstimate;
 };
 
 export default function LeftPanel({
@@ -52,6 +61,12 @@ export default function LeftPanel({
     onSelectImage,
     onRemoveImage,
     onSwapAspect,
+    selectedImageIds,
+    onToggleImage,
+    onToggleAllImages,
+    onBatchCrop,
+    batchProgress,
+    storageEstimate,
 }: LeftPanelProps) {
     return (
         <PanelCard
@@ -65,19 +80,17 @@ export default function LeftPanel({
         >
                 <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
-                        <Button asChild className="w-full">
-                            <label className="flex cursor-pointer items-center justify-center gap-2 text-center">
-                                <ImagePlus className="h-4 w-4" />
-                                上传原图
-                                <input
-                                    className="hidden"
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    onChange={onUpload}
-                                />
-                            </label>
-                        </Button>
+                        <label className={buttonVariants({ className: "w-full cursor-pointer" })}>
+                            <ImagePlus className="h-4 w-4" />
+                            上传原图
+                            <input
+                                className="hidden"
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={onUpload}
+                            />
+                        </label>
                         <Button variant="secondary" onClick={onResetAllCrop} disabled={!images.length}>
                             <RotateCcw className="h-4 w-4" />
                             重置全部
@@ -93,6 +106,8 @@ export default function LeftPanel({
                         清空原图列表
                     </Button>
                 </div>
+
+                <StorageStatus estimate={storageEstimate} />
 
                 <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
                     <div className="flex items-center gap-2 text-sm font-medium">
@@ -194,32 +209,62 @@ export default function LeftPanel({
                             <Images className="h-4 w-4" />
                             原图列表
                         </div>
-                        <div className="text-xs text-muted-foreground">选择一张进入编辑</div>
+                        <Button type="button" variant="ghost" size="sm" onClick={onToggleAllImages} disabled={!images.length}>
+                            {selectedImageIds.length === images.length ? "取消全选" : "全选"}
+                        </Button>
                     </div>
                     <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
                         {images.length ? (
                             images.map((item) => (
-                                <button
+                                <div
                                     key={item.id}
-                                    type="button"
-                                    onClick={() => onSelectImage(item.id)}
-                                    className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${
+                                    className={`flex w-full items-center gap-2 rounded-lg border px-2 py-2 transition ${
                                         activeId === item.id
                                             ? "border-primary bg-primary/5 shadow-sm"
                                             : "border-border/60 bg-background hover:bg-muted/30"
                                     }`}
                                 >
-                                    <img
-                                        src={item.previewUrl}
-                                        alt={item.name}
-                                        className="h-14 w-14 rounded-md bg-black/5 object-cover"
-                                    />
-                                    <div className="min-w-0 flex-1">
-                                        <div className="truncate text-sm">{item.name}</div>
-                                        <div className="text-[11px] text-muted-foreground">
-                                            {item.width} × {item.height}
+                                    <button
+                                        type="button"
+                                        onClick={() => onSelectImage(item.id)}
+                                        className="flex min-w-0 flex-1 items-center gap-3 rounded-md px-1 py-0.5 text-left"
+                                    >
+                                        <span
+                                            role="checkbox"
+                                            tabIndex={0}
+                                            aria-checked={selectedImageIds.includes(item.id)}
+                                            aria-label={`选择 ${item.name}`}
+                                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
+                                                selectedImageIds.includes(item.id)
+                                                    ? "border-primary bg-primary text-primary-foreground"
+                                                    : "border-border bg-background"
+                                            }`}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                onToggleImage(item.id);
+                                            }}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" || event.key === " ") {
+                                                    event.preventDefault();
+                                                    event.stopPropagation();
+                                                    onToggleImage(item.id);
+                                                }
+                                            }}
+                                        >
+                                            {selectedImageIds.includes(item.id) && <Check className="h-3 w-3" />}
+                                        </span>
+                                        <img
+                                            src={item.previewUrl}
+                                            alt={item.name}
+                                            className="h-14 w-14 rounded-md bg-black/5 object-cover"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate text-sm">{item.name}</div>
+                                            <div className="text-[11px] text-muted-foreground">
+                                                {item.width} × {item.height}
+                                            </div>
                                         </div>
-                                    </div>
+                                    </button>
                                     <Button
                                         type="button"
                                         size="sm"
@@ -232,7 +277,7 @@ export default function LeftPanel({
                                     >
                                         删除
                                     </Button>
-                                </button>
+                                </div>
                             ))
                         ) : (
                             <div className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
@@ -240,6 +285,29 @@ export default function LeftPanel({
                             </div>
                         )}
                     </div>
+                    {batchProgress && (
+                        <div className="space-y-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                            <div className="flex items-center justify-between gap-2">
+                                <span>批量裁切进度</span>
+                                <span className="tabular-nums">
+                                    {batchProgress.completed}/{batchProgress.total}
+                                </span>
+                            </div>
+                            <Progress
+                                value={
+                                    batchProgress.total
+                                        ? (batchProgress.completed / batchProgress.total) * 100
+                                        : 0
+                                }
+                                className="h-1.5"
+                            />
+                        </div>
+                    )}
+                    <Button type="button" onClick={onBatchCrop} disabled={!selectedImageIds.length || Boolean(batchProgress)}>
+                        {batchProgress
+                            ? `正在裁切 ${batchProgress.completed}/${batchProgress.total}...`
+                            : `批量暂存选中 (${selectedImageIds.length})`}
+                    </Button>
                 </div>
         </PanelCard>
     );

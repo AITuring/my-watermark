@@ -28,6 +28,11 @@ type UseCropExportsParams = {
     navigate: NavigateFunction;
 };
 
+export type CropBatchProgress = {
+    completed: number;
+    total: number;
+};
+
 export function useCropExports({
     activeImage,
     mode,
@@ -38,6 +43,7 @@ export function useCropExports({
     const [isRoutingExporting, setIsRoutingExporting] = useState(false);
     const [isBatchExporting, setIsBatchExporting] = useState(false);
     const [isBatchDownloading, setIsBatchDownloading] = useState(false);
+    const [batchProgress, setBatchProgress] = useState<CropBatchProgress | null>(null);
     const [savedCrops, setSavedCrops] = useState<SavedCrop[]>([]);
     const [savedCropsHydrated, setSavedCropsHydrated] = useState(false);
     const savedPreviewUrlsRef = useRef<string[]>([]);
@@ -198,6 +204,50 @@ export function useCropExports({
         toast.success(`已暂存 ${activeImage.name} 的第 ${nextIndex} 张裁切图`);
     }, [activeImage, mode, targetHeight, targetWidth]);
 
+    const saveBatchCrops = useCallback(async (images: CropImage[]) => {
+        if (!images.length) {
+            toast.error("请先选择要批量裁切的图片");
+            return;
+        }
+        if (batchProgress) return;
+
+        setBatchProgress({ completed: 0, total: images.length });
+        const generated: SavedCrop[] = [];
+        try {
+            for (const image of images) {
+                const { outputW, outputH } = getOutputSize(image.crop, mode, targetWidth, targetHeight);
+                const blob = await drawCropToBlob(image, image.crop, outputW, outputH);
+                if (!blob) throw new Error(`${image.name} 裁切失败`);
+
+                const sequenceKey = image.name;
+                const nextIndex = (savedCropSequenceRef.current[sequenceKey] ?? 0) + 1;
+                savedCropSequenceRef.current[sequenceKey] = nextIndex;
+                const fileName = buildSavedCropFileName(image.name, nextIndex, outputW, outputH);
+                const file = new File([blob], fileName, { type: "image/jpeg" });
+                const previewUrl = URL.createObjectURL(file);
+                savedPreviewUrlsRef.current.push(previewUrl);
+                generated.push({
+                    id: `${image.id}-${nextIndex}-${Date.now()}`,
+                    sourceImageId: image.id,
+                    sourceName: image.name,
+                    index: nextIndex,
+                    previewUrl,
+                    outputW,
+                    outputH,
+                    file,
+                });
+                setBatchProgress({ completed: generated.length, total: images.length });
+            }
+            setSavedCrops((prev) => [...prev, ...generated]);
+            toast.success(`已批量暂存 ${generated.length} 张裁切图`);
+        } catch (error) {
+            generated.forEach((item) => releaseSavedPreviewUrl(item.previewUrl));
+            toast.error(error instanceof Error ? error.message : "批量裁切失败，请重试");
+        } finally {
+            setBatchProgress(null);
+        }
+    }, [batchProgress, mode, releaseSavedPreviewUrl, targetHeight, targetWidth]);
+
     const exportBatch = useCallback(async () => {
         if (!savedCrops.length) {
             toast.error("请先暂存裁切结果");
@@ -255,18 +305,33 @@ export function useCropExports({
             await downloadFilesIndividually(
                 items.map((item) => ({ data: item.file, name: item.file.name }))
             );
-            toast.success(`已开始下载 ${items.length} 张裁切图`);
+            toast.success(`已开始下载 ${items.length} 张裁切图`,
+                items.length > 1
+                    ? {
+                          description: "部分浏览器会拦截多文件下载，可改用 ZIP 一次保存全部结果。",
+                          duration: 8000,
+                          action: {
+                              label: "导出 ZIP",
+                              onClick: () => void exportBatch(),
+                          },
+                      }
+                    : undefined
+            );
         } catch (error) {
             console.error("批量下载裁切图失败", error);
-            toast.error(
-                error instanceof Error
-                    ? `批量下载失败：${error.message}`
-                    : "批量下载失败，请重试"
-            );
+            toast.error(error instanceof Error ? `批量下载失败：${error.message}` : "批量下载失败，请重试", {
+                action:
+                    items.length > 1
+                        ? {
+                              label: "改用 ZIP",
+                              onClick: () => void exportBatch(),
+                          }
+                        : undefined,
+            });
         } finally {
             setIsBatchDownloading(false);
         }
-    }, [isBatchDownloading, savedCrops]);
+    }, [exportBatch, isBatchDownloading, savedCrops]);
 
     const routeWithCrops = useCallback(
         async (target: TransferTarget) => {
@@ -331,11 +396,13 @@ export function useCropExports({
         groupedSavedCrops,
         isBatchDownloading,
         isBatchExporting,
+        batchProgress,
         isRoutingExporting,
         removeSavedCrop,
         downloadBatch,
         routeWithCrops,
         saveCurrentCrop,
+        saveBatchCrops,
         savedCrops,
     };
 }

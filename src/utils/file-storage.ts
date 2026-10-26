@@ -8,6 +8,11 @@ type FileSessionRecord = {
     updatedAt: number;
 };
 
+export type FileStorageEstimate = {
+    fileBytes: number;
+    quotaBytes: number | null;
+};
+
 let databasePromise: Promise<IDBDatabase> | null = null;
 
 function openDatabase(): Promise<IDBDatabase> {
@@ -46,6 +51,33 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
 }
 
 const memorySessions = new Map<string, File[]>();
+
+export const formatBytes = (bytes: number) => {
+    if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+    if (bytes < 1024) return `${Math.round(bytes)} B`;
+    const units = ["KB", "MB", "GB"];
+    let value = bytes;
+    let unitIndex = -1;
+    do {
+        value /= 1024;
+        unitIndex += 1;
+    } while (value >= 1024 && unitIndex < units.length - 1);
+    return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+};
+
+export async function estimateFileStorage(files: File[]): Promise<FileStorageEstimate> {
+    const fileBytes = files.reduce((total, file) => total + file.size, 0);
+    let quotaBytes: number | null = null;
+
+    try {
+        const estimate = await navigator.storage?.estimate();
+        quotaBytes = typeof estimate?.quota === "number" ? estimate.quota : null;
+    } catch (error) {
+        console.warn("无法读取浏览器存储配额", error);
+    }
+
+    return { fileBytes, quotaBytes };
+}
 
 export async function saveFileSession(key: string, files: File[]): Promise<void> {
     const snapshot = [...files];

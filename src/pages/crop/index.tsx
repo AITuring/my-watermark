@@ -23,10 +23,12 @@ import type {
 } from "./types";
 import { ratioOptions } from "./types";
 import { consumePendingCropTransfer } from "@/utils/crop-transfer";
-import { loadFileSession, saveFileSession } from "@/utils/file-storage";
+import { estimateFileStorage, loadFileSession, saveFileSession, type FileStorageEstimate } from "@/utils/file-storage";
 
 const DEFAULT_VIEWPORT_RECT: ViewportRect = { left: 0, top: 0, width: 1, height: 1 };
 const DEFAULT_VIEWPORT_SIZE: ViewportSize = { width: 0, height: 0 };
+const EMPTY_STORAGE_ESTIMATE: FileStorageEstimate = { fileBytes: 0, quotaBytes: null };
+const CROP_SESSION_WARNING_BYTES = 80 * 1024 * 1024;
 
 export default function ImageCropper() {
     const navigate = useNavigate();
@@ -43,6 +45,8 @@ export default function ImageCropper() {
     const [viewportRect, setViewportRect] = useState<ViewportRect>(DEFAULT_VIEWPORT_RECT);
     const [viewportSize, setViewportSize] = useState<ViewportSize>(DEFAULT_VIEWPORT_SIZE);
     const [imagesHydrated, setImagesHydrated] = useState(false);
+    const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
+    const [storageEstimate, setStorageEstimate] = useState<FileStorageEstimate>(EMPTY_STORAGE_ESTIMATE);
 
     const stageRef = useRef<HTMLDivElement | null>(null);
     const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -237,6 +241,7 @@ export default function ImageCropper() {
         }));
 
         setImages((prev) => [...prev, ...nextImages]);
+        setSelectedImageIds((prev) => [...prev, ...nextImages.map((item) => item.id)]);
         setActiveId((prev) => prev ?? nextImages[0].id);
         toast.success(`已加载 ${valid.length} 张图片`);
     };
@@ -343,6 +348,8 @@ export default function ImageCropper() {
         downloadBatch,
         saveCurrentCrop,
         savedCrops,
+        batchProgress,
+        saveBatchCrops,
     } = useCropExports({
         activeImage,
         mode,
@@ -350,6 +357,28 @@ export default function ImageCropper() {
         targetHeight,
         navigate,
     });
+
+    useEffect(() => {
+        if (!imagesHydrated) return;
+        const files = [...images.map((image) => image.file), ...savedCrops.map((item) => item.file)];
+        void estimateFileStorage(files).then(setStorageEstimate);
+    }, [images, imagesHydrated, savedCrops]);
+
+    const toggleImageSelection = (id: string) => {
+        setSelectedImageIds((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+        );
+    };
+
+    const toggleAllImages = () => {
+        setSelectedImageIds((prev) =>
+            prev.length === images.length ? [] : images.map((item) => item.id)
+        );
+    };
+
+    const batchCropSelected = () => {
+        void saveBatchCrops(images.filter((item) => selectedImageIds.includes(item.id)));
+    };
 
     const resetAllCrop = () => {
         setImages((prev) =>
@@ -376,6 +405,14 @@ export default function ImageCropper() {
     const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files ?? []);
         if (!files.length) return;
+        const projectedBytes = storageEstimate.fileBytes + files.reduce((total, file) => total + file.size, 0);
+        const quotaWarning =
+            storageEstimate.quotaBytes !== null && projectedBytes / storageEstimate.quotaBytes >= 0.8;
+        if (projectedBytes >= CROP_SESSION_WARNING_BYTES || quotaWarning) {
+            toast.warning("当前批次会占用较多本地空间，建议处理完成后及时导出并清理暂存。", {
+                duration: 6000,
+            });
+        }
         await loadFiles(files);
         event.target.value = "";
     };
@@ -412,6 +449,7 @@ export default function ImageCropper() {
     };
 
     const removeImage = (id: string) => {
+        setSelectedImageIds((prev) => prev.filter((item) => item !== id));
         setImages((prev) => {
             const removeIndex = prev.findIndex((item) => item.id === id);
             if (removeIndex < 0) return prev;
@@ -439,6 +477,7 @@ export default function ImageCropper() {
         objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
         objectUrlsRef.current = [];
         setImages([]);
+        setSelectedImageIds([]);
         setActiveId(null);
     };
 
@@ -491,6 +530,12 @@ export default function ImageCropper() {
                             onSelectImage={setActiveId}
                             onRemoveImage={removeImage}
                             onSwapAspect={swapAspect}
+                            selectedImageIds={selectedImageIds}
+                            onToggleImage={toggleImageSelection}
+                            onToggleAllImages={toggleAllImages}
+                            onBatchCrop={batchCropSelected}
+                            batchProgress={batchProgress}
+                            storageEstimate={storageEstimate}
                         />
                     </div>
 
