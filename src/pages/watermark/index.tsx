@@ -44,6 +44,7 @@ import {
     saveFileSession,
 } from "@/utils/file-storage";
 import { importWithRecovery } from "@/utils/import-recovery";
+import { findSmartWatermarkPosition, loadPositionImage } from "./smart-position";
 
 const WATERMARK_OVERSIZE_THRESHOLD_BYTES = 30 * 1024 * 1024;
 
@@ -283,12 +284,21 @@ const Watermark: React.FC = () => {
 
     const handleWatermarkColorChange = (
         imageId: string,
-        newWatermarkUrl: string
+        newWatermarkUrl: string,
+        batch: boolean
     ) => {
-        setWatermarkColorUrls((prev) => ({
-            ...prev,
-            [imageId]: newWatermarkUrl,
-        }));
+        setWatermarkColorUrls((prev) => {
+            const next = { ...prev };
+            const imageIds = batch ? images.map((image) => image.id) : [imageId];
+            imageIds.forEach((id) => {
+                if (newWatermarkUrl === watermarkUrl) {
+                    delete next[id];
+                } else {
+                    next[id] = newWatermarkUrl;
+                }
+            });
+            return next;
+        });
     };
 
     const handleWatermarkUpload = (files: File[]) => {
@@ -327,6 +337,35 @@ const Watermark: React.FC = () => {
                 id: img.id,
             }))
         );
+    };
+
+    const handleSmartWatermarkPosition = async (
+        imageId: string,
+        batch: boolean,
+        scale: number
+    ) => {
+        const targets = batch ? images : images.filter((image) => image.id === imageId);
+        const positions: WatermarkPosition[] = [];
+        for (const image of targets) {
+            try {
+                if (!image.previewUrl) throw new Error("图片预览不存在");
+                const [photo, logo] = await Promise.all([
+                    loadPositionImage(image.previewUrl),
+                    loadPositionImage(watermarkColorUrls[image.id] || watermarkUrl),
+                ]);
+                positions.push(findSmartWatermarkPosition(
+                    photo, logo, image.id, scale, image.width, image.height
+                ));
+            } catch (error) {
+                console.error(`智能定位失败: ${image.id}`, error);
+            }
+        }
+        if (!positions.length) throw new Error("图片分析失败，请重试");
+        const byId = new Map(positions.map((position) => [position.id, position]));
+        setWatermarkPositions((prev) => prev.map((position) => byId.get(position.id) || position));
+        if (positions.length !== targets.length) {
+            alert(`${targets.length - positions.length} 张图片未能完成智能定位，请手动调整。`);
+        }
     };
 
     const handleApplyWatermark = async () => {
@@ -424,6 +463,9 @@ const Watermark: React.FC = () => {
                             totalImages={images.length}
                             currentIndex={currentImageIndex}
                             onAllTransform={handleAllWatermarkTransform}
+                            onSmartPosition={(batch, scale) =>
+                                handleSmartWatermarkPosition(currentImg.id, batch, scale)
+                            }
                             onPrevImage={() => {
                                 if (currentImageIndex > 0) {
                                     setCurrentImg(images[currentImageIndex - 1]);
@@ -506,11 +548,14 @@ const Watermark: React.FC = () => {
                                 handleWatermarkTransform(currentImg.id, position)
                             }
                             onAllTransform={handleAllWatermarkTransform}
+                            onSmartPosition={(batch, scale) =>
+                                handleSmartWatermarkPosition(currentImg.id, batch, scale)
+                            }
                             watermarkColor={
                                 watermarkColorUrls[currentImg.id] || ""
                             }
-                            onColorChange={(color) =>
-                                handleWatermarkColorChange(currentImg.id, color)
+                            onColorChange={(color, batch) =>
+                                handleWatermarkColorChange(currentImg.id, color, batch)
                             }
                             watermarkOpacity={watermarkOpacity}
                         />
