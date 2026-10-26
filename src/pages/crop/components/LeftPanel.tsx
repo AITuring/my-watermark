@@ -3,8 +3,8 @@ import PanelCard from "@/components/PanelCard";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowUpDown, Check, Crop, ImagePlus, Images, RotateCcw, Scissors, Trash2 } from "lucide-react";
-import type { ChangeEvent } from "react";
+import { ArrowUpDown, Check, Crop, ImagePlus, Images, RotateCcw, Scissors, Search, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { ratioOptions, type CropImage, type CropMode } from "../types";
 import StorageStatus from "./StorageStatus";
 import type { FileStorageEstimate } from "@/utils/file-storage";
@@ -29,12 +29,13 @@ type LeftPanelProps = {
     onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
     onResetAllCrop: () => void;
     onClearAllImages: () => void;
+    onRemoveSelectedImages: () => void;
     onSelectImage: (id: string) => void;
     onRemoveImage: (id: string) => void;
     onSwapAspect: () => void;
     selectedImageIds: string[];
     onToggleImage: (id: string) => void;
-    onToggleAllImages: () => void;
+    onToggleAllImages: (ids: string[]) => void;
     onBatchCrop: () => void;
     onApplyRuleToSelected: () => void;
     batchProgress: { completed: number; total: number; currentName: string; failed: number } | null;
@@ -63,6 +64,7 @@ export default function LeftPanel({
     onUpload,
     onResetAllCrop,
     onClearAllImages,
+    onRemoveSelectedImages,
     onSelectImage,
     onRemoveImage,
     onSwapAspect,
@@ -77,6 +79,19 @@ export default function LeftPanel({
     onRetryFailed,
     storageEstimate,
 }: LeftPanelProps) {
+    const [imageQuery, setImageQuery] = useState("");
+    const filteredImages = useMemo(() => {
+        const query = imageQuery.trim().toLowerCase();
+        if (!query) return images;
+        return images.filter((item) => item.name.toLowerCase().includes(query));
+    }, [imageQuery, images]);
+    const allVisibleImagesSelected =
+        filteredImages.length > 0 && filteredImages.every((item) => selectedImageIds.includes(item.id));
+
+    useEffect(() => {
+        if (!images.length && imageQuery) setImageQuery("");
+    }, [imageQuery, images.length]);
+
     return (
         <PanelCard
             title="图片裁切"
@@ -105,6 +120,9 @@ export default function LeftPanel({
                             重置全部
                         </Button>
                     </div>
+                    <div className="text-center text-[11px] text-muted-foreground">
+                        也可以直接拖入或粘贴图片
+                    </div>
                     <Button
                         variant="ghost"
                         className="w-full justify-center"
@@ -113,6 +131,15 @@ export default function LeftPanel({
                     >
                         <Trash2 className="mr-2 h-4 w-4" />
                         清空原图列表
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        className="w-full justify-center text-destructive hover:text-destructive"
+                        onClick={onRemoveSelectedImages}
+                        disabled={!selectedImageIds.length}
+                    >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        删除选中原图 ({selectedImageIds.length})
                     </Button>
                 </div>
 
@@ -227,13 +254,30 @@ export default function LeftPanel({
                             <Images className="h-4 w-4" />
                             原图列表
                         </div>
-                        <Button type="button" variant="ghost" size="sm" onClick={onToggleAllImages} disabled={!images.length}>
-                            {selectedImageIds.length === images.length ? "取消全选" : "全选"}
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onToggleAllImages(filteredImages.map((item) => item.id))}
+                            disabled={!filteredImages.length}
+                        >
+                            {allVisibleImagesSelected ? "取消当前全选" : "全选当前"}
                         </Button>
                     </div>
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            value={imageQuery}
+                            onChange={(event) => setImageQuery(event.target.value)}
+                            placeholder="搜索原图名称"
+                            aria-label="搜索原图名称"
+                            className="h-9 pl-9"
+                            disabled={!images.length}
+                        />
+                    </div>
                     <div className="min-h-0 flex-1 space-y-2 overflow-auto pr-1">
-                        {images.length ? (
-                            images.map((item) => (
+                        {filteredImages.length ? (
+                            filteredImages.map((item) => (
                                 <div
                                     key={item.id}
                                     className={`flex w-full items-center gap-2 rounded-lg border px-2 py-2 transition ${
@@ -297,6 +341,10 @@ export default function LeftPanel({
                                     </Button>
                                 </div>
                             ))
+                        ) : images.length ? (
+                            <div className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+                                没有匹配的原图，换个名称试试。
+                            </div>
                         ) : (
                             <div className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
                                 先上传一批原图，再从这里选择要裁切的图片。

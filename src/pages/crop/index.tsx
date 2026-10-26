@@ -92,12 +92,14 @@ export default function ImageCropper() {
     const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
     const [selectedSavedCropIds, setSelectedSavedCropIds] = useState<string[]>([]);
     const [storageEstimate, setStorageEstimate] = useState<FileStorageEstimate>(EMPTY_STORAGE_ESTIMATE);
+    const [isDragActive, setIsDragActive] = useState(false);
 
     const stageRef = useRef<HTMLDivElement | null>(null);
     const viewportRef = useRef<HTMLDivElement | null>(null);
     const objectUrlsRef = useRef<string[]>([]);
     const restoreStartedRef = useRef(false);
     const persistedImagesKeyRef = useRef<string | null>(null);
+    const dragDepthRef = useRef(0);
 
     const selectedRatio = useMemo<number | null>(() => {
         if (mode === "free") {
@@ -493,10 +495,15 @@ export default function ImageCropper() {
         );
     };
 
-    const toggleAllImages = () => {
-        setSelectedImageIds((prev) =>
-            prev.length === images.length ? [] : images.map((item) => item.id)
-        );
+    const toggleAllImages = (ids: string[]) => {
+        if (!ids.length) return;
+        const idSet = new Set(ids);
+        setSelectedImageIds((prev) => {
+            const allSelected = ids.every((id) => prev.includes(id));
+            return allSelected
+                ? prev.filter((id) => !idSet.has(id))
+                : Array.from(new Set([...prev, ...ids]));
+        });
     };
 
     const batchCropSelected = () => {
@@ -568,10 +575,16 @@ export default function ImageCropper() {
         );
     };
 
-    const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(event.target.files ?? []);
-        if (!files.length) return;
-        const projectedBytes = storageEstimate.fileBytes + files.reduce((total, file) => total + file.size, 0);
+    const handleUploadFiles = async (files: File[]) => {
+        const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+        if (!imageFiles.length) {
+            toast.error("没有找到可读取的图片文件");
+            return;
+        }
+        if (imageFiles.length < files.length) {
+            toast.warning(`已忽略 ${files.length - imageFiles.length} 个非图片文件`);
+        }
+        const projectedBytes = storageEstimate.fileBytes + imageFiles.reduce((total, file) => total + file.size, 0);
         const quotaWarning =
             storageEstimate.quotaBytes !== null && projectedBytes / storageEstimate.quotaBytes >= 0.8;
         if (projectedBytes >= CROP_SESSION_WARNING_BYTES || quotaWarning) {
@@ -579,7 +592,13 @@ export default function ImageCropper() {
                 duration: 6000,
             });
         }
-        await loadFiles(files);
+        await loadFiles(imageFiles);
+    };
+
+    const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files ?? []);
+        if (!files.length) return;
+        await handleUploadFiles(files);
         event.target.value = "";
     };
 
@@ -639,6 +658,80 @@ export default function ImageCropper() {
         });
     };
 
+    const removeSelectedImages = () => {
+        if (!selectedImageIds.length) return;
+        const selectedIds = new Set(selectedImageIds);
+        const removedImages = images.filter((item) => selectedIds.has(item.id));
+        const remainingImages = images.filter((item) => !selectedIds.has(item.id));
+        flushScheduledCropUpdate();
+        removedImages.forEach((item) => {
+            clearHistory(item.id);
+            releaseUrl(item.url);
+            if (item.previewUrl !== item.url) releaseUrl(item.previewUrl);
+        });
+        setImages(remainingImages);
+        setSelectedImageIds([]);
+        setActiveId((current) => (current && !selectedIds.has(current) ? current : remainingImages[0]?.id ?? null));
+        toast.success(`已删除 ${removedImages.length} 张原图`);
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (
+                target?.isContentEditable ||
+                target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement ||
+                target instanceof HTMLSelectElement
+            ) {
+                return;
+            }
+
+            if (!images.length || event.metaKey || event.ctrlKey || event.altKey) return;
+            const activeIndex = activeId ? images.findIndex((item) => item.id === activeId) : -1;
+            if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+                event.preventDefault();
+                const nextIndex = activeIndex > 0 ? activeIndex - 1 : images.length - 1;
+                setActiveId(images[nextIndex].id);
+                return;
+            }
+            if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+                event.preventDefault();
+                const nextIndex = activeIndex >= 0 && activeIndex < images.length - 1 ? activeIndex + 1 : 0;
+                setActiveId(images[nextIndex].id);
+                return;
+            }
+            if ((event.key === "Delete" || event.key === "Backspace") && activeId && !batchProgress) {
+                event.preventDefault();
+                removeImage(activeId);
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [activeId, batchProgress, images, removeImage]);
+
+    useEffect(() => {
+        const handlePaste = (event: ClipboardEvent) => {
+            const target = event.target as HTMLElement | null;
+            if (
+                target?.isContentEditable ||
+                target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement ||
+                target instanceof HTMLSelectElement
+            ) {
+                return;
+            }
+            const files = Array.from(event.clipboardData?.files ?? []);
+            if (!files.length) return;
+            event.preventDefault();
+            void handleUploadFiles(files);
+        };
+
+        window.addEventListener("paste", handlePaste);
+        return () => window.removeEventListener("paste", handlePaste);
+    }, [handleUploadFiles]);
+
     const clearAllImages = () => {
         flushScheduledCropUpdate();
         objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -672,7 +765,38 @@ export default function ImageCropper() {
     };
 
     return (
-        <div className="h-screen overflow-hidden bg-muted/20 p-4">
+        <div
+            className="relative h-screen overflow-hidden bg-muted/20 p-4"
+            onDragEnter={(event) => {
+                event.preventDefault();
+                dragDepthRef.current += 1;
+                setIsDragActive(true);
+            }}
+            onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "copy";
+            }}
+            onDragLeave={(event) => {
+                event.preventDefault();
+                dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+                if (!dragDepthRef.current) setIsDragActive(false);
+            }}
+            onDrop={(event) => {
+                event.preventDefault();
+                dragDepthRef.current = 0;
+                setIsDragActive(false);
+                const files = Array.from(event.dataTransfer.files);
+                if (files.length) void handleUploadFiles(files);
+            }}
+        >
+            {isDragActive && (
+                <div className="pointer-events-none absolute inset-4 z-30 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-background/85 shadow-xl backdrop-blur-sm">
+                    <div className="rounded-lg bg-primary/10 px-6 py-4 text-center">
+                        <div className="text-sm font-medium text-primary">释放图片开始添加</div>
+                        <div className="mt-1 text-xs text-muted-foreground">支持一次拖入多张图片</div>
+                    </div>
+                </div>
+            )}
             <div className="mx-auto flex h-full max-w-[1520px] min-h-0 flex-col">
                 <div className="grid h-full min-h-0 grid-cols-[240px_minmax(0,1fr)_260px] grid-rows-[minmax(0,1fr)] gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
                     <div className="flex min-h-0">
@@ -695,6 +819,7 @@ export default function ImageCropper() {
                             onUpload={handleUpload}
                             onResetAllCrop={resetAllCrop}
                             onClearAllImages={clearAllImages}
+                            onRemoveSelectedImages={removeSelectedImages}
                             onSelectImage={setActiveId}
                             onRemoveImage={removeImage}
                             onSwapAspect={swapAspect}
