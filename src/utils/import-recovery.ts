@@ -4,6 +4,8 @@ const RECOVERABLE_DYNAMIC_IMPORT_PATTERNS = [
     /Failed to fetch dynamically imported module/i,
     /Importing a module script failed/i,
     /error loading dynamically imported module/i,
+    /Expected a JavaScript-or-Wasm module script/i,
+    /MIME type of ["']text\/html["']/i,
     /ChunkLoadError/i,
     /Loading chunk [\d]+ failed/i,
 ];
@@ -11,7 +13,7 @@ const RECOVERABLE_DYNAMIC_IMPORT_PATTERNS = [
 const DEFAULT_RETRY_COUNT = 1;
 const DEFAULT_RETRY_DELAY_MS = 300;
 
-function isRecoverableDynamicImportError(error: unknown): boolean {
+export function isRecoverableDynamicImportError(error: unknown): boolean {
     const message =
         error instanceof Error
             ? `${error.name} ${error.message}`
@@ -20,6 +22,34 @@ function isRecoverableDynamicImportError(error: unknown): boolean {
     return RECOVERABLE_DYNAMIC_IMPORT_PATTERNS.some((pattern) =>
         pattern.test(message)
     );
+}
+
+const GLOBAL_RELOAD_FLAG_KEY = getReloadFlagKey("global");
+
+async function clearStaleApplicationState(): Promise<void> {
+    try {
+        if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+        }
+        if ("caches" in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+        }
+    } catch (error) {
+        console.warn("清理旧页面资源失败，将继续刷新页面", error);
+    }
+}
+
+export async function recoverFromStaleDeployment(force = false): Promise<boolean> {
+    if (!force && sessionStorage.getItem(GLOBAL_RELOAD_FLAG_KEY) === "1") {
+        return false;
+    }
+
+    sessionStorage.setItem(GLOBAL_RELOAD_FLAG_KEY, "1");
+    await clearStaleApplicationState();
+    window.location.reload();
+    return true;
 }
 
 function getReloadFlagKey(key: string): string {
@@ -41,6 +71,7 @@ export async function importWithRecovery<T>(
         try {
             const module = await importer();
             sessionStorage.removeItem(getReloadFlagKey(key));
+            sessionStorage.removeItem(GLOBAL_RELOAD_FLAG_KEY);
             return module;
         } catch (error) {
             lastError = error;
@@ -59,14 +90,16 @@ export async function importWithRecovery<T>(
     }
 
     const reloadFlagKey = getReloadFlagKey(key);
-    const hasReloaded = sessionStorage.getItem(reloadFlagKey) === "1";
+    const hasReloaded = sessionStorage.getItem(reloadFlagKey) === "1" ||
+        sessionStorage.getItem(GLOBAL_RELOAD_FLAG_KEY) === "1";
     if (!hasReloaded) {
         sessionStorage.setItem(reloadFlagKey, "1");
-        window.location.reload();
+        await recoverFromStaleDeployment();
         return new Promise<T>(() => {});
     }
 
     sessionStorage.removeItem(reloadFlagKey);
+    sessionStorage.removeItem(GLOBAL_RELOAD_FLAG_KEY);
     throw lastError;
 }
 

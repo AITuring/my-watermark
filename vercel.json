@@ -5,6 +5,7 @@
   "outputDirectory": "dist",
   "routes": [
     { "handle": "filesystem" },
+    { "src": "/assets/(.*)", "status": 404 },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
   "crons": [
