@@ -23,6 +23,7 @@ import type {
 } from "./types";
 import { ratioOptions } from "./types";
 import { consumePendingCropTransfer } from "@/utils/crop-transfer";
+import { loadFileSession, saveFileSession } from "@/utils/file-storage";
 
 const DEFAULT_VIEWPORT_RECT: ViewportRect = { left: 0, top: 0, width: 1, height: 1 };
 const DEFAULT_VIEWPORT_SIZE: ViewportSize = { width: 0, height: 0 };
@@ -41,10 +42,13 @@ export default function ImageCropper() {
     const [zoom, setZoom] = useState(1);
     const [viewportRect, setViewportRect] = useState<ViewportRect>(DEFAULT_VIEWPORT_RECT);
     const [viewportSize, setViewportSize] = useState<ViewportSize>(DEFAULT_VIEWPORT_SIZE);
+    const [imagesHydrated, setImagesHydrated] = useState(false);
 
     const stageRef = useRef<HTMLDivElement | null>(null);
     const viewportRef = useRef<HTMLDivElement | null>(null);
     const objectUrlsRef = useRef<string[]>([]);
+    const restoreStartedRef = useRef(false);
+    const persistedImagesKeyRef = useRef<string | null>(null);
 
     const selectedRatio = useMemo<number | null>(() => {
         if (mode === "free") {
@@ -199,6 +203,7 @@ export default function ImageCropper() {
                             resolve({
                                 id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
                                 name: file.name.replace(/\.[^/.]+$/, "") || "image",
+                                file,
                                 url,
                                 previewUrl: preview.url,
                                 previewWidth: preview.width,
@@ -237,10 +242,35 @@ export default function ImageCropper() {
     };
 
     useEffect(() => {
-        const incomingFiles = consumePendingCropTransfer("crop");
-        if (!incomingFiles.length) return;
-        void loadFiles(incomingFiles);
+        if (restoreStartedRef.current) return;
+        restoreStartedRef.current = true;
+
+        const restoreImages = async () => {
+            const incomingFiles = await consumePendingCropTransfer("crop");
+            const files = incomingFiles.length
+                ? incomingFiles
+                : await loadFileSession("crop-images");
+
+            if (files.length) {
+                await loadFiles(files);
+            }
+
+            setImagesHydrated(true);
+        };
+
+        void restoreImages();
     }, []);
+
+    useEffect(() => {
+        if (!imagesHydrated) return;
+        const files = images.map((image) => image.file);
+        const filesKey = files
+            .map((file) => `${file.name}:${file.size}:${file.lastModified}:${file.type}`)
+            .join("|");
+        if (persistedImagesKeyRef.current === filesKey) return;
+        persistedImagesKeyRef.current = filesKey;
+        void saveFileSession("crop-images", files);
+    }, [images, imagesHydrated]);
 
     const releaseUrl = (url: string) => {
         URL.revokeObjectURL(url);
@@ -305,9 +335,12 @@ export default function ImageCropper() {
         exportBatch,
         exportCurrent,
         groupedSavedCrops,
+        isBatchDownloading,
+        isBatchExporting,
         isRoutingExporting,
         removeSavedCrop,
         routeWithCrops,
+        downloadBatch,
         saveCurrentCrop,
         savedCrops,
     } = useCropExports({
@@ -492,8 +525,11 @@ export default function ImageCropper() {
                             className="w-full"
                             savedCropCount={savedCrops.length}
                             groupedSavedCrops={groupedSavedCrops}
+                            isBatchDownloading={isBatchDownloading}
+                            isBatchExporting={isBatchExporting}
                             isRoutingExporting={isRoutingExporting}
                             onExportBatch={exportBatch}
+                            onDownloadBatch={downloadBatch}
                             onRouteWithCrops={routeWithCrops}
                             onClearSavedCrops={clearSavedCrops}
                             onRemoveSavedCrop={removeSavedCrop}

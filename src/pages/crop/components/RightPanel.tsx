@@ -8,8 +8,11 @@ type RightPanelProps = {
     className?: string;
     savedCropCount: number;
     groupedSavedCrops: SavedCropGroup[];
+    isBatchDownloading: boolean;
+    isBatchExporting: boolean;
     isRoutingExporting: boolean;
     onExportBatch: () => void;
+    onDownloadBatch: () => void;
     onRouteWithCrops: (target: TransferTarget) => void;
     onClearSavedCrops: () => void;
     onRemoveSavedCrop: (id: string) => void;
@@ -19,8 +22,11 @@ export default function RightPanel({
     className = "",
     savedCropCount,
     groupedSavedCrops,
+    isBatchDownloading,
+    isBatchExporting,
     isRoutingExporting,
     onExportBatch,
+    onDownloadBatch,
     onRouteWithCrops,
     onClearSavedCrops,
     onRemoveSavedCrop,
@@ -36,14 +42,25 @@ export default function RightPanel({
             contentClassName="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-6 pt-0"
         >
                 <div className="grid gap-2">
-                    <Button onClick={onExportBatch} disabled={!savedCropCount}>
+                    <Button
+                        onClick={onExportBatch}
+                        disabled={!savedCropCount || isBatchExporting || isBatchDownloading}
+                    >
                         <Download className="mr-2 h-4 w-4" />
-                        导出 ZIP
+                        {isBatchExporting ? "正在生成 ZIP..." : "导出 ZIP"}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={onDownloadBatch}
+                        disabled={!savedCropCount || isBatchExporting || isBatchDownloading}
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        {isBatchDownloading ? "正在准备下载..." : "批量下载"}
                     </Button>
                     <Button
                         variant="secondary"
                         onClick={() => onRouteWithCrops("watermark")}
-                        disabled={!savedCropCount || isRoutingExporting}
+                        disabled={!savedCropCount || isRoutingExporting || isBatchExporting || isBatchDownloading}
                     >
                         <Send className="mr-2 h-4 w-4" />
                         发送到水印
@@ -51,12 +68,16 @@ export default function RightPanel({
                     <Button
                         variant="secondary"
                         onClick={() => onRouteWithCrops("puzzle")}
-                        disabled={!savedCropCount || isRoutingExporting}
+                        disabled={!savedCropCount || isRoutingExporting || isBatchExporting || isBatchDownloading}
                     >
                         <Send className="mr-2 h-4 w-4" />
                         发送到拼图
                     </Button>
-                    <Button variant="ghost" onClick={onClearSavedCrops} disabled={!savedCropCount}>
+                    <Button
+                        variant="ghost"
+                        onClick={onClearSavedCrops}
+                        disabled={!savedCropCount || isBatchExporting || isBatchDownloading}
+                    >
                         <Trash2 className="mr-2 h-4 w-4" />
                         清空暂存
                     </Button>

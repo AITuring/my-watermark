@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
 import { consumePendingCropTransfer, setPendingCropTransfer, type TransferTarget } from '@/utils/crop-transfer';
@@ -17,6 +17,7 @@ export const useCompressWorkbench = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [expandedImageId, setExpandedImageId] = useState<string | null>(null);
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
+  const restoredPendingTransferRef = useRef(false);
 
   const normalizedTargetSizeMB = Math.max(targetSizeMB, 0.1);
   const compressedCount = images.filter((image) => image.compressedFile).length;
@@ -54,12 +55,13 @@ export const useCompressWorkbench = () => {
   });
 
   useEffect(() => {
-    const incomingFiles = consumePendingCropTransfer('compress');
-    if (!incomingFiles.length) {
-      return;
-    }
-
-    void onDrop(incomingFiles);
+    if (restoredPendingTransferRef.current) return;
+    restoredPendingTransferRef.current = true;
+    void consumePendingCropTransfer('compress').then((incomingFiles) => {
+      if (incomingFiles.length) {
+        void onDrop(incomingFiles);
+      }
+    });
   }, [onDrop]);
 
   const applyCompressionResult = useCallback((image: CompressedImage, result: Awaited<ReturnType<typeof compressImage>>) => ({
@@ -182,7 +184,7 @@ export const useCompressWorkbench = () => {
     }
   }, [images]);
 
-  const handleRouteTransfer = useCallback((target: TransferTarget) => {
+  const handleRouteTransfer = useCallback(async (target: TransferTarget) => {
     const files = images
       .map((image) => image.compressedFile)
       .filter((file): file is File => Boolean(file));
@@ -192,7 +194,7 @@ export const useCompressWorkbench = () => {
       return;
     }
 
-    setPendingCropTransfer(target, files);
+    await setPendingCropTransfer(target, files);
     navigate(target === 'watermark' ? '/watermark' : '/crop');
   }, [images, navigate]);
 

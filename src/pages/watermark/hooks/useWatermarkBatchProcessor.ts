@@ -12,7 +12,7 @@ interface UseWatermarkBatchProcessorOptions {
     watermarkBlur: boolean;
     quality: number;
     oversizeThresholdBytes?: number;
-    onOversizedFiles?: (files: File[]) => void;
+    onOversizedFiles?: (files: File[]) => void | Promise<void>;
     confirmOversizedFiles?: (payload: {
         files: File[];
         thresholdBytes: number;
@@ -222,7 +222,7 @@ export function useWatermarkBatchProcessor({
                     if (decision === "download") {
                         oversizedFiles.forEach(triggerDownload);
                     } else if (onOversizedFiles) {
-                        onOversizedFiles(oversizedFiles);
+                        await onOversizedFiles(oversizedFiles);
                     }
                 }
 

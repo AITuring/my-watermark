@@ -408,10 +408,10 @@ export function useImageSplitter() {
     await exportSplitImagesIndividually(generatedImages);
   }, [generatedImages]);
 
-  const handleSendToWatermark = useCallback(() => {
+  const handleSendToWatermark = useCallback(async () => {
     if (generatedImages.length === 0) return;
 
-    setPendingCropTransfer('watermark', buildTransferFiles(generatedImages));
+    await setPendingCropTransfer('watermark', buildTransferFiles(generatedImages));
     navigate('/watermark');
   }, [generatedImages, navigate]);
 

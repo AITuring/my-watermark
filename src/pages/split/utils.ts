@@ -9,6 +9,7 @@ import type {
   SplitImage,
 } from '@/pages/split/types';
 import { loadJSZip, loadSaveAs } from '@/utils/lazy-deps';
+import { downloadFilesIndividually } from '@/utils/download-files';
 
 type ZipInstance = {
   file: (name: string, data: Blob | File) => void;
@@ -616,11 +617,6 @@ export const buildGridSplitImages = async (
   return newImages;
 };
 
-const waitForNextDownload = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(resolve, 120);
-  });
-
 export const exportSplitImagesZip = async (images: SplitImage[]) => {
   const JSZip = (await loadJSZip()) as ZipConstructor;
   const saveAs = await loadSaveAs();
@@ -636,12 +632,9 @@ export const exportSplitImagesZip = async (images: SplitImage[]) => {
 };
 
 export const exportSplitImagesIndividually = async (images: SplitImage[]) => {
-  const saveAs = await loadSaveAs();
-
-  for (const image of images) {
-    saveAs(image.blob, image.fileName);
-    await waitForNextDownload();
-  }
+  await downloadFilesIndividually(
+    images.map((image) => ({ data: image.blob, name: image.fileName }))
+  );
 };
 
 export const buildTransferFiles = (images: SplitImage[]) =>

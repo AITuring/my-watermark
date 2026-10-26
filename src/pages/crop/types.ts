@@ -11,6 +11,7 @@ export type CropBox = {
 export type CropImage = {
     id: string;
     name: string;
+    file: File;
     url: string;
     previewUrl: string;
     previewWidth: number;

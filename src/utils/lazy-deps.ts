@@ -13,12 +13,22 @@ export const loadHtml2Canvas = async () => {
 };
 
 export const loadJSZip = async () => {
-    jsZipPromise ??= import("jszip").then((module) => module.default ?? module);
+    jsZipPromise ??= import("jszip")
+        .then((module) => module.default ?? module)
+        .catch((error) => {
+            jsZipPromise = null;
+            throw error;
+        });
     return jsZipPromise;
 };
 
 export const loadSaveAs = async () => {
-    saveAsPromise ??= import("file-saver").then((module) => module.saveAs);
+    saveAsPromise ??= import("file-saver")
+        .then((module) => module.saveAs)
+        .catch((error) => {
+            saveAsPromise = null;
+            throw error;
+        });
     return saveAsPromise;
 };
 

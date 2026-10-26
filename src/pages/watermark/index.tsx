@@ -38,6 +38,11 @@ import {
     consumePendingCropTransfer,
     setPendingCropTransfer,
 } from "@/utils/crop-transfer";
+import {
+    clearFileSession,
+    loadFileSession,
+    saveFileSession,
+} from "@/utils/file-storage";
 import { importWithRecovery } from "@/utils/import-recovery";
 
 const WATERMARK_OVERSIZE_THRESHOLD_BYTES = 30 * 1024 * 1024;
@@ -81,12 +86,15 @@ const Watermark: React.FC = () => {
     );
     const [oversizePrompt, setOversizePrompt] =
         useState<OversizePromptState>(null);
+    const [imagesHydrated, setImagesHydrated] = useState(false);
 
     const dropzoneRef = useRef<HTMLDivElement>(null);
     const managedPreviewUrlsRef = useRef<Set<string>>(new Set());
     const oversizeDecisionResolverRef = useRef<
         ((decision: "download" | "compress") => void) | null
     >(null);
+    const restoreStartedRef = useRef(false);
+    const persistedImagesKeyRef = useRef<string | null>(null);
     const {
         loading,
         downloadFinalizing,
@@ -99,8 +107,8 @@ const Watermark: React.FC = () => {
         watermarkBlur,
         quality,
         oversizeThresholdBytes: WATERMARK_OVERSIZE_THRESHOLD_BYTES,
-        onOversizedFiles: (files) => {
-            setPendingCropTransfer("compress", files);
+        onOversizedFiles: async (files) => {
+            await setPendingCropTransfer("compress", files);
             navigate("/compress");
         },
         confirmOversizedFiles: async (payload) => {
@@ -179,7 +187,7 @@ const Watermark: React.FC = () => {
         }
     }, [images]);
 
-    const handleImagesUpload = async (files: File[]) => {
+    const handleImagesUpload = async (files: File[]): Promise<boolean> => {
         setUploading(true);
         try {
             const { loadImageData } = await importWithRecovery(
@@ -192,7 +200,7 @@ const Watermark: React.FC = () => {
 
             if (uploadImages.length === 0) {
                 alert("没有可用的图片被读取，请检查文件格式后重试。");
-                return;
+                return false;
             }
 
             const newPositions = buildWatermarkPositions(uploadImages);
@@ -223,6 +231,7 @@ const Watermark: React.FC = () => {
                     `已导入 ${uploadImages.length} 张图片，跳过 ${failedFiles.length} 张不支持或读取失败的图片：${summary}`
                 );
             }
+            return true;
         } catch (error) {
             console.error("批量上传图片失败:", error);
             alert(
@@ -230,16 +239,47 @@ const Watermark: React.FC = () => {
                     ? error.message
                     : "批量上传失败，请检查图片文件后重试。"
             );
+            return false;
         } finally {
             setUploading(false);
         }
     };
 
     useEffect(() => {
-        const incomingFiles = consumePendingCropTransfer("watermark");
-        if (!incomingFiles.length) return;
-        void handleImagesUpload(incomingFiles);
+        if (restoreStartedRef.current) return;
+        restoreStartedRef.current = true;
+
+        const restoreImages = async () => {
+            const incomingFiles = await consumePendingCropTransfer("watermark");
+            const files = incomingFiles.length
+                ? incomingFiles
+                : await loadFileSession("watermark-images");
+
+            if (files.length) {
+                const loaded = await handleImagesUpload(files);
+                if (!loaded) {
+                    await saveFileSession("watermark-images", files);
+                }
+            }
+
+            setImagesHydrated(true);
+        };
+
+        void restoreImages();
     }, []);
+
+    useEffect(() => {
+        if (!imagesHydrated) return;
+        const files = images.map((image) => image.file);
+        const filesKey = files
+            .map((file) => `${file.name}:${file.size}:${file.lastModified}:${file.type}`)
+            .join("|");
+        if (persistedImagesKeyRef.current === filesKey) return;
+        persistedImagesKeyRef.current = filesKey;
+        void (files.length
+            ? saveFileSession("watermark-images", files)
+            : clearFileSession("watermark-images"));
+    }, [images, imagesHydrated]);
 
     const handleWatermarkColorChange = (
         imageId: string,
@@ -346,7 +386,9 @@ const Watermark: React.FC = () => {
                 <WatermarkUploadHero
                     mobile
                     dropzoneRef={dropzoneRef}
-                    onUpload={handleImagesUpload}
+                    onUpload={async (files) => {
+                        await handleImagesUpload(files);
+                    }}
                 />
             );
         }
@@ -436,7 +478,9 @@ const Watermark: React.FC = () => {
             return (
                 <WatermarkUploadHero
                     dropzoneRef={dropzoneRef}
-                    onUpload={handleImagesUpload}
+                    onUpload={async (files) => {
+                        await handleImagesUpload(files);
+                    }}
                 />
             );
         }

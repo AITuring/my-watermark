@@ -57,6 +57,7 @@ const pageScale = 1;
 const Puzzle = () => {
     const galleryRef = useRef<HTMLDivElement | null>(null);
     const renderedPhotos = useRef<Record<string, SortablePhotoProps>>({});
+    const restoredPendingTransferRef = useRef(false);
 
     const [files, setFiles] = useState<File[]>([]);
     const [images, setImages] = useState<ImgProp[]>([]);
@@ -230,12 +231,13 @@ const Puzzle = () => {
     );
 
     useEffect(() => {
-        const incomingFiles = consumePendingCropTransfer("puzzle");
-        if (!incomingFiles.length) {
-            return;
-        }
-
-        void onDrop(incomingFiles);
+        if (restoredPendingTransferRef.current) return;
+        restoredPendingTransferRef.current = true;
+        void consumePendingCropTransfer("puzzle").then((incomingFiles) => {
+            if (incomingFiles.length) {
+                void onDrop(incomingFiles);
+            }
+        });
     }, [onDrop]);
 
     const { getRootProps, getInputProps } = useDropzone({
