@@ -10,6 +10,22 @@ export interface AppCatalogItem {
 }
 
 export const appCatalog: AppCatalogItem[] = [
+    {
+        id: "river",
+        label: "水流模拟系统",
+        url: "/river",
+        icon: "material-symbols:water",
+        description: "从小溪、湖泊到大江与巨浪，探索不同尺度的水流、波谱与光影",
+        component: () => import("../pages/river"),
+    },
+    {
+        id: "ancient-waves",
+        label: "古画水纹",
+        url: "/ancient-waves",
+        icon: "material-symbols:water-outline",
+        description: "以 SVG 线条重绘古画中的层叠海浪",
+        component: () => import("../pages/ancient-waves"),
+    },
     // {
     //     id: "reading-notes",
     //     label: "读书笔记合集",
