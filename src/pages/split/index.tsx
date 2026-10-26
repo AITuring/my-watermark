@@ -5,6 +5,7 @@ import { AxisSplitPreview } from '@/pages/split/components/AxisSplitPreview';
 import { GeneratedImagesCard } from '@/pages/split/components/GeneratedImagesCard';
 import { GridSplitPreview } from '@/pages/split/components/GridSplitPreview';
 import { SplitSettingsCard } from '@/pages/split/components/SplitSettingsCard';
+import { SplitLoadingStatus } from '@/pages/split/components/SplitLoadingStatus';
 import { useImageSplitter } from '@/pages/split/hooks/useImageSplitter';
 
 const ImageSplitter: React.FC = () => {
@@ -37,6 +38,8 @@ const ImageSplitter: React.FC = () => {
     hvRatioW,
     isPreviewOpen,
     isProcessing,
+    isImporting,
+    loadingStatus,
     overlapPercent,
     previewIndex,
     previewUrl,
@@ -57,6 +60,8 @@ const ImageSplitter: React.FC = () => {
     sourceFileName,
     sourceItemsCount,
     sourceImage,
+    sourceNaturalWidth,
+    sourceNaturalHeight,
     activeSourceId,
     verticalPlan,
   } = useImageSplitter();
@@ -72,11 +77,14 @@ const ImageSplitter: React.FC = () => {
 
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
+      {loadingStatus && <div className="mb-4"><SplitLoadingStatus status={loadingStatus} /></div>}
+
       <div className={hasPreview ? 'grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]' : ''}>
         <div className={hasPreview ? 'xl:sticky xl:top-4 xl:self-start' : ''}>
           <SplitSettingsCard
             hasSourceImage={Boolean(sourceImage)}
-            isProcessing={isProcessing}
+            isProcessing={isProcessing || isImporting}
+            isImporting={isImporting}
             splitMethod={splitMethod}
             sourceItems={sourceImageSummaries}
             sourceItemsCount={sourceItemsCount}
@@ -92,8 +100,8 @@ const ImageSplitter: React.FC = () => {
             aspectW={aspectW}
             aspectH={aspectH}
             activePreviewOrientation={activePreviewOrientation}
-            sourceNaturalWidth={sourceImage?.naturalWidth}
-            sourceNaturalHeight={sourceImage?.naturalHeight}
+            sourceNaturalWidth={sourceNaturalWidth}
+            sourceNaturalHeight={sourceNaturalHeight}
             sourceFileName={sourceFileName}
             verticalPlan={verticalPlan}
             horizontalPlan={horizontalPlan}
@@ -123,8 +131,8 @@ const ImageSplitter: React.FC = () => {
                 <AxisSplitPreview
                   title={activeTitle}
                   imageUrl={previewUrl!}
-                  naturalWidth={sourceImage!.naturalWidth}
-                  naturalHeight={sourceImage!.naturalHeight}
+                  naturalWidth={sourceNaturalWidth!}
+                  naturalHeight={sourceNaturalHeight!}
                   plan={activePlan!}
                   isAdjusted={activeIsAdjusted}
                   onCommitStarts={(starts) => commitManualRegionStarts(activePreviewOrientation, starts)}
@@ -134,8 +142,8 @@ const ImageSplitter: React.FC = () => {
                 <GridSplitPreview
                   title="规则网格预览"
                   imageUrl={previewUrl!}
-                  naturalWidth={sourceImage!.naturalWidth}
-                  naturalHeight={sourceImage!.naturalHeight}
+                  naturalWidth={sourceNaturalWidth!}
+                  naturalHeight={sourceNaturalHeight!}
                   plan={gridPlan!}
                 />
               )}

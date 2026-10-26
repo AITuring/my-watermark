@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import ImageUploader from "@/components/ImageUploader";
 import { Download, RotateCcw, Upload, Trash2, Plus, Image as ImageIcon, Film, BoxSelect, Camera, Newspaper, Aperture, Copy, Calendar as CalendarIcon, Layers, PenTool } from 'lucide-react';
 import { toast } from 'sonner';
+import { getLargeImageAsset } from '@/utils/large-image';
 
 interface ExifData {
     make: string;
@@ -128,6 +129,7 @@ const PhotoFrame: React.FC = () => {
 
         for (const file of files) {
             try {
+                const largeAsset = await getLargeImageAsset(file);
                 const tags = await ExifReader.load(file);
                 const width = tags['Image Width']?.value || 0;
                 const height = tags['Image Height']?.value || 0;
@@ -150,7 +152,7 @@ const PhotoFrame: React.FC = () => {
                 newImages.push({
                     id: crypto.randomUUID(),
                     file,
-                    url: URL.createObjectURL(file),
+                    url: largeAsset?.previewUrl ?? URL.createObjectURL(file),
                     exif
                 });
             } catch (e) {
@@ -158,7 +160,7 @@ const PhotoFrame: React.FC = () => {
                 newImages.push({
                     id: crypto.randomUUID(),
                     file,
-                    url: URL.createObjectURL(file),
+                    url: (await getLargeImageAsset(file))?.previewUrl ?? URL.createObjectURL(file),
                     exif: {
                         make: '', model: 'Unknown', lens: '', iso: '', fNumber: '',
                         exposureTime: '', dateTime: '', focalLength: '',

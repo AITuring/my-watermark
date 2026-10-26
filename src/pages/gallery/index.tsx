@@ -29,6 +29,7 @@ import "react-photo-album/styles.css";
 
 import ImagePreview from "@/components/ImagePreview";
 import ThreeLanding from "@/components/ThreeLanding";
+import { isLargeJpeg } from '@/utils/large-image';
 import { aspectRatioOptions, getRandomColor } from "./constants";
 import {
     calculateOverlayPagination,
@@ -193,9 +194,9 @@ const Gallery = () => {
 
     const onDrop = useCallback(
         async (acceptedFiles: File[]) => {
-            const oversizedFiles = acceptedFiles.filter(
-                (file) => file.size > 200 * 1024 * 1024
-            );
+            const oversizedFiles = (await Promise.all(acceptedFiles.map(async (file) =>
+                file.size > 200 * 1024 * 1024 && !await isLargeJpeg(file) ? file : null
+            ))).filter((file): file is File => Boolean(file));
 
             if (oversizedFiles.length > 0) {
                 toast.error(
@@ -233,9 +234,9 @@ const Gallery = () => {
         accept: {
             "image/*": [".jpeg", ".jpg", ".png"],
         },
-        maxSize: 100 * 1024 * 1024,
+        maxSize: 2 * 1024 * 1024 * 1024,
         onDropRejected: () => {
-            toast.error("图片大小不能超过200MB", { position: "top-center" });
+            toast.error("文件超过本地处理上限", { position: "top-center" });
         },
     });
 

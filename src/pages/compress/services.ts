@@ -1,6 +1,7 @@
 import { MIN_FORCE_EDGE, PREVIEW_MAX_EDGE } from './constants';
 import type { CompressedImage, CompressionConfig, CompressionResult, ZipConstructor } from './types';
 import { loadImageCompression, loadJSZip, loadSaveAs } from '@/utils/lazy-deps';
+import { getLargeImageAsset, processLargeImage } from '@/utils/large-image';
 
 const getFileNameWithoutExtension = (fileName: string) => fileName.replace(/\.[^.]+$/, '');
 
@@ -25,8 +26,10 @@ export const getOutputFileName = (file: File) => {
   return extension ? `compressed_${baseName}.${extension}` : `compressed_${file.name}`;
 };
 
-export const getImageDimensions = (file: File): Promise<{ width: number; height: number }> =>
-  new Promise((resolve, reject) => {
+export const getImageDimensions = async (file: File): Promise<{ width: number; height: number }> => {
+  const asset = await getLargeImageAsset(file);
+  if (asset) return { width: asset.width, height: asset.height };
+  return new Promise((resolve, reject) => {
     const imageUrl = URL.createObjectURL(file);
     const image = new Image();
 
@@ -45,8 +48,11 @@ export const getImageDimensions = (file: File): Promise<{ width: number; height:
 
     image.src = imageUrl;
   });
+};
 
 export const createThumbnailPreview = async (file: File): Promise<string> => {
+  const asset = await getLargeImageAsset(file);
+  if (asset) return asset.previewUrl;
   const { width, height } = await getImageDimensions(file);
   const longestEdge = Math.max(width, height);
 
@@ -143,6 +149,23 @@ export const compressImage = async (
   const normalizedSizeMB = Math.max(config.targetSizeMB, 0.1);
   const normalizedResizePercent = Math.min(Math.max(config.resizePercent, 1), 100);
   const { width, height } = await getImageDimensions(file);
+  const largeAsset = await getLargeImageAsset(file);
+  if (largeAsset) {
+    const scale = normalizedResizePercent / 100;
+    const outputWidth = Math.max(1, Math.round(width * scale));
+    const outputHeight = Math.max(1, Math.round(height * scale));
+    let blob: Blob | null = null;
+    for (const quality of [82, 72, 62, 52, 42]) {
+      blob = await processLargeImage(file, {
+        ...(scale < 1 ? { width: outputWidth, height: outputHeight } : {}), quality,
+      });
+      if (!blob) throw new Error('大图压缩服务不可用');
+      if (blob.size <= normalizedSizeMB * 1024 * 1024) break;
+    }
+    if (!blob) throw new Error('大图压缩服务不可用');
+    return { file: new File([blob], file.name, { type: 'image/jpeg' }),
+      outputScalePercent: normalizedResizePercent, outputWidth, outputHeight };
+  }
   const longestEdge = Math.max(width, height);
   const shouldResize = normalizedResizePercent < 100;
   const options = {
@@ -180,8 +203,28 @@ export const forceCompressImage = async (
   file: File,
   targetSizeLimitMB: number
 ): Promise<CompressionResult> => {
-  const imageCompression = await loadImageCompression();
   const { width, height } = await getImageDimensions(file);
+  const largeAsset = await getLargeImageAsset(file);
+  if (largeAsset) {
+    const targetBytes = Math.max(targetSizeLimitMB, 0.1) * 1024 * 1024;
+    let scale = 1;
+    let best: CompressionResult | null = null;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const outputWidth = Math.max(1, Math.round(width * scale));
+      const outputHeight = Math.max(1, Math.round(height * scale));
+      const blob = await processLargeImage(file, {
+        ...(scale < 1 ? { width: outputWidth, height: outputHeight } : {}),
+        quality: Math.max(30, 78 - attempt * 7),
+      });
+      if (!blob) throw new Error('大图压缩服务不可用');
+      best = { file: new File([blob], file.name, { type: 'image/jpeg' }),
+        outputScalePercent: Math.round(scale * 100), outputWidth, outputHeight };
+      if (blob.size <= targetBytes) return best;
+      scale *= 0.72;
+    }
+    return best!;
+  }
+  const imageCompression = await loadImageCompression();
   const normalizedSizeMB = Math.max(targetSizeLimitMB, 0.1);
   const targetBytes = normalizedSizeMB * 1024 * 1024;
   const originalLongestEdge = Math.max(width, height);

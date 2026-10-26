@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { getLargeImageAsset, processLargeImage } from '@/utils/large-image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -134,8 +135,11 @@ const loadImageElement = (src: string) => {
     return pending;
 };
 
-const loadImageMeta = (file: File) =>
-    new Promise<Omit<MosaicImage, "id" | "regions">>((resolve, reject) => {
+const loadImageMeta = async (file: File): Promise<Omit<MosaicImage, 'id' | 'regions'>> => {
+    const largeAsset = await getLargeImageAsset(file);
+    if (largeAsset) return { file, name: file.name, objectUrl: largeAsset.previewUrl,
+        width: largeAsset.width, height: largeAsset.height };
+    return new Promise<Omit<MosaicImage, "id" | "regions">>((resolve, reject) => {
         const objectUrl = URL.createObjectURL(file);
         const img = new Image();
         img.onload = () => {
@@ -153,6 +157,7 @@ const loadImageMeta = (file: File) =>
         };
         img.src = objectUrl;
     });
+};
 
 const getOutputInfo = (file: File, format: ExportFormat) => {
     if (format === "jpeg") {
@@ -181,6 +186,25 @@ const renderMosaicBlob = async (
     quality: number,
     maxDimension?: number
 ) => {
+    const largeAsset = await getLargeImageAsset(image.file);
+    if (largeAsset && maxDimension === undefined) {
+        const output = getOutputInfo(image.file, format);
+        const mosaic = image.regions.filter((region) => region.enabled && region.blockSize > 0)
+            .map((region) => ({
+                x: Math.round(clamp(region.x, 0, 1) * image.width),
+                y: Math.round(clamp(region.y, 0, 1) * image.height),
+                width: Math.max(1, Math.min(image.width - Math.round(clamp(region.x, 0, 1) * image.width),
+                    Math.round(clamp(region.width, MIN_REGION_SIZE, 1) * image.width))),
+                height: Math.max(1, Math.min(image.height - Math.round(clamp(region.y, 0, 1) * image.height),
+                    Math.round(clamp(region.height, MIN_REGION_SIZE, 1) * image.height))),
+                blockSize: Math.round(region.blockSize),
+            }));
+        const blob = await processLargeImage(image.file, { mosaic,
+            format: output.mime === 'image/png' ? 'png' : output.mime === 'image/webp' ? 'webp' : 'jpeg',
+            quality: Math.round(quality * 100) });
+        if (!blob) throw new Error('本地大图处理服务不可用');
+        return { blob, fileName: `${getBaseName(image.name)}-mosaic.${output.extension}` };
+    }
     const source = await loadImageElement(image.objectUrl);
     const scale =
         typeof maxDimension === "number"
@@ -203,10 +227,10 @@ const renderMosaicBlob = async (
     for (const region of image.regions) {
         if (!region.enabled || region.blockSize <= 0) continue;
 
-        const sourceX = clamp(region.x, 0, 1) * image.width;
-        const sourceY = clamp(region.y, 0, 1) * image.height;
-        const sourceWidth = clamp(region.width, MIN_REGION_SIZE, 1) * image.width;
-        const sourceHeight = clamp(region.height, MIN_REGION_SIZE, 1) * image.height;
+        const sourceX = clamp(region.x, 0, 1) * source.naturalWidth;
+        const sourceY = clamp(region.y, 0, 1) * source.naturalHeight;
+        const sourceWidth = clamp(region.width, MIN_REGION_SIZE, 1) * source.naturalWidth;
+        const sourceHeight = clamp(region.height, MIN_REGION_SIZE, 1) * source.naturalHeight;
 
         const destX = Math.round(clamp(region.x, 0, 1) * canvasWidth);
         const destY = Math.round(clamp(region.y, 0, 1) * canvasHeight);

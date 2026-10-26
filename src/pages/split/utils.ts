@@ -214,6 +214,7 @@ export const generatePreviewImageUrl = async (
 export const revokeGeneratedImageUrls = (images: SplitImage[]) => {
   images.forEach((image) => {
     URL.revokeObjectURL(image.url);
+    if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
   });
 };
 
@@ -335,7 +336,8 @@ export const buildAxisSplitImages = async (
   sourceImage: HTMLImageElement,
   canvas: HTMLCanvasElement,
   orientation: Orientation,
-  plan: SlicePlan
+  plan: SlicePlan,
+  onProgress?: (completed: number, total: number) => void
 ) => {
   const newImages: SplitImage[] = [];
 
@@ -389,6 +391,7 @@ export const buildAxisSplitImages = async (
         fileName: region.fileName,
       });
     }
+    onProgress?.(i + 1, plan.regions.length);
   }
 
   return newImages;
@@ -565,7 +568,8 @@ export const buildGridSplitImages = async (
   ratioW?: number | null,
   ratioH?: number | null,
   overlapPercent = 0,
-  sourceFileName?: string
+  sourceFileName?: string,
+  onProgress?: (completed: number, total: number) => void
 ) => {
   const { naturalWidth, naturalHeight } = sourceImage;
   const plan = buildGridSplitPlan(
@@ -580,7 +584,7 @@ export const buildGridSplitImages = async (
   );
   const newImages: SplitImage[] = [];
 
-  for (const region of plan.regions) {
+  for (const [index, region] of plan.regions.entries()) {
       canvas.width = region.width;
       canvas.height = region.height;
       const ctx = canvas.getContext('2d');
@@ -612,6 +616,7 @@ export const buildGridSplitImages = async (
           fileName: region.fileName,
         });
       }
+      onProgress?.(index + 1, plan.regions.length);
   }
 
   return newImages;

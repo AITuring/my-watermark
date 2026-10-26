@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Upload, Download, Undo2, Redo2, Languages, ZoomIn, ZoomOut, RotateCcw, Keyboard, Hand, Crop, SlidersHorizontal, Wand2, Pipette, FlipHorizontal2, FlipVertical2, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { translations, Language } from './locales';
+import { getLargeImageAsset } from '@/utils/large-image';
 
 const RawEditor: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -945,6 +946,8 @@ const RawEditor: React.FC = () => {
 
     setIsLoading(true);
     try {
+      const largeAsset = await getLargeImageAsset(file);
+      if (largeAsset) toast.info('超大 JPEG 已以工作分辨率导入；当前编辑器导出尺寸受内存限制。');
       const decoder = new RawDecoder();
       const rawImage = await decoder.decode(file);
       pipeline.loadImage(rawImage);

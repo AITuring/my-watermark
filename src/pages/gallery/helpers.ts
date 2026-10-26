@@ -9,6 +9,7 @@ import {
     loadJSZip,
     loadSaveAs,
 } from "@/utils/lazy-deps";
+import { getLargeImageAsset } from '@/utils/large-image';
 
 type ZipInstance = {
     file: (name: string, data: Blob | File) => void;
@@ -28,11 +29,8 @@ export const prepareImagesFromFiles = async (acceptedFiles: File[]) => {
 
     await Promise.all(
         acceptedFiles.map(async (file) => {
-            const compressedFile = await imageCompression(
-                file,
-                compressionOptions
-            );
-            const src = URL.createObjectURL(compressedFile);
+            const largeAsset = await getLargeImageAsset(file);
+            const src = largeAsset?.previewUrl ?? URL.createObjectURL(await imageCompression(file, compressionOptions));
 
             return new Promise<HTMLImageElement>((resolve) => {
                 const img = new window.Image();

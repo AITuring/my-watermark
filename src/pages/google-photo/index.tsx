@@ -4,6 +4,7 @@ import { RowsPhotoAlbum } from "react-photo-album";
 import "react-photo-album/rows.css";
 import photosData from "@/photos.json";
 import ImagePreview from "@/components/ImagePreview";
+import { getLargeImageAsset } from '@/utils/large-image';
 
 
 interface PhotoType {
@@ -91,6 +92,12 @@ const GooglePhoto = () => {
         for await (const [name, handle] of (dir as any).entries()) {
             if (!/\.(jpe?g|png)$/i.test(name)) continue;
             const file = await (handle as any).getFile();
+            const largeAsset = await getLargeImageAsset(file);
+            if (largeAsset) {
+                newImages.push({ src: largeAsset.previewUrl,
+                    width: largeAsset.width, height: largeAsset.height });
+                continue;
+            }
             const url = URL.createObjectURL(file);
             await new Promise<void>((resolve) => {
                 const imgEl = new Image();

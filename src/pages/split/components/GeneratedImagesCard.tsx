@@ -69,7 +69,7 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
                 }}
               >
                 <div className="relative">
-                  <img src={image.url} alt={image.fileName} className="block h-auto w-full" />
+                  <img src={image.previewUrl || image.url} alt={image.fileName} className="block h-auto w-full" />
                   <div className="absolute bottom-0 right-0 bg-black/50 px-2 py-1 text-xs text-white">
                     {index + 1}
                   </div>
@@ -82,7 +82,7 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
       </Card>
 
       <ImagePreview
-        images={images.map((image) => image.url)}
+        images={images.map((image) => image.previewUrl || image.url)}
         currentIndex={previewIndex ?? 0}
         open={isPreviewOpen}
         onOpenChange={onOpenChange}

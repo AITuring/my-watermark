@@ -5,12 +5,14 @@ import { VitePWA } from "vite-plugin-pwa";
 import viteCompression from "vite-plugin-compression";
 import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig, type PluginOption } from "vite";
+import { localSplitPlugin } from './plugins/localSplit';
 
 const enableLegacy = process.env.LEGACY_BUILD === "true";
 
 export default defineConfig({
     plugins: [
         react(),
+        localSplitPlugin(),
         enableLegacy ? legacy() : null,
         VitePWA({
             registerType: "autoUpdate",

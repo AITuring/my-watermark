@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@iconify/react";
+import { toast } from 'sonner';
 import {
     MouseSensor,
     TouchSensor,
@@ -16,6 +17,7 @@ import {
     type FocusStackResult,
 } from "@/utils/focus-stack";
 import { createPreviewUrl } from "@/utils/image-loading";
+import { getLargeImageAsset } from '@/utils/large-image';
 import ImageManagerDialog from "./components/ImageManagerDialog";
 import InspectDialog from "./components/InspectDialog";
 import ParametersPanel from "./components/ParametersPanel";
@@ -180,6 +182,9 @@ const FocusStacking = () => {
                 await yieldToBrowser();
 
                 try {
+                    if (await getLargeImageAsset(item.file)) {
+                        toast.info('超大 JPEG 已导入；焦点合成使用最多 2400 万像素工作分辨率。');
+                    }
                     const previewUrl = await createPreviewUrl(item.file, {
                         maxDimension: 1280,
                     });

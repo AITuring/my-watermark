@@ -16,6 +16,7 @@ import type { Orientation, SlicePlan, SplitSourceItemSummary } from '@/pages/spl
 interface SplitSettingsCardProps {
   hasSourceImage: boolean;
   isProcessing: boolean;
+  isImporting: boolean;
   splitMethod: 'axis' | 'grid';
   sourceItems: SplitSourceItemSummary[];
   sourceItemsCount: number;
@@ -58,6 +59,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
   const {
     hasSourceImage,
     isProcessing,
+    isImporting,
     splitMethod,
     sourceItems,
     sourceItemsCount,
@@ -311,6 +313,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
               type="file"
               accept="image/*"
               multiple
+              disabled={isImporting}
               aria-label="上传要切片的长图"
               title="上传要切片的长图"
               onClick={(event) => {
@@ -324,7 +327,7 @@ export function SplitSettingsCard(props: SplitSettingsCardProps) {
                 htmlFor={fileInputId}
                 className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-primary/25 bg-primary px-3.5 text-sm font-medium text-primary-foreground shadow-sm transition-[background-color,box-shadow,transform] hover:bg-primary/92 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 dark:border-primary/20 dark:bg-primary dark:hover:bg-primary/88"
               >
-                选择文件{hasMultipleSources ? `（已选 ${sourceItemsCount} 张）` : ''}
+                {isImporting ? '正在导入大图…' : `选择文件${hasMultipleSources ? `（已选 ${sourceItemsCount} 张）` : ''}`}
               </label>
               <div className="flex h-9 min-w-0 items-center rounded-lg border border-border/70 bg-muted/45 px-3 text-[11px] text-muted-foreground dark:bg-card/65">
                 <span className="truncate">

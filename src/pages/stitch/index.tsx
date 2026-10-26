@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { Progress } from "@/components/ui/progress";
+import { getLargeImageAsset, processLargeImage } from '@/utils/large-image';
 
 const ImageStitching: React.FC = () => {
     const [stitchedImage, setStitchedImage] = useState<string | null>(null);
@@ -35,21 +36,30 @@ const ImageStitching: React.FC = () => {
         setImageDimensions(null);
 
         try {
-            // 保存原始图片用于显示
-            const imageUrls = acceptedFiles.map((file) =>
-                URL.createObjectURL(file)
-            );
+            const prepared = await Promise.all(acceptedFiles.map(async (file) => {
+                const asset = await getLargeImageAsset(file);
+                if (!asset) return { file, previewUrl: URL.createObjectURL(file) };
+                const scale = Math.min(1, Math.sqrt(12_000_000 / (asset.width * asset.height)));
+                const blob = await processLargeImage(file, {
+                    width: Math.max(1, Math.round(asset.width * scale)),
+                    height: Math.max(1, Math.round(asset.height * scale)), quality: 92,
+                });
+                if (!blob) throw new Error('本地大图处理服务不可用');
+                return { file: new File([blob], file.name, { type: 'image/jpeg' }),
+                    previewUrl: asset.previewUrl };
+            }));
+            const imageUrls = prepared.map((item) => item.previewUrl);
             setOriginalImages(imageUrls);
 
             // 创建 FormData 对象
             const formData = new FormData();
-            acceptedFiles.forEach((file) => {
+            prepared.forEach(({ file }) => {
                 formData.append("files", file);
             });
 
             setProgressStep("上传图像");
             setProgressPercent(20);
-            setProgressDetail(`正在上传 ${acceptedFiles.length} 张图像到服务器`);
+            setProgressDetail(`正在上传 ${acceptedFiles.length} 张图像到服务器；超大图按 1200 万像素工作分辨率处理`);
 
             // 发送请求到后端 API
             const response = await fetch("http://localhost:8000/stitch", {

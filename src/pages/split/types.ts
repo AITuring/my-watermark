@@ -1,6 +1,7 @@
 export interface SplitImage {
   id: number;
   url: string;
+  previewUrl?: string;
   blob: Blob;
   fileName: string;
 }

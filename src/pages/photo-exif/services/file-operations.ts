@@ -25,6 +25,7 @@ import {
 } from "@/pages/photo-exif/utils";
 import { EXIF_HEADER } from "@/pages/photo-exif/constants";
 import { loadJSZip } from "@/utils/lazy-deps";
+import { getLargeImageAsset } from '@/utils/large-image';
 
 type ZipInstance = {
     file: (name: string, data: Blob | File) => void;
@@ -84,6 +85,50 @@ export const generateUpdatedFile = async (
         const updatedPngBytes = upsertPngExifChunk(pngBytes, exifStringToPngPayload(exifString));
         const pngBlob = new Blob([updatedPngBytes as unknown as BlobPart], { type: "image/png" });
         return new File([pngBlob], outputFileName, { type: "image/png" });
+    }
+
+    if (await getLargeImageAsset(item.file)) {
+        const header = new Uint8Array(await item.file.slice(0, Math.min(item.file.size, 16 * 1024 * 1024)).arrayBuffer());
+        if (header[0] !== 0xff || header[1] !== 0xd8) throw new Error('JPEG 文件头无效');
+        const segments: Array<{ start: number; end: number; exif: boolean }> = [];
+        let offset = 2;
+        let existingExif: Uint8Array | null = null;
+        while (offset + 4 <= header.length) {
+            if (header[offset] !== 0xff) throw new Error('JPEG 标记无效');
+            const marker = header[offset + 1];
+            if (marker === 0xda || marker === 0xd9) break;
+            const length = (header[offset + 2] << 8) | header[offset + 3];
+            const end = offset + length + 2;
+            if (length < 2 || end > header.length) throw new Error('JPEG 文件头过大或不完整');
+            const exif = marker === 0xe1 &&
+                bytesToBinaryString(header.slice(offset + 4, offset + 10)) === EXIF_HEADER;
+            if (exif && !existingExif) existingExif = header.slice(offset + 4, end);
+            segments.push({ start: offset, end, exif });
+            offset = end;
+        }
+        if (offset + 2 > header.length || header[offset + 1] !== 0xda) {
+            throw new Error('未找到 JPEG 图像数据起点');
+        }
+        let sourceExif = createEmptyExifObject();
+        if (existingExif) {
+            try {
+                sourceExif = { ...sourceExif,
+                    ...(piexif.load(bytesToBinaryString(existingExif)) as Record<string, unknown>) };
+            } catch (error) {
+                console.warn('原图 EXIF 不可读，将创建新的 EXIF 块', item.file.name, error);
+            }
+        }
+        const outputExif = applyEditableToExif(sourceExif, editableToSave, item.gpsCurrent);
+        const exifString = piexif.dump(outputExif as Record<string, unknown>);
+        if (exifString.length + 2 > 65535) throw new Error('EXIF 信息超过 JPEG 单段上限');
+        const app1 = new Uint8Array(exifString.length + 4);
+        app1[0] = 0xff; app1[1] = 0xe1;
+        app1[2] = (exifString.length + 2) >> 8;
+        app1[3] = (exifString.length + 2) & 0xff;
+        for (let i = 0; i < exifString.length; i += 1) app1[i + 4] = exifString.charCodeAt(i) & 0xff;
+        return new File([item.file.slice(0, 2), app1,
+            ...segments.filter((segment) => !segment.exif).map((segment) => item.file.slice(segment.start, segment.end)),
+            item.file.slice(offset)], outputFileName, { type: 'image/jpeg' });
     }
 
     const originalDataUrl = item.canOverwriteInPlace

@@ -1,4 +1,5 @@
 import { loadImageSource, disposeImageSource } from "@/utils/image-loading";
+import { getLargeImageAsset } from '@/utils/large-image';
 import {
     RawDecoder,
     type RawDecodeMode,
@@ -303,7 +304,15 @@ async function loadPreviewCanvas(
         };
     }
 
-    const source = await loadImageSource(file);
+    const largeAsset = await getLargeImageAsset(file);
+    const source = largeAsset
+        ? await new Promise<HTMLImageElement>((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error('大图预览读取失败'));
+            image.src = largeAsset.previewUrl;
+        })
+        : await loadImageSource(file);
     try {
         const width = "width" in source ? Number(source.width) : 0;
         const height = "height" in source ? Number(source.height) : 0;
@@ -316,8 +325,8 @@ async function loadPreviewCanvas(
 
         return {
             canvas,
-            originalWidth: width,
-            originalHeight: height,
+            originalWidth: largeAsset?.width ?? width,
+            originalHeight: largeAsset?.height ?? height,
             fileKind: "image",
         };
     } finally {

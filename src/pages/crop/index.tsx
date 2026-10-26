@@ -13,6 +13,7 @@ import {
     getDefaultCrop,
 } from "./helpers";
 import { createEditorPreviewAsset, transformImageAsset } from "./image-utils";
+import { getLargeImageAsset } from '@/utils/large-image';
 import { useCropExports } from "./hooks/useCropExports";
 import { useCropInteractions } from "./hooks/useCropInteractions";
 import { useCropHistory } from "./hooks/useCropHistory";
@@ -245,9 +246,36 @@ export default function ImageCropper() {
         if (!files.length) return [];
 
         const loaded = await Promise.all(
-            files.map(
-                (file, index) =>
-                    new Promise<CropImage | null>((resolve) => {
+            files.map(async (file, index) => {
+                    try {
+                        const largeAsset = await getLargeImageAsset(file);
+                        if (largeAsset) {
+                            const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+                                const preview = new Image();
+                                preview.onload = () => resolve(preview);
+                                preview.onerror = () => reject(new Error('大图预览读取失败'));
+                                preview.src = largeAsset.previewUrl;
+                            });
+                            const restoredCrop = restoredImages[index]?.crop;
+                            const crop = restoredCrop
+                                ? fitBoxInImage(restoredCrop, largeAsset.width, largeAsset.height)
+                                : mode === 'free'
+                                  ? createCenteredFreeCrop(largeAsset.width, largeAsset.height)
+                                  : createCenteredCrop(largeAsset.width, largeAsset.height, selectedRatio ?? 1);
+                            return {
+                                id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+                                name: file.name.replace(/\.[^/.]+$/, '') || 'image',
+                                file, url: largeAsset.previewUrl, previewUrl: largeAsset.previewUrl,
+                                previewWidth: img.width, previewHeight: img.height,
+                                width: largeAsset.width, height: largeAsset.height, crop,
+                            } satisfies CropImage;
+                        }
+                    } catch (error) {
+                        console.error('大图导入失败:', error);
+                        toast.error(error instanceof Error ? error.message : '大图导入失败');
+                        return null;
+                    }
+                    return new Promise<CropImage | null>((resolve) => {
                         const url = URL.createObjectURL(file);
                         const img = new Image();
                         img.src = url;
@@ -280,8 +308,8 @@ export default function ImageCropper() {
                             URL.revokeObjectURL(url);
                             resolve(null);
                         };
-                    })
-            )
+                    });
+            })
         );
 
         const valid = loaded.filter((item): item is CropImage => Boolean(item));
