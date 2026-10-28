@@ -104,6 +104,7 @@ interface MobileWatermarkEditorProps {
         scaleY: number;
         rotation: number;
     }) => void;
+    onSmartPosition: (batch: boolean, scale: number) => Promise<void>;
     currentIndex?: number;
     totalImages?: number;
     onPrevImage?: () => void;
@@ -135,6 +136,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     currentWatermarkPosition,
     onTransform,
     onAllTransform,
+    onSmartPosition,
     currentIndex = 0,
     totalImages = 0,
     onPrevImage,
@@ -206,6 +208,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     );
 
     const [selectedPosition, setSelectedPosition] = useState<string>("");
+    const [isFindingPosition, setIsFindingPosition] = useState(false);
 
     // Settings Dialog State
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -935,6 +938,19 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     // 修复：处理位置选择变化
     const handlePositionChange = (value: string) => {
         setSelectedPosition(value);
+        if (value === "smart") {
+            setIsFindingPosition(true);
+            void onSmartPosition(isBatch, currentScale)
+                .catch((error) => {
+                    console.error("智能定位失败:", error);
+                    alert(error instanceof Error ? error.message : "智能定位失败，请重试");
+                })
+                .finally(() => {
+                    setIsFindingPosition(false);
+                    setSelectedPosition("");
+                });
+            return;
+        }
         // 强制应用新选择的位置
         applySelectedPosition(value, true);
     };
@@ -1148,6 +1164,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                                 <SelectValue placeholder="位置" />
                                             </SelectTrigger>
                                             <SelectContent>
+                                                <SelectItem value="smart" disabled={isFindingPosition}>
+                                                    {isFindingPosition ? "正在分析图片…" : "智能位置 · 避开复杂区域"}
+                                                </SelectItem>
                                                 <SelectItem value="topLeft">左上</SelectItem>
                                                 <SelectItem value="topCenter">上中</SelectItem>
                                                 <SelectItem value="topRight">右上</SelectItem>

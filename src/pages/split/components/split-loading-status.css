@@ -1,0 +1,18 @@
+.split-loading-tiles { display: flex; align-items: center; width: 42px; height: 36px; position: relative; flex: none; }
+.split-loading-tiles span { position: absolute; width: 24px; height: 29px; border: 2px solid hsl(var(--primary)); border-radius: 4px; background: hsl(var(--background)); box-shadow: 0 2px 8px hsl(var(--primary) / .12); }
+.split-loading-tiles span:nth-child(1) { left: 2px; transform: rotate(-12deg) scale(.88); animation: split-tile-left 1.8s ease-in-out infinite; }
+.split-loading-tiles span:nth-child(2) { left: 9px; transform: rotate(0); animation: split-tile-center 1.8s ease-in-out infinite; }
+.split-loading-tiles span:nth-child(3) { left: 16px; transform: rotate(12deg) scale(.88); animation: split-tile-right 1.8s ease-in-out infinite; }
+.split-loading-dots { display: inline-block; width: 1.3em; overflow: hidden; vertical-align: bottom; animation: split-dots 1.2s steps(4, end) infinite; }
+.split-loading-progress { height: 100%; width: 100%; border-radius: inherit; background: hsl(var(--primary)); transform-origin: left center; transition: transform .3s ease; }
+.split-loading-progress-indeterminate { width: 36%; animation: split-progress 1.6s ease-in-out infinite; }
+@keyframes split-tile-left { 50% { transform: translateX(-3px) rotate(-17deg) scale(.88); } }
+@keyframes split-tile-center { 50% { transform: translateY(-3px) rotate(0); } }
+@keyframes split-tile-right { 50% { transform: translateX(3px) rotate(17deg) scale(.88); } }
+@keyframes split-dots { to { width: 0; } }
+@keyframes split-progress { from { transform: translateX(-110%); } to { transform: translateX(300%); } }
+@media (prefers-reduced-motion: reduce) {
+  .split-loading-tiles span, .split-loading-dots, .split-loading-progress-indeterminate { animation: none; }
+  .split-loading-progress { transition: none; }
+  .split-loading-progress-indeterminate { transform: translateX(90%); }
+}

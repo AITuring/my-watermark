@@ -10,6 +10,7 @@ import {
     getAdaptiveWatermarkRenderMetrics,
     getImageOpaqueBounds,
 } from "@/utils/watermark-editor";
+import { compositeLargeImage, getLargeImageAsset } from '@/utils/large-image';
 
 class CanvasPool {
     private static instance: CanvasPool;
@@ -213,6 +214,11 @@ export async function loadImageData(
             let source: LoadedImage | null = null;
             let previewUrl: string | null = null;
             try {
+                const largeAsset = await getLargeImageAsset(file);
+                if (largeAsset) {
+                    return { id: uuid(), width: largeAsset.width, height: largeAsset.height,
+                        file, previewUrl: largeAsset.previewUrl };
+                }
                 previewUrl = await createPreviewUrl(file);
                 source = await loadImageSource(file);
                 return {
@@ -430,6 +436,47 @@ export async function processImage(
     onProgress?: (progress: number) => void,
     mixedConfig?: MixedWatermarkConfig
 ): Promise<{ blob: Blob; name: string; mimeType: string }> {
+    const largeAsset = await getLargeImageAsset(file);
+    if (largeAsset) {
+        onProgress?.(20);
+        const placement = calculateWatermarkPosition(
+            watermarkImage, largeAsset.width, largeAsset.height, position
+        );
+        const radians = (position.rotation * Math.PI) / 180;
+        const overlayWidth = Math.max(1, Math.ceil(Math.abs(placement.width * Math.cos(radians)) +
+            Math.abs(placement.height * Math.sin(radians))));
+        const overlayHeight = Math.max(1, Math.ceil(Math.abs(placement.width * Math.sin(radians)) +
+            Math.abs(placement.height * Math.cos(radians))));
+        const canvas = document.createElement('canvas');
+        canvas.width = overlayWidth;
+        canvas.height = overlayHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('无法绘制大图水印');
+        ctx.globalAlpha = watermarkOpacity;
+        ctx.translate(overlayWidth / 2, overlayHeight / 2);
+        ctx.rotate(radians);
+        ctx.drawImage(watermarkImage,
+            mixedConfig?.enabled ? 0 : placement.crop.x,
+            mixedConfig?.enabled ? 0 : placement.crop.y,
+            mixedConfig?.enabled ? watermarkImage.naturalWidth : placement.crop.width,
+            mixedConfig?.enabled ? watermarkImage.naturalHeight : placement.crop.height,
+            -placement.width / 2, -placement.height / 2, placement.width, placement.height);
+        const overlay = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
+            (blob) => blob ? resolve(blob) : reject(new Error('大图水印图层生成失败')), 'image/png'
+        ));
+        const left = Math.max(0, Math.min(largeAsset.width - overlayWidth,
+            Math.round(placement.x + (placement.width - overlayWidth) / 2)));
+        const top = Math.max(0, Math.min(largeAsset.height - overlayHeight,
+            Math.round(placement.y + (placement.height - overlayHeight) / 2)));
+        onProgress?.(55);
+        const blob = await compositeLargeImage(file, overlay, {
+            x: left, y: top, quality: Math.round(Math.max(0.01, Math.min(1, quality)) * 100),
+            blur: watermarkBlur,
+        });
+        if (!blob) throw new Error('大图水印服务不可用');
+        onProgress?.(100);
+        return { blob, name: file.name, mimeType: 'image/jpeg' };
+    }
     const memoryManager = MemoryManager.getInstance();
 
     return new Promise((resolve, reject) => {

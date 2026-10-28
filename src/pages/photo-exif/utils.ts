@@ -1,6 +1,7 @@
 import piexif from "piexifjs";
 import { disposeImageSource, isTiffFile, loadImageSource } from "@/utils/image-loading";
 import { loadExifReader } from "@/utils/lazy-deps";
+import { getLargeImageAsset } from '@/utils/large-image';
 import {
     COPYRIGHT_PRESET_ENABLED_STORAGE_KEY,
     COPYRIGHT_PRESET_STORAGE_KEY,
@@ -54,6 +55,8 @@ const PREVIEW_FALLBACK_BATCH_COUNT = 64;
 const PREVIEW_FALLBACK_TOTAL_BYTES = 120 * 1024 * 1024;
 
 const createPreviewUrl = async (file: File): Promise<string> => {
+    const largeAsset = await getLargeImageAsset(file);
+    if (largeAsset) return largeAsset.previewUrl;
     if (typeof window === "undefined") {
         return URL.createObjectURL(file);
     }
@@ -934,7 +937,8 @@ export const buildPhotoExifItem = async (
         console.warn("读取 EXIF 失败", file.name, error);
     }
 
-    const previewUrl = options?.preferOriginalPreview
+    const largeAsset = await getLargeImageAsset(file);
+    const previewUrl = options?.preferOriginalPreview && !largeAsset
         ? URL.createObjectURL(file)
         : await createPreviewUrl(file);
     const gpsPoint = parseGpsPoint(tags);

@@ -30,6 +30,7 @@ import { Icon } from "@iconify/react";
 import ImagePreview from "@/components/ImagePreview";
 import ThreeLanding from "@/components/ThreeLanding";
 import { consumePendingCropTransfer } from "@/utils/crop-transfer";
+import { isLargeJpeg } from '@/utils/large-image';
 
 import { PuzzlePhotoFrame, SortablePuzzlePhotoFrame } from "./components/PuzzlePhotoFrame";
 import { PuzzleSettingsCard } from "./components/PuzzleSettingsCard";
@@ -195,9 +196,9 @@ const Puzzle = () => {
 
     const onDrop = useCallback(
         async (acceptedFiles: File[]) => {
-            const oversizedFiles = acceptedFiles.filter(
-                (file) => file.size > MAX_PUZZLE_IMAGE_SIZE
-            );
+            const oversizedFiles = (await Promise.all(acceptedFiles.map(async (file) =>
+                file.size > MAX_PUZZLE_IMAGE_SIZE && !await isLargeJpeg(file) ? file : null
+            ))).filter((file): file is File => Boolean(file));
 
             if (oversizedFiles.length > 0) {
                 toast.error(
@@ -245,9 +246,9 @@ const Puzzle = () => {
         accept: {
             "image/*": [".jpeg", ".jpg", ".png"],
         },
-        maxSize: 100 * 1024 * 1024,
+        maxSize: 2 * 1024 * 1024 * 1024,
         onDropRejected: () => {
-            toast.error("图片大小不能超过200MB", { position: "top-center" });
+            toast.error("文件超过本地处理上限", { position: "top-center" });
         },
     });
 

@@ -1,4 +1,5 @@
 import type { CropBox, CropImage, EditorPreview } from "./types";
+import { getLargeImageAsset, processLargeImage } from '@/utils/large-image';
 
 const MAX_EDITOR_PREVIEW_SIZE = 2200;
 
@@ -63,6 +64,21 @@ export const createEditorPreviewAsset = async (
 };
 
 export const transformImageAsset = async (image: CropImage, angleDeg: number) => {
+    const largeAsset = await getLargeImageAsset(image.file);
+    if (largeAsset) {
+        const quarterTurn = Math.abs(angleDeg) % 180 === 90;
+        const width = quarterTurn ? image.height : image.width;
+        const height = quarterTurn ? image.width : image.height;
+        const blob = await processLargeImage(image.file, { rotate: angleDeg, quality: 95 });
+        if (!blob) throw new Error('大图旋转失败');
+        const file = new File([blob], `${image.name}.jpg`, { type: 'image/jpeg' });
+        const nextAsset = await getLargeImageAsset(file);
+        if (!nextAsset) throw new Error('大图旋转后预览失败');
+        return { file, url: nextAsset.previewUrl, previewUrl: nextAsset.previewUrl,
+            previewWidth: Math.round(nextAsset.width * Math.min(1, 2200 / Math.max(width, height))),
+            previewHeight: Math.round(nextAsset.height * Math.min(1, 2200 / Math.max(width, height))),
+            width, height };
+    }
     const img = await loadImageElement(image.url);
 
     const angleRad = (angleDeg * Math.PI) / 180;
@@ -110,6 +126,14 @@ export const drawCropToBlob = async (
     outputW: number,
     outputH: number
 ) => {
+    const largeAsset = await getLargeImageAsset(image.file);
+    if (largeAsset) {
+        return processLargeImage(image.file, {
+            crop: { x: Math.round(crop.x), y: Math.round(crop.y),
+                width: Math.round(crop.w), height: Math.round(crop.h) },
+            width: Math.round(outputW), height: Math.round(outputH), quality: 95,
+        });
+    }
     const img = await loadImageElement(image.url);
     const canvas = document.createElement("canvas");
     canvas.width = outputW;

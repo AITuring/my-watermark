@@ -1,6 +1,7 @@
 import { RawImage } from '../types';
 import { loadExifReader } from '@/utils/lazy-deps';
 import LibRawWorkerClient from '@/utils/libraw-wasm';
+import { getLargeImageAsset, processLargeImage } from '@/utils/large-image';
 
 export type RawDecodeMode = 'high' | 'fast';
 
@@ -148,6 +149,18 @@ export class RawDecoder {
       }
     }
 
+    const largeAsset = await getLargeImageAsset(file);
+    let decodeFile = file;
+    if (largeAsset) {
+      const scale = Math.min(1, Math.sqrt(8_000_000 / (largeAsset.width * largeAsset.height)));
+      const blob = await processLargeImage(file, {
+        width: Math.max(1, Math.round(largeAsset.width * scale)),
+        height: Math.max(1, Math.round(largeAsset.height * scale)), quality: 92,
+      });
+      if (!blob) throw new Error('本地大图处理服务不可用');
+      decodeFile = new File([blob], file.name, { type: 'image/jpeg' });
+    }
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -202,7 +215,7 @@ export class RawDecoder {
         img.src = e.target?.result as string;
       };
       reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(decodeFile);
     });
   }
 

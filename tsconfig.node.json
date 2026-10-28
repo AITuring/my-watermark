@@ -1,11 +1,15 @@
 {
   "compilerOptions": {
     "composite": true,
+    "target": "ES2020",
+    "lib": ["ESNext", "DOM", "WebWorker"],
+    "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "Node",
     "allowSyntheticDefaultImports": true
   },
   "include": [
-    "vite.config.ts"
+    "vite.config.ts",
+    "plugins/**/*.ts"
   ]
 }

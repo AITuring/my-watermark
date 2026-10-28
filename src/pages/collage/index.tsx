@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Slider } from '@/components/ui/slider.jsx'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
+import { getLargeImageAsset } from '@/utils/large-image'
 
 
 // 图片接口定义
@@ -340,6 +341,12 @@ function ImageCollage() {
 
     try {
       const imagePromises = files.map(async (file, index) => {
+        const largeAsset = await getLargeImageAsset(file)
+        if (largeAsset) {
+          setUploadProgress(((index + 1) / files.length) * 100)
+          return { id: Math.random().toString(36).substr(2, 9), file,
+            src: largeAsset.previewUrl, name: file.name } satisfies UploadedImage
+        }
         return new Promise<UploadedImage | null>((resolve) => {
           const reader = new FileReader()
           reader.onload = (e) => {
@@ -411,6 +418,18 @@ function ImageCollage() {
         setUploadProgress(0)
 
         try {
+          const largeAsset = await getLargeImageAsset(file)
+          if (largeAsset) {
+            setUploadedImages(prev => {
+              const next = [...prev]
+              next[index] = { id: Math.random().toString(36).substr(2, 9), file,
+                src: largeAsset.previewUrl, name: file.name }
+              return next
+            })
+            setIsUploading(false)
+            setUploadProgress(0)
+            return
+          }
           const reader = new FileReader()
           reader.onload = (event) => {
             const newImage: UploadedImage = {

@@ -84,8 +84,9 @@ interface WatermarkEditorProps {
     currentWatermarkPosition?: WatermarkPosition;
     onTransform: (position: WatermarkPosition) => void;
     onAllTransform: (position: WatermarkPosition) => void;
+    onSmartPosition: (batch: boolean, scale: number) => Promise<void>;
     watermarkColor?: string;
-    onColorChange?: (color: string) => void;
+    onColorChange?: (watermarkUrl: string, batch: boolean) => void;
     watermarkOpacity?: number; // 新增透明度属性
 }
 
@@ -95,6 +96,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     currentWatermarkPosition,
     onTransform,
     onAllTransform,
+    onSmartPosition,
     watermarkColor,
     onColorChange,
     watermarkOpacity = 1, // 默认不透明
@@ -125,6 +127,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     // 添加选择位置的状态
     const [selectedPosition, setSelectedPosition] = useState("center");
+    const [isFindingPosition, setIsFindingPosition] = useState(false);
 
     // 水印相关设置
     // logo颜色状态
@@ -366,13 +369,12 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
         setIsProcessingColor(true);
         try {
-            const newWatermarkUrl = await applyColorToWatermark(
-                watermarkUrl,
-                color
-            );
+            const newWatermarkUrl = color === "transparent"
+                ? watermarkUrl
+                : await applyColorToWatermark(watermarkUrl, color);
 
-            setColoredWatermarkUrl(newWatermarkUrl as string);
-            onColorChange?.(newWatermarkUrl as string);
+            setColoredWatermarkUrl(newWatermarkUrl);
+            onColorChange?.(newWatermarkUrl, isBatch);
         } catch (error) {
             console.error("应用水印颜色到水印失败:", error);
         } finally {
@@ -390,13 +392,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         setColoredWatermarkUrl(watermarkUrl);
     }, [watermarkUrl]);
 
-    // 当传入的水印颜色改变时，应用水印颜色
+    // 父组件保存的是已着色的水印图片 URL，直接用于预览。
     useEffect(() => {
-        if (watermarkColor && watermarkUrl) {
-            applyWatermarkColor(watermarkColor);
-        } else if (!watermarkColor) {
-            setColoredWatermarkUrl(watermarkUrl);
-        }
+        setColoredWatermarkUrl(watermarkColor || watermarkUrl);
     }, [watermarkColor, watermarkUrl]);
 
     // 处理背景图片缩放滑动条变化的函数
@@ -787,6 +785,19 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 添加位置选择处理函数
     const handlePositionChange = (value: string) => {
         setSelectedPosition(value);
+        if (value === "smart") {
+            setIsFindingPosition(true);
+            void onSmartPosition(isBatch, currentScale)
+                .catch((error) => {
+                    console.error("智能定位失败:", error);
+                    alert(error instanceof Error ? error.message : "智能定位失败，请重试");
+                })
+                .finally(() => {
+                    setIsFindingPosition(false);
+                    setSelectedPosition("");
+                });
+            return;
+        }
         applySelectedPosition(value, true); // 强制应用新选择的位置
     };
 
@@ -859,7 +870,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     // 背景或尺寸变化后，自动重放一次当前位置，确保切换背景后位置生效
     useEffect(() => {
-        if (!selectedPosition) return;
+        if (!selectedPosition || selectedPosition === "smart") return;
         if (!backgroundImage || !watermarkImage) return;
         if (!backgroundImageSize?.width || !backgroundImageSize?.height) return;
         applySelectedPosition();
@@ -1057,6 +1068,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectGroup>
+                                                    <SelectItem value="smart" disabled={isFindingPosition} className="text-xs cursor-pointer">
+                                                        {isFindingPosition ? "正在分析图片…" : "智能位置 · 避开复杂区域"}
+                                                    </SelectItem>
                                                     <SelectLabel className="text-xs text-slate-500 font-normal px-2 py-1.5">
                                                         快速定位
                                                     </SelectLabel>

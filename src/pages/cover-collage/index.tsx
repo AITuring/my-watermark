@@ -8,6 +8,7 @@ import { BOOKS } from '@/assets/wxbooks/books'
 import CoverCollage from '@/components/CoverCollage'
 import ImageUploader from "@/components/ImageUploader"
 import { loadHtml2Canvas } from '@/utils/lazy-deps'
+import { getLargeImageAsset } from '@/utils/large-image'
 import './CoverCollageMaker.css'
 
 type UploadedImage = {
@@ -67,17 +68,18 @@ export default function CoverCollageMaker() {
     }
   }, [])
 
-  const handleUpload = (files: File[]) => {
-    const nextImages = files.map((file, index) => {
-      const src = URL.createObjectURL(file)
-      uploadedUrlsRef.current.push(src)
+  const handleUpload = async (files: File[]) => {
+    const nextImages = await Promise.all(files.map(async (file, index) => {
+      const largeAsset = await getLargeImageAsset(file)
+      const src = largeAsset?.previewUrl ?? URL.createObjectURL(file)
+      if (!largeAsset) uploadedUrlsRef.current.push(src)
 
       return {
         id: `${file.name}-${file.lastModified}-${index}`,
         name: file.name,
         src,
       }
-    })
+    }))
 
     setUploadedImages((current) => [...current, ...nextImages].slice(0, 18))
     toast.success(`已添加 ${nextImages.length} 张图片`)

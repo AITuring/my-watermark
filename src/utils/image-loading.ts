@@ -2,6 +2,7 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore Runtime dependency is present; declarations are not bundled.
 import * as UTIF from "utif";
+import { getLargeImageAsset, processLargeImage } from '@/utils/large-image';
 
 export type LoadedImage = ImageBitmap | HTMLImageElement | HTMLCanvasElement;
 
@@ -153,6 +154,17 @@ export async function loadImageSource(file: File): Promise<LoadedImage> {
     if (isTiffFile(file)) {
         return decodeTiffToCanvas(file);
     }
+    const largeAsset = await getLargeImageAsset(file);
+    if (largeAsset) {
+        const scale = Math.min(1, 16000 / Math.max(largeAsset.width, largeAsset.height),
+            Math.sqrt(24_000_000 / (largeAsset.width * largeAsset.height)));
+        const blob = await processLargeImage(file, {
+            width: Math.max(1, Math.round(largeAsset.width * scale)),
+            height: Math.max(1, Math.round(largeAsset.height * scale)), quality: 92,
+        });
+        if (!blob) throw new Error('本地大图处理服务不可用');
+        return createImageBitmap(blob);
+    }
     if ("createImageBitmap" in window) {
         return createImageBitmap(file);
     }
@@ -164,6 +176,8 @@ export async function createPreviewUrl(
     options?: PreviewOptions
 ): Promise<string> {
     if (!isTiffFile(file)) {
+        const largeAsset = await getLargeImageAsset(file);
+        if (largeAsset) return largeAsset.previewUrl;
         return URL.createObjectURL(file);
     }
     const canvas = await decodeTiffToCanvas(file);

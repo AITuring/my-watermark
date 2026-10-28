@@ -6,6 +6,7 @@ import {
     loadJSZip,
     loadSaveAs,
 } from "@/utils/lazy-deps";
+import { getLargeImageAsset } from '@/utils/large-image';
 
 type ZipInstance = {
     file: (name: string, data: Blob | File) => void;
@@ -113,6 +114,8 @@ export async function processAcceptedFiles(acceptedFiles: File[]) {
 
     return Promise.all(
         acceptedFiles.map(async (file) => {
+            const largeAsset = await getLargeImageAsset(file);
+            if (largeAsset) return loadImageSize(largeAsset.previewUrl);
             const compressedFile = await imageCompression(file, compressionOptions);
             const src = URL.createObjectURL(compressedFile);
             return loadImageSize(src);

@@ -45,6 +45,7 @@ import {
 } from "@/pages/compress/services";
 import { formatFileSize } from "@/pages/compress/utils";
 import { loadJSZip, loadSaveAs } from "@/utils/lazy-deps";
+import { getLargeImageAsset, processLargeImage } from "@/utils/large-image";
 
 type BatchItemStatus = "idle" | "processing" | "done" | "error";
 type RotationValue = "0" | "90" | "-90" | "180";
@@ -235,6 +236,36 @@ const processFullResolutionImage = async (
     settings: WorkbenchSettings,
     ratioValue: number
 ) => {
+    const largeAsset = await getLargeImageAsset(file);
+    if (largeAsset) {
+        const angle = Number(settings.rotation);
+        const quarterTurn = Math.abs(angle) % 180 === 90;
+        const rotatedWidth = quarterTurn ? largeAsset.height : largeAsset.width;
+        const rotatedHeight = quarterTurn ? largeAsset.width : largeAsset.height;
+        const { crop, outputWidth, outputHeight } = computeCrop(
+            settings.cropMode, rotatedWidth, rotatedHeight, ratioValue,
+            settings.targetWidth, settings.targetHeight
+        );
+        const blob = await processLargeImage(file, {
+            rotate: angle,
+            crop: { x: Math.round(crop.x), y: Math.round(crop.y),
+                width: Math.round(crop.w), height: Math.round(crop.h) },
+            width: Math.round(outputWidth), height: Math.round(outputHeight), quality: 92,
+        });
+        if (!blob) throw new Error('本地大图处理服务不可用');
+        let nextFile = new File([blob], buildOutputName(file, 'image/jpeg'), { type: 'image/jpeg' });
+        if (settings.shouldCompress) {
+            const result = settings.forceToTarget
+                ? await forceCompressImage(nextFile, settings.targetSizeMB)
+                : await compressImage(nextFile, {
+                    targetSizeMB: settings.targetSizeMB, resizePercent: settings.resizePercent,
+                });
+            nextFile = result.file;
+        }
+        const previewUrl = await createThumbnailPreview(nextFile);
+        const dimensions = await getImageDimensions(nextFile);
+        return { file: nextFile, previewUrl, width: dimensions.width, height: dimensions.height };
+    }
     const bitmap = await createImageBitmap(file);
     try {
         const angle = Number(settings.rotation);
