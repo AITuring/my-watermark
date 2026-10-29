@@ -5,7 +5,6 @@ import "./App.css";
 import { Toaster } from "sonner";
 import { appCatalog } from "./app/catalog";
 import FloatingButtons from "./app/FloatingButtons";
-import Landing from "./pages/landing";
 import {
     isRecoverableDynamicImportError,
     lazyWithImportRecovery,
@@ -59,6 +58,11 @@ const routeItems = appCatalog.map((item) => ({
     Page: lazyWithImportRecovery(item.component, `route:${item.id}`),
 }));
 
+const Landing = lazyWithImportRecovery(
+    () => import("./pages/landing"),
+    "route:landing"
+);
+
 const App = () => {
     return (
         <ThemeProvider>
@@ -70,7 +74,16 @@ const App = () => {
                         // style={{ height: "calc(100vh - 80px)" }}
                     >
                         <Routes>
-                            <Route path="/" element={<Landing />} />
+                            <Route
+                                path="/"
+                                element={
+                                    <RouteErrorBoundary>
+                                        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">正在加载页面...</div>}>
+                                            <Landing />
+                                        </Suspense>
+                                    </RouteErrorBoundary>
+                                }
+                            />
                             {routeItems.map((item) => (
                                 <Route
                                     key={item.id}
