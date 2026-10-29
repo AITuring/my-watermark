@@ -665,7 +665,12 @@ export function useImageSplitter() {
               height: orientation === 'horizontal' ? Math.round(region.size) : item.naturalHeight,
               fileName: region.fileName,
             }));
-        const regions = item.wasmSource
+        // A browser-side WASM item keeps the original File. Use that as the
+        // runtime source of truth as well as the marker, so a state/cache
+        // boundary cannot accidentally send an oversized crop down the
+        // single-tile path.
+        const isBrowserWasm = Boolean(item.file && !item.localSourceId);
+        const regions = isBrowserWasm
           ? splitWasmRegions(requestedRegions, orientation)
           : requestedRegions;
         const autoSubdivided = regions.length !== requestedRegions.length;
@@ -679,7 +684,7 @@ export function useImageSplitter() {
         onProgress(0, regions.length);
         const itemImages = item.localSourceId
           ? await buildLocalSplitImages(item.localSourceId, regions, onProgress)
-          : item.wasmSource && item.file
+          : isBrowserWasm && item.file
             ? await buildWasmSplitImages(item.file, regions, onProgress)
             : await buildAxisSplitImages(item.image, canvasRef.current, orientation, plan, onProgress);
         nextImages.push(...itemImages.map((image) => ({ ...image, id: nextId++ })));
@@ -736,7 +741,8 @@ export function useImageSplitter() {
                   width: Math.round(region.width), height: Math.round(region.height),
                   fileName: region.fileName,
                 }));
-        const wasmRegions = item.wasmSource ? splitWasmRegions(regions) : regions;
+        const isBrowserWasm = Boolean(item.file && !item.localSourceId);
+        const wasmRegions = isBrowserWasm ? splitWasmRegions(regions) : regions;
         const autoSubdivided = wasmRegions.length !== regions.length;
         const onProgress = (completed: number, total: number) => setLoadingStatus({
           title: '正在生成网格切片',
@@ -748,7 +754,7 @@ export function useImageSplitter() {
         onProgress(0, wasmRegions.length);
         const itemImages = item.localSourceId
           ? await buildLocalSplitImages(item.localSourceId, regions, onProgress)
-          : item.wasmSource && item.file
+            : isBrowserWasm && item.file
             ? await buildWasmSplitImages(item.file, wasmRegions, onProgress)
             : await buildGridSplitImages(
               item.image,
