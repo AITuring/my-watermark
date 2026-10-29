@@ -89,43 +89,10 @@ export default defineConfig({
         port: 8123,
     },
     build: {
+        // Keep route chunks independent so lightweight tools such as /split do not
+        // pull in unrelated Three.js and other heavyweight vendor bundles.
+        modulePreload: false,
         sourcemap: false,
-        rollupOptions: {
-            output: {
-                manualChunks: {
-                    "react-vendor": ["react", "react-dom", "scheduler"],
-                    "router-vendor": ["react-router-dom"],
-                    "three-vendor": ["three", "@react-three/fiber", "@react-three/drei"],
-                    "radix-vendor": [
-                        "@radix-ui/react-dialog",
-                        "@radix-ui/react-label",
-                        "@radix-ui/react-progress",
-                        '@radix-ui/react-scroll-area',
-                        '@radix-ui/react-select',
-                        '@radix-ui/react-separator',
-                        '@radix-ui/react-slider',
-                        '@radix-ui/react-slot',
-                        '@radix-ui/react-switch',
-                        '@radix-ui/react-tabs',
-                        '@radix-ui/react-tooltip',
-                    ],
-                    "ui-vendor": [
-                        "lucide-react",
-                        "class-variance-authority",
-                        "clsx",
-                        "tailwind-merge",
-                    ],
-                    "motion-vendor": ["framer-motion", "gsap"],
-                    "konva-vendor": ["konva", "react-konva"],
-                    "html2canvas-vendor": ["html2canvas"],
-                    "markdown-vendor": ["react-markdown", "remark-gfm", "rehype-highlight"],
-                    "zip-vendor": ["jszip", "file-saver"],
-                    "image-utils-vendor": ["stackblur-canvas", "colorthief", "chroma-js"],
-                    "utils-vendor": ["p-limit"],
-                    "ai-vendor": ["openai"],
-                },
-            },
-        },
         minify: "terser",
         terserOptions: {
             compress: {
