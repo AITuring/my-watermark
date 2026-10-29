@@ -52,6 +52,14 @@ const revokeSourceImageUrls = (items: SourceImageItem[]) => {
 
 const MAX_BROWSER_IMAGE_PIXELS = 80_000_000;
 const MAX_BROWSER_IMAGE_SIDE = 16_384;
+const LOCAL_SPLIT_REQUEST_TIMEOUT_MS = 15_000;
+const BROWSER_IMAGE_LOAD_TIMEOUT_MS = 30_000;
+
+const canUseLocalSplitService = () => {
+  if (typeof window === 'undefined') return false;
+  // localSplitPlugin is injected by Vite's dev server; deployed builds must stay client-only.
+  return import.meta.env.DEV && ['localhost', '127.0.0.1', '[::1]', '::1'].includes(window.location.hostname);
+};
 
 const readJpegSize = async (file: File): Promise<{ width: number; height: number } | null> => {
   if (!/\.(jpe?g)$/i.test(file.name) && file.type !== 'image/jpeg') return null;
@@ -90,6 +98,7 @@ const importLargeJpegLocally = async (
   const result = await new Promise<{ id: string; width: number; height: number; previewUrl: string }>((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open('POST', '/__local_split/import');
+    request.timeout = LOCAL_SPLIT_REQUEST_TIMEOUT_MS;
     request.setRequestHeader('Content-Type', 'image/jpeg');
     request.upload.onprogress = (event) => {
       if (event.lengthComputable) {
@@ -99,6 +108,8 @@ const importLargeJpegLocally = async (
     };
     request.upload.onload = () => onStatus({ title: '正在生成预览', detail: `${file.name} · 原图已传入，正在读取尺寸与缩略图` });
     request.onerror = () => reject(new Error('本地大图处理服务不可用。请通过本机 Vite 服务打开应用。'));
+    request.ontimeout = () => reject(new Error('本地大图处理服务响应超时。'));
+    request.onabort = () => reject(new Error('本地大图处理服务请求已取消。'));
     request.onload = () => {
       let payload: { id?: string; width?: number; height?: number; previewUrl?: string; error?: string } = {};
       try { payload = JSON.parse(request.responseText); } catch { /* handled below */ }
@@ -128,20 +139,27 @@ const importLargeJpegLocally = async (
   }
 };
 
-const loadSourceImageItem = async (file: File, index: number, onStatus: (status: SplitLoadingStatus) => void): Promise<SourceImageItem> => {
-  const jpegSize = await readJpegSize(file);
-  const oversize = jpegSize && (
-    jpegSize.width * jpegSize.height > MAX_BROWSER_IMAGE_PIXELS ||
-    Math.max(jpegSize.width, jpegSize.height) > MAX_BROWSER_IMAGE_SIDE
-  );
-  if (oversize) return importLargeJpegLocally(file, index, onStatus);
+const loadBrowserImageItem = async (
+  file: File,
+  index: number,
+  onStatus: (status: SplitLoadingStatus) => void
+): Promise<SourceImageItem> => {
   onStatus({ title: '正在读取图片', detail: file.name });
   const originalUrl = URL.createObjectURL(file);
   const image = new Image();
   try {
     await new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve();
-      image.onerror = () => reject(new Error(`无法读取图片：${file.name}`));
+      const timeout = window.setTimeout(() => {
+        reject(new Error(`读取图片超时：${file.name}`));
+      }, BROWSER_IMAGE_LOAD_TIMEOUT_MS);
+      image.onload = () => {
+        window.clearTimeout(timeout);
+        resolve();
+      };
+      image.onerror = () => {
+        window.clearTimeout(timeout);
+        reject(new Error(`无法读取图片：${file.name}`));
+      };
       image.src = originalUrl;
     });
 
@@ -161,6 +179,23 @@ const loadSourceImageItem = async (file: File, index: number, onStatus: (status:
     URL.revokeObjectURL(originalUrl);
     throw error;
   }
+};
+
+const loadSourceImageItem = async (file: File, index: number, onStatus: (status: SplitLoadingStatus) => void): Promise<SourceImageItem> => {
+  const jpegSize = await readJpegSize(file);
+  const oversize = jpegSize && (
+    jpegSize.width * jpegSize.height > MAX_BROWSER_IMAGE_PIXELS ||
+    Math.max(jpegSize.width, jpegSize.height) > MAX_BROWSER_IMAGE_SIDE
+  );
+  if (oversize && canUseLocalSplitService()) {
+    try {
+      return await importLargeJpegLocally(file, index, onStatus);
+    } catch (error) {
+      onStatus({ title: '本地大图服务不可用，尝试浏览器读取', detail: file.name });
+      console.warn('Local split service unavailable; falling back to browser image loading.', error);
+    }
+  }
+  return loadBrowserImageItem(file, index, onStatus);
 };
 
 const buildLocalSplitImages = async (
