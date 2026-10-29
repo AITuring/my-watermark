@@ -40,6 +40,7 @@ export default defineConfig({
                 maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB
                 // Large museum/artwork images are loaded on demand instead of during SW install.
                 globPatterns: ["**/*.{js,css,html,ico}"],
+                navigateFallbackDenylist: [/^\/split(?:\/|$)/],
                 runtimeCaching: [
                     {
                         urlPattern: /\.(?:png|jpe?g|webp|svg|hdr)$/i,
@@ -103,6 +104,16 @@ export default defineConfig({
     },
     server: {
         port: 8123,
+        headers: {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+        },
+    },
+    preview: {
+        headers: {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+        },
     },
     build: {
         // Keep route chunks independent so lightweight tools such as /split do not

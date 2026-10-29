@@ -22,11 +22,14 @@ import {
   revokeGeneratedImageUrls,
 } from '@/pages/split/utils';
 import { setPendingCropTransfer } from '@/utils/crop-transfer';
+import { createJpegWasmPreview, cropJpegWithWasm } from '@/utils/jpeg-wasm';
 
 interface SourceImageItem extends SplitSourceItemSummary {
   image: HTMLImageElement;
   originalUrl: string;
   previewUrl: string;
+  file?: File;
+  wasmSource?: boolean;
   localSourceId?: string;
 }
 
@@ -54,6 +57,7 @@ const MAX_BROWSER_IMAGE_PIXELS = 80_000_000;
 const MAX_BROWSER_IMAGE_SIDE = 16_384;
 const LOCAL_SPLIT_REQUEST_TIMEOUT_MS = 15_000;
 const BROWSER_IMAGE_LOAD_TIMEOUT_MS = 30_000;
+const WASM_PREVIEW_MAX_DIMENSION = 2400;
 
 const canUseLocalSplitService = () => {
   if (typeof window === 'undefined') return false;
@@ -181,6 +185,35 @@ const loadBrowserImageItem = async (
   }
 };
 
+const loadLargeJpegWithWasm = async (
+  file: File,
+  index: number,
+  jpegSize: { width: number; height: number },
+  onStatus: (status: SplitLoadingStatus) => void
+): Promise<SourceImageItem> => {
+  onStatus({ title: '正在启动浏览器解码器', detail: `${file.name} · 首次使用会加载约 5MB WASM` });
+  const preview = await createJpegWasmPreview(file, WASM_PREVIEW_MAX_DIMENSION);
+  const previewUrl = URL.createObjectURL(preview.blob);
+  try {
+    const image = await loadImage(previewUrl);
+    onStatus({ title: '已在浏览器中读取原图', detail: `${file.name} · ${jpegSize.width}×${jpegSize.height}` });
+    return {
+      id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+      fileName: file.name,
+      naturalWidth: jpegSize.width,
+      naturalHeight: jpegSize.height,
+      image,
+      originalUrl: previewUrl,
+      previewUrl,
+      file,
+      wasmSource: true,
+    };
+  } catch (error) {
+    URL.revokeObjectURL(previewUrl);
+    throw error;
+  }
+};
+
 const loadSourceImageItem = async (file: File, index: number, onStatus: (status: SplitLoadingStatus) => void): Promise<SourceImageItem> => {
   const jpegSize = await readJpegSize(file);
   const oversize = jpegSize && (
@@ -196,9 +229,14 @@ const loadSourceImageItem = async (file: File, index: number, onStatus: (status:
     }
   }
   if (oversize) {
-    throw new Error(
-      `图片 ${file.name} 为 ${jpegSize!.width}×${jpegSize!.height}，在线浏览器模式不安全处理。请使用本机开发服务，或先压缩到 8000 万像素以内。`
-    );
+    try {
+      return await loadLargeJpegWithWasm(file, index, jpegSize!, onStatus);
+    } catch (error) {
+      console.warn('WASM JPEG decoder unavailable; falling back to the safe large-image error.', error);
+      throw new Error(
+        `图片 ${file.name} 为 ${jpegSize!.width}×${jpegSize!.height}，浏览器 WASM 解码失败。请检查浏览器是否支持跨源隔离，或使用本机开发服务。`
+      );
+    }
   }
   return loadBrowserImageItem(file, index, onStatus);
 };
@@ -226,6 +264,37 @@ const buildLocalSplitImages = async (
       const previewBlob = await previewResponse.blob();
       images.push({ id: index, url: URL.createObjectURL(blob),
         previewUrl: URL.createObjectURL(previewBlob), blob, fileName: region.fileName });
+      onProgress?.(index + 1, regions.length);
+    }
+    return images;
+  } catch (error) {
+    revokeGeneratedImageUrls(images);
+    throw error;
+  }
+};
+
+const buildWasmSplitImages = async (
+  file: File,
+  regions: Array<{ x: number; y: number; width: number; height: number; fileName: string }>,
+  onProgress?: (completed: number, total: number) => void
+): Promise<SplitImage[]> => {
+  const images: SplitImage[] = [];
+  try {
+    for (const [index, region] of regions.entries()) {
+      const result = await cropJpegWithWasm(file, {
+        x: region.x,
+        y: region.y,
+        width: region.width,
+        height: region.height,
+      });
+      const url = URL.createObjectURL(result.blob);
+      images.push({
+        id: index,
+        url,
+        previewUrl: url,
+        blob: result.blob,
+        fileName: region.fileName,
+      });
       onProgress?.(index + 1, regions.length);
     }
     return images;
@@ -420,7 +489,7 @@ export function useImageSplitter() {
 
   useEffect(() => {
     const syncGeneratedPreview = async () => {
-      if (isProcessing || !generatedMode || generatedMode === 'grid' || sourceItems.length !== 1 || activeSource?.localSourceId) return;
+      if (isProcessing || !generatedMode || generatedMode === 'grid' || sourceItems.length !== 1 || activeSource?.localSourceId || activeSource?.wasmSource) return;
       if (!sourceImage || !canvasRef.current || generatedImages.length === 0) return;
 
       const targetPlan = generatedMode === 'vertical' ? verticalPlan : horizontalPlan;
@@ -550,15 +619,18 @@ export function useImageSplitter() {
         });
         onProgress(0, plan.regions.length);
 
-        const itemImages = item.localSourceId
-          ? await buildLocalSplitImages(item.localSourceId, plan.regions.map((region) => ({
+        const regions = plan.regions.map((region) => ({
               x: orientation === 'vertical' ? Math.round(region.start) : 0,
               y: orientation === 'horizontal' ? Math.round(region.start) : 0,
               width: orientation === 'vertical' ? Math.round(region.size) : item.naturalWidth,
               height: orientation === 'horizontal' ? Math.round(region.size) : item.naturalHeight,
               fileName: region.fileName,
-            })), onProgress)
-          : await buildAxisSplitImages(item.image, canvasRef.current, orientation, plan, onProgress);
+            }));
+        const itemImages = item.localSourceId
+          ? await buildLocalSplitImages(item.localSourceId, regions, onProgress)
+          : item.wasmSource && item.file
+            ? await buildWasmSplitImages(item.file, regions, onProgress)
+            : await buildAxisSplitImages(item.image, canvasRef.current, orientation, plan, onProgress);
         nextImages.push(...itemImages.map((image) => ({ ...image, id: nextId++ })));
       }
 
@@ -614,15 +686,17 @@ export function useImageSplitter() {
         });
         onProgress(0, buildGridSplitPlan(item.naturalWidth, item.naturalHeight, cols, rows,
           gridRatioW, gridRatioH, overlapPercent, item.fileName).regions.length);
-        const itemImages = item.localSourceId
-          ? await buildLocalSplitImages(item.localSourceId,
-              buildGridSplitPlan(item.naturalWidth, item.naturalHeight, cols, rows,
-                gridRatioW, gridRatioH, overlapPercent, item.fileName).regions.map((region) => ({
+        const regions = buildGridSplitPlan(item.naturalWidth, item.naturalHeight, cols, rows,
+          gridRatioW, gridRatioH, overlapPercent, item.fileName).regions.map((region) => ({
                   x: Math.round(region.startX), y: Math.round(region.startY),
                   width: Math.round(region.width), height: Math.round(region.height),
                   fileName: region.fileName,
-                })), onProgress)
-          : await buildGridSplitImages(
+                }));
+        const itemImages = item.localSourceId
+          ? await buildLocalSplitImages(item.localSourceId, regions, onProgress)
+          : item.wasmSource && item.file
+            ? await buildWasmSplitImages(item.file, regions, onProgress)
+            : await buildGridSplitImages(
               item.image,
               canvasRef.current,
               cols,

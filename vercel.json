@@ -5,6 +5,16 @@
   "outputDirectory": "dist",
   "routes": [
     {
+      "src": "/split",
+      "headers": {
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+        "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp"
+      },
+      "continue": true
+    },
+    {
       "src": "/",
       "headers": {
         "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",

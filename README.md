@@ -1,5 +1,9 @@
 # 批量水印添加
 
+## 超大 JPEG 分块解码
+
+`/split` 对超过普通浏览器解码阈值的 JPEG 使用 `wasm-vips` Worker：原始 `File` 保留在浏览器内，Worker 通过 `File.slice()` 按需读取，再逐块裁切并输出 JPEG，不上传后端。线上 `/split` 路由和本地 Vite 预览会设置 `Cross-Origin-Opener-Policy` 与 `Cross-Origin-Embedder-Policy`，以启用 `SharedArrayBuffer`。首次使用会加载约 5MB 核心 WASM；实际处理上限仍取决于设备内存和每块输出尺寸，建议把超大图切成多个较小区域。
+
 ## 思路
 图片上面加水印和添加一层边框再添加水印，流程还是不太一样。不如拆分成两个组件。以后可以扩展成添加水印和添加各种边框。导航栏分开。
 ## 流程

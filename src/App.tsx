@@ -1,5 +1,5 @@
-import React, { Component, Suspense, type ErrorInfo, type ReactNode } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import React, { Component, Suspense, useEffect, type ErrorInfo, type ReactNode } from "react";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "./context";
 import "./App.css";
 import { Toaster } from "sonner";
@@ -63,11 +63,43 @@ const Landing = lazyWithImportRecovery(
     "route:landing"
 );
 
+const SplitIsolationGuard = () => {
+    const location = useLocation();
+
+    useEffect(() => {
+        if (location.pathname !== "/split" || typeof window === "undefined" || window.crossOriginIsolated) {
+            return;
+        }
+
+        const reloadKey = "split-coop-coep-reload";
+        if (window.sessionStorage.getItem(reloadKey) === "1") return;
+        window.sessionStorage.setItem(reloadKey, "1");
+        const reload = () => window.location.replace(window.location.href);
+        if (!("serviceWorker" in navigator)) {
+            reload();
+            return;
+        }
+        void navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+            reload();
+        }).catch(reload);
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (location.pathname === "/split" && typeof window !== "undefined" && window.crossOriginIsolated) {
+            window.sessionStorage.removeItem("split-coop-coep-reload");
+        }
+    }, [location.pathname]);
+
+    return null;
+};
+
 const App = () => {
     return (
         <ThemeProvider>
             <div className="min-h-screen w-screen bg-background text-foreground">
                 <BrowserRouter>
+                    <SplitIsolationGuard />
                     {/* <ChineseStyleNavbar /> */}
                     <div
                         className="flex flex-col w-screen"
