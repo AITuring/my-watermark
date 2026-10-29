@@ -7,7 +7,7 @@ type VipsImage = {
 };
 
 type VipsSource = {
-  onRead: (length: number) => Blob | Uint8Array | undefined;
+  onRead: (length: number) => Uint8Array | undefined;
   onSeek: (offset: number, whence: number) => number;
   delete: () => void;
 };
@@ -61,6 +61,10 @@ const getVips = async (): Promise<VipsApi> => {
       const moduleUrl = new URL(`/wasm-vips/vips-es6.js${WASM_ASSET_QUERY}`, self.location.origin).href;
       const module = await import(/* @vite-ignore */ moduleUrl) as { default: (options?: Record<string, unknown>) => Promise<VipsApi> };
       return module.default({
+        // The ES module starts pthread workers from this URL. Keep the query
+        // string so those workers receive the same CORP-safe response instead
+        // of falling back to a stale no-query edge-cache entry.
+        mainScriptUrlOrBlob: moduleUrl,
         // JPEG support is built into the core module. Avoid fetching optional
         // HEIF/JXL plugins on first use; they are not needed by /split.
         dynamicLibraries: [],
