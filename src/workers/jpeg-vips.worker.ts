@@ -49,6 +49,11 @@ declare class FileReaderSync {
 
 let vipsPromise: Promise<VipsApi> | null = null;
 
+// Keep browser-side reads bounded. libvips may ask for a very large read from
+// a custom source; slicing the File in smaller chunks avoids a transient
+// ArrayBuffer allocation proportional to the compressed JPEG size.
+const MAX_SOURCE_READ_BYTES = 8 * 1024 * 1024;
+
 const getVips = async (): Promise<VipsApi> => {
   if (!vipsPromise) {
     vipsPromise = (async () => {
@@ -71,7 +76,8 @@ const createSource = (vips: VipsApi, file: File): VipsSource => {
   const source = new vips.SourceCustom();
   source.onRead = (length) => {
     if (position >= file.size) return undefined;
-    const chunk = file.slice(position, Math.min(file.size, position + Math.max(1, length)));
+    const requested = Math.max(1, Math.min(MAX_SOURCE_READ_BYTES, length));
+    const chunk = file.slice(position, Math.min(file.size, position + requested));
     position += chunk.size;
     return new Uint8Array(reader.readAsArrayBuffer(chunk));
   };
@@ -111,7 +117,10 @@ self.onmessage = async (event: MessageEvent<RequestMessage>) => {
         const height = Math.max(1, Math.floor(request.height ?? 0));
         const x = Math.max(0, Math.floor(request.x ?? 0));
         const y = Math.max(0, Math.floor(request.y ?? 0));
-        const fullImage = vips.Image.newFromSource(source, '', { access: 'random' });
+        // JPEG is decoded top-to-bottom. Sequential access lets libvips keep
+        // a bounded scanline cache instead of materialising a random-access
+        // image for every tile, which is critical for 300–800MB files.
+        const fullImage = vips.Image.newFromSource(source, '', { access: 'sequential' });
         try {
           image = fullImage.crop(x, y, width, height);
         } finally {
