@@ -1,0 +1,1 @@
+import{r as t}from"./index-be471708.js";function n(t,[n,r]){return Math.min(r,Math.max(n,t))}var r=t.createContext(void 0);function e(n){const e=t.useContext(r);return n||e||"ltr"}export{n as c,e as u};
