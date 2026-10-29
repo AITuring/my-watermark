@@ -195,6 +195,11 @@ const loadSourceImageItem = async (file: File, index: number, onStatus: (status:
       console.warn('Local split service unavailable; falling back to browser image loading.', error);
     }
   }
+  if (oversize) {
+    throw new Error(
+      `图片 ${file.name} 为 ${jpegSize!.width}×${jpegSize!.height}，在线浏览器模式不安全处理。请使用本机开发服务，或先压缩到 8000 万像素以内。`
+    );
+  }
   return loadBrowserImageItem(file, index, onStatus);
 };
 

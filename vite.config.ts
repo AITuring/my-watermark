@@ -16,7 +16,8 @@ export default defineConfig({
         enableLegacy ? legacy() : null,
         VitePWA({
             registerType: "autoUpdate",
-            includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
+            injectRegister: false,
+            includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg", "dragon1.png"],
             manifest: {
                 name: "MyTools - 轻量工具集",
                 short_name: "MyTools",
@@ -37,8 +38,23 @@ export default defineConfig({
             },
             workbox: {
                 maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB
-                globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+                // Large museum/artwork images are loaded on demand instead of during SW install.
+                globPatterns: ["**/*.{js,css,html,ico}"],
                 runtimeCaching: [
+                    {
+                        urlPattern: /\.(?:png|jpe?g|webp|svg|hdr)$/i,
+                        handler: "CacheFirst",
+                        options: {
+                            cacheName: "image-assets-cache",
+                            expiration: {
+                                maxEntries: 120,
+                                maxAgeSeconds: 60 * 60 * 24 * 30,
+                            },
+                            cacheableResponse: {
+                                statuses: [0, 200],
+                            },
+                        },
+                    },
                     {
                         urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
                         handler: "CacheFirst",

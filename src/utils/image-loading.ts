@@ -2,7 +2,12 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore Runtime dependency is present; declarations are not bundled.
 import * as UTIF from "utif";
-import { getLargeImageAsset, processLargeImage } from '@/utils/large-image';
+import {
+    canUseLocalLargeImageService,
+    getLargeImageAsset,
+    isLargeJpeg,
+    processLargeImage,
+} from '@/utils/large-image';
 
 export type LoadedImage = ImageBitmap | HTMLImageElement | HTMLCanvasElement;
 
@@ -154,6 +159,7 @@ export async function loadImageSource(file: File): Promise<LoadedImage> {
     if (isTiffFile(file)) {
         return decodeTiffToCanvas(file);
     }
+    const large = await isLargeJpeg(file);
     const largeAsset = await getLargeImageAsset(file);
     if (largeAsset) {
         const scale = Math.min(1, 16000 / Math.max(largeAsset.width, largeAsset.height),
@@ -164,6 +170,9 @@ export async function loadImageSource(file: File): Promise<LoadedImage> {
         });
         if (!blob) throw new Error('本地大图处理服务不可用');
         return createImageBitmap(blob);
+    }
+    if (large && !canUseLocalLargeImageService()) {
+        throw new Error("超大 JPEG 需要本机或服务端处理，在线浏览器模式不会解码整张原图。");
     }
     if ("createImageBitmap" in window) {
         return createImageBitmap(file);

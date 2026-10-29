@@ -36,6 +36,11 @@ async function jpegDimensions(file: File): Promise<{ width: number; height: numb
   return null;
 }
 
+export function canUseLocalLargeImageService(): boolean {
+  if (typeof window === 'undefined') return false;
+  return import.meta.env.DEV && ['localhost', '127.0.0.1', '[::1]', '::1'].includes(window.location.hostname);
+}
+
 export async function isLargeJpeg(file: File): Promise<boolean> {
   const size = await jpegDimensions(file);
   return Boolean(size && (size.width * size.height > MAX_BROWSER_PIXELS ||
@@ -47,6 +52,7 @@ export async function getLargeImageAsset(file: File): Promise<LargeImageAsset | 
   if (!task) {
     task = (async () => {
       if (!await isLargeJpeg(file)) return null;
+      if (!canUseLocalLargeImageService()) return null;
       const toastId = `large-image-${Date.now()}-${Math.random()}`;
       toast.loading(`正在传入大图：${file.name}`, { id: toastId });
       try {
