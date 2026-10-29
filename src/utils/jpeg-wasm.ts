@@ -39,7 +39,11 @@ const getWorker = () => {
     throw new Error('当前浏览器不支持 WASM Worker');
   }
   if (worker) return worker;
-  worker = new Worker(new URL('../workers/jpeg-vips.worker.ts', import.meta.url), { type: 'module' });
+  // Vite emits this worker as a self-contained IIFE. Keep it a classic
+  // worker so browsers do not reject the generated asset when the CDN serves
+  // it without the module-worker MIME metadata. The worker loads vips-es6.js
+  // itself with a fully qualified dynamic import.
+  worker = new Worker(new URL('../workers/jpeg-vips.worker.ts', import.meta.url));
   worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
     const message = event.data;
     const request = pending.get(message.id);
@@ -55,8 +59,9 @@ const getWorker = () => {
       height: message.height,
     });
   };
-  worker.onerror = () => {
-    const error = new Error('WASM JPEG Worker 加载失败');
+  worker.onerror = (event) => {
+    const detail = event.message || (event.filename ? `${event.filename}:${event.lineno || 0}` : '');
+    const error = new Error(detail ? `WASM JPEG Worker 加载失败：${detail}` : 'WASM JPEG Worker 加载失败');
     pending.forEach(({ reject }) => reject(error));
     pending.clear();
     worker?.terminate();

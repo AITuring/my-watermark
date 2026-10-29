@@ -30,6 +30,20 @@
       },
       "continue": true
     },
+    {
+      "src": "/assets/(.*)",
+      "headers": {
+        "Cross-Origin-Resource-Policy": "same-origin"
+      },
+      "continue": true
+    },
+    {
+      "src": "/wasm-vips/(.*)",
+      "headers": {
+        "Cross-Origin-Resource-Policy": "same-origin"
+      },
+      "continue": true
+    },
     { "handle": "filesystem" },
     { "src": "/assets/(.*)", "status": 404 },
     { "src": "/(.*)", "dest": "/index.html" }
