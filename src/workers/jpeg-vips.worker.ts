@@ -48,6 +48,7 @@ declare class FileReaderSync {
 }
 
 let vipsPromise: Promise<VipsApi> | null = null;
+const WASM_ASSET_QUERY = '?coep=1';
 
 // Keep browser-side reads bounded. libvips may ask for a very large read from
 // a custom source; slicing the File in smaller chunks avoids a transient
@@ -57,13 +58,13 @@ const MAX_SOURCE_READ_BYTES = 8 * 1024 * 1024;
 const getVips = async (): Promise<VipsApi> => {
   if (!vipsPromise) {
     vipsPromise = (async () => {
-      const moduleUrl = new URL('/wasm-vips/vips-es6.js', self.location.origin).href;
+      const moduleUrl = new URL(`/wasm-vips/vips-es6.js${WASM_ASSET_QUERY}`, self.location.origin).href;
       const module = await import(/* @vite-ignore */ moduleUrl) as { default: (options?: Record<string, unknown>) => Promise<VipsApi> };
       return module.default({
         // JPEG support is built into the core module. Avoid fetching optional
         // HEIF/JXL plugins on first use; they are not needed by /split.
         dynamicLibraries: [],
-        locateFile: (path: string) => new URL(`/wasm-vips/${path}`, self.location.origin).href,
+        locateFile: (path: string) => new URL(`/wasm-vips/${path}${WASM_ASSET_QUERY}`, self.location.origin).href,
       });
     })();
   }
