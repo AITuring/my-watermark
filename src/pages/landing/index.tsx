@@ -106,6 +106,8 @@ const ToolCard = ({
                 <img
                     src={HISTORY_ICONS[index % HISTORY_ICONS.length]}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-contain object-right-bottom"
                 />
             </div>
@@ -357,7 +359,7 @@ export default function Landing() {
                 {/* Hero Section */}
                 <div className="mb-16 text-center max-w-2xl mx-auto">
                     <motion.h1
-                        initial={{ opacity: 0, y: 15 }}
+                        initial={false}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8 }}
                         className="text-3xl md:text-4xl font-bold text-stone-800 dark:text-stone-100 tracking-wide mb-6 font-mono"
@@ -396,7 +398,7 @@ export default function Landing() {
                         </motion.span>
                     </motion.h1>
                     <motion.p
-                        initial={{ opacity: 0, y: 12 }}
+                        initial={false}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.15 }}
                         className="text-sm md:text-base text-stone-500 dark:text-stone-400 leading-relaxed font-mono tracking-wide"
@@ -405,7 +407,7 @@ export default function Landing() {
                     </motion.p>
 
                     {/* <motion.p
-                        initial={{ opacity: 0, y: 15 }}
+                        initial={false}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.2 }}
                         className="text-sm md:text-base text-stone-500 leading-relaxed font-mono tracking-wide max-w-lg mx-auto"
@@ -423,7 +425,7 @@ export default function Landing() {
                     {items.map((item, index) => (
                         <motion.div
                             key={item.id}
-                            initial={{ opacity: 0, y: 15 }}
+                            initial={false}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: index * 0.05 }}
                         >

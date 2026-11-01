@@ -30,7 +30,6 @@ import { Icon } from "@iconify/react";
 import ImagePreview from "@/components/ImagePreview";
 import ThreeLanding from "@/components/ThreeLanding";
 import { consumePendingCropTransfer } from "@/utils/crop-transfer";
-import { isLargeJpeg } from '@/utils/large-image';
 
 import { PuzzlePhotoFrame, SortablePuzzlePhotoFrame } from "./components/PuzzlePhotoFrame";
 import { PuzzleSettingsCard } from "./components/PuzzleSettingsCard";
@@ -41,7 +40,6 @@ import type {
     SortablePhotoProps,
 } from "./types";
 import {
-    MAX_PUZZLE_IMAGE_SIZE,
     calculateOverlayBounds,
     downloadPuzzleImage,
     findAspectRatioByLabel,
@@ -59,10 +57,17 @@ const Puzzle = () => {
     const galleryRef = useRef<HTMLDivElement | null>(null);
     const renderedPhotos = useRef<Record<string, SortablePhotoProps>>({});
     const restoredPendingTransferRef = useRef(false);
+    const importingRef = useRef(false);
+    const previewUrlsRef = useRef(new Set<string>());
+    useEffect(() => () => {
+        for (const url of previewUrlsRef.current) URL.revokeObjectURL(url);
+        previewUrlsRef.current.clear();
+    }, []);
 
     const [files, setFiles] = useState<File[]>([]);
     const [images, setImages] = useState<ImgProp[]>([]);
     const [spinning, setSpinning] = useState(false);
+    const [importProgress, setImportProgress] = useState("");
     const [isUpload, setIsUpload] = useState(false);
     const [inputColumns, setInputColumns] = useState<number | null>(3);
     const [inputScale, setInputScale] = useState(6);
@@ -118,6 +123,8 @@ const Puzzle = () => {
                 return;
             }
 
+            URL.revokeObjectURL(images[imageIndex].src);
+            previewUrlsRef.current.delete(images[imageIndex].src);
             setImages((prevImages) =>
                 prevImages.filter((image) => image.id !== id)
             );
@@ -196,39 +203,36 @@ const Puzzle = () => {
 
     const onDrop = useCallback(
         async (acceptedFiles: File[]) => {
-            const oversizedFiles = (await Promise.all(acceptedFiles.map(async (file) =>
-                file.size > MAX_PUZZLE_IMAGE_SIZE && !await isLargeJpeg(file) ? file : null
-            ))).filter((file): file is File => Boolean(file));
-
-            if (oversizedFiles.length > 0) {
-                toast.error(
-                    `以下图片大小超过 200MB，已被过滤: ${oversizedFiles
-                        .map((file) => file.name)
-                        .join(", ")}`,
-                    { position: "top-center" }
-                );
+            if (importingRef.current) {
+                toast.info("正在导入，请等待当前批次完成");
                 return;
             }
-
+            importingRef.current = true;
             setSpinning(true);
-
+            const progressId = toast.loading("正在准备导入图片");
             try {
-                const newImages = await processAcceptedFiles(acceptedFiles);
-                setFiles((prevFiles) => [...prevFiles, ...acceptedFiles]);
-                setImages((prevImages) => [...prevImages, ...newImages]);
-
-                if (!isUpload) {
-                    setIsUpload(true);
+                for (const [index, file] of acceptedFiles.entries()) {
+                    const message = `正在导入 ${index + 1}/${acceptedFiles.length}：${file.name}`;
+                    setImportProgress(message);
+                    toast.loading(message, { id: progressId });
+                    try {
+                        const newImages = await processAcceptedFiles([file]);
+                        for (const image of newImages) previewUrlsRef.current.add(image.src);
+                        setFiles((prev) => [...prev, file]);
+                        setImages((prev) => [...prev, ...newImages]);
+                        setIsUpload(true);
+                    } catch (error) {
+                        toast.error(`${file.name}：${(error as Error).message}`, { duration: 8000 });
+                    }
                 }
-            } catch (error) {
-                toast.error(`图片处理失败: ${(error as Error).message}`, {
-                    position: "top-center",
-                });
             } finally {
+                toast.dismiss(progressId);
+                setImportProgress("");
+                importingRef.current = false;
                 setSpinning(false);
             }
         },
-        [isUpload]
+        []
     );
 
     useEffect(() => {
@@ -244,7 +248,7 @@ const Puzzle = () => {
     const { getRootProps, getInputProps } = useDropzone({
         onDrop,
         accept: {
-            "image/*": [".jpeg", ".jpg", ".png"],
+            "image/*": [".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"],
         },
         maxSize: 2 * 1024 * 1024 * 1024,
         onDropRejected: () => {
@@ -439,7 +443,7 @@ const Puzzle = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                     <div className="flex flex-col items-center">
                         <Icon icon="line-md:speedometer-loop" className="text-white mt-2" />
-                        <p className="mt-2 text-white">正在处理...</p>
+                        <p className="mt-2 max-w-xl break-all px-4 text-center text-white">{importProgress || "正在处理..."}</p>
                     </div>
                 </div>
             ) : isUpload ? (
@@ -467,6 +471,8 @@ const Puzzle = () => {
                             )?.click()
                         }
                         onClear={() => {
+                            for (const url of previewUrlsRef.current) URL.revokeObjectURL(url);
+                            previewUrlsRef.current.clear();
                             setImages([]);
                             setFiles([]);
                             setIsUpload(false);

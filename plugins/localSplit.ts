@@ -54,7 +54,7 @@ export function localSplitPlugin(): Plugin {
             if (length > MAX_UPLOAD_BYTES) return sendError(413, '文件超过本地处理上限');
             const root = await getRoot();
             const id = randomUUID();
-            const filePath = path.join(root, `${id}.jpg`);
+            const filePath = path.join(root, `${id}.source`);
             let received = 0;
             const limiter = new Transform({
               transform(chunk: Buffer, _encoding, callback) {
@@ -65,8 +65,8 @@ export function localSplitPlugin(): Plugin {
             try {
               await pipeline(req, limiter, createWriteStream(filePath));
               const metadata = await sharp(filePath, { limitInputPixels: false }).metadata();
-              if (!metadata.width || !metadata.height || metadata.format !== 'jpeg') {
-                throw new Error('本地大图通道仅支持 JPEG');
+              if (!metadata.width || !metadata.height || !['jpeg', 'png', 'tiff', 'webp'].includes(metadata.format || '')) {
+                throw new Error('本地大图通道支持 JPEG、PNG、TIFF 和 WebP');
               }
               const preview = await sharp(filePath, { limitInputPixels: false })
                 .resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true })

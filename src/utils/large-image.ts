@@ -47,11 +47,11 @@ export async function isLargeJpeg(file: File): Promise<boolean> {
     Math.max(size.width, size.height) > MAX_BROWSER_SIDE));
 }
 
-export async function getLargeImageAsset(file: File): Promise<LargeImageAsset | null> {
+export async function getLargeImageAsset(file: File, preferLocal = false): Promise<LargeImageAsset | null> {
   let task = pending.get(file);
   if (!task) {
     task = (async () => {
-      if (!await isLargeJpeg(file)) return null;
+      if (!preferLocal && !await isLargeJpeg(file)) return null;
       if (!canUseLocalLargeImageService()) return null;
       const toastId = `large-image-${Date.now()}-${Math.random()}`;
       toast.loading(`正在传入大图：${file.name}`, { id: toastId });
@@ -59,7 +59,7 @@ export async function getLargeImageAsset(file: File): Promise<LargeImageAsset | 
         const data = await new Promise<LargeImageAsset>((resolve, reject) => {
           const request = new XMLHttpRequest();
           request.open('POST', '/__local_split/import');
-          request.setRequestHeader('Content-Type', 'image/jpeg');
+          request.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
           request.upload.onprogress = (event) => {
             if (event.lengthComputable) {
               toast.loading(`正在传入大图：${file.name} · ${Math.round(event.loaded / event.total * 100)}%`, { id: toastId });
