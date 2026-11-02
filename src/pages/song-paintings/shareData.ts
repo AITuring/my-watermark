@@ -21,8 +21,9 @@ export interface ShareData {
     stats: ReadingStatistics;
     /** Sorted by read count first, then by the number of catalogued artworks. */
     collections: StatGroup[];
+    /** Only editions containing works in the selected source. */
+    editionProgress: StatGroup[];
     collectionCoverage: ShareCoverage;
-    artistCoverage: ShareCoverage;
 }
 
 function collectionName(value: string | null | undefined): string {
@@ -40,6 +41,10 @@ function coverage(groups: readonly StatGroup[], missingId: string): ShareCoverag
     return { read: named.filter((group) => group.read > 0).length, total: named.length };
 }
 
+function rankByRead(groups: readonly StatGroup[]): StatGroup[] {
+    return [...groups].sort((a, b) => b.read - a.read || b.total - a.total || a.label.localeCompare(b.label, "zh-CN") || a.id.localeCompare(b.id));
+}
+
 /** Share scopes follow the catalog editions, including volume 8 in the overseas edition. */
 export function buildShareData(artworks: readonly Artwork[], scope: ShareScope = "all"): ShareData {
     const choice = SHARE_SCOPES.find((item) => item.value === scope);
@@ -48,15 +53,14 @@ export function buildShareData(artworks: readonly Artwork[], scope: ShareScope =
         .filter((artwork) => scope === "all" || artwork.edition === scope)
         .map((artwork) => ({ ...artwork, collection: collectionName(artwork.collection) }));
     const stats = buildReadingStats(selected);
-    const collections = [...stats.collections].sort((a, b) => b.read - a.read || b.total - a.total || a.label.localeCompare(b.label, "zh-CN") || a.id.localeCompare(b.id));
 
     return {
         scope,
         scopeLabel: choice.label,
         stats,
-        collections,
+        collections: rankByRead(stats.collections),
+        editionProgress: stats.editions.filter((group) => group.total > 0),
         collectionCoverage: coverage(stats.collections, "collection:missing"),
-        artistCoverage: coverage(stats.artists, "artist:missing"),
     };
 }
 

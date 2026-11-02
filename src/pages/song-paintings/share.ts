@@ -10,7 +10,6 @@ export interface ShareImageOptions {
 }
 
 const WIDTH = 1200;
-const HEIGHT = 1600;
 const SERIF = '"Songti SC", "STSong", "Noto Serif CJK SC", serif';
 // Lining figures stay the same height and share a baseline, including fractions.
 const SANS = '"Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif';
@@ -28,6 +27,10 @@ async function waitForFonts(): Promise<void> {
 /** A local, fixed snapshot. Only the selected edition affects the statistics. */
 export async function createShareImage(catalog: Catalog, options: ShareImageOptions = {}): Promise<Blob> {
     if (typeof document === "undefined") throw new Error("请在浏览器中生成分享图片。");
+    const data = buildShareData(catalog.artworks, options.scope);
+    const { stats } = data;
+    const editionBand = data.editionProgress.length > 1 ? 80 : 0;
+    const HEIGHT = 1240 + editionBand;
     const canvas = document.createElement("canvas");
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
@@ -36,12 +39,10 @@ export async function createShareImage(catalog: Catalog, options: ShareImageOpti
     const { paper, ink, accent, cinnabar, gold, jade, muted, rule, track } = SHARE_THEME;
     const palette = [accent, cinnabar, gold, jade];
     const [, qr] = await Promise.all([waitForFonts(), createShareQr(SONG_SHARE_URL, ink)]);
-    const data = buildShareData(catalog.artworks, options.scope);
-    const { stats } = data;
     const date = options.date && Number.isFinite(options.date.getTime()) ? options.date : new Date();
     // Align the visible marks, not the QR canvas's transparent padding.
     const graphicSize = qr.canvas.width - qr.padding * 2;
-    const graphicsTop = 1200;
+    const graphicsTop = 910 + editionBand;
     const qrX = 1104 - graphicSize - qr.padding, qrY = graphicsTop - qr.padding;
 
     const text = (value: string, x: number, y: number, size = 24, color: string = ink, family = SANS, align: CanvasTextAlign = "left", weight = "400") => {
@@ -77,40 +78,53 @@ export async function createShareImage(catalog: Catalog, options: ShareImageOpti
     context.strokeStyle = rule; context.lineWidth = 1;
     context.strokeRect(44.5, 44.5, WIDTH - 89, HEIGHT - 89);
 
-    text("宋画全集 · 观画记录", 96, 178, 58, ink, SERIF, "left", "600");
+    text("宋画全集 · 观画记录", 96, 132, 56, ink, SERIF, "left", "600");
     const formattedDate = `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}`;
-    text(`${data.scopeLabel} · ${formattedDate}`, 99, 232, 23, muted);
+    text(`${data.scopeLabel} · ${formattedDate}`, 99, 180, 23, muted);
 
-    text("已看作品", 99, 337, 25, muted);
-    text(number(stats.read), 94, 442, 104, accent, SANS, "left", "500");
+    text("已看作品", 99, 266, 24, muted);
+    text(number(stats.read), 94, 352, 84, accent, SANS, "left", "500");
     const readWidth = context.measureText(number(stats.read)).width;
-    text(`/ ${number(stats.total)} 件`, 112 + readWidth, 442, 32, muted);
-    const centerX = 991, centerY = 379, radius = 86;
-    context.lineWidth = 10; context.strokeStyle = track;
+    text(`/ ${number(stats.total)} 件`, 110 + readWidth, 352, 27, muted);
+    text("馆藏覆盖", 718, 266, 23, muted, SANS, "center");
+    text(`${data.collectionCoverage.read} / ${data.collectionCoverage.total}`, 718, 334, 38, accent, SANS, "center", "500");
+    const centerX = 1030, centerY = 303, radius = 65;
+    context.lineWidth = 8; context.strokeStyle = track;
     context.beginPath(); context.arc(centerX, centerY, radius, 0, Math.PI * 2); context.stroke();
     if (stats.percent > 0) {
         context.strokeStyle = accent;
         context.beginPath(); context.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * stats.percent / 100); context.stroke();
     }
-    text(percentage(stats.percent), centerX, 384, 39, accent, SANS, "center", "500");
-    text("完成率", centerX, 422, 22, muted, SANS, "center");
+    text(percentage(stats.percent), centerX, 306, 31, accent, SANS, "center", "500");
+    text("完成率", centerX, 339, 20, muted, SANS, "center");
 
-    text(data.collections.length > 6 ? "馆藏足迹 · 前六" : "馆藏足迹", 96, 580, 33, ink, SERIF, "left", "600");
-    text("已看 / 收录", 1104, 580, 22, muted, SANS, "right");
+    // Only the combined scope needs an edition comparison; single editions stay compact.
+    if (editionBand) data.editionProgress.forEach((group, index) => {
+        const x = index === 0 ? 96 : 650, width = 454;
+        const color = group.id === "domestic" ? accent : cinnabar;
+        text(group.label, x, 414, 23, ink, SERIF);
+        text(`${group.read} / ${group.total}`, x + width, 414, 23, color, SANS, "right");
+        context.fillStyle = track; context.fillRect(x, 436, width, 7);
+        context.fillStyle = color; context.fillRect(x, 436, width * group.percent / 100, 7);
+    });
+
+    const sectionY = 450 + editionBand;
+    text(data.collections.length > 6 ? "馆藏足迹 · 前六" : "馆藏足迹", 96, sectionY, 30, ink, SERIF, "left", "600");
+    text("已看 / 收录", 1104, sectionY, 22, muted, SANS, "right");
     const shown = data.collections.slice(0, 6);
-    const axisStart = 535, axisEnd = 910;
+    const axisStart = 560, axisEnd = 950;
     shown.forEach((group, index) => {
-        const y = 660 + index * 64;
-        fitted(group.label, 96, y + 8, 400, 26, ink, SERIF);
+        const y = sectionY + 62 + index * 52;
+        fitted(group.label, 96, y + 8, 426, 26, ink, SERIF);
+        text(`${group.read} / ${group.total}`, 1104, y + 8, 25, group.read > 0 ? accent : muted, SANS, "right");
         line(axisStart, y, axisEnd, y, track, 2);
         const end = axisStart + (axisEnd - axisStart) * group.percent / 100;
         if (group.read > 0) line(axisStart, y, end, y, accent, 3);
-        context.beginPath(); context.arc(end, y, 5, 0, Math.PI * 2); context.fillStyle = group.read > 0 ? accent : rule; context.fill();
-        text(`${group.read} / ${group.total}`, 1104, y + 8, 26, group.read > 0 ? accent : muted, SANS, "right");
+        context.beginPath(); context.arc(end, y, 4, 0, Math.PI * 2); context.fillStyle = group.read > 0 ? accent : rule; context.fill();
     });
-    if (!shown.length) text("暂无馆藏记录", 96, 672, 25, muted);
+    if (!shown.length) text("暂无馆藏记录", 96, sectionY + 95, 24, muted);
 
-    text("已看作品年代", 96, 1138, 33, ink, SERIF, "left", "600");
+    text("已看作品年代", 96, graphicsTop - 54, 30, ink, SERIF, "left", "600");
     const periods = collapseShareGroups([...stats.periods].filter((group) => group.read > 0).sort((a, b) => b.read - a.read || b.total - a.total), 3, "其他年代");
     const gap = 3;
     const step = (graphicSize + gap) / 10;
@@ -137,7 +151,7 @@ export async function createShareImage(catalog: Catalog, options: ShareImageOpti
 
     context.imageSmoothingEnabled = false;
     context.drawImage(qr.canvas, qrX, qrY);
-    text("扫码记录看画足迹", qrX + qr.canvas.width / 2, graphicsTop + graphicSize + 58, 22, muted, SANS, "center");
+    text("扫码记录看画足迹", qrX + qr.canvas.width / 2, graphicsTop + graphicSize + 46, 22, muted, SANS, "center");
 
     return new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("图片生成失败，请重试。")), "image/png");

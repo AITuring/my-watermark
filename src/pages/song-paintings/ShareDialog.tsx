@@ -41,7 +41,7 @@ export default function ShareDialog({ catalog, initialScope = "all", onClose }: 
             <select id="song-share-scope" value={scope} onChange={(event) => setScope(event.target.value as ShareScope)}>{SHARE_SCOPES.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}</select>
             <p aria-live="polite">已看 {data.stats.read} / {data.stats.total} 件</p>
         </div>
-        {currentResult ? <img className="song-share-preview" src={currentResult.url} alt={`宋画全集${data.scopeLabel}观画记录：已看${data.stats.read}件，共${data.stats.total}件，包含完成率环图、馆藏进度、年代分布和网站二维码`} /> : !error && <p role="status" className="song-share-loading">正在生成高清分享图…</p>}
+        {currentResult ? <img className="song-share-preview" src={currentResult.url} alt={`宋画全集${data.scopeLabel}观画记录：已看${data.stats.read}件，共${data.stats.total}件，包含完成率、馆藏覆盖、版别进度、馆藏进度、年代分布和网站二维码`} /> : !error && <p role="status" className="song-share-loading">正在生成高清分享图…</p>}
         {error && <p role="alert" className="song-dialog-error">{error}</p>}
         </div>
         <footer>{currentResult && <><a className="song-primary" href={currentResult.url} download={currentResult.file.name}><Download size={16} /> 下载图片</a>{canShare && <button type="button" onClick={() => void share()}><Share2 size={16} /> 系统分享</button>}</>}</footer>

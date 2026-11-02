@@ -30,6 +30,12 @@ test("all three share sources use edition boundaries, not collection location or
         assert.equal(data.stats.total, total);
         assert.equal(data.stats.read, expected.filter((artwork) => artwork.read).length);
         assert.equal(data.stats.unread + data.stats.read, total);
+        assert.deepEqual(data.editionProgress.map((group) => group.id), scope === "all" ? ["domestic", "overseas"] : [scope]);
+        for (const group of data.editionProgress) {
+            const editionWorks = expected.filter((artwork) => artwork.edition === group.id);
+            assert.equal(group.total, editionWorks.length);
+            assert.equal(group.read, editionWorks.filter((artwork) => artwork.read).length);
+        }
         for (const dimension of ["collections", "artists", "periods", "books", "editions"]) {
             assert.equal(data.stats[dimension].reduce((sum, group) => sum + group.total, 0), total, `${scope}:${dimension}`);
             assert.equal(data.stats[dimension].reduce((sum, group) => sum + group.read, 0), data.stats.read, `${scope}:${dimension}`);
@@ -54,7 +60,6 @@ test("collection suffixes merge without confusing private collections or missing
     assert.deepEqual(data.stats.collections.find((group) => group.label === "故宫博物院"), { id: "collection:故宫博物院", label: "故宫博物院", total: 2, read: 1, percent: 50 });
     assert.deepEqual(data.stats.collections.find((group) => group.label === "私人收藏"), { id: "collection:私人收藏", label: "私人收藏", total: 2, read: 1, percent: 50 });
     assert.deepEqual(data.collectionCoverage, { read: 2, total: 2 });
-    assert.deepEqual(data.artistCoverage, { read: 1, total: 1 });
     assert.equal(data.stats.collections.find((group) => group.id === "collection:missing").read, 1);
     assert.equal(data.collections.reduce((sum, group) => sum + group.read, 0), 3, "missing metadata remains in chart denominators");
 });
@@ -115,6 +120,7 @@ test("empty, unread and complete snapshots remain finite in every selected sourc
         assert.deepEqual([data.stats.total, data.stats.read, data.stats.percent], [0, 0, 0]);
         assert.deepEqual(data.collectionCoverage, { read: 0, total: 0 });
         assert.deepEqual(collapseShareGroups(data.collections, 6), []);
+        assert.deepEqual(data.editionProgress, []);
     }
     for (const read of [false, true]) {
         const data = buildShareData([make("a", { read }), make("b", { read, collection: "另一馆" })]);
@@ -123,4 +129,25 @@ test("empty, unread and complete snapshots remain finite in every selected sourc
         assert.deepEqual(data.collectionCoverage, { read: read ? 2 : 0, total: 2 });
     }
     assert.throws(() => buildShareData([], "wrong"), /数据源/);
+});
+
+test("real catalog edition progress stays within each scope when entirely unseen or complete", () => {
+    for (const read of [false, true]) {
+        const artworks = catalog.artworks.map((artwork) => ({ ...artwork, read }));
+        for (const { value: scope } of SHARE_SCOPES) {
+            const data = buildShareData(artworks, scope);
+            const expected = artworks.filter((artwork) => scope === "all" || artwork.edition === scope);
+            assert.equal(data.stats.total, expected.length);
+            assert.equal(data.stats.read, read ? expected.length : 0);
+            assert.equal(data.stats.percent, read ? 100 : 0);
+            assert.deepEqual(data.editionProgress.map((group) => group.id), scope === "all" ? ["domestic", "overseas"] : [scope]);
+            for (const group of data.editionProgress) {
+                assert.ok(group.total > 0);
+                assert.equal(group.read, read ? group.total : 0);
+                assert.equal(group.percent, read ? 100 : 0);
+            }
+            assert.equal(data.editionProgress.reduce((sum, group) => sum + group.total, 0), data.stats.total);
+            assert.equal(data.editionProgress.reduce((sum, group) => sum + group.read, 0), data.stats.read);
+        }
+    }
 });
