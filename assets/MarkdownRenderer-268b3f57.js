@@ -1,0 +1,1 @@
+import{r as e,j as n}from"./index-dc63e600.js";import{M as r,r as o,a as s}from"./index-1922074e.js";function t({content:t,components:i,highlight:a=!0,renderToken:l=0,onRenderComplete:m}){return e.useEffect(()=>{null==m||m(l)},[t,a,m,l]),n.jsx(r,{remarkPlugins:[o],rehypePlugins:a?[s]:[],components:i,children:t})}export{t as default};
