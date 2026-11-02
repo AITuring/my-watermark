@@ -4,6 +4,7 @@ import { MoonStar, PanelRightOpen, SunMedium, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ThemeContext } from "@/context";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { preloadRoute } from "./route-loading";
 import {
     activeMenuButtonClass,
     iconClass,
@@ -97,6 +98,9 @@ const FloatingButtons = () => {
                     <button
                         type="button"
                         title={item.label}
+                        onPointerEnter={() => preloadRoute(item.path)}
+                        onFocus={() => preloadRoute(item.path)}
+                        onPointerDown={() => preloadRoute(item.path)}
                         onClick={() => {
                             navigate(item.path);
                             setOpen(false);

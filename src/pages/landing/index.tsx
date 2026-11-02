@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import DarkToggle from "@/components/DarkToggle";
 import {
@@ -24,24 +24,25 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import { appCatalog } from "@/app/catalog";
-import h001 from "@/assets/history/split_001.png";
-import h002 from "@/assets/history/split_002.png";
-import h003 from "@/assets/history/split_003.png";
-import h004 from "@/assets/history/split_004.png";
-import h005 from "@/assets/history/split_005.png";
-import h006 from "@/assets/history/split_006.png";
-import h007 from "@/assets/history/split_007.png";
-import h008 from "@/assets/history/split_008.png";
-import h009 from "@/assets/history/split_009.png";
-import h010 from "@/assets/history/split_010.png";
-import h011 from "@/assets/history/split_011.png";
-import h012 from "@/assets/history/split_012.png";
-import h013 from "@/assets/history/split_013.png";
-import h014 from "@/assets/history/split_014.png";
-import h015 from "@/assets/history/split_015.png";
-import h016 from "@/assets/history/split_016.png";
-import h017 from "@/assets/history/split_017.png";
-import h018 from "@/assets/history/split_018.png";
+import { preloadRoute } from "@/app/route-loading";
+import h001 from "@/assets/history/thumbnails/split_001.webp";
+import h002 from "@/assets/history/thumbnails/split_002.webp";
+import h003 from "@/assets/history/thumbnails/split_003.webp";
+import h004 from "@/assets/history/thumbnails/split_004.webp";
+import h005 from "@/assets/history/thumbnails/split_005.webp";
+import h006 from "@/assets/history/thumbnails/split_006.webp";
+import h007 from "@/assets/history/thumbnails/split_007.webp";
+import h008 from "@/assets/history/thumbnails/split_008.webp";
+import h009 from "@/assets/history/thumbnails/split_009.webp";
+import h010 from "@/assets/history/thumbnails/split_010.webp";
+import h011 from "@/assets/history/thumbnails/split_011.webp";
+import h012 from "@/assets/history/thumbnails/split_012.webp";
+import h013 from "@/assets/history/thumbnails/split_013.webp";
+import h014 from "@/assets/history/thumbnails/split_014.webp";
+import h015 from "@/assets/history/thumbnails/split_015.webp";
+import h016 from "@/assets/history/thumbnails/split_016.webp";
+import h017 from "@/assets/history/thumbnails/split_017.webp";
+import h018 from "@/assets/history/thumbnails/split_018.webp";
 
 const HISTORY_ICONS = [
     h001,
@@ -78,23 +79,26 @@ interface ToolItem {
     };
 }
 
+const MotionLink = motion(Link);
+
 const ToolCard = ({
     item,
     index,
-    onClick,
 }: {
     item: ToolItem;
     index: number;
-    onClick: () => void;
 }) => {
     const IconComponent = item.iconComponent;
 
     return (
-        <motion.div
+        <MotionLink
+            to={item.href}
+            onPointerEnter={() => preloadRoute(item.href)}
+            onFocus={() => preloadRoute(item.href)}
+            onPointerDown={() => preloadRoute(item.href)}
             whileHover={{ y: -4, scale: 1.005 }}
             whileTap={{ scale: 0.98 }}
             className={`group relative overflow-hidden rounded-lg border border-stone-200/60 dark:border-stone-700/60 bg-[#eff0f0] dark:bg-[#262626] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-none ${item.colorTheme.border} transition-all duration-300 cursor-pointer p-4 flex flex-col items-start justify-between gap-3 h-64 md:h-72`}
-            onClick={onClick}
         >
             {/* 背景装饰：微弱的色块 - 进一步减淡以突出水墨 */}
             <div
@@ -170,7 +174,7 @@ const ToolCard = ({
                     <path d="m9 18 6-6-6-6" />
                 </svg>
             </div>
-        </motion.div>
+        </MotionLink>
     );
 };
 
@@ -199,7 +203,6 @@ const LANDING_ICON_MAP: Record<string, LucideIcon> = {
 };
 
 export default function Landing() {
-    const navigate = useNavigate();
     const colorThemes = [
         {
             bg: "bg-cyan-50 dark:bg-cyan-900/20",
@@ -434,7 +437,6 @@ export default function Landing() {
                             <ToolCard
                                 item={item}
                                 index={index}
-                                onClick={() => item.href && navigate(item.href)}
                             />
                         </motion.div>
                     ))}

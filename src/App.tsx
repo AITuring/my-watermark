@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "./context";
 import "./App.css";
 import { Toaster } from "sonner";
-import { appCatalog } from "./app/catalog";
+import { loadLanding, routeLoaders } from "./app/route-loading";
 import FloatingButtons from "./app/FloatingButtons";
 import {
     isRecoverableDynamicImportError,
@@ -53,13 +53,13 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
     }
 }
 
-const routeItems = appCatalog.map((item) => ({
+const routeItems = routeLoaders.map((item) => ({
     ...item,
     Page: lazyWithImportRecovery(item.component, `route:${item.id}`),
 }));
 
 const Landing = lazyWithImportRecovery(
-    () => import("./pages/landing"),
+    loadLanding,
     "route:landing"
 );
 
@@ -109,7 +109,7 @@ const App = () => {
                             <Route
                                 path="/"
                                 element={
-                                    <RouteErrorBoundary>
+                                    <RouteErrorBoundary key="landing">
                                         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">正在加载页面...</div>}>
                                             <Landing />
                                         </Suspense>
@@ -121,7 +121,7 @@ const App = () => {
                                     key={item.id}
                                     path={item.url}
                                     element={
-                                        <RouteErrorBoundary>
+                                        <RouteErrorBoundary key={item.id}>
                                             <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">正在加载页面...</div>}>
                                                 <item.Page />
                                             </Suspense>

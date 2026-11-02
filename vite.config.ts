@@ -4,11 +4,41 @@ import legacy from "@vitejs/plugin-legacy";
 import { VitePWA } from "vite-plugin-pwa";
 import viteCompression from "vite-plugin-compression";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig, type PluginOption } from "vite";
+import { defineConfig, type Plugin, type PluginOption } from "vite";
 import { localSplitPlugin } from './plugins/localSplit';
 import { localSongCatalogPlugin } from './plugins/songCatalog';
 
 const enableLegacy = process.env.LEGACY_BUILD === "true";
+
+// Install only the application shell. Following static imports keeps the shell
+// complete without downloading every lazy page and image-processing engine.
+const shellAssets = new Set<string>();
+const collectShellAssets: Plugin = {
+    name: "collect-shell-precache-assets",
+    apply: "build",
+    enforce: "post",
+    buildStart() {
+        shellAssets.clear();
+    },
+    generateBundle(_options, bundle) {
+        const visited = new Set<string>();
+        const collect = (fileName: string) => {
+            if (visited.has(fileName)) return;
+            visited.add(fileName);
+            const chunk = bundle[fileName];
+            if (!chunk || chunk.type !== "chunk") return;
+            shellAssets.add(fileName);
+            const metadata = (chunk as typeof chunk & {
+                viteMetadata?: { importedCss: Set<string> };
+            }).viteMetadata;
+            metadata?.importedCss.forEach((css) => shellAssets.add(css));
+            chunk.imports.forEach(collect);
+        };
+        Object.values(bundle).forEach((output) => {
+            if (output.type === "chunk" && output.isEntry) collect(output.fileName);
+        });
+    },
+};
 
 export default defineConfig({
     plugins: [
@@ -16,6 +46,7 @@ export default defineConfig({
         localSplitPlugin(),
         localSongCatalogPlugin(),
         enableLegacy ? legacy() : null,
+        collectShellAssets,
         VitePWA({
             registerType: "autoUpdate",
             injectRegister: false,
@@ -40,10 +71,31 @@ export default defineConfig({
             },
             workbox: {
                 maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB
-                // Large museum/artwork images are loaded on demand instead of during SW install.
+                // Route chunks are cached when used, not all at once during SW install.
                 globPatterns: ["**/*.{js,css,html,ico}"],
+                manifestTransforms: [async (entries) => ({
+                    manifest: entries.filter(({ url }) => {
+                        const fileName = url.replace(/^\/+/, "");
+                        return fileName === "index.html" || fileName.endsWith(".ico") || shellAssets.has(fileName);
+                    }),
+                    warnings: [],
+                })],
                 navigateFallbackDenylist: [/^\/split(?:\/|$)/],
                 runtimeCaching: [
+                    {
+                        urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/assets\/.+-[\w-]{8,}\.(?:js|css)$/.test(url.pathname),
+                        handler: "CacheFirst",
+                        options: {
+                            cacheName: "page-assets-cache",
+                            expiration: {
+                                maxEntries: 160,
+                                maxAgeSeconds: 60 * 60 * 24 * 30,
+                            },
+                            cacheableResponse: {
+                                statuses: [200],
+                            },
+                        },
+                    },
                     {
                         urlPattern: /\.(?:png|jpe?g|webp|svg|hdr)$/i,
                         handler: "CacheFirst",
@@ -118,9 +170,8 @@ export default defineConfig({
         },
     },
     build: {
-        // Keep route chunks independent so lightweight tools such as /split do not
-        // pull in unrelated Three.js and other heavyweight vendor bundles.
-        modulePreload: false,
+        // Keep Vite's dependency preloads: the selected lazy route and its static
+        // dependencies load together, while unrelated lazy routes remain deferred.
         sourcemap: false,
         minify: "terser",
         terserOptions: {

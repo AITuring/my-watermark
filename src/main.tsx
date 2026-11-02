@@ -4,15 +4,12 @@ import { inject } from "@vercel/analytics";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import "./index.css";
-import { recoverFromStaleDeployment } from "./utils/import-recovery";
 
 if (import.meta.env.PROD) inject();
 window.global = globalThis;
 
-window.addEventListener("vite:preloadError", (event) => {
-    event.preventDefault();
-    void recoverFromStaleDeployment();
-});
+// Route imports recover in lazyWithImportRecovery. Do not suppress Vite's
+// rejection globally: a failed speculative preload must not reload this page.
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>

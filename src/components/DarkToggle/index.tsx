@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { ToggleSwitch } from "../animata";
+import ToggleSwitch from "../animata/button/toggle-switch";
 import { ThemeContext } from "@/context";
 
 const DarkToggle = () => {

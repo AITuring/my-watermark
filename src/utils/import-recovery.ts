@@ -8,10 +8,24 @@ const RECOVERABLE_DYNAMIC_IMPORT_PATTERNS = [
     /MIME type of ["']text\/html["']/i,
     /ChunkLoadError/i,
     /Loading chunk [\d]+ failed/i,
+    /Unable to preload CSS/i,
 ];
 
 const DEFAULT_RETRY_COUNT = 1;
 const DEFAULT_RETRY_DELAY_MS = 300;
+
+const isStylesheetPreloadError = (error: unknown) =>
+    /Unable to preload CSS/i.test(error instanceof Error ? error.message : String(error));
+
+// Vite marks a stylesheet as seen before its request succeeds. Retrying that
+// import can therefore resolve without CSS. Remember failures (also shared CSS
+// from speculative imports), then recover on the next real navigation only.
+let failedStylesheetPreload: unknown;
+if (typeof window !== "undefined") {
+    window.addEventListener("vite:preloadError", (event: Event & { payload?: unknown }) => {
+        if (isStylesheetPreloadError(event.payload)) failedStylesheetPreload = event.payload;
+    });
+}
 
 export function isRecoverableDynamicImportError(error: unknown): boolean {
     const message =
@@ -69,7 +83,9 @@ export async function importWithRecovery<T>(
 
     for (let attempt = 0; attempt <= retryCount; attempt += 1) {
         try {
+            if (failedStylesheetPreload) throw failedStylesheetPreload;
             const module = await importer();
+            if (failedStylesheetPreload) throw failedStylesheetPreload;
             sessionStorage.removeItem(getReloadFlagKey(key));
             sessionStorage.removeItem(GLOBAL_RELOAD_FLAG_KEY);
             return module;
@@ -77,7 +93,7 @@ export async function importWithRecovery<T>(
             lastError = error;
 
             const isLastAttempt = attempt === retryCount;
-            if (!isRecoverableDynamicImportError(error) || isLastAttempt) {
+            if (!isRecoverableDynamicImportError(error) || isStylesheetPreloadError(error) || isLastAttempt) {
                 break;
             }
 
@@ -98,8 +114,12 @@ export async function importWithRecovery<T>(
         return new Promise<T>(() => {});
     }
 
-    sessionStorage.removeItem(reloadFlagKey);
-    sessionStorage.removeItem(GLOBAL_RELOAD_FLAG_KEY);
+    // CSS remains poisoned for this document; changing routes must not start a
+    // new automatic reload loop after recovery has already failed once.
+    if (!isStylesheetPreloadError(lastError)) {
+        sessionStorage.removeItem(reloadFlagKey);
+        sessionStorage.removeItem(GLOBAL_RELOAD_FLAG_KEY);
+    }
     throw lastError;
 }
 
