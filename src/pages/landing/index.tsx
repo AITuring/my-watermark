@@ -184,6 +184,8 @@ const LANDING_ICON_MAP: Record<string, LucideIcon> = {
     stitch: Combine,
     "focus-stack": Focus,
     "artifact-ai": BookOpen,
+    "song-paintings": BookOpen,
+    "song-paintings-me": BookOpen,
     wenwu: Landmark,
     collage: Rows3,
     rename: FilePenLine,

@@ -171,6 +171,22 @@ export const appCatalog: AppCatalogItem[] = [
     //     component: () => import("./ChangeColor"),
     // },
     {
+        id: "song-paintings",
+        label: "宋画全集",
+        url: "/song-paintings",
+        icon: "lucide:book-open",
+        description: "查阅宋画全集作品目录，按国内与海外卷册检索并记录阅读进度",
+        component: () => import("../pages/song-paintings"),
+    },
+    {
+        id: "song-paintings-me",
+        label: "宋画全集 · 个人档案",
+        url: "/song-paintings-me",
+        icon: "lucide:book-open-check",
+        description: "查看我的宋画阅读档案、多维进度与分享图",
+        component: () => import("../pages/song-paintings/personal"),
+    },
+    {
         id: "wenwu",
         label: "195禁出",
         url: "/wenwu",

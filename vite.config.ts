@@ -6,6 +6,7 @@ import viteCompression from "vite-plugin-compression";
 import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig, type PluginOption } from "vite";
 import { localSplitPlugin } from './plugins/localSplit';
+import { localSongCatalogPlugin } from './plugins/songCatalog';
 
 const enableLegacy = process.env.LEGACY_BUILD === "true";
 
@@ -13,6 +14,7 @@ export default defineConfig({
     plugins: [
         react(),
         localSplitPlugin(),
+        localSongCatalogPlugin(),
         enableLegacy ? legacy() : null,
         VitePWA({
             registerType: "autoUpdate",

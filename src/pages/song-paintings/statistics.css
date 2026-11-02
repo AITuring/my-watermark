@@ -1,0 +1,59 @@
+.song-statistics { margin-top: 30px; padding-bottom: 20px; }
+.song-stats-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-bottom: 24px; border-bottom: 1px solid var(--song-line); }
+.song-stats-heading > div > p { color: var(--song-rust); margin: 0 0 5px; font-size: 11px; letter-spacing: .16em; }
+.song-stats-heading h2 { color: var(--song-ink); font-family: "Songti SC", "Noto Serif CJK SC", serif; font-size: 28px; font-weight: 500; margin: 0; }
+.song-stats-heading > p { color: var(--song-muted); font-size: 12px; max-width: 310px; margin: 0; }
+.song-stats-overview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 7%; align-items: center; padding: 32px 0; border-bottom: 1px solid var(--song-line); }
+.song-stats-completion { display: flex; gap: 25px; align-items: center; }
+.song-stats-ring { display: block; flex: 0 0 160px; width: 160px; height: 160px; overflow: visible; }
+.song-stats-ring-track { stroke: var(--song-line); }
+.song-stats-ring-value { stroke: var(--song-green); }
+.song-stats-ring-number { fill: var(--song-ink); font-family: Georgia, serif; font-size: 30px; font-variant-numeric: tabular-nums; }
+.song-stats-ring-number tspan { font-size: 16px; }
+.song-stats-ring-caption { fill: var(--song-muted); font-size: 11px; }
+.song-stats-totals h3, .song-stats-editions h3 { margin: 0 0 9px; font-size: 14px; font-weight: 500; }
+.song-stats-totals p { color: var(--song-muted); font-size: 12px; margin: 7px 0 0; }
+.song-stats-totals p strong { color: var(--song-ink); font-family: Georgia, serif; font-size: 30px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.song-stats-explanation { font-size: 11px; color: var(--song-muted); margin: -3px 0 17px; }
+.song-statistics ul { list-style: none; padding: 0; margin: 0; }
+.song-stat-row { padding: 12px 0; }
+.song-stat-row-label { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; font-size: 12px; line-height: 1.5; }
+.song-stat-row-label > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.song-stat-row-count { flex: 0 0 auto; color: var(--song-muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.song-stat-row-count strong { color: var(--song-ink); font-weight: 500; }
+.song-stat-row-count > span { display: inline-block; min-width: 43px; text-align: right; margin-left: 14px; }
+.song-stat-track { height: 5px; margin-top: 8px; background: var(--song-line); }
+.song-stat-track > span { display: block; height: 100%; background: var(--song-green); }
+.song-stat-row[data-tone="rust"] .song-stat-track > span { background: var(--song-rust); }
+.song-stats-breakdown { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 7%; padding-top: 30px; }
+.song-stats-section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 15px; margin-bottom: 12px; }
+.song-stats-section-heading h3 { margin: 0; font-size: 16px; font-weight: 500; }
+.song-stats-section-heading > span { color: var(--song-muted); font-size: 10px; text-align: right; }
+.song-stats-dimension-switch { display: flex; gap: 18px; border-bottom: 1px solid var(--song-line); margin-bottom: 10px; }
+.song-stats-dimension-switch button { padding: 8px 0; font-size: 12px; color: var(--song-muted); border-bottom: 2px solid transparent; }
+.song-stats-dimension-switch button[aria-pressed="true"] { color: var(--song-green); border-bottom-color: var(--song-green); font-weight: 600; }
+.song-stats-ranking-note { color: var(--song-muted); font-size: 10px; margin: 0 0 7px; }
+.song-stats-expand { margin-top: 14px; padding: 9px 0; color: var(--song-green); font-size: 12px !important; text-decoration: underline; text-underline-offset: 4px; }
+.song-stats-empty { color: var(--song-muted); padding: 22px 0; font-size: 12px; }
+@media (max-width: 1000px) {
+    .song-stats-overview, .song-stats-breakdown { column-gap: 30px; }
+    .song-stats-completion { gap: 14px; }
+    .song-stats-ring { flex-basis: 135px; width: 135px; height: 135px; }
+}
+@media (max-width: 720px) {
+    .song-statistics { margin-top: 23px; }
+    .song-stats-heading { display: block; padding-bottom: 18px; }
+    .song-stats-heading h2 { font-size: 26px; }
+    .song-stats-heading > p { margin-top: 10px; font-size: 11px; max-width: none; }
+    .song-stats-overview, .song-stats-breakdown { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 25px; }
+    .song-stats-overview { padding-bottom: 25px; }
+    .song-stats-completion { gap: 28px; }
+    .song-stats-ring { flex-basis: 140px; width: 140px; height: 140px; }
+    .song-stats-breakdown > section + section { border-top: 1px solid var(--song-line); padding-top: 25px; }
+    .song-stats-section-heading { margin-bottom: 7px; }
+    .song-stats-dimension-switch { gap: 26px; }
+    .song-stats-dimension-switch button { min-height: 44px; }
+    .song-stats-expand { min-height: 44px; }
+    .song-stat-row { padding: 11px 0; }
+    .song-stat-row-count > span { margin-left: 9px; }
+}
