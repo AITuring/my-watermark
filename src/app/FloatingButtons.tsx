@@ -163,7 +163,7 @@ const FloatingButtons = () => {
     return (
         <div
             ref={containerRef}
-            className="fixed z-50 flex flex-col items-end"
+            className={`fixed z-50 flex flex-col items-end${["/song-paintings", "/song-paintings-me"].includes(location.pathname.replace(/\/+$/, "")) ? " song-global-navigation" : ""}`}
             style={{ left: pos.x, top: pos.y }}
         >
             {open ? (

@@ -13,7 +13,7 @@ export default function ArtworkEditor({ artwork, saving, onSave, onClose }: { ar
         const form = new FormData(event.currentTarget);
         const text = (name: string) => String(form.get(name) ?? "").trim();
         const page = (name: string) => text(name) === "" ? null : /^\d+$/.test(text(name)) ? Number(text(name)) : text(name);
-        const changes: ArtworkChanges = { title: text("title"), artist: text("artist") || null, period: text("period"), collection: text("collection"), volume: Number(text("volume")), book: Number(text("book")), sequence: Number(text("sequence")), page: page("page"), catalogPdfPage: page("catalogPdfPage") };
+        const changes: ArtworkChanges = { title: text("title"), artist: text("artist") || null, period: text("period"), collection: text("collection"), volume: Number(text("volume")), book: Number(text("book")), page: page("page"), catalogPdfPage: page("catalogPdfPage") };
         if (await onSave(artwork.id, changes)) onClose(); else setError("未能保存，请检查页面提示或稍后重试。");
     };
     return <dialog ref={dialog} className="song-dialog song-edit-dialog" onCancel={(event) => { if (saving) event.preventDefault(); }} onClose={onClose}>
@@ -26,7 +26,6 @@ export default function ArtworkEditor({ artwork, saving, onSave, onClose }: { ar
                 <label className="song-field-wide">馆藏地<input name="collection" defaultValue={artwork.collection} maxLength={500} /></label>
                 <label>卷号<select name="volume" defaultValue={artwork.volume}>{Array.from({ length: 8 }, (_, i) => <option key={i + 1} value={i + 1}>第 {i + 1} 卷</option>)}</select></label>
                 <label>册号<input name="book" type="number" defaultValue={artwork.book} required min={1} max={99} /></label>
-                <label>原序号<input name="sequence" type="number" defaultValue={artwork.sequence} required min={1} /></label>
                 <label>书内页码<input name="page" defaultValue={artwork.page ?? ""} maxLength={100} placeholder="原目录未提供时留空" /></label>
                 <label>目录 PDF 页<input name="catalogPdfPage" defaultValue={artwork.catalogPdfPage ?? ""} maxLength={100} placeholder="未提供时留空" /></label>
             </div>

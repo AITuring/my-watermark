@@ -1,13 +1,19 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useContext, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, ArrowUpRight, BarChart3, Check, ChevronLeft, ChevronRight, Download, List, Pencil, Search, Share2, Upload, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, BarChart3, Check, ChevronLeft, ChevronRight, Download, List, MoonStar, Pencil, Search, Share2, SlidersHorizontal, SunMedium, Upload, X } from "lucide-react";
+import { ThemeContext } from "@/context";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import rawCatalog from "./catalog.json";
 import { createProgress, filterArtworks, parseProgress, STORAGE_KEY, type Artwork, type Catalog, type CatalogFilters } from "./model";
 import { useCatalog, type CatalogMode } from "./useCatalog";
 import ReadingStats from "./ReadingStats";
 import ArtworkEditor from "./ArtworkEditor";
 import ShareDialog from "./ShareDialog";
+import VolumeIndexEntry from "./VolumeIndexEntry";
+import MobileFilters from "./MobileFilters";
 import "./song-paintings.css";
+import "./mobile.css";
+import "./stationery.css";
 
 const sourceCatalog = rawCatalog as Catalog;
 const PAGE_SIZE = 50;
@@ -29,6 +35,7 @@ function downloadJson(value: unknown, filename: string) {
 
 export function SongPaintingsPage({ mode }: { mode: CatalogMode }) {
     const personal = mode === "personal";
+    const { isDark, toggleTheme } = useContext(ThemeContext);
     const { catalog, readIds, warning, saving, canEditReading, canEditMetadata, toggleRead, mergeProgress, saveArtwork } = useCatalog(sourceCatalog, mode);
     const validIds = useMemo(() => new Set(catalog.artworks.map((item) => item.id)), [catalog]);
     const [filters, setFilters] = useState<CatalogFilters>(initialFilters);
@@ -36,6 +43,8 @@ export function SongPaintingsPage({ mode }: { mode: CatalogMode }) {
     const [view, setView] = useState<"catalog" | "statistics">("catalog");
     const [editing, setEditing] = useState<Artwork | null>(null);
     const [shareSnapshot, setShareSnapshot] = useState<Catalog | null>(null);
+    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+    const mobileFilterTrigger = useRef<HTMLButtonElement>(null);
     const [message, setMessage] = useState("");
     const [importError, setImportError] = useState("");
     const importInput = useRef<HTMLInputElement>(null);
@@ -61,6 +70,14 @@ export function SongPaintingsPage({ mode }: { mode: CatalogMode }) {
     const updateFilters = (patch: Partial<CatalogFilters>) => {
         setFilters((previous) => ({ ...previous, ...patch }));
         setPage(1);
+    };
+    const closeMobileFilters = () => {
+        setMobileFiltersOpen(false);
+        requestAnimationFrame(() => mobileFilterTrigger.current?.focus({ preventScroll: true }));
+    };
+    const changeView = (next: "catalog" | "statistics") => {
+        setView(next);
+        window.scrollTo({ top: 0, behavior: "auto" });
     };
 
     const importProgress = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -97,6 +114,7 @@ export function SongPaintingsPage({ mode }: { mode: CatalogMode }) {
                 <nav className="song-topline" aria-label="页面导航">
                     <Link to="/"><ArrowLeft size={16} /> 应用库</Link>
                     <Link to={personal ? "/song-paintings" : "/song-paintings-me"}>{personal ? "创建我的阅读清单" : "查看个人阅读档案"}<ArrowUpRight size={14} /></Link>
+                    <button type="button" className="song-mobile-theme" aria-label={isDark ? "切换浅色主题" : "切换深色主题"} onClick={toggleTheme}>{isDark ? <SunMedium size={19} /> : <MoonStar size={19} />}</button>
                 </nav>
 
                 <header className="song-heading">
@@ -113,8 +131,8 @@ export function SongPaintingsPage({ mode }: { mode: CatalogMode }) {
                 </header>
 
                 <div className="song-view-controls">
-                    <div role="group" aria-label="内容视图"><button type="button" aria-pressed={view === "catalog"} onClick={() => setView("catalog")}><List size={16} />作品目录</button><button type="button" aria-pressed={view === "statistics"} onClick={() => setView("statistics")}><BarChart3 size={16} />阅读统计</button></div>
-                    <button type="button" className="song-share-button" disabled={saving} onClick={() => setShareSnapshot(catalog)}><Share2 size={16} />生成分享图</button>
+                    <div role="group" aria-label="内容视图"><button type="button" aria-label="作品目录" aria-pressed={view === "catalog"} onClick={() => changeView("catalog")}><List size={16} /><span className="song-desktop-label">作品目录</span><span className="song-mobile-label">目录</span></button><button type="button" aria-label="阅读统计" aria-pressed={view === "statistics"} onClick={() => changeView("statistics")}><BarChart3 size={16} /><span className="song-desktop-label">阅读统计</span><span className="song-mobile-label">统计</span></button></div>
+                    <button type="button" className="song-share-button" aria-label="生成分享图" disabled={saving} onClick={() => setShareSnapshot(catalog)}><Share2 size={16} /><span className="song-desktop-label">生成分享图</span><span className="song-mobile-label">分享</span></button>
                 </div>
                 {(warning || importError) && <div className="song-alert" role="alert">{importError || warning}</div>}
                 {message && <p className="song-action-message" role="status">{message}</p>}
@@ -132,16 +150,14 @@ export function SongPaintingsPage({ mode }: { mode: CatalogMode }) {
                 <div className="song-workspace">
                     <aside className="song-volumes" aria-label="按卷查阅">
                         <h2>卷册索引</h2>
-                        <div className="song-volume-list">
+                        <TooltipProvider delayDuration={180}><div className="song-volume-list">
                             <button type="button" className="song-volume" aria-pressed={filters.volume === null} onClick={() => updateFilters({ volume: null, book: null })}><span>全部卷册</span><span>{editionArtworks.length}</span></button>
                             {volumes.map((volume) => {
                                 const entries = editionArtworks.filter((item) => item.volume === volume);
                                 const readCount = entries.filter((item) => readIds.has(item.id)).length;
-                                return <button type="button" className="song-volume" key={volume} aria-pressed={filters.volume === volume} onClick={() => updateFilters({ volume, book: null })}>
-                                    <span>第 {volume} 卷<small>{new Set(entries.map((item) => item.book)).size} 册 · 已看 {readCount}</small></span><span>{entries.length}</span>
-                                </button>;
+                                return <VolumeIndexEntry key={volume} volume={volume} entries={entries} readCount={readCount} selected={filters.volume === volume} onSelect={() => updateFilters({ volume, book: null })} />;
                             })}
-                        </div>
+                        </div></TooltipProvider>
                         <div className="song-backup">
                             <h3>阅读记录</h3>
                             <p>{personal ? canEditMetadata ? "在本地编辑并保存后，重新部署即可更新公开档案。" : "这是已发布的个人档案。可以去公共目录创建自己的阅读清单。" : "换设备前导出备份，导入后继续记录。你的勾选不会修改个人档案。"}</p>
@@ -155,35 +171,33 @@ export function SongPaintingsPage({ mode }: { mode: CatalogMode }) {
                         <div className="song-filters">
                             <div className="song-search">
                                 <Search size={19} aria-hidden="true" />
-                                <input type="search" aria-label="搜索作品、作者或馆藏地" placeholder="搜索作品、作者、年代或馆藏地" value={filters.query} onChange={(event) => updateFilters({ query: event.target.value })} />
+                                <input type="search" aria-label="搜索作品、作者或馆藏地" placeholder="搜索作品、作者…" value={filters.query} onChange={(event) => updateFilters({ query: event.target.value })} />
                                 {filters.query && <button type="button" aria-label="清空搜索" onClick={() => updateFilters({ query: "" })}><X size={16} /></button>}
                             </div>
                             <label className="song-select"><span>册号</span><select aria-label="筛选册号" value={filters.book ?? ""} disabled={filters.volume === null} onChange={(event) => updateFilters({ book: event.target.value ? Number(event.target.value) : null })}><option value="">{filters.volume === null ? "请先选卷" : "全部册"}</option>{books.map((book) => <option key={book} value={book}>第 {book} 册</option>)}</select></label>
                             <label className="song-select"><span>阅读</span><select aria-label="筛选阅读状态" value={filters.reading} onChange={(event) => updateFilters({ reading: event.target.value as CatalogFilters["reading"] })}><option value="all">全部状态</option><option value="unread">没看过</option><option value="read">看过</option></select></label>
+                            <button ref={mobileFilterTrigger} type="button" className="song-mobile-filter-button" aria-haspopup="dialog" aria-expanded={mobileFiltersOpen} data-active={filters.volume !== null || filters.reading !== "all"} onClick={() => setMobileFiltersOpen(true)}><SlidersHorizontal size={18} />筛选</button>
                         </div>
 
                         <div className="song-result-bar" ref={resultsRef}>
-                            <div><h2>{filters.volume ? `第 ${filters.volume} 卷${filters.book ? ` · 第 ${filters.book} 册` : ""}` : currentEdition.label}</h2><span>{filtered.length} 条作品</span>{hasFilters && <button type="button" className="song-reset" onClick={() => updateFilters({ volume: null, book: null, query: "", reading: "all" })}>重置筛选</button>}</div>
+                            <div><h2>{filters.volume ? `第 ${filters.volume} 卷${filters.book ? ` · 第 ${filters.book} 册` : ""}` : currentEdition.label}{filters.reading !== "all" && <span className="song-reading-filter-label"> · {filters.reading === "read" ? "已读" : "未读"}</span>}</h2><span>{filtered.length} 条作品</span>{hasFilters && <button type="button" className="song-reset" onClick={() => updateFilters({ volume: null, book: null, query: "", reading: "all" })}>重置筛选</button>}</div>
                             <button type="button" className="song-export" onClick={() => downloadJson({ schemaVersion: catalog.schemaVersion, title: catalog.title, artworks: filtered }, `宋画全集_${currentEdition.label}_目录.json`)}><Download size={15} /> 导出当前目录 <span>JSON</span></button>
                         </div>
 
                         {shown.length ? <div className="song-table-scroll"><table className="song-table">
                             <caption className="song-sr-only">宋画全集作品目录{canEditReading ? "，阅读状态可直接勾选" : "，个人阅读档案只读"}</caption>
-                            <thead><tr><th scope="col">看过</th><th scope="col">原序</th><th scope="col">年代</th><th scope="col">作者</th><th scope="col">作品名称</th><th scope="col">卷号</th><th scope="col">册号</th><th scope="col">书内页码</th><th scope="col">馆藏地</th><th scope="col">目录PDF页</th>{canEditMetadata && <th scope="col">编辑</th>}</tr></thead>
+                            <thead><tr><th scope="col">看过</th><th scope="col">年代</th><th scope="col">作者</th><th scope="col">作品名称</th><th scope="col">馆藏地</th><th scope="col">卷号</th><th scope="col">册号</th>{canEditMetadata && <th scope="col">编辑</th>}</tr></thead>
                             <tbody>{shown.map((artwork) => {
                                 const checked = readIds.has(artwork.id);
                                 return <tr key={artwork.id} data-read={checked}>
-                                    <td className="song-cell-check">{canEditReading ? <label className="song-checkbox"><input type="checkbox" checked={checked} disabled={saving} aria-label={`标记《${artwork.title}》为看过（第${artwork.volume}卷第${artwork.book}册，原序${artwork.sequence}）`} onChange={(event) => { void toggleRead(artwork.id, event.target.checked).catch(() => setMessage("更新失败，请重试。")); }} /><span aria-hidden="true"><Check size={14} strokeWidth={2.8} /></span></label> : <span className="song-readonly-check" data-checked={checked} role="img" aria-label={checked ? "看过" : "没看过"}><Check size={14} strokeWidth={2.8} /></span>}</td>
-                                    <td className="song-cell-sequence" data-label="原序">{artwork.sequence}</td>
+                                    <td className="song-cell-check">{canEditReading ? <label className="song-checkbox"><input type="checkbox" checked={checked} disabled={saving} aria-label={`标记《${artwork.title}》为看过（第${artwork.volume}卷第${artwork.book}册）`} onChange={(event) => { void toggleRead(artwork.id, event.target.checked).catch(() => setMessage("更新失败，请重试。")); }} /><span aria-hidden="true"><Check size={14} strokeWidth={2.8} /></span><em className="song-mobile-label" aria-hidden="true">{checked ? "已读" : "未读"}</em></label> : <span className="song-readonly-check" data-checked={checked} role="img" aria-label={checked ? "看过" : "没看过"}><Check size={14} strokeWidth={2.8} /><em className="song-mobile-label" aria-hidden="true">{checked ? "已读" : "未读"}</em></span>}</td>
                                     <td className="song-cell-period" data-label="年代">{artwork.period || "—"}</td>
                                     <td className="song-cell-artist" data-label="作者">{artwork.artist || "—"}</td>
-                                    <td className="song-cell-title">{artwork.title}</td>
+                                    <td className="song-cell-title"><span className="song-artwork-name">{artwork.title}</span><div className="song-mobile-meta"><p>{artwork.collection || "馆藏未标注"}</p><p className="song-mobile-byline">{artwork.artist || "作者未标注"}<span>{artwork.period || "年代未标注"}</span></p><p>第 {artwork.volume} 卷 · 第 {artwork.book} 册</p></div></td>
+                                    <td className="song-cell-collection" data-label="馆藏">{artwork.collection || "—"}</td>
                                     <td className="song-cell-volume" data-label="卷号">第 {artwork.volume} 卷</td>
                                     <td className="song-cell-book" data-label="册号">第 {artwork.book} 册</td>
-                                    <td className="song-cell-page" data-label="书内页码">{artwork.page ?? "—"}</td>
-                                    <td className="song-cell-collection" data-label="馆藏">{artwork.collection || "—"}</td>
-                                    <td className="song-cell-pdf" data-label="目录PDF页">{artwork.catalogPdfPage ?? "—"}</td>
-                                    {canEditMetadata && <td className="song-cell-edit"><button type="button" disabled={saving} aria-label={`编辑《${artwork.title}》`} onClick={() => setEditing(artwork)}><Pencil size={14} /></button></td>}
+                                    {canEditMetadata && <td className="song-cell-edit"><button type="button" disabled={saving} aria-label={`编辑《${artwork.title}》`} onClick={() => setEditing(artwork)}><Pencil size={14} /><span className="song-mobile-label">编辑</span></button></td>}
                                 </tr>;
                             })}</tbody>
                         </table></div> : <div className="song-empty"><Search size={28} /><h3>没有找到匹配的作品</h3><p>试试更短的作品名、作者名，或放宽卷册与阅读状态筛选。</p><button type="button" onClick={() => updateFilters({ ...initialFilters, edition: filters.edition })}>清除筛选 <ArrowUpRight size={15} /></button></div>}
@@ -197,7 +211,8 @@ export function SongPaintingsPage({ mode }: { mode: CatalogMode }) {
                 </div>
                 </>}
                 {editing && canEditMetadata && <ArtworkEditor artwork={editing} saving={saving} onSave={saveArtwork} onClose={() => setEditing(null)} />}
-                {shareSnapshot && <ShareDialog catalog={shareSnapshot} personal={personal} onClose={() => setShareSnapshot(null)} />}
+                {shareSnapshot && <ShareDialog catalog={shareSnapshot} initialScope={filters.edition} onClose={() => setShareSnapshot(null)} />}
+                {mobileFiltersOpen && <MobileFilters artworks={catalog.artworks} filters={filters} readIds={readIds} onClose={closeMobileFilters} onApply={(next) => { updateFilters(next); closeMobileFilters(); requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ block: "start" })); }} />}
             </div>
         </main>
     );

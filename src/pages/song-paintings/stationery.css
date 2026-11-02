@@ -1,0 +1,102 @@
+/* A ruled paper sheet: quiet texture, cinnabar seals, and ink-blue annotations. */
+.song-catalog {
+    --song-paper-texture: url("./paper-grain.svg");
+    background-color: color-mix(in srgb, var(--song-paper) 86%, var(--song-gold));
+    background-image: var(--song-paper-texture);
+}
+.dark .song-catalog { --song-paper-texture: none; }
+.song-shell {
+    position: relative;
+    min-height: 100vh;
+    padding-inline: clamp(22px, 2vw, 36px);
+    background-color: var(--song-paper);
+    background-image: var(--song-paper-texture);
+    border-inline: 1px solid var(--song-line);
+}
+.song-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0 5px;
+    border-inline: 1px solid color-mix(in srgb, var(--song-line) 58%, transparent);
+    pointer-events: none;
+}
+.song-topline { border-bottom-color: var(--song-line); }
+.song-heading { padding-block: 36px 30px; }
+.song-eyebrow { color: var(--song-rust); }
+.song-heading h1 { color: var(--song-ink); }
+.song-heading h1::after { content: ""; width: 40px; height: 1px; background: var(--song-gold); }
+.song-seal { color: var(--song-surface); background: var(--song-rust); border-color: var(--song-rust); outline: 1px solid var(--song-rust); outline-offset: 2px; font-family: "Songti SC", "STSong", serif; }
+.song-progress strong { color: var(--song-green); }
+.song-progress progress { height: 3px; }
+.song-progress progress::-webkit-progress-value { background: var(--song-rust); }
+.song-progress progress::-moz-progress-bar { background: var(--song-rust); }
+.song-editions { border-top: 3px double var(--song-ink); border-bottom-color: var(--song-line); }
+.song-editions button[aria-pressed="true"] { color: var(--song-rust); }
+.song-editions button[aria-pressed="true"]::after { height: 2px; background: var(--song-rust); }
+.song-volumes h2, .song-backup h3 { color: var(--song-rust); font-family: "Songti SC", "STSong", serif; font-size: 13px; letter-spacing: .15em; }
+.song-volume { border-radius: 0; border: 1px solid transparent; }
+.song-volume[aria-pressed="true"] { border-color: color-mix(in srgb, var(--song-green) 48%, var(--song-line)); background: color-mix(in srgb, var(--song-tint) 65%, transparent); }
+.song-volume-copy > span:first-child { font-family: "Songti SC", "STSong", serif; }
+.song-volume-tooltip[data-state] { border-radius: 2px; box-shadow: 0 6px 20px #3026171a; }
+.song-backup { border-top-style: double; border-top-width: 3px; }
+.song-search, .song-select { border-radius: 2px; background: color-mix(in srgb, var(--song-surface) 70%, transparent); }
+.song-result-bar h2 { color: var(--song-ink); font-family: "Songti SC", "STSong", serif; letter-spacing: .04em; }
+.song-table-scroll { border-radius: 0; background: color-mix(in srgb, var(--song-surface) 52%, transparent); }
+.song-table th { background: color-mix(in srgb, var(--song-gold) 7%, var(--song-paper)); color: var(--song-muted); border-bottom: 3px double var(--song-line); }
+.song-table td { border-bottom-color: color-mix(in srgb, var(--song-line) 68%, transparent); }
+.song-table tbody tr:hover { background: color-mix(in srgb, var(--song-tint) 65%, transparent); }
+.song-table tr[data-read="true"] { background: color-mix(in srgb, var(--song-tint) 60%, transparent); }
+.song-checkbox > span, .song-readonly-check { border-radius: 1px; }
+.song-checkbox input:checked + span { background: var(--song-rust); border-color: var(--song-rust); }
+.song-readonly-check[data-checked="true"] { background: var(--song-rust); border-color: var(--song-rust); }
+.song-pagination button, .song-cell-edit button { border-radius: 2px; }
+.song-view-controls button { border-radius: 2px; }
+.song-view-controls button[aria-pressed="true"] { color: var(--song-green); background: color-mix(in srgb, var(--song-tint) 65%, transparent); border-color: var(--song-line); }
+.song-view-controls .song-share-button { background: var(--song-green); color: var(--song-surface); }
+.song-view-controls .song-share-button:hover { background: color-mix(in srgb, var(--song-green) 88%, var(--song-ink)); }
+.song-dialog { border-radius: 2px; border-color: var(--song-line); box-shadow: 0 16px 64px #251d1a38; background-image: var(--song-paper-texture); }
+.song-dialog::backdrop { background: #24231ddd; }
+.song-dialog > header { border-bottom: 3px double var(--song-line); }
+.song-dialog header p { color: var(--song-rust); }
+.song-dialog footer > :is(a, button), .song-editor-fields input, .song-editor-fields select, .song-share-options select { border-radius: 2px; }
+.song-share-preview { box-shadow: 0 5px 16px #32261520; }
+.song-share-dialog[open] { display: flex; flex-direction: column; max-height: 90dvh; overflow: hidden; }
+.song-share-dialog > header { flex: none; margin-bottom: 16px; padding-bottom: 0; border-bottom: 0; }
+.song-share-body { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--song-line) transparent; padding: 2px 4px 2px 0; }
+.song-share-dialog > footer { flex: none; margin-top: 16px; padding-top: 0; border-top: 0; }
+.song-share-dialog > footer:empty { display: none; }
+.song-catalog .song-stats-heading { border-bottom: 3px double var(--song-line); }
+.song-catalog .song-stats-section-heading h3, .song-catalog .song-stats-totals h3, .song-catalog .song-stats-editions h3 { font-family: "Songti SC", "STSong", serif; }
+.song-catalog .song-stats-section-heading h3 { color: var(--song-green); font-size: 18px; }
+.song-catalog .song-stat-track { height: 4px; background: color-mix(in srgb, var(--song-line) 65%, transparent); }
+.song-catalog .song-stats-volumes .song-stat-row:nth-child(3n + 2) .song-stat-track > span { background: var(--song-gold); }
+.song-catalog .song-stats-volumes .song-stat-row:nth-child(3n) .song-stat-track > span { background: var(--song-rust); }
+.song-catalog .song-stats-ring-value { stroke: var(--song-rust); }
+.song-catalog .song-stats-ring-number { fill: var(--song-green); }
+.song-mobile-filter-dialog .song-mobile-filter-segments button, .song-mobile-all-volumes, .song-mobile-volume-option, .song-mobile-filter-dialog .song-mobile-book-select select { border-radius: 2px; }
+.song-mobile-volume-title { font-family: "Songti SC", "STSong", serif; }
+.song-mobile-collection-details { border-top-color: color-mix(in srgb, var(--song-line) 65%, transparent); }
+.song-dialog.song-mobile-filter-dialog > header { border-bottom: 3px double var(--song-line); }
+.song-dialog.song-mobile-filter-dialog > footer { border-top: 3px double var(--song-line); }
+.song-dialog.song-mobile-filter-dialog > :is(header, footer) { background-image: var(--song-paper-texture); }
+
+@media (max-width: 900px) {
+    .song-catalog { background-color: var(--song-paper); }
+    .song-shell { padding-inline: 0; border: 0; background-color: transparent; background-image: none; }
+    .song-shell::before { display: none; }
+    .song-heading { padding: 14px 0 12px; }
+    .song-heading h1::after { width: 25px; }
+    .song-seal { outline-offset: 1px; }
+    .song-editions { border-top-width: 3px; }
+    .song-view-controls { border-top: 3px double var(--song-line); box-shadow: none; background-image: var(--song-paper-texture); }
+    .song-filters { background-image: var(--song-paper-texture); }
+    .song-view-controls button[aria-pressed="true"] { color: var(--song-rust); background: color-mix(in srgb, var(--song-rust) 7%, var(--song-paper)); border: 0; }
+    .song-view-controls .song-share-button, .song-view-controls .song-share-button:hover { background: transparent; color: var(--song-green); }
+    .song-search, .song-mobile-filter-button { border-radius: 2px; }
+    .song-table-scroll { background: transparent; }
+    .song-table tbody tr:hover, .song-table tr[data-read="true"] { background: transparent; }
+    .song-checkbox { border-radius: 2px; background: color-mix(in srgb, var(--song-surface) 65%, transparent); }
+    .song-table tr[data-read="true"] .song-checkbox { color: var(--song-rust); border-color: color-mix(in srgb, var(--song-rust) 65%, var(--song-line)); background: color-mix(in srgb, var(--song-rust) 5%, var(--song-paper)); }
+    .song-readonly-check[data-checked="true"] { color: var(--song-rust); background: color-mix(in srgb, var(--song-rust) 8%, var(--song-paper)); }
+    .song-dialog.song-mobile-filter-dialog { border-radius: 5px 5px 0 0; }
+}
