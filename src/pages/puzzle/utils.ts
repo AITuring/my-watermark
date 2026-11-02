@@ -6,7 +6,7 @@ import {
     loadJSZip,
     loadSaveAs,
 } from "@/utils/lazy-deps";
-import { getLargeImageAsset } from '@/utils/large-image';
+import { canUseLocalLargeImageService, getLargeImageAsset, isLargeJpeg, releaseLargeImage } from '@/utils/large-image';
 
 type ZipInstance = {
     file: (name: string, data: Blob | File) => void;
@@ -90,7 +90,7 @@ export function swapImagesById(
 }
 
 async function loadImageSize(src: string) {
-    return new Promise<ImgProp>((resolve) => {
+    return new Promise<ImgProp>((resolve, reject) => {
         const img = new window.Image();
         img.onload = () => {
             resolve({
@@ -100,27 +100,47 @@ async function loadImageSize(src: string) {
                 height: img.height,
             });
         };
+        img.onerror = () => reject(new Error("无法解码图片预览"));
         img.src = src;
     });
 }
 
 export async function processAcceptedFiles(acceptedFiles: File[]) {
-    const compressionOptions = {
-        maxSizeMB: 15,
-        maxWidthOrHeight: 2560,
-        useWebWorker: true,
-    };
-    const imageCompression = await loadImageCompression();
-
-    return Promise.all(
-        acceptedFiles.map(async (file) => {
-            const largeAsset = await getLargeImageAsset(file);
-            if (largeAsset) return loadImageSize(largeAsset.previewUrl);
-            const compressedFile = await imageCompression(file, compressionOptions);
-            const src = URL.createObjectURL(compressedFile);
-            return loadImageSize(src);
-        })
-    );
+    const images: ImgProp[] = [];
+    // Bound peak decoder memory: never decode a batch of originals concurrently.
+    for (const file of acceptedFiles) {
+        const tiff = /\.tiff?$/i.test(file.name) || file.type === 'image/tiff';
+        const oversized = await isLargeJpeg(file);
+        const local = canUseLocalLargeImageService();
+        if (!local && (tiff || oversized || file.size > MAX_PUZZLE_IMAGE_SIZE)) {
+            throw new Error('此图片需要本机开发服务处理，请在 localhost 打开 puzzle 后导入');
+        }
+        let src: string | undefined;
+        try {
+            const asset = await getLargeImageAsset(file, local && (tiff || file.size > 16 * 1024 * 1024));
+            if (asset) {
+                const response = await fetch(asset.previewUrl);
+                if (!response.ok) throw new Error('读取大图预览失败');
+                src = URL.createObjectURL(await response.blob());
+            } else {
+                const imageCompression = await loadImageCompression();
+                const compressed = await imageCompression(file, {
+                    maxSizeMB: 2, maxWidthOrHeight: 2048, useWebWorker: true,
+                    fileType: "image/jpeg", initialQuality: 0.85,
+                });
+                src = URL.createObjectURL(compressed);
+            }
+            images.push(await loadImageSize(src));
+        } catch (error) {
+            if (src) URL.revokeObjectURL(src);
+            for (const image of images) URL.revokeObjectURL(image.src);
+            throw error;
+        } finally {
+            // Puzzle owns its small preview; do not retain GB-sized temporary originals.
+            await releaseLargeImage(file);
+        }
+    }
+    return images;
 }
 
 type OverlayBoundsParams = {
@@ -187,6 +207,16 @@ type DownloadPuzzleImageParams = {
     pageScale: number;
 };
 
+// Check the encoded file, rather than estimating bytes from canvas dimensions.
+async function encodePuzzleJpeg(canvas: HTMLCanvasElement): Promise<Blob> {
+    for (const quality of [0.88, 0.8, 0.7, 0.6, 0.45]) {
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+        if (!blob) throw new Error('导出图片失败，请降低导出规模');
+        if (blob.size <= 100_000_000) return blob;
+    }
+    throw new Error('压缩后仍超过 100MB，请降低导出规模');
+}
+
 export async function downloadPuzzleImage({
     filesCount,
     inputScale,
@@ -208,8 +238,13 @@ export async function downloadPuzzleImage({
     }
 
     const html2canvas = await loadHtml2Canvas();
+    const bounds = target.getBoundingClientRect();
+    const width = Math.max(1, target.scrollWidth, bounds.width);
+    const height = Math.max(1, target.scrollHeight, bounds.height);
+    const exportScale = Math.min(inputScale, 16384 / width, 16384 / height,
+        Math.sqrt(32_000_000 / (width * height)));
     const originalCanvas = await html2canvas(target, {
-        scale: inputScale,
+        scale: exportScale,
         useCORS: true,
         allowTaint: true,
         backgroundColor: "#ffffff",
@@ -271,9 +306,7 @@ export async function downloadPuzzleImage({
     context.drawImage(originalCanvas, padding, padding);
 
     if (!selectedRatio || selectedRatio.width === null) {
-        const blob = await new Promise<Blob | null>((resolve) => {
-            fullCanvas.toBlob(resolve, "image/jpeg", 0.9);
-        });
+        const blob = await encodePuzzleJpeg(fullCanvas);
 
         if (!blob) {
             throw new Error("导出图片失败");
@@ -299,7 +332,7 @@ export async function downloadPuzzleImage({
     const breaksCss = overlayBounds.length > 0 ? overlayBounds : [];
     const boundaries = [
         0,
-        ...breaksCss.map((value) => Math.round(padding + value * inputScale)),
+        ...breaksCss.map((value) => Math.round(padding + value * exportScale)),
         fullCanvas.height,
     ];
     const JSZip = (await loadJSZip()) as ZipConstructor;
@@ -347,20 +380,7 @@ export async function downloadPuzzleImage({
 
         await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
 
-        const blob =
-            "convertToBlob" in page
-                ? await (page as HTMLCanvasElement & {
-                      convertToBlob: (options: {
-                          type: string;
-                          quality: number;
-                      }) => Promise<Blob>;
-                  }).convertToBlob({
-                      type: "image/jpeg",
-                      quality: 0.9,
-                  })
-                : await new Promise<Blob | null>((resolve) => {
-                      page.toBlob(resolve, "image/jpeg", 0.9);
-                  });
+        const blob = await encodePuzzleJpeg(page);
 
         if (blob) {
             files.push({

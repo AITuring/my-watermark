@@ -167,7 +167,7 @@ export function PuzzleSettingsCard({
                                         </span>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        规模越大，导出图片尺寸越大，导出更加耗时
+                                        规模越大，导出图片尺寸越大；自动限制画布尺寸，每张 JPEG 不超过 100MB
                                     </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
@@ -192,7 +192,7 @@ export function PuzzleSettingsCard({
                 bodyClassName="flex flex-wrap items-center justify-center gap-4 sm:gap-8"
             >
                 <Button size="sm" onClick={onDownload}>
-                    下载大图
+                    下载拼图
                 </Button>
                 <Button size="sm" variant="secondary" onClick={onAddMore}>
                     继续添加

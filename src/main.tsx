@@ -6,7 +6,7 @@ import App from "./App";
 import "./index.css";
 import { recoverFromStaleDeployment } from "./utils/import-recovery";
 
-inject();
+if (import.meta.env.PROD) inject();
 window.global = globalThis;
 
 window.addEventListener("vite:preloadError", (event) => {
@@ -20,7 +20,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     </React.StrictMode>
 );
 
-if ("serviceWorker" in navigator) {
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
     window.addEventListener("load", () => {
         window.setTimeout(() => {
             registerSW({ immediate: true });
