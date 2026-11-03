@@ -15,7 +15,9 @@ function pageKey(url) {
 }
 
 function splitResponse(response, url) {
-    if (!/^\/split(?:\/|\.html$|$)/.test(url.pathname)) return response;
+    // Navigation redirects are opaque to the worker (status 0); the browser
+    // must follow them, and they cannot be reconstructed with new Response.
+    if (response.type === "opaqueredirect" || response.status === 0 || !/^\/split(?:\/|\.html$|$)/.test(url.pathname)) return response;
     const headers = new Headers(response.headers);
     headers.set("Cross-Origin-Opener-Policy", "same-origin");
     headers.set("Cross-Origin-Embedder-Policy", "require-corp");
@@ -81,10 +83,37 @@ async function cachedResponse(cacheName, key, kind) {
     }
 }
 
+async function completeHtmlBody(response) {
+    if (!response.body) return true;
+    const copy = response.clone();
+    if (Number(copy.headers.get("Content-Length")) > MAX_RESOURCE_BYTES) {
+        copy.body.cancel().catch(() => {});
+        return false;
+    }
+    const reader = copy.body.getReader();
+    let received = 0;
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) return true;
+            received += value.byteLength;
+            if (received > MAX_RESOURCE_BYTES) {
+                reader.cancel().catch(() => {});
+                return false;
+            }
+        }
+    } catch {
+        return false;
+    } finally {
+        reader.releaseLock();
+    }
+}
+
 async function navigation(event, url) {
     const key = pageKey(url);
     // Prefer current HTML, but avoid holding a previously visited page behind
-    // a stalled connection. A timeout does not abort the background refresh.
+    // a stalled connection or slow HTML body. A timeout does not abort the
+    // background refresh, and first visits retain the network's streaming body.
     const network = fetch(event.request, { cache: "no-cache" });
     const cached = cachedResponse(PAGE_CACHE, key, "html");
     event.waitUntil(network.then(async (response) => {
@@ -93,14 +122,24 @@ async function navigation(event, url) {
         }
     }, () => {}));
     let timer;
+    let returnedCache = false;
     const deadline = new Promise((resolve) => { timer = setTimeout(resolve, NAVIGATION_WAIT_MS); });
     try {
-        const current = network.then((response) => ({ response, fromCache: false }));
+        const current = network.then(async (response) => {
+            const fallback = await cached;
+            if (fallback && !returnedCache && validResponse(response, "html")) {
+                // Headers alone do not mean the page is ready to display.
+                // Drain a bounded clone, preserving the original response.
+                if (!await completeHtmlBody(response)) return { response: fallback, fromCache: true };
+            }
+            return { response, fromCache: false };
+        });
         const afterDeadline = Promise.all([cached, deadline]).then(([response]) =>
             response ? { response, fromCache: true } : current,
         );
         const result = await Promise.race([current, afterDeadline]);
         if (result.fromCache) {
+            returnedCache = true;
             // Only the cache clone needs the late network body. No navigation
             // or automatic reload is triggered when fresh HTML arrives.
             event.waitUntil(network.then((response) => response.body?.cancel().catch(() => {}), () => {}));
