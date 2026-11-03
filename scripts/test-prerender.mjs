@@ -105,6 +105,28 @@ for (const page of routes) {
     });
 }
 
+test("home embeds the same five original critical WebPs for prerender and hydration", async () => {
+    const images = tags(body(documents.get("/")), "img");
+    assert(images.length > 18, "include the repeated thumbnails below the fold");
+    const client = (await Promise.all(manifest["/"].scripts.map(read))).join("\n");
+    for (const [index, tag] of images.entries()) {
+        const src = attr(tag, "src");
+        assert.equal(attr(tag, "width"), "128");
+        assert.equal(attr(tag, "height"), "128");
+        if (index < 5) {
+            assert.equal(attr(tag, "loading"), "eager");
+            assert.match(src, /^data:image\/webp;base64,/);
+            const original = await readFile(new URL(`../src/assets/history/thumbnails/split_${String(index + 1).padStart(3, "0")}.webp`, import.meta.url));
+            assert.deepEqual(Buffer.from(src.split(",")[1], "base64"), original, "inlining must preserve every original image byte");
+            assert(client.includes(src), "client hydration must use the exact prerendered data URI");
+        } else {
+            assert.equal(attr(tag, "loading"), "lazy");
+            assert.match(src, /^\/assets\/split_\d{3}-[^/]+\.webp$/, "later and repeated cards must retain external cacheable images");
+        }
+    }
+    assert.equal(images.filter((tag) => attr(tag, "src")?.startsWith("data:")).length, 5);
+});
+
 test("other routes receive the empty client shell and missing code never receives HTML", async () => {
     const shell = await read("app.html");
     assert.match(shell, /<div id="root"><\/div>/);

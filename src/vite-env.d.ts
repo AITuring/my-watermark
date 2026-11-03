@@ -1,6 +1,11 @@
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-pwa/client" />
 
+declare module "*?inline-critical" {
+    const src: string;
+    export default src;
+}
+
 declare module "utif" {
     export interface IFD {
         width?: number | number[];

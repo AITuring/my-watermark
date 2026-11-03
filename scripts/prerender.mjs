@@ -4,12 +4,14 @@ import { readFile, writeFile, mkdir, mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { inlineCriticalAssets } from "../plugins/inlineCriticalAssets.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const dist = path.resolve(root, process.argv[2] || "dist");
 const template = await readFile(path.join(dist, "index.html"), "utf8");
 const manifest = JSON.parse(await readFile(path.join(dist, "prerender-manifest.json"), "utf8"));
 const routes = JSON.parse(await readFile(new URL("./prerender-routes.json", import.meta.url), "utf8"));
+const diagnostics = await readFile(new URL("./browser-load-diagnostics.js", import.meta.url), "utf8");
 
 // Keep the SSR bundle under this project's node_modules so external React
 // resolves to the same installed version used for the browser build.
@@ -22,7 +24,7 @@ try {
         root,
         publicDir: false,
         logLevel: "warn",
-        plugins: [react()],
+        plugins: [inlineCriticalAssets(), react()],
         resolve: { alias: { "@": path.join(root, "src") } },
         build: {
             ssr: path.join(root, "src/entry-server.tsx"),
@@ -47,6 +49,7 @@ try {
         const html = await render(page.route);
         if (!html || html.includes("正在加载页面...")) throw new Error(`Unresolved prerender: ${page.route}`);
         let document = template
+            .replace("<head>", `<head><script>${diagnostics.replace(/<\/script/gi, "<\\/script")}</script>`)
             .replace(/\s*<link\b[^>]*rel="(?:stylesheet|modulepreload)"[^>]*>/g, "")
             .replace(/<title>.*?<\/title>/, `<title>${page.title}</title>`)
             .replace("</head>", `${styles}${[...js].map(file => `<link rel="modulepreload" crossorigin href="/${file}">`).join("\n")}\n</head>`)

@@ -8,11 +8,13 @@ import { localSplitPlugin } from './plugins/localSplit';
 import { localSongCatalogPlugin } from './plugins/songCatalog';
 import { routeChunks } from './plugins/routeChunks';
 import { prerenderPreview } from './plugins/prerenderPreview';
+import { inlineCriticalAssets } from './plugins/inlineCriticalAssets.mjs';
 
 const enableLegacy = process.env.LEGACY_BUILD === "true";
 
 export default defineConfig({
     plugins: [
+        inlineCriticalAssets(),
         react(),
         localSplitPlugin(),
         localSongCatalogPlugin(),

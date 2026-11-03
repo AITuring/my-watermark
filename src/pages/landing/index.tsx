@@ -43,6 +43,13 @@ import h015 from "@/assets/history/thumbnails/split_015.webp";
 import h016 from "@/assets/history/thumbnails/split_016.webp";
 import h017 from "@/assets/history/thumbnails/split_017.webp";
 import h018 from "@/assets/history/thumbnails/split_018.webp";
+import criticalH001 from "@/assets/history/thumbnails/split_001.webp?inline-critical";
+import criticalH002 from "@/assets/history/thumbnails/split_002.webp?inline-critical";
+import criticalH003 from "@/assets/history/thumbnails/split_003.webp?inline-critical";
+import criticalH004 from "@/assets/history/thumbnails/split_004.webp?inline-critical";
+import criticalH005 from "@/assets/history/thumbnails/split_005.webp?inline-critical";
+
+const CRITICAL_HISTORY_ICONS = [criticalH001, criticalH002, criticalH003, criticalH004, criticalH005];
 
 const HISTORY_ICONS = [
     h001,
@@ -105,7 +112,7 @@ const ToolCard = ({
             {/* 背景装饰：水墨山水图案 - 右下角轻微点缀 */}
             <div className="absolute right-0 bottom-0 w-32 h-32 opacity-[0.55] group-hover:opacity-[0.95] transition-opacity duration-500 pointer-events-none">
                 <img
-                    src={HISTORY_ICONS[index % HISTORY_ICONS.length]}
+                    src={CRITICAL_HISTORY_ICONS[index] ?? HISTORY_ICONS[index % HISTORY_ICONS.length]}
                     alt=""
                     loading={index < 5 ? "eager" : "lazy"}
                     decoding="async"
