@@ -83,30 +83,77 @@ async function cachedResponse(cacheName, key, kind) {
     }
 }
 
-async function completeHtmlBody(response) {
-    if (!response.body) return true;
-    const copy = response.clone();
-    if (Number(copy.headers.get("Content-Length")) > MAX_RESOURCE_BYTES) {
-        copy.body.cancel().catch(() => {});
-        return false;
+async function readHtmlBody(response) {
+    if (!response.body) return "";
+    if (Number(response.headers.get("Content-Length")) > MAX_RESOURCE_BYTES) {
+        response.body.cancel().catch(() => {});
+        return null;
     }
-    const reader = copy.body.getReader();
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    const parts = [];
     let received = 0;
     try {
         while (true) {
             const { done, value } = await reader.read();
-            if (done) return true;
+            if (done) return parts.join("") + decoder.decode();
             received += value.byteLength;
             if (received > MAX_RESOURCE_BYTES) {
                 reader.cancel().catch(() => {});
-                return false;
+                return null;
             }
+            parts.push(decoder.decode(value, { stream: true }));
         }
     } catch {
-        return false;
+        return null;
     } finally {
         reader.releaseLock();
     }
+}
+
+function initialScriptUrls(html, pageUrl) {
+    const urls = new Set();
+    for (const [, tag, attributes] of html.matchAll(/<(script|link)\b([^>]*)>/gi)) {
+        const values = {};
+        for (const [, name, doubleQuoted, singleQuoted, unquoted] of attributes.matchAll(/([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g)) {
+            values[name.toLowerCase()] = doubleQuoted ?? singleQuoted ?? unquoted ?? "";
+        }
+        const reference = tag.toLowerCase() === "script" && values.type?.toLowerCase() === "module"
+            ? values.src
+            : tag.toLowerCase() === "link" && values.rel?.toLowerCase().split(/\s+/).includes("modulepreload")
+                ? values.href
+                : undefined;
+        if (!reference) continue;
+        try {
+            const url = new URL(reference.replace(/&amp;/gi, "&"), pageUrl);
+            if (url.origin === self.location.origin && HASHED_ASSET.test(url.pathname) && url.pathname.endsWith(".js")) urls.add(url.href);
+        } catch { /* Ignore malformed links, as the browser does. */ }
+    }
+    return [...urls];
+}
+
+async function cacheInitialScripts(html, pageUrl) {
+    const urls = initialScriptUrls(html, pageUrl);
+    if (urls.length > 256) return false;
+    const ready = await Promise.all(urls.map(async (url) => {
+        try {
+            if (await cachedResponse(ASSET_CACHE, url, "js")) return true;
+            const response = await fetch(url, { cache: "no-cache", credentials: "same-origin" });
+            if (!validResponse(response, "js")) {
+                response.body?.cancel().catch(() => {});
+                return false;
+            }
+            await storeResponse(ASSET_CACHE, url, response, 256);
+            return true;
+        } catch {
+            return false;
+        }
+    }));
+    if (ready.some((value) => !value)) return false;
+    // Verify writes (including quota failures) and any concurrent eviction
+    // before replacing a page that already has a working offline copy.
+    const available = await Promise.all(urls.map((url) => cachedResponse(ASSET_CACHE, url, "js")));
+    return available.every(Boolean);
 }
 
 async function navigation(event, url) {
@@ -116,11 +163,27 @@ async function navigation(event, url) {
     // background refresh, and first visits retain the network's streaming body.
     const network = fetch(event.request, { cache: "no-cache" });
     const cached = cachedResponse(PAGE_CACHE, key, "html");
-    event.waitUntil(network.then(async (response) => {
-        if (validResponse(response, "html")) {
-            await storeResponse(PAGE_CACHE, key, response.clone(), 40);
+    const refresh = network.then(async (response) => {
+        if (!validResponse(response, "html")) return false;
+        const copy = response.clone();
+        try {
+            if (await cached) {
+                const html = await readHtmlBody(copy.clone());
+                // Only this page's startup modules are warmed. Installing the
+                // worker and a first visit never trigger a route-wide precache.
+                if (html === null || !await cacheInitialScripts(html, url.href)) {
+                    copy.body?.cancel().catch(() => {});
+                    return false;
+                }
+            }
+            await storeResponse(PAGE_CACHE, key, copy, 40);
+            return true;
+        } catch {
+            copy.body?.cancel().catch(() => {});
+            return false;
         }
-    }, () => {}));
+    }, () => false).catch(() => false);
+    event.waitUntil(refresh);
     let timer;
     let returnedCache = false;
     const deadline = new Promise((resolve) => { timer = setTimeout(resolve, NAVIGATION_WAIT_MS); });
@@ -128,9 +191,9 @@ async function navigation(event, url) {
         const current = network.then(async (response) => {
             const fallback = await cached;
             if (fallback && !returnedCache && validResponse(response, "html")) {
-                // Headers alone do not mean the page is ready to display.
-                // Drain a bounded clone, preserving the original response.
-                if (!await completeHtmlBody(response)) return { response: fallback, fromCache: true };
+                // Both the complete HTML and its listed startup modules must
+                // be ready before fresh content wins the navigation deadline.
+                if (!await refresh) return { response: fallback, fromCache: true };
             }
             return { response, fromCache: false };
         });
