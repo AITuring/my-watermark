@@ -165,6 +165,116 @@ test("a first visit keeps waiting for the network after the cache deadline", asy
     await event.complete();
 });
 
+test("fast headers with a slow HTML body still return the visited page at 900 ms", async () => {
+    const clock = fakeClock();
+    let body;
+    const stream = new ReadableStream({ start(controller) { body = controller; } });
+    const environment = workerEnvironment(async () => html(stream), {}, clock);
+    const pages = await environment.caches.open("mytools-pages-v1");
+    await pages.put(`${origin}/`, html("cached home"));
+    body.enqueue(new TextEncoder().encode("fresh "));
+    const event = environment.start("fetch", navigate("/"));
+    let delivered = false;
+    event.response.then(() => { delivered = true; });
+    await clock.advance(899);
+    assert.equal(environment.calls.fetch.length, 1);
+    assert.equal(delivered, false, "receiving only headers or a partial body must not win");
+    await clock.advance(1);
+    assert.equal(await (await event.response).text(), "cached home");
+    assert.equal(await (await pages.match(`${origin}/`)).text(), "cached home");
+    body.enqueue(new TextEncoder().encode("home"));
+    body.close();
+    await event.complete();
+    assert.equal(await (await pages.match(`${origin}/`)).text(), "fresh home");
+});
+
+test("a complete HTML body beats the deadline and preserves the network response", async () => {
+    const clock = fakeClock();
+    let body;
+    const stream = new ReadableStream({ start(controller) { body = controller; } });
+    const original = html(stream);
+    const environment = workerEnvironment(async () => original, {}, clock);
+    await (await environment.caches.open("mytools-pages-v1")).put(`${origin}/`, html("cached home"));
+    const event = environment.start("fetch", navigate("/"));
+    let delivered = false;
+    event.response.then(() => { delivered = true; });
+    body.enqueue(new TextEncoder().encode("fresh "));
+    await clock.advance(300);
+    assert.equal(delivered, false);
+    body.enqueue(new TextEncoder().encode("home"));
+    body.close();
+    await flush();
+    assert.equal(delivered, true);
+    const response = await event.response;
+    assert.equal(response, original);
+    assert.equal(response.bodyUsed, false);
+    assert.equal(await response.text(), "fresh home");
+    await event.complete();
+});
+
+test("a page without a cached copy streams immediately without waiting for its full body", async () => {
+    const clock = fakeClock();
+    let body;
+    const stream = new ReadableStream({ start(controller) { body = controller; } });
+    const environment = workerEnvironment(async () => html(stream), {}, clock);
+    const event = environment.start("fetch", navigate("/song-paintings"));
+    let delivered = false;
+    event.response.then(() => { delivered = true; });
+    body.enqueue(new TextEncoder().encode("first paint"));
+    await flush();
+    assert.equal(delivered, true, "first visits must not wait for the stream to close");
+    const response = await event.response;
+    const reader = response.body.getReader();
+    assert.equal(new TextDecoder().decode((await reader.read()).value), "first paint");
+    await clock.advance(1500);
+    body.enqueue(new TextEncoder().encode(" final content"));
+    body.close();
+    assert.equal(new TextDecoder().decode((await reader.read()).value), " final content");
+    assert.equal((await reader.read()).done, true);
+    await event.complete();
+});
+
+test("HTML readiness checks remain bounded for an oversized body", async () => {
+    const clock = fakeClock();
+    const environment = workerEnvironment(async () => html(new Uint8Array(10 * 1024 * 1024 + 1)), {}, clock);
+    const pages = await environment.caches.open("mytools-pages-v1");
+    await pages.put(`${origin}/`, html("bounded fallback"));
+    const event = environment.start("fetch", navigate("/"));
+    let delivered = false;
+    event.response.then(() => { delivered = true; });
+    await flush();
+    assert.equal(delivered, true, "an oversized body must stop readiness buffering before the timer fires");
+    assert.equal(await (await event.response).text(), "bounded fallback");
+    await event.complete();
+    assert.equal(await (await pages.match(`${origin}/`)).text(), "bounded fallback");
+});
+
+test("an interrupted HTML body falls back to the visited page", async () => {
+    const clock = fakeClock();
+    const environment = workerEnvironment(async () => html(new ReadableStream({
+        start(controller) { controller.error(new Error("body interrupted")); },
+    })), {}, clock);
+    const pages = await environment.caches.open("mytools-pages-v1");
+    await pages.put(`${origin}/`, html("working fallback"));
+    assert.equal(await (await environment.dispatch("fetch", navigate("/"))).text(), "working fallback");
+    assert.equal(await (await pages.match(`${origin}/`)).text(), "working fallback");
+});
+
+test("split opaque navigation redirects are passed back to the browser unchanged", async () => {
+    for (const path of ["/split", "/split.html"]) {
+        const redirect = Object.defineProperties(new Response(null), {
+            type: { value: "opaqueredirect" },
+            status: { value: 0 },
+        });
+        const environment = workerEnvironment(async () => redirect);
+        const response = await environment.dispatch("fetch", navigate(path));
+        assert.equal(response, redirect);
+        assert.equal(response.type, "opaqueredirect");
+        assert.equal(response.status, 0);
+        assert.equal(environment.data.get("mytools-pages-v1").size, 0);
+    }
+});
+
 test("timed-out navigation retains background work and refreshes only valid HTML", async () => {
     for (const [lateResponse, expected] of [
         [html("fresh song catalog"), "fresh song catalog"],

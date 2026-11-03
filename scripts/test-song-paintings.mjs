@@ -18,14 +18,15 @@ const catalog = JSON.parse(await readFile(new URL("../src/pages/song-paintings/c
 const all = { edition: "all", volume: null, book: null, reading: "all", query: "" };
 const validIds = new Set(catalog.artworks.map((artwork) => artwork.id));
 
-test("catalog preserves all 1,098 records and the requested domestic/overseas partition", () => {
+test("catalog preserves all 1,100 reviewed records and the domestic/overseas partition", () => {
     assert.equal(catalog.schemaVersion, 1);
-    assert.equal(catalog.artworks.length, 1098);
-    assert.equal(validIds.size, 1098);
+    assert.equal(catalog.artworks.length, 1100);
+    assert.equal(validIds.size, 1100);
     const domestic = filterArtworks(catalog.artworks, { ...all, edition: "domestic" }, new Set());
     const overseas = filterArtworks(catalog.artworks, { ...all, edition: "overseas" }, new Set());
     assert.equal(domestic.length, 451);
-    assert.equal(overseas.length, 647);
+    // Includes the two restored volume-4 entries in the reviewed catalog.
+    assert.equal(overseas.length, 649);
     assert.deepEqual([...new Set(domestic.map((artwork) => artwork.volume))].sort(), [1, 2, 3, 5]);
     assert.deepEqual([...new Set(overseas.map((artwork) => artwork.volume))].sort(), [4, 6, 7, 8]);
     assert.equal(new Set(catalog.artworks.map((artwork) => `${artwork.volume}-${artwork.book}`)).size, 31);
@@ -57,7 +58,7 @@ test("search matches all query words across title, artist, period and collection
 test("reading filters follow stable IDs across searches and export/import round trips", () => {
     const read = new Set([catalog.artworks[0].id, catalog.artworks.at(-1).id]);
     assert.deepEqual(filterArtworks(catalog.artworks, { ...all, reading: "read" }, read).map((artwork) => artwork.id), [...read]);
-    assert.equal(filterArtworks(catalog.artworks, { ...all, reading: "unread" }, read).length, 1096);
+    assert.equal(filterArtworks(catalog.artworks, { ...all, reading: "unread" }, read).length, catalog.artworks.length - read.size);
     assert.equal(filterArtworks(catalog.artworks, { ...all, reading: "read" }, new Set()).length, 0);
     assert.deepEqual(parseProgress(JSON.stringify(createProgress(read)), validIds), read);
     assert.deepEqual(parseProgress(JSON.stringify(createProgress(new Set())), validIds), new Set());
