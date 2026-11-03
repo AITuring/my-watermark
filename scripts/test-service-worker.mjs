@@ -39,7 +39,7 @@ function workerEnvironment(network = async () => new Response("online"), failure
         },
     };
     vm.runInNewContext(source, {
-        URL, Headers, Response, TransformStream, caches, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
+        URL, Headers, Response, TransformStream, TextDecoder, caches, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
         fetch: async (...args) => { calls.fetch.push(args); return network(...args); },
         self: {
             location: { origin },
@@ -300,6 +300,94 @@ test("timed-out navigation retains background work and refreshes only valid HTML
         assert.equal(await (await pages.match(`${origin}/song-paintings`)).text(), expected);
         assert.equal(environment.calls.fetch.length, 1);
     }
+});
+
+test("new HTML replaces a visited page only after its slow startup module is cached", async () => {
+    const clock = fakeClock();
+    const moduleResponse = deferred();
+    const moduleUrl = `${origin}/assets/new-route-deadbeef.js`;
+    const nextHtml = '<h1>new route</h1><script type="module" src="/assets/new-route-deadbeef.js"></script>';
+    const environment = workerEnvironment(async (request) => typeof request === "string" ? moduleResponse.promise : html(nextHtml), {}, clock);
+    const pages = await environment.caches.open("mytools-pages-v1");
+    await pages.put(`${origin}/`, html("working old page"));
+    const event = environment.start("fetch", navigate("/"));
+    let delivered = false;
+    event.response.then(() => { delivered = true; });
+    await clock.advance(899);
+    assert.equal(delivered, false, "new HTML must wait for its entry module");
+    assert.equal(environment.calls.fetch[1][0], moduleUrl);
+    assert.equal(await (await pages.match(`${origin}/`)).text(), "working old page");
+    await clock.advance(1);
+    assert.equal(await (await event.response).text(), "working old page");
+    let moduleBody;
+    moduleResponse.resolve(javascript(new ReadableStream({ start(controller) { moduleBody = controller; } })));
+    moduleBody.enqueue(new TextEncoder().encode("export "));
+    await flush();
+    assert.equal(await (await pages.match(`${origin}/`)).text(), "working old page", "module headers alone cannot commit the page");
+    moduleBody.enqueue(new TextEncoder().encode("default 1"));
+    moduleBody.close();
+    await event.complete();
+    assert.equal(await (await pages.match(`${origin}/`)).text(), nextHtml);
+    assert.equal(await (await (await environment.caches.open("page-assets-cache")).match(moduleUrl)).text(), "export default 1");
+});
+
+test("404, HTML fallback, fetch failure and quota failure keep the previous page", async () => {
+    for (const failure of ["404", "MIME", "network", "quota"]) {
+        const nextHtml = '<h1>new page</h1><link rel="modulepreload" href="/assets/runtime-deadbeef.js">';
+        const environment = workerEnvironment(async (request) => {
+            if (typeof request !== "string") return html(nextHtml);
+            if (failure === "404") return new Response("missing", { status: 404 });
+            if (failure === "MIME") return html("SPA fallback");
+            if (failure === "network") throw new TypeError("module offline");
+            return javascript("new runtime");
+        }, { put: (name) => failure === "quota" && name === "page-assets-cache" }, fakeClock());
+        const pages = await environment.caches.open("mytools-pages-v1");
+        await pages.put(`${origin}/`, html("working old page"));
+        const response = await environment.dispatch("fetch", navigate("/"));
+        assert.equal(await response.text(), "working old page", failure);
+        assert.equal(await (await pages.match(`${origin}/`)).text(), "working old page", failure);
+        assert.equal(environment.calls.fetch.length, 2, failure);
+    }
+});
+
+test("already cached startup modules allow atomic HTML refresh without extra fetches", async () => {
+    const nextHtml = '<script type="module" src="/assets/entry-deadbeef.js"></script><link rel="modulepreload" href="/assets/runtime-deadbeef.js">';
+    const environment = workerEnvironment(async () => html(nextHtml), {}, fakeClock());
+    const pages = await environment.caches.open("mytools-pages-v1");
+    await pages.put(`${origin}/`, html("old page"));
+    const assets = await environment.caches.open("page-assets-cache");
+    await assets.put(`${origin}/assets/entry-deadbeef.js`, javascript("entry"));
+    await assets.put(`${origin}/assets/runtime-deadbeef.js`, javascript("runtime"));
+    const response = await environment.dispatch("fetch", navigate("/"));
+    assert.equal(await response.text(), nextHtml);
+    assert.equal(await (await pages.match(`${origin}/`)).text(), nextHtml);
+    assert.equal(environment.calls.fetch.length, 1);
+});
+
+test("refresh warms only deduplicated same-origin hashed modules listed by the current page", async () => {
+    const nextHtml = [
+        '<script type="module" src="/assets/entry-deadbeef.js"></script>',
+        '<link rel="modulepreload" href="/assets/entry-deadbeef.js">',
+        "<LINK HREF='/assets/runtime-cafebabe.js' REL='modulepreload'>",
+        '<script type="module" src="https://other.example/assets/external-deadbeef.js"></script>',
+        '<script src="/assets/classic-deadbeef.js"></script>',
+        '<script type="module" src="/unversioned.js"></script>',
+        '<link rel="stylesheet" href="/assets/style-deadbeef.css">',
+        '<a href="/song-paintings">another route</a>',
+    ].join("");
+    const environment = workerEnvironment(async (request) => typeof request === "string" ? javascript("module") : html(nextHtml), {}, fakeClock());
+    await (await environment.caches.open("mytools-pages-v1")).put(`${origin}/`, html("old page"));
+    await environment.dispatch("fetch", navigate("/"));
+    assert.deepEqual(environment.calls.fetch.slice(1).map(([url]) => url).sort(), [
+        `${origin}/assets/entry-deadbeef.js`, `${origin}/assets/runtime-cafebabe.js`,
+    ]);
+});
+
+test("a first visit does not prefetch HTML startup modules", async () => {
+    const nextHtml = '<script type="module" src="/assets/entry-deadbeef.js"></script>';
+    const environment = workerEnvironment(async () => html(nextHtml));
+    assert.equal(await (await environment.dispatch("fetch", navigate("/"))).text(), nextHtml);
+    assert.equal(environment.calls.fetch.length, 1);
 });
 
 test("online HTTP errors are visible and do not replace a working offline page", async () => {
