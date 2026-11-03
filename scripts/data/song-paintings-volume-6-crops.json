@@ -1,0 +1,4450 @@
+{
+  "schemaVersion": 1,
+  "coordinateSystem": "Original embedded scan pixels: [x, y, width, height], top-left origin. PDF pages are 1-based.",
+  "items": [
+    {
+      "id": "6-1-1",
+      "pdfPage": 10,
+      "printedPage": 3,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        331,
+        409,
+        2444,
+        4294
+      ],
+      "focusRect": [
+        331,
+        1978,
+        2444,
+        2444
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-2",
+      "pdfPage": 17,
+      "printedPage": 10,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        10,
+        526,
+        2710,
+        1431
+      ],
+      "focusRect": [
+        650,
+        526,
+        1431,
+        1431
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-1-3",
+      "pdfPage": 33,
+      "printedPage": 26,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        10,
+        506,
+        3096,
+        1451
+      ],
+      "focusRect": [
+        213,
+        506,
+        1451,
+        1451
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-1-4",
+      "pdfPage": 50,
+      "printedPage": 43,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        321,
+        516,
+        3077,
+        1441
+      ],
+      "focusRect": [
+        1139,
+        516,
+        1441,
+        1441
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-1-5",
+      "pdfPage": 71,
+      "printedPage": 64,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        170,
+        3150,
+        4740
+      ],
+      "focusRect": [
+        0,
+        1264,
+        2362,
+        2362
+      ],
+      "previewPartial": true,
+      "note": "起始图版以书法为主，改取后续鹦鹉局部图版，未拼接对页。"
+    },
+    {
+      "id": "6-1-6",
+      "pdfPage": 77,
+      "printedPage": 70,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        10,
+        2025,
+        3096,
+        1441
+      ],
+      "focusRect": [
+        838,
+        2025,
+        1441,
+        1441
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-1-7",
+      "pdfPage": 94,
+      "printedPage": 87,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        1402,
+        574,
+        1996,
+        3934
+      ],
+      "focusRect": [
+        1402,
+        2133,
+        1996,
+        1996
+      ],
+      "previewPartial": true,
+      "note": "人马图跨页，选马匹所在一页，未拼接人物对页。"
+    },
+    {
+      "id": "6-1-8",
+      "pdfPage": 98,
+      "printedPage": 91,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        1100,
+        2025,
+        1600,
+        1451
+      ],
+      "focusRect": [
+        1174,
+        2025,
+        1451,
+        1451
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-1-9",
+      "pdfPage": 123,
+      "printedPage": 116,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        1900,
+        526,
+        1200,
+        1441
+      ],
+      "focusRect": [
+        1900,
+        646,
+        1200,
+        1200
+      ],
+      "previewPartial": true,
+      "note": "归去来辞书画长卷，选人物绘画段，剔除相邻大段书法。"
+    },
+    {
+      "id": "6-1-10",
+      "pdfPage": 146,
+      "printedPage": 139,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        292,
+        409,
+        2194,
+        4290
+      ],
+      "focusRect": [
+        292,
+        2015,
+        2194,
+        2194
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-11",
+      "pdfPage": 152,
+      "printedPage": 145,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        166,
+        585,
+        3071,
+        2993
+      ],
+      "focusRect": [
+        583,
+        810,
+        2544,
+        2544
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-12",
+      "pdfPage": 154,
+      "printedPage": 147,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        234,
+        575,
+        2954,
+        2662
+      ],
+      "focusRect": [
+        580,
+        974,
+        2263,
+        2263
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-13",
+      "pdfPage": 155,
+      "printedPage": 148,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        253,
+        594,
+        2892,
+        2765
+      ],
+      "focusRect": [
+        933,
+        1147,
+        2212,
+        2212
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-14",
+      "pdfPage": 156,
+      "printedPage": 149,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        390,
+        575,
+        2652,
+        2895
+      ],
+      "focusRect": [
+        456,
+        908,
+        2519,
+        2519
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-15",
+      "pdfPage": 158,
+      "printedPage": 151,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        205,
+        575,
+        3002,
+        2944
+      ],
+      "focusRect": [
+        205,
+        1164,
+        2355,
+        2355
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-16",
+      "pdfPage": 160,
+      "printedPage": 153,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        166,
+        585,
+        3090,
+        2866
+      ],
+      "focusRect": [
+        422,
+        872,
+        2579,
+        2579
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-17",
+      "pdfPage": 162,
+      "printedPage": 155,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        39,
+        575,
+        3324,
+        3168
+      ],
+      "focusRect": [
+        196,
+        654,
+        3010,
+        3010
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-18",
+      "pdfPage": 163,
+      "printedPage": 156,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        263,
+        584,
+        2882,
+        2814
+      ],
+      "focusRect": [
+        508,
+        1006,
+        2392,
+        2392
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-19",
+      "pdfPage": 164,
+      "printedPage": 157,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        205,
+        585,
+        3022,
+        2778
+      ],
+      "focusRect": [
+        536,
+        1002,
+        2361,
+        2361
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-20",
+      "pdfPage": 165,
+      "printedPage": 158,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        224,
+        584,
+        2950,
+        3009
+      ],
+      "focusRect": [
+        386,
+        1085,
+        2508,
+        2508
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-21",
+      "pdfPage": 166,
+      "printedPage": 159,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        263,
+        585,
+        2876,
+        2817
+      ],
+      "focusRect": [
+        1358,
+        1853,
+        1549,
+        1549
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-22",
+      "pdfPage": 168,
+      "printedPage": 161,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        146,
+        585,
+        3120,
+        2827
+      ],
+      "focusRect": [
+        255,
+        1009,
+        2403,
+        2403
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-23",
+      "pdfPage": 170,
+      "printedPage": 163,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        312,
+        400,
+        2593,
+        4289
+      ],
+      "focusRect": [
+        312,
+        1934,
+        2593,
+        2593
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-24",
+      "pdfPage": 172,
+      "printedPage": 165,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        195,
+        585,
+        3022,
+        2827
+      ],
+      "focusRect": [
+        374,
+        868,
+        2544,
+        2544
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-25",
+      "pdfPage": 174,
+      "printedPage": 167,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        292,
+        400,
+        2886,
+        4084
+      ],
+      "focusRect": [
+        364,
+        1561,
+        2742,
+        2742
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-26",
+      "pdfPage": 180,
+      "printedPage": 173,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        146,
+        575,
+        3120,
+        2993
+      ],
+      "focusRect": [
+        590,
+        1024,
+        2544,
+        2544
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-27",
+      "pdfPage": 182,
+      "printedPage": 175,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        244,
+        585,
+        2915,
+        3090
+      ],
+      "focusRect": [
+        535,
+        1051,
+        2624,
+        2624
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-28",
+      "pdfPage": 183,
+      "printedPage": 176,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        175,
+        584,
+        3058,
+        2931
+      ],
+      "focusRect": [
+        595,
+        877,
+        2638,
+        2638
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-29",
+      "pdfPage": 184,
+      "printedPage": 177,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        214,
+        575,
+        2984,
+        2759
+      ],
+      "focusRect": [
+        396,
+        713,
+        2621,
+        2621
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-30",
+      "pdfPage": 186,
+      "printedPage": 179,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        253,
+        585,
+        2925,
+        2759
+      ],
+      "focusRect": [
+        253,
+        930,
+        2345,
+        2345
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-31",
+      "pdfPage": 188,
+      "printedPage": 181,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        156,
+        575,
+        3120,
+        3188
+      ],
+      "focusRect": [
+        156,
+        609,
+        3120,
+        3120
+      ],
+      "previewPartial": false,
+      "note": "已对照书页180图注，中文题名雪景山水图，英文为Two Birds in a Wintry Landscape，后页为树枝双鸟图版。"
+    },
+    {
+      "id": "6-1-32",
+      "pdfPage": 189,
+      "printedPage": 182,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        127,
+        574,
+        3135,
+        2863
+      ],
+      "focusRect": [
+        334,
+        646,
+        2720,
+        2720
+      ],
+      "previewPartial": false,
+      "note": "原目录印刷书页182；catalog的82漏1，本记录使用PDF189/实际书页182；不修改catalog。"
+    },
+    {
+      "id": "6-1-33",
+      "pdfPage": 190,
+      "printedPage": 183,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        263,
+        575,
+        2886,
+        2779
+      ],
+      "focusRect": [
+        483,
+        742,
+        2446,
+        2446
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-34",
+      "pdfPage": 193,
+      "printedPage": 186,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        156,
+        584,
+        3125,
+        2834
+      ],
+      "focusRect": [
+        826,
+        938,
+        2409,
+        2409
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-35",
+      "pdfPage": 194,
+      "printedPage": 187,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        175,
+        585,
+        3071,
+        2895
+      ],
+      "focusRect": [
+        408,
+        730,
+        2606,
+        2606
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-36",
+      "pdfPage": 195,
+      "printedPage": 188,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        292,
+        594,
+        2785,
+        2678
+      ],
+      "focusRect": [
+        335,
+        862,
+        2142,
+        2142
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-37",
+      "pdfPage": 196,
+      "printedPage": 189,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        205,
+        585,
+        3022,
+        2808
+      ],
+      "focusRect": [
+        825,
+        1006,
+        2387,
+        2387
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-38",
+      "pdfPage": 197,
+      "printedPage": 190,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        195,
+        594,
+        3009,
+        2707
+      ],
+      "focusRect": [
+        248,
+        932,
+        2301,
+        2301
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-39",
+      "pdfPage": 198,
+      "printedPage": 191,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        205,
+        575,
+        3002,
+        2759
+      ],
+      "focusRect": [
+        383,
+        989,
+        2345,
+        2345
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-40",
+      "pdfPage": 199,
+      "printedPage": 192,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        185,
+        584,
+        3009,
+        2863
+      ],
+      "focusRect": [
+        904,
+        1157,
+        2290,
+        2290
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-41",
+      "pdfPage": 200,
+      "printedPage": 193,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        136,
+        585,
+        3140,
+        2856
+      ],
+      "focusRect": [
+        878,
+        1156,
+        2285,
+        2285
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-42",
+      "pdfPage": 201,
+      "printedPage": 194,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        10,
+        526,
+        3106,
+        1431
+      ],
+      "focusRect": [
+        537,
+        526,
+        1431,
+        1431
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-1-43",
+      "pdfPage": 239,
+      "printedPage": 232,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        10,
+        2025,
+        3086,
+        1451
+      ],
+      "focusRect": [
+        828,
+        2025,
+        1451,
+        1451
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-1-44",
+      "pdfPage": 251,
+      "printedPage": 244,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3408,
+      "sourceHeight": 5008,
+      "contextRect": [
+        10,
+        526,
+        2550,
+        1431
+      ],
+      "focusRect": [
+        518,
+        526,
+        1431,
+        1431
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-1-45",
+      "pdfPage": 262,
+      "printedPage": 255,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        400,
+        390,
+        1940,
+        4280
+      ],
+      "focusRect": [
+        400,
+        1560,
+        1940,
+        1940
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-46",
+      "pdfPage": 266,
+      "printedPage": 259,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        312,
+        400,
+        1930,
+        4270
+      ],
+      "focusRect": [
+        312,
+        2210,
+        1930,
+        1930
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-47",
+      "pdfPage": 272,
+      "printedPage": 265,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        302,
+        409,
+        1960,
+        4270
+      ],
+      "focusRect": [
+        302,
+        2076,
+        1960,
+        1960
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-48",
+      "pdfPage": 276,
+      "printedPage": 269,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        302,
+        400,
+        2038,
+        4270
+      ],
+      "focusRect": [
+        302,
+        662,
+        2038,
+        2038
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-49",
+      "pdfPage": 280,
+      "printedPage": 273,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        302,
+        400,
+        2047,
+        4270
+      ],
+      "focusRect": [
+        302,
+        2579,
+        2047,
+        2047
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-50",
+      "pdfPage": 286,
+      "printedPage": 279,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        292,
+        400,
+        1999,
+        4270
+      ],
+      "focusRect": [
+        292,
+        1023,
+        1999,
+        1999
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-51",
+      "pdfPage": 290,
+      "printedPage": 283,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        302,
+        400,
+        2028,
+        4270
+      ],
+      "focusRect": [
+        302,
+        880,
+        2028,
+        2028
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-52",
+      "pdfPage": 294,
+      "printedPage": 287,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        302,
+        400,
+        2164,
+        4270
+      ],
+      "focusRect": [
+        302,
+        1240,
+        2164,
+        2164
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-1-53",
+      "pdfPage": 298,
+      "printedPage": 291,
+      "fileName": "宋画全集  第6卷  第1册.pdf",
+      "sourceWidth": 3412,
+      "sourceHeight": 5012,
+      "contextRect": [
+        302,
+        400,
+        2359,
+        4270
+      ],
+      "focusRect": [
+        361,
+        1201,
+        2241,
+        2241
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-1",
+      "pdfPage": 8,
+      "printedPage": 3,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        346,
+        434,
+        1323,
+        4276
+      ],
+      "focusRect": [
+        346,
+        2766,
+        1323,
+        1323
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-2",
+      "pdfPage": 17,
+      "printedPage": 12,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        504,
+        2520,
+        1431
+      ],
+      "focusRect": [
+        554,
+        504,
+        1431,
+        1431
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-2-3",
+      "pdfPage": 26,
+      "printedPage": 21,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        1669,
+        612,
+        1777,
+        3357
+      ],
+      "focusRect": [
+        1669,
+        1906,
+        1777,
+        1777
+      ],
+      "previewPartial": true,
+      "note": "跨页圆形宫苑图，选建筑较清楚的一侧，未拼接。"
+    },
+    {
+      "id": "6-2-4",
+      "pdfPage": 28,
+      "printedPage": 23,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        168,
+        602,
+        3150,
+        2884
+      ],
+      "focusRect": [
+        373,
+        746,
+        2740,
+        2740
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-5",
+      "pdfPage": 29,
+      "printedPage": 24,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        494,
+        3120,
+        1441
+      ],
+      "focusRect": [
+        850,
+        494,
+        1441,
+        1441
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-2-6",
+      "pdfPage": 42,
+      "printedPage": 37,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        207,
+        612,
+        3071,
+        2913
+      ],
+      "focusRect": [
+        351,
+        1049,
+        2476,
+        2476
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-7",
+      "pdfPage": 46,
+      "printedPage": 41,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        296,
+        612,
+        2864,
+        2656
+      ],
+      "focusRect": [
+        599,
+        1010,
+        2258,
+        2258
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-8",
+      "pdfPage": 48,
+      "printedPage": 43,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        207,
+        612,
+        3091,
+        2943
+      ],
+      "focusRect": [
+        649,
+        612,
+        2649,
+        2649
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-9",
+      "pdfPage": 51,
+      "printedPage": 46,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        454,
+        553,
+        2568,
+        2696
+      ],
+      "focusRect": [
+        646,
+        1066,
+        2183,
+        2183
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-10",
+      "pdfPage": 52,
+      "printedPage": 47,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        257,
+        612,
+        2962,
+        2854
+      ],
+      "focusRect": [
+        382,
+        755,
+        2711,
+        2711
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-11",
+      "pdfPage": 56,
+      "printedPage": 51,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        227,
+        602,
+        3041,
+        2874
+      ],
+      "focusRect": [
+        230,
+        746,
+        2730,
+        2730
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-12",
+      "pdfPage": 60,
+      "printedPage": 55,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        138,
+        602,
+        3180,
+        2874
+      ],
+      "focusRect": [
+        1271,
+        818,
+        1868,
+        1868
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-13",
+      "pdfPage": 62,
+      "printedPage": 57,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        247,
+        612,
+        2972,
+        2824
+      ],
+      "focusRect": [
+        901,
+        894,
+        2259,
+        2259
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-14",
+      "pdfPage": 64,
+      "printedPage": 59,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        207,
+        612,
+        3091,
+        2864
+      ],
+      "focusRect": [
+        464,
+        898,
+        2578,
+        2578
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-15",
+      "pdfPage": 66,
+      "printedPage": 61,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        276,
+        612,
+        2943,
+        2864
+      ],
+      "focusRect": [
+        304,
+        1471,
+        2005,
+        2005
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-16",
+      "pdfPage": 68,
+      "printedPage": 63,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        434,
+        2073,
+        4286
+      ],
+      "focusRect": [
+        336,
+        2398,
+        2073,
+        2073
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-17",
+      "pdfPage": 72,
+      "printedPage": 67,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        158,
+        612,
+        3160,
+        2943
+      ],
+      "focusRect": [
+        256,
+        612,
+        2649,
+        2649
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-18",
+      "pdfPage": 76,
+      "printedPage": 71,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        188,
+        612,
+        3110,
+        3022
+      ],
+      "focusRect": [
+        729,
+        1065,
+        2569,
+        2569
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-19",
+      "pdfPage": 78,
+      "printedPage": 73,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        227,
+        612,
+        3002,
+        2972
+      ],
+      "focusRect": [
+        238,
+        1504,
+        2080,
+        2080
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-20",
+      "pdfPage": 80,
+      "printedPage": 75,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        138,
+        612,
+        3200,
+        2903
+      ],
+      "focusRect": [
+        592,
+        902,
+        2613,
+        2613
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-21",
+      "pdfPage": 82,
+      "printedPage": 77,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        375,
+        612,
+        2745,
+        2726
+      ],
+      "focusRect": [
+        667,
+        885,
+        2453,
+        2453
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-22",
+      "pdfPage": 84,
+      "printedPage": 79,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        109,
+        612,
+        3238,
+        2893
+      ],
+      "focusRect": [
+        498,
+        1046,
+        2459,
+        2459
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-23",
+      "pdfPage": 86,
+      "printedPage": 81,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        306,
+        612,
+        2874,
+        2933
+      ],
+      "focusRect": [
+        306,
+        642,
+        2874,
+        2874
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-24",
+      "pdfPage": 90,
+      "printedPage": 85,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        217,
+        612,
+        3051,
+        2943
+      ],
+      "focusRect": [
+        339,
+        1053,
+        2502,
+        2502
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-25",
+      "pdfPage": 94,
+      "printedPage": 89,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        257,
+        602,
+        2972,
+        2834
+      ],
+      "focusRect": [
+        257,
+        1027,
+        2409,
+        2409
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-26",
+      "pdfPage": 96,
+      "printedPage": 91,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        602,
+        612,
+        2281,
+        2943
+      ],
+      "focusRect": [
+        830,
+        1351,
+        2053,
+        2053
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-27",
+      "pdfPage": 98,
+      "printedPage": 93,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        286,
+        612,
+        2933,
+        2834
+      ],
+      "focusRect": [
+        286,
+        668,
+        2551,
+        2551
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-28",
+      "pdfPage": 102,
+      "printedPage": 97,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        237,
+        612,
+        3012,
+        2943
+      ],
+      "focusRect": [
+        418,
+        671,
+        2649,
+        2649
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-29",
+      "pdfPage": 103,
+      "printedPage": 98,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        563,
+        1797,
+        3416
+      ],
+      "focusRect": [
+        10,
+        1714,
+        1797,
+        1797
+      ],
+      "previewPartial": true,
+      "note": "百子图跨页，选一侧群童图版，未拼接。"
+    },
+    {
+      "id": "6-2-30",
+      "pdfPage": 108,
+      "printedPage": 103,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        612,
+        3110,
+        4059
+      ],
+      "focusRect": [
+        492,
+        1164,
+        2954,
+        2954
+      ],
+      "previewPartial": true,
+      "note": "道子墨宝为多幅宗教人物组画，选首幅主体较完整一页，未拼接对页。"
+    },
+    {
+      "id": "6-2-31",
+      "pdfPage": 208,
+      "printedPage": 203,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        128,
+        612,
+        3219,
+        3091
+      ],
+      "focusRect": [
+        263,
+        1076,
+        2627,
+        2627
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-32",
+      "pdfPage": 210,
+      "printedPage": 205,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        276,
+        622,
+        2933,
+        2785
+      ],
+      "focusRect": [
+        842,
+        831,
+        2367,
+        2367
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-33",
+      "pdfPage": 212,
+      "printedPage": 207,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        346,
+        434,
+        1974,
+        4276
+      ],
+      "focusRect": [
+        346,
+        1157,
+        1974,
+        1974
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-34",
+      "pdfPage": 216,
+      "printedPage": 211,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        346,
+        434,
+        1974,
+        4276
+      ],
+      "focusRect": [
+        346,
+        1585,
+        1974,
+        1974
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-35",
+      "pdfPage": 218,
+      "printedPage": 213,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        346,
+        434,
+        1728,
+        4276
+      ],
+      "focusRect": [
+        346,
+        2948,
+        1728,
+        1728
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-36",
+      "pdfPage": 222,
+      "printedPage": 217,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        434,
+        1905,
+        4276
+      ],
+      "focusRect": [
+        336,
+        1620,
+        1905,
+        1905
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-37",
+      "pdfPage": 226,
+      "printedPage": 221,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        316,
+        444,
+        2093,
+        4276
+      ],
+      "focusRect": [
+        316,
+        766,
+        2093,
+        2093
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-38",
+      "pdfPage": 230,
+      "printedPage": 225,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        434,
+        2261,
+        4276
+      ],
+      "focusRect": [
+        336,
+        1869,
+        2261,
+        2261
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-39",
+      "pdfPage": 234,
+      "printedPage": 229,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        346,
+        434,
+        1876,
+        4276
+      ],
+      "focusRect": [
+        346,
+        1976,
+        1876,
+        1876
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-40",
+      "pdfPage": 238,
+      "printedPage": 233,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        326,
+        434,
+        2222,
+        4276
+      ],
+      "focusRect": [
+        326,
+        1675,
+        2222,
+        2222
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-2-41",
+      "pdfPage": 243,
+      "printedPage": 238,
+      "fileName": "宋画全集  第6卷  第2册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        2024,
+        3120,
+        1432
+      ],
+      "focusRect": [
+        854,
+        2024,
+        1432,
+        1432
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-3-1",
+      "pdfPage": 7,
+      "printedPage": 3,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        434,
+        2133,
+        4276
+      ],
+      "focusRect": [
+        336,
+        2147,
+        2133,
+        2133
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-3-2",
+      "pdfPage": 19,
+      "printedPage": 15,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        326,
+        434,
+        2863,
+        4167
+      ],
+      "focusRect": [
+        326,
+        1503,
+        2863,
+        2863
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-3-3",
+      "pdfPage": 29,
+      "printedPage": 25,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        326,
+        553,
+        3120,
+        2518
+      ],
+      "focusRect": [
+        627,
+        553,
+        2518,
+        2518
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-3-4",
+      "pdfPage": 41,
+      "printedPage": 37,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        612,
+        2844,
+        3545
+      ],
+      "focusRect": [
+        407,
+        750,
+        2702,
+        2702
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-3-5",
+      "pdfPage": 44,
+      "printedPage": 40,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        513,
+        2050,
+        1314
+      ],
+      "focusRect": [
+        378,
+        513,
+        1314,
+        1314
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-3-6",
+      "pdfPage": 61,
+      "printedPage": 57,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        1020,
+        2140,
+        1220,
+        1340
+      ],
+      "focusRect": [
+        1020,
+        2200,
+        1220,
+        1220
+      ],
+      "previewPartial": true,
+      "note": "孝经图起始连续为题签和书法，取PDF61下栏中央人物故事图段，剔除两侧书法。"
+    },
+    {
+      "id": "6-3-7",
+      "pdfPage": 92,
+      "printedPage": 88,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        494,
+        3091,
+        1451
+      ],
+      "focusRect": [
+        521,
+        494,
+        1451,
+        1451
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-3-8",
+      "pdfPage": 145,
+      "printedPage": 141,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        622,
+        2844,
+        1382
+      ],
+      "focusRect": [
+        1209,
+        622,
+        1382,
+        1382
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-3-9",
+      "pdfPage": 148,
+      "printedPage": 144,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        513,
+        1800,
+        1669
+      ],
+      "focusRect": [
+        76,
+        513,
+        1669,
+        1669
+      ],
+      "previewPartial": true,
+      "note": "长卷分段，只保留竹禽绘画，去除右侧装裱。"
+    },
+    {
+      "id": "6-3-10",
+      "pdfPage": 155,
+      "printedPage": 151,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        247,
+        622,
+        3012,
+        2696
+      ],
+      "focusRect": [
+        472,
+        757,
+        2561,
+        2561
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-3-11",
+      "pdfPage": 159,
+      "printedPage": 155,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        316,
+        444,
+        2656,
+        4276
+      ],
+      "focusRect": [
+        316,
+        1895,
+        2656,
+        2656
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-3-12",
+      "pdfPage": 166,
+      "printedPage": 162,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        513,
+        3120,
+        1146
+      ],
+      "focusRect": [
+        841,
+        513,
+        1146,
+        1146
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-3-13",
+      "pdfPage": 179,
+      "printedPage": 175,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        316,
+        622,
+        2883,
+        1768
+      ],
+      "focusRect": [
+        1104,
+        622,
+        1768,
+        1768
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-3-14",
+      "pdfPage": 184,
+      "printedPage": 180,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        523,
+        3120,
+        1205
+      ],
+      "focusRect": [
+        968,
+        523,
+        1205,
+        1205
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-3-15",
+      "pdfPage": 195,
+      "printedPage": 191,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        316,
+        434,
+        2745,
+        4276
+      ],
+      "focusRect": [
+        316,
+        1413,
+        2745,
+        2745
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-3-16",
+      "pdfPage": 198,
+      "printedPage": 194,
+      "fileName": "宋画全集  第6卷  第3册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        2034,
+        3130,
+        1432
+      ],
+      "focusRect": [
+        10,
+        2034,
+        1432,
+        1432
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-4-17",
+      "pdfPage": 8,
+      "printedPage": 3,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        346,
+        553,
+        1965,
+        1432
+      ],
+      "focusRect": [
+        612,
+        553,
+        1432,
+        1432
+      ],
+      "previewPartial": true,
+      "note": "诗经豳风图取后页绘画段，剔除相邻诗文。"
+    },
+    {
+      "id": "6-4-18",
+      "pdfPage": 42,
+      "printedPage": 37,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        1040,
+        553,
+        2406,
+        1442
+      ],
+      "focusRect": [
+        1522,
+        553,
+        1442,
+        1442
+      ],
+      "previewPartial": true,
+      "note": "诗经小雅鸿雁之什六篇图取后页鸿雁绘画段，剔除左侧诗文。"
+    },
+    {
+      "id": "6-4-19",
+      "pdfPage": 63,
+      "printedPage": 58,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        494,
+        2850,
+        1461
+      ],
+      "focusRect": [
+        562,
+        494,
+        1461,
+        1461
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-4-20",
+      "pdfPage": 78,
+      "printedPage": 73,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        612,
+        2853,
+        2113
+      ],
+      "focusRect": [
+        649,
+        612,
+        2113,
+        2113
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-21",
+      "pdfPage": 86,
+      "printedPage": 81,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        385,
+        622,
+        2696,
+        2548
+      ],
+      "focusRect": [
+        747,
+        902,
+        2242,
+        2242
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-22",
+      "pdfPage": 90,
+      "printedPage": 85,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        227,
+        622,
+        3022,
+        2864
+      ],
+      "focusRect": [
+        478,
+        966,
+        2520,
+        2520
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-23",
+      "pdfPage": 92,
+      "printedPage": 87,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        178,
+        622,
+        3100,
+        3041
+      ],
+      "focusRect": [
+        451,
+        866,
+        2554,
+        2554
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-24",
+      "pdfPage": 96,
+      "printedPage": 91,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        326,
+        612,
+        2834,
+        2834
+      ],
+      "focusRect": [
+        411,
+        612,
+        2381,
+        2381
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-25",
+      "pdfPage": 100,
+      "printedPage": 95,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        178,
+        612,
+        3120,
+        2992
+      ],
+      "focusRect": [
+        422,
+        971,
+        2633,
+        2633
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-26",
+      "pdfPage": 103,
+      "printedPage": 98,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        504,
+        3130,
+        1313
+      ],
+      "focusRect": [
+        606,
+        504,
+        1313,
+        1313
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-4-27",
+      "pdfPage": 120,
+      "printedPage": 115,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        118,
+        622,
+        3220,
+        3130
+      ],
+      "focusRect": [
+        237,
+        1014,
+        2660,
+        2660
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-28",
+      "pdfPage": 124,
+      "printedPage": 119,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        138,
+        612,
+        3160,
+        2972
+      ],
+      "focusRect": [
+        282,
+        1028,
+        2556,
+        2556
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-29",
+      "pdfPage": 126,
+      "printedPage": 121,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        178,
+        612,
+        3120,
+        2982
+      ],
+      "focusRect": [
+        208,
+        940,
+        2624,
+        2624
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-30",
+      "pdfPage": 130,
+      "printedPage": 125,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        227,
+        622,
+        2992,
+        2943
+      ],
+      "focusRect": [
+        517,
+        1034,
+        2531,
+        2531
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-31",
+      "pdfPage": 132,
+      "printedPage": 127,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        217,
+        622,
+        3002,
+        3012
+      ],
+      "focusRect": [
+        337,
+        872,
+        2762,
+        2762
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-32",
+      "pdfPage": 134,
+      "printedPage": 129,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        464,
+        622,
+        2518,
+        2933
+      ],
+      "focusRect": [
+        464,
+        1037,
+        2518,
+        2518
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-33",
+      "pdfPage": 136,
+      "printedPage": 131,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        158,
+        612,
+        3150,
+        3081
+      ],
+      "focusRect": [
+        282,
+        1105,
+        2588,
+        2588
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-34",
+      "pdfPage": 140,
+      "printedPage": 135,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        188,
+        622,
+        3090,
+        3031
+      ],
+      "focusRect": [
+        290,
+        1077,
+        2576,
+        2576
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-35",
+      "pdfPage": 142,
+      "printedPage": 137,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        385,
+        612,
+        2666,
+        3150
+      ],
+      "focusRect": [
+        385,
+        1012,
+        2666,
+        2666
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-36",
+      "pdfPage": 146,
+      "printedPage": 141,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        207,
+        622,
+        3042,
+        2982
+      ],
+      "focusRect": [
+        446,
+        801,
+        2803,
+        2803
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-37",
+      "pdfPage": 148,
+      "printedPage": 143,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        168,
+        622,
+        3120,
+        2933
+      ],
+      "focusRect": [
+        311,
+        1003,
+        2522,
+        2522
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-38",
+      "pdfPage": 152,
+      "printedPage": 147,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        188,
+        622,
+        3061,
+        2992
+      ],
+      "focusRect": [
+        247,
+        1161,
+        2453,
+        2453
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-39",
+      "pdfPage": 154,
+      "printedPage": 149,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        306,
+        622,
+        2864,
+        2716
+      ],
+      "focusRect": [
+        727,
+        1029,
+        2309,
+        2309
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-40",
+      "pdfPage": 156,
+      "printedPage": 151,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        118,
+        612,
+        3210,
+        2854
+      ],
+      "focusRect": [
+        510,
+        1040,
+        2426,
+        2426
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-41",
+      "pdfPage": 158,
+      "printedPage": 153,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        148,
+        612,
+        3120,
+        2943
+      ],
+      "focusRect": [
+        766,
+        1053,
+        2502,
+        2502
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-42",
+      "pdfPage": 160,
+      "printedPage": 155,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        276,
+        622,
+        2844,
+        2716
+      ],
+      "focusRect": [
+        408,
+        690,
+        2580,
+        2580
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-43",
+      "pdfPage": 164,
+      "printedPage": 159,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        247,
+        612,
+        2942,
+        2765
+      ],
+      "focusRect": [
+        690,
+        1027,
+        2350,
+        2350
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-44",
+      "pdfPage": 168,
+      "printedPage": 163,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        247,
+        622,
+        2972,
+        2824
+      ],
+      "focusRect": [
+        462,
+        904,
+        2542,
+        2542
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-45",
+      "pdfPage": 172,
+      "printedPage": 167,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        326,
+        444,
+        2222,
+        4266
+      ],
+      "focusRect": [
+        326,
+        1551,
+        2222,
+        2222
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-4-46",
+      "pdfPage": 175,
+      "printedPage": 170,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        484,
+        3140,
+        2409
+      ],
+      "focusRect": [
+        218,
+        484,
+        2409,
+        2409
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-4-47",
+      "pdfPage": 184,
+      "printedPage": 179,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        563,
+        3110,
+        1441
+      ],
+      "focusRect": [
+        1170,
+        563,
+        1441,
+        1441
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-4-48",
+      "pdfPage": 205,
+      "printedPage": 200,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        520,
+        2580,
+        1420
+      ],
+      "focusRect": [
+        590,
+        520,
+        1420,
+        1420
+      ],
+      "previewPartial": true,
+      "note": "琉璃堂人物图起始两页为题签，取 PDF 205 上方人物画段。"
+    },
+    {
+      "id": "6-4-49",
+      "pdfPage": 216,
+      "printedPage": 211,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        622,
+        3110,
+        3308
+      ],
+      "focusRect": [
+        336,
+        721,
+        3110,
+        3110
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-4-50",
+      "pdfPage": 218,
+      "printedPage": 213,
+      "fileName": "宋画全集  第6卷  第4册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        444,
+        1836,
+        4276
+      ],
+      "focusRect": [
+        336,
+        1065,
+        1836,
+        1836
+      ],
+      "previewPartial": true,
+      "note": "十王图五幅选第一幅，未拼接其他图版。"
+    },
+    {
+      "id": "6-5-1",
+      "pdfPage": 6,
+      "printedPage": 2,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        504,
+        2640,
+        1599
+      ],
+      "focusRect": [
+        530,
+        504,
+        1599,
+        1599
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-5-2",
+      "pdfPage": 15,
+      "printedPage": 11,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        346,
+        612,
+        2784,
+        2864
+      ],
+      "focusRect": [
+        346,
+        652,
+        2784,
+        2784
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-5-3",
+      "pdfPage": 18,
+      "printedPage": 14,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        504,
+        3110,
+        1421
+      ],
+      "focusRect": [
+        1166,
+        504,
+        1421,
+        1421
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-5-4",
+      "pdfPage": 27,
+      "printedPage": 23,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        425,
+        2103,
+        4275
+      ],
+      "focusRect": [
+        336,
+        1938,
+        2103,
+        2103
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-5-5",
+      "pdfPage": 34,
+      "printedPage": 30,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        504,
+        2700,
+        1224
+      ],
+      "focusRect": [
+        262,
+        504,
+        1224,
+        1224
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-5-6",
+      "pdfPage": 53,
+      "printedPage": 49,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        553,
+        3110,
+        1422
+      ],
+      "focusRect": [
+        931,
+        553,
+        1422,
+        1422
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-5-7",
+      "pdfPage": 89,
+      "printedPage": 85,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        346,
+        553,
+        3100,
+        1422
+      ],
+      "focusRect": [
+        1495,
+        553,
+        1422,
+        1422
+      ],
+      "previewPartial": true,
+      "note": "林峦积翠图跳过题签，取 PDF 89 的绘画段。"
+    },
+    {
+      "id": "6-5-8",
+      "pdfPage": 109,
+      "printedPage": 105,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        410,
+        1360,
+        1940,
+        3130
+      ],
+      "focusRect": [
+        410,
+        1360,
+        1940,
+        1940
+      ],
+      "previewPartial": true,
+      "note": "写神老君别号事实图为人物与文字相间的组画，取 PDF 109 放大人物，去除周围题文。"
+    },
+    {
+      "id": "6-5-9",
+      "pdfPage": 126,
+      "printedPage": 122,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        158,
+        563,
+        3180,
+        2784
+      ],
+      "focusRect": [
+        420,
+        786,
+        2339,
+        2339
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-5-10",
+      "pdfPage": 127,
+      "printedPage": 123,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        247,
+        612,
+        2972,
+        2834
+      ],
+      "focusRect": [
+        430,
+        782,
+        2607,
+        2607
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-5-11",
+      "pdfPage": 129,
+      "printedPage": 125,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        494,
+        612,
+        2468,
+        2775
+      ],
+      "focusRect": [
+        618,
+        1166,
+        2221,
+        2221
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-5-12",
+      "pdfPage": 131,
+      "printedPage": 127,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        188,
+        612,
+        3071,
+        2933
+      ],
+      "focusRect": [
+        323,
+        1052,
+        2493,
+        2493
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-5-13",
+      "pdfPage": 135,
+      "printedPage": 131,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        560,
+        3110,
+        1425
+      ],
+      "focusRect": [
+        1023,
+        560,
+        1425,
+        1425
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-5-14",
+      "pdfPage": 156,
+      "printedPage": 152,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        1896,
+        3110,
+        1313
+      ],
+      "focusRect": [
+        286,
+        1896,
+        1313,
+        1313
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-5-15",
+      "pdfPage": 172,
+      "printedPage": 168,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        240,
+        504,
+        2490,
+        1441
+      ],
+      "focusRect": [
+        1014,
+        504,
+        1441,
+        1441
+      ],
+      "previewPartial": false,
+      "note": "五龙图完整绘画图版，去除两侧装裱与印刷图注。"
+    },
+    {
+      "id": "6-5-16",
+      "pdfPage": 177,
+      "printedPage": 173,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        553,
+        3110,
+        2222
+      ],
+      "focusRect": [
+        1091,
+        553,
+        2222,
+        2222
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-5-17",
+      "pdfPage": 185,
+      "printedPage": 181,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        434,
+        2221,
+        4266
+      ],
+      "focusRect": [
+        336,
+        1755,
+        2221,
+        2221
+      ],
+      "previewPartial": false,
+      "note": "完整单页绘画图版，去除纸张白边及印刷图注。"
+    },
+    {
+      "id": "6-5-18",
+      "pdfPage": 188,
+      "printedPage": 184,
+      "fileName": "宋画全集  第6卷  第5册.pdf",
+      "sourceWidth": 3456,
+      "sourceHeight": 5040,
+      "contextRect": [
+        10,
+        1995,
+        3120,
+        1402
+      ],
+      "focusRect": [
+        869,
+        1995,
+        1402,
+        1402
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段或组画一叶，未拼接其他图版。"
+    },
+    {
+      "id": "6-6-1",
+      "pdfPage": 7,
+      "printedPage": 3,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        327,
+        585,
+        2887,
+        3740
+      ],
+      "focusRect": [
+        746,
+        945,
+        1979,
+        1979
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页3完整王涣像；方形聚焦冠服与面容。"
+    },
+    {
+      "id": "6-6-2",
+      "pdfPage": 11,
+      "printedPage": 7,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        308,
+        585,
+        2876,
+        3710
+      ],
+      "focusRect": [
+        799,
+        938,
+        1944,
+        1944
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页7完整冯平像；方形聚焦冠服与面容。"
+    },
+    {
+      "id": "6-6-3",
+      "pdfPage": 15,
+      "printedPage": 11,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        942,
+        526,
+        2530,
+        1438
+      ],
+      "focusRect": [
+        1790,
+        530,
+        1420,
+        1420
+      ],
+      "previewPartial": true,
+      "note": "避开起页引首和左侧题跋，选书页11双陆人物段；保留扫描可见绘画，不拼接。"
+    },
+    {
+      "id": "6-6-4",
+      "pdfPage": 22,
+      "printedPage": 18,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        456,
+        3115,
+        1439
+      ],
+      "focusRect": [
+        781,
+        464,
+        1424,
+        1424
+      ],
+      "previewPartial": true,
+      "note": "上栏溪山秋霁长卷山水段；方形聚焦峰峦与溪谷。"
+    },
+    {
+      "id": "6-6-5",
+      "pdfPage": 37,
+      "printedPage": 33,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        298,
+        407,
+        1666,
+        4265
+      ],
+      "focusRect": [
+        302,
+        2458,
+        1632,
+        1632
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改取书页33完整人马图；方形聚焦人马与近岸。"
+    },
+    {
+      "id": "6-6-6",
+      "pdfPage": 39,
+      "printedPage": 35,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        179,
+        585,
+        3075,
+        2986
+      ],
+      "focusRect": [
+        824,
+        1136,
+        2430,
+        2430
+      ],
+      "previewPartial": false,
+      "note": "完整山水图叶；剔除白边图注，方形聚焦松林与峰峦。"
+    },
+    {
+      "id": "6-6-7",
+      "pdfPage": 40,
+      "printedPage": 36,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        288,
+        496,
+        2906,
+        2946
+      ],
+      "focusRect": [
+        434,
+        838,
+        2604,
+        2604
+      ],
+      "previewPartial": false,
+      "note": "完整溪畔归牧图叶；方形聚焦近岸树石与归牧人物。"
+    },
+    {
+      "id": "6-6-8",
+      "pdfPage": 41,
+      "printedPage": 37,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        218,
+        575,
+        3016,
+        2788
+      ],
+      "focusRect": [
+        920,
+        1106,
+        2257,
+        2257
+      ],
+      "previewPartial": false,
+      "note": "完整归牧图叶；方形聚焦牧童与水牛。"
+    },
+    {
+      "id": "6-6-9",
+      "pdfPage": 43,
+      "printedPage": 39,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        288,
+        446,
+        2509,
+        4276
+      ],
+      "focusRect": [
+        288,
+        2193,
+        2430,
+        2430
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页39完整洞庭秋月图；方形聚焦下部林木水岸，保留暗色扫描原貌。"
+    },
+    {
+      "id": "6-6-10",
+      "pdfPage": 47,
+      "printedPage": 43,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        238,
+        585,
+        2956,
+        2788
+      ],
+      "focusRect": [
+        729,
+        1141,
+        2083,
+        2083
+      ],
+      "previewPartial": false,
+      "note": "完整归渔图叶；方形聚焦渔舟与树岸，预览保留原图轮廓。"
+    },
+    {
+      "id": "6-6-11",
+      "pdfPage": 48,
+      "printedPage": 44,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        198,
+        516,
+        2996,
+        2738
+      ],
+      "focusRect": [
+        747,
+        1126,
+        2083,
+        2083
+      ],
+      "previewPartial": false,
+      "note": "完整饮茶图叶；方形聚焦仕女人物。"
+    },
+    {
+      "id": "6-6-12",
+      "pdfPage": 49,
+      "printedPage": 45,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        248,
+        585,
+        2956,
+        2738
+      ],
+      "focusRect": [
+        642,
+        1039,
+        2257,
+        2257
+      ],
+      "previewPartial": false,
+      "note": "完整浴婴图叶；方形聚焦浴婴与围坐人物。"
+    },
+    {
+      "id": "6-6-13",
+      "pdfPage": 50,
+      "printedPage": 46,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        466,
+        3174,
+        1429
+      ],
+      "focusRect": [
+        503,
+        471,
+        1424,
+        1424
+      ],
+      "previewPartial": true,
+      "note": "仅取上栏水仙绘画段，剔除下栏题跋及右侧装裱，方形聚焦水仙花叶。"
+    },
+    {
+      "id": "6-6-14",
+      "pdfPage": 57,
+      "printedPage": 53,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        330,
+        530,
+        3142,
+        1410
+      ],
+      "focusRect": [
+        1205,
+        530,
+        1410,
+        1410
+      ],
+      "previewPartial": true,
+      "note": "改取书页53密枝梅花段；剔除白边与图注，方形聚焦梅枝花朵。"
+    },
+    {
+      "id": "6-6-15",
+      "pdfPage": 65,
+      "printedPage": 61,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        330,
+        530,
+        3142,
+        1410
+      ],
+      "focusRect": [
+        1552,
+        530,
+        1410,
+        1410
+      ],
+      "previewPartial": true,
+      "note": "改选书页61上栏中山出游人物段；避开引首及下栏书法，方形聚焦出游人物。"
+    },
+    {
+      "id": "6-6-16",
+      "pdfPage": 79,
+      "printedPage": 75,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        317,
+        397,
+        2282,
+        4265
+      ],
+      "focusRect": [
+        330,
+        1865,
+        2222,
+        2222
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页75完整云起楼图；方形聚焦云山与近岸树林。"
+    },
+    {
+      "id": "6-6-17",
+      "pdfPage": 82,
+      "printedPage": 78,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        465,
+        3154,
+        1395
+      ],
+      "focusRect": [
+        1073,
+        465,
+        1395,
+        1395
+      ],
+      "previewPartial": true,
+      "note": "风雪松杉横卷绘画段；避开后页题跋，方形聚焦风雪中的松杉。"
+    },
+    {
+      "id": "6-6-18",
+      "pdfPage": 93,
+      "printedPage": 89,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        317,
+        397,
+        2828,
+        4265
+      ],
+      "focusRect": [
+        365,
+        1954,
+        2708,
+        2708
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页89完整松杉行旅图；方形聚焦近岸楼阁与行旅人物。"
+    },
+    {
+      "id": "6-6-19",
+      "pdfPage": 97,
+      "printedPage": 93,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        360,
+        530,
+        2190,
+        1410
+      ],
+      "focusRect": [
+        1083,
+        530,
+        1410,
+        1410
+      ],
+      "previewPartial": true,
+      "note": "起页为长卷末段淡墨背景，选书页93宫中人物段并剔除右端装裱；画迹褪色，保留原貌。"
+    },
+    {
+      "id": "6-6-20",
+      "pdfPage": 109,
+      "printedPage": 105,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        169,
+        585,
+        3075,
+        2907
+      ],
+      "focusRect": [
+        816,
+        1262,
+        2118,
+        2118
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页105完整寒塘图叶；方形聚焦寒塘树石。"
+    },
+    {
+      "id": "6-6-21",
+      "pdfPage": 111,
+      "printedPage": 107,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        218,
+        585,
+        3006,
+        2837
+      ],
+      "focusRect": [
+        660,
+        1106,
+        2153,
+        2153
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页107完整观梅图叶；方形聚焦梅树与人物。"
+    },
+    {
+      "id": "6-6-22",
+      "pdfPage": 112,
+      "printedPage": 108,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        149,
+        526,
+        3224,
+        2996
+      ],
+      "focusRect": [
+        833,
+        873,
+        2222,
+        2222
+      ],
+      "previewPartial": false,
+      "note": "完整枇杷雀图叶；方形聚焦雀鸟与枇杷枝叶。"
+    },
+    {
+      "id": "6-6-23",
+      "pdfPage": 113,
+      "printedPage": 109,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        208,
+        575,
+        3026,
+        2897
+      ],
+      "focusRect": [
+        561,
+        799,
+        2673,
+        2673
+      ],
+      "previewPartial": false,
+      "note": "完整山水图叶；方形聚焦近岸松树与远山。"
+    },
+    {
+      "id": "6-6-24",
+      "pdfPage": 115,
+      "printedPage": 111,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        278,
+        585,
+        2847,
+        2639
+      ],
+      "focusRect": [
+        989,
+        1213,
+        1910,
+        1910
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页111完整竹林仕女图叶；方形聚焦仕女与竹林。"
+    },
+    {
+      "id": "6-6-25",
+      "pdfPage": 117,
+      "printedPage": 113,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        298,
+        397,
+        1617,
+        4265
+      ],
+      "focusRect": [
+        330,
+        856,
+        1562,
+        1562
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页113完整山水图；方形聚焦峰峦与山间云气。"
+    },
+    {
+      "id": "6-6-26",
+      "pdfPage": 120,
+      "printedPage": 116,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        456,
+        3155,
+        1667
+      ],
+      "focusRect": [
+        1016,
+        465,
+        1649,
+        1649
+      ],
+      "previewPartial": true,
+      "note": "潇湘八景组选首段山林图景；剔除下方图注，方形聚焦树林与屋舍。"
+    },
+    {
+      "id": "6-6-27",
+      "pdfPage": 162,
+      "printedPage": 158,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        1975,
+        3065,
+        1405
+      ],
+      "focusRect": [
+        895,
+        1975,
+        1405,
+        1405
+      ],
+      "previewPartial": true,
+      "note": "取下栏落花游鱼长卷段，剔除上栏引首；方形聚焦游鱼与水草。"
+    },
+    {
+      "id": "6-6-28",
+      "pdfPage": 180,
+      "printedPage": 176,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        278,
+        516,
+        2956,
+        2559
+      ],
+      "focusRect": [
+        1007,
+        516,
+        2083,
+        2083
+      ],
+      "previewPartial": false,
+      "note": "完整高士观水图叶；方形聚焦临水屋舍中的高士。"
+    },
+    {
+      "id": "6-6-29",
+      "pdfPage": 183,
+      "printedPage": 179,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        99,
+        575,
+        3214,
+        3016
+      ],
+      "focusRect": [
+        278,
+        575,
+        2778,
+        2778
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页179完整鸷鸟图叶；方形保留飞鸟与坡岸。"
+    },
+    {
+      "id": "6-6-30",
+      "pdfPage": 184,
+      "printedPage": 180,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        357,
+        526,
+        2778,
+        2638
+      ],
+      "focusRect": [
+        868,
+        1121,
+        1805,
+        1805
+      ],
+      "previewPartial": false,
+      "note": "完整山水图叶；方形聚焦树木与坡岸。"
+    },
+    {
+      "id": "6-6-31",
+      "pdfPage": 185,
+      "printedPage": 181,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        268,
+        575,
+        2857,
+        2649
+      ],
+      "focusRect": [
+        695,
+        794,
+        2430,
+        2430
+      ],
+      "previewPartial": false,
+      "note": "完整牧犊图叶；方形聚焦牧犊人物与溪岸。"
+    },
+    {
+      "id": "6-6-32",
+      "pdfPage": 187,
+      "printedPage": 183,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        278,
+        407,
+        2777,
+        4255
+      ],
+      "focusRect": [
+        798,
+        511,
+        2153,
+        2153
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页183完整桃竹鹁鸽图；方形聚焦鹁鸽与桃竹枝干。"
+    },
+    {
+      "id": "6-6-33",
+      "pdfPage": 193,
+      "printedPage": 189,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        278,
+        575,
+        2886,
+        3492
+      ],
+      "focusRect": [
+        746,
+        821,
+        1979,
+        1979
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页189完整朱贯像；方形聚焦冠服与面容。"
+    },
+    {
+      "id": "6-6-34",
+      "pdfPage": 197,
+      "printedPage": 193,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        288,
+        585,
+        2886,
+        3661
+      ],
+      "focusRect": [
+        764,
+        930,
+        1979,
+        1979
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页193完整杜衍像；方形聚焦冠服与面容。"
+    },
+    {
+      "id": "6-6-35",
+      "pdfPage": 201,
+      "printedPage": 197,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        278,
+        585,
+        2877,
+        2768
+      ],
+      "focusRect": [
+        955,
+        920,
+        1979,
+        1979
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页197完整竹雀图叶；方形聚焦枝头双雀。"
+    },
+    {
+      "id": "6-6-36",
+      "pdfPage": 204,
+      "printedPage": 200,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        1934,
+        2635,
+        1389
+      ],
+      "focusRect": [
+        738,
+        1943,
+        1371,
+        1371
+      ],
+      "previewPartial": true,
+      "note": "取下栏陈风组卷人物绘画段；剔除上栏诗文及右侧诗文，方形聚焦庭院人物。"
+    },
+    {
+      "id": "6-6-37",
+      "pdfPage": 241,
+      "printedPage": 237,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        298,
+        397,
+        2122,
+        4265
+      ],
+      "focusRect": [
+        321,
+        2315,
+        2066,
+        2066
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页237完整山水舟游图；方形聚焦江中舟船。"
+    },
+    {
+      "id": "6-6-38",
+      "pdfPage": 242,
+      "printedPage": 238,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        1400,
+        1650,
+        1900
+      ],
+      "focusRect": [
+        7,
+        1535,
+        1632,
+        1632
+      ],
+      "previewPartial": true,
+      "note": "跨页銮舆渡水圆幅的单页人物段；选圆幅内部绘画区域，避开白角图注，不拼接，方形聚焦銮舆人物。"
+    },
+    {
+      "id": "6-6-39",
+      "pdfPage": 245,
+      "printedPage": 241,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        139,
+        585,
+        3075,
+        3016
+      ],
+      "focusRect": [
+        642,
+        1054,
+        2257,
+        2257
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅图注，改选书页241完整山水图叶；方形聚焦松树与山石。"
+    },
+    {
+      "id": "6-6-40",
+      "pdfPage": 247,
+      "printedPage": 243,
+      "fileName": "宋画全集  第6卷  第6册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        300,
+        545,
+        3172,
+        1340
+      ],
+      "focusRect": [
+        1205,
+        545,
+        1340,
+        1340
+      ],
+      "previewPartial": true,
+      "note": "选书页243宫中人物长卷段；避开前页右端题签，方形聚焦人物群像。"
+    }
+  ]
+}

@@ -11,9 +11,11 @@ import ArtworkEditor from "./ArtworkEditor";
 import ShareDialog from "./ShareDialog";
 import VolumeIndexEntry from "./VolumeIndexEntry";
 import MobileFilters from "./MobileFilters";
+import ArtworkThumbnail from "./ArtworkThumbnail";
 import "./song-paintings.css";
 import "./mobile.css";
 import "./stationery.css";
+import "./thumbnails.css";
 
 const sourceCatalog = rawCatalog as Catalog;
 const PAGE_SIZE = 50;
@@ -193,7 +195,7 @@ export function SongPaintingsPage({ mode }: { mode: CatalogMode }) {
                                     <td className="song-cell-check">{canEditReading ? <label className="song-checkbox"><input type="checkbox" checked={checked} disabled={saving} aria-label={`标记《${artwork.title}》为看过（第${artwork.volume}卷第${artwork.book}册）`} onChange={(event) => { void toggleRead(artwork.id, event.target.checked).catch(() => setMessage("更新失败，请重试。")); }} /><span aria-hidden="true"><Check size={14} strokeWidth={2.8} /></span><em className="song-mobile-label" aria-hidden="true">{checked ? "已读" : "未读"}</em></label> : <span className="song-readonly-check" data-checked={checked} role="img" aria-label={checked ? "看过" : "没看过"}><Check size={14} strokeWidth={2.8} /><em className="song-mobile-label" aria-hidden="true">{checked ? "已读" : "未读"}</em></span>}</td>
                                     <td className="song-cell-period" data-label="年代">{artwork.period || "—"}</td>
                                     <td className="song-cell-artist" data-label="作者">{artwork.artist || "—"}</td>
-                                    <td className="song-cell-title"><span className="song-artwork-name">{artwork.title}</span><div className="song-mobile-meta"><p>{artwork.collection || "馆藏未标注"}</p><p className="song-mobile-byline">{artwork.artist || "作者未标注"}<span>{artwork.period || "年代未标注"}</span></p><p>第 {artwork.volume} 卷 · 第 {artwork.book} 册</p></div></td>
+                                    <td className="song-cell-title"><div className="song-artwork-heading"><ArtworkThumbnail artwork={artwork} /><span className="song-artwork-name">{artwork.title}</span></div><div className="song-mobile-meta"><p>{artwork.collection || "馆藏未标注"}</p><p className="song-mobile-byline">{artwork.artist || "作者未标注"}<span>{artwork.period || "年代未标注"}</span></p><p>第 {artwork.volume} 卷 · 第 {artwork.book} 册</p></div></td>
                                     <td className="song-cell-collection" data-label="馆藏">{artwork.collection || "—"}</td>
                                     <td className="song-cell-volume" data-label="卷号">第 {artwork.volume} 卷</td>
                                     <td className="song-cell-book" data-label="册号">第 {artwork.book} 册</td>

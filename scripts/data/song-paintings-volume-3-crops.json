@@ -1,0 +1,864 @@
+{
+  "schemaVersion": 1,
+  "coordinateSystem": "Original embedded scan pixels: [x, y, width, height], top-left origin. PDF pages are 1-based.",
+  "items": [
+    {
+      "id": "3-1-1",
+      "pdfPage": 9,
+      "printedPage": 2,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        2036,
+        3217,
+        1396
+      ],
+      "focusRect": [
+        781,
+        2051,
+        1381,
+        1381
+      ],
+      "previewPartial": true,
+      "note": "下栏长卷山水段；方形聚焦山口与待渡水岸，剔除上栏引首。"
+    },
+    {
+      "id": "3-1-2",
+      "pdfPage": 31,
+      "printedPage": 24,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        596,
+        2036,
+        2624,
+        1391
+      ],
+      "focusRect": [
+        1582,
+        2048,
+        1377,
+        1377
+      ],
+      "previewPartial": true,
+      "note": "下栏神骏骑马段；剔除左端装裱，方形聚焦骑者与马匹。"
+    },
+    {
+      "id": "3-1-3",
+      "pdfPage": 43,
+      "printedPage": 36,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        524,
+        2008,
+        1447
+      ],
+      "focusRect": [
+        406,
+        530,
+        1430,
+        1430
+      ],
+      "previewPartial": true,
+      "note": "首栏茂林远岫绘画段；剔除右侧及下栏题跋，方形聚焦山间林木。"
+    },
+    {
+      "id": "3-1-4",
+      "pdfPage": 60,
+      "printedPage": 53,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        368,
+        585,
+        2603,
+        1396
+      ],
+      "focusRect": [
+        836,
+        597,
+        1377,
+        1377
+      ],
+      "previewPartial": true,
+      "note": "起页为引首，改取书页53小寒林绘画段；剔除右端装裱，方形聚焦寒林。"
+    },
+    {
+      "id": "3-1-5",
+      "pdfPage": 68,
+      "printedPage": 61,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        284,
+        640,
+        2950,
+        2812
+      ],
+      "focusRect": [
+        631,
+        859,
+        2593,
+        2593
+      ],
+      "previewPartial": false,
+      "note": "完整沙汀烟树图叶；方形保留水岸、烟树与洲渚。"
+    },
+    {
+      "id": "3-1-6",
+      "pdfPage": 71,
+      "printedPage": 64,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        1006,
+        514,
+        2221,
+        1502
+      ],
+      "focusRect": [
+        1363,
+        520,
+        1479,
+        1479
+      ],
+      "previewPartial": false,
+      "note": "瑞鹤图绘画主体；剔除左侧书法，方形保留鹤群与殿宇。"
+    },
+    {
+      "id": "3-1-7",
+      "pdfPage": 83,
+      "printedPage": 76,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        28,
+        509,
+        2884,
+        1401
+      ],
+      "focusRect": [
+        1033,
+        529,
+        1381,
+        1381
+      ],
+      "previewPartial": true,
+      "note": "长卷游春骑马段；避开右端装裱，方形聚焦女骑者与马匹。"
+    },
+    {
+      "id": "3-1-8",
+      "pdfPage": 93,
+      "printedPage": 86,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        2016,
+        3192,
+        1381
+      ],
+      "focusRect": [
+        1687,
+        2018,
+        1377,
+        1377
+      ],
+      "previewPartial": true,
+      "note": "下栏白莲社人物段；剔除上栏装裱空白，方形聚焦文士。"
+    },
+    {
+      "id": "3-1-9",
+      "pdfPage": 141,
+      "printedPage": 134,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        2046,
+        3196,
+        1391
+      ],
+      "focusRect": [
+        1610,
+        2062,
+        1370,
+        1370
+      ],
+      "previewPartial": true,
+      "note": "下栏洛神赋长卷人物段，剔除上栏题跋；方形取人物群像。"
+    },
+    {
+      "id": "3-1-10",
+      "pdfPage": 177,
+      "printedPage": 170,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        1086,
+        1890,
+        2106,
+        1240
+      ],
+      "focusRect": [
+        1591,
+        1910,
+        1219,
+        1219
+      ],
+      "previewPartial": true,
+      "note": "下栏寒鸦雪岸段；避开引首与左侧题跋，方形聚焦水禽与寒林。"
+    },
+    {
+      "id": "3-1-11",
+      "pdfPage": 187,
+      "printedPage": 180,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        524,
+        2509,
+        1497
+      ],
+      "focusRect": [
+        802,
+        536,
+        1479,
+        1479
+      ],
+      "previewPartial": true,
+      "note": "上栏萧翼人物绘画段，剔除右侧装裱与下栏题跋；方形聚焦对坐人物。"
+    },
+    {
+      "id": "3-1-12",
+      "pdfPage": 197,
+      "printedPage": 190,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        524,
+        1938,
+        1401
+      ],
+      "focusRect": [
+        377,
+        541,
+        1377,
+        1377
+      ],
+      "previewPartial": true,
+      "note": "九歌组卷取上栏神仙人物段；剔除装裱与下栏诗文。"
+    },
+    {
+      "id": "3-1-13",
+      "pdfPage": 242,
+      "printedPage": 235,
+      "fileName": "宋画全集  第3卷  第1册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        368,
+        2167,
+        3132,
+        1452
+      ],
+      "focusRect": [
+        511,
+        2178,
+        1430,
+        1430
+      ],
+      "previewPartial": true,
+      "note": "改取书页235下栏园林人物段；方形聚焦文士与树石，不拼接两卷各段。"
+    },
+    {
+      "id": "3-2-14",
+      "pdfPage": 10,
+      "printedPage": 3,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        371,
+        2087,
+        3129,
+        1411
+      ],
+      "focusRect": [
+        1230,
+        2095,
+        1395,
+        1395
+      ],
+      "previewPartial": true,
+      "note": "改取书页3下栏击球人物段，避开首幅引首及大片鉴藏印；方形聚焦骑马人物。"
+    },
+    {
+      "id": "3-2-15",
+      "pdfPage": 23,
+      "printedPage": 16,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        2107,
+        3185,
+        1219
+      ],
+      "focusRect": [
+        1360,
+        2109,
+        1205,
+        1205
+      ],
+      "previewPartial": true,
+      "note": "下栏女孝经组卷人物庭院段，剔除上栏引首；方形聚焦人物与厅堂。"
+    },
+    {
+      "id": "3-2-16",
+      "pdfPage": 49,
+      "printedPage": 42,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        2117,
+        3182,
+        1214
+      ],
+      "focusRect": [
+        1151,
+        2126,
+        1202,
+        1202
+      ],
+      "previewPartial": true,
+      "note": "下栏卤簿仪仗段；避开上栏引首，方形聚焦队列。"
+    },
+    {
+      "id": "3-2-17",
+      "pdfPage": 64,
+      "printedPage": 57,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        105,
+        635,
+        3245,
+        3135
+      ],
+      "focusRect": [
+        946,
+        1242,
+        2102,
+        2102
+      ],
+      "previewPartial": false,
+      "note": "目录起页只有图注，改用书页57完整图叶；方形聚焦秋树与山石。"
+    },
+    {
+      "id": "3-2-18",
+      "pdfPage": 66,
+      "printedPage": 59,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        431,
+        635,
+        2653,
+        3412
+      ],
+      "focusRect": [
+        1052,
+        1595,
+        2032,
+        2032
+      ],
+      "previewPartial": false,
+      "note": "目录起页只有图注，改用书页59完整图叶；方形聚焦秋树和人物。"
+    },
+    {
+      "id": "3-2-19",
+      "pdfPage": 67,
+      "printedPage": 60,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        806,
+        2026,
+        2383,
+        1366
+      ],
+      "focusRect": [
+        1240,
+        2033,
+        1346,
+        1346
+      ],
+      "previewPartial": true,
+      "note": "下栏唐风组卷人物庭院段，避开引首及左侧诗文；方形聚焦楼堂与人物。"
+    },
+    {
+      "id": "3-2-20",
+      "pdfPage": 107,
+      "printedPage": 100,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        778,
+        2026,
+        2404,
+        1376
+      ],
+      "focusRect": [
+        1321,
+        2035,
+        1353,
+        1353
+      ],
+      "previewPartial": true,
+      "note": "下栏陈风组卷场景；剔除左侧诗文，方形聚焦庭院人物。"
+    },
+    {
+      "id": "3-2-21",
+      "pdfPage": 141,
+      "printedPage": 134,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        985,
+        2031,
+        2197,
+        1376
+      ],
+      "focusRect": [
+        1387,
+        2042,
+        1360,
+        1360
+      ],
+      "previewPartial": true,
+      "note": "下栏清庙组卷殿堂人物段；剔除左侧诗文与上栏题跋。"
+    },
+    {
+      "id": "3-2-22",
+      "pdfPage": 169,
+      "printedPage": 162,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        2046,
+        2092,
+        1391
+      ],
+      "focusRect": [
+        415,
+        2053,
+        1377,
+        1377
+      ],
+      "previewPartial": true,
+      "note": "下栏鲁颂组卷绘画段；剔除右侧诗文与上栏题跋，方形聚焦人物庭院。"
+    },
+    {
+      "id": "3-2-23",
+      "pdfPage": 186,
+      "printedPage": 179,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        207,
+        645,
+        3083,
+        2954
+      ],
+      "focusRect": [
+        719,
+        1258,
+        2172,
+        2172
+      ],
+      "previewPartial": false,
+      "note": "完整薇省黄昏图叶；方形聚焦花木与楼阁。"
+    },
+    {
+      "id": "3-2-24",
+      "pdfPage": 189,
+      "printedPage": 182,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        2051,
+        3182,
+        1411
+      ],
+      "focusRect": [
+        1125,
+        2059,
+        1395,
+        1395
+      ],
+      "previewPartial": true,
+      "note": "下栏雪中梅竹长卷段；剔除上栏题跋，方形聚焦覆雪枝条。"
+    },
+    {
+      "id": "3-2-25",
+      "pdfPage": 208,
+      "printedPage": 201,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        203,
+        655,
+        3087,
+        3004
+      ],
+      "focusRect": [
+        613,
+        1290,
+        2137,
+        2137
+      ],
+      "previewPartial": false,
+      "note": "完整秋窗读易图叶；方形聚焦屋舍与秋树。"
+    },
+    {
+      "id": "3-2-26",
+      "pdfPage": 210,
+      "printedPage": 203,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        357,
+        469,
+        1858,
+        4238
+      ],
+      "focusRect": [
+        410,
+        2433,
+        1787,
+        1787
+      ],
+      "previewPartial": false,
+      "note": "完整松寿图画心；剔除扫描页白边与图注，方形聚焦苍松。"
+    },
+    {
+      "id": "3-2-27",
+      "pdfPage": 215,
+      "printedPage": 208,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        514,
+        3147,
+        1310
+      ],
+      "focusRect": [
+        894,
+        514,
+        1296,
+        1296
+      ],
+      "previewPartial": true,
+      "note": "上栏荷香清夏长卷段；方形聚焦水岸荷塘和树木。"
+    },
+    {
+      "id": "3-2-28",
+      "pdfPage": 233,
+      "printedPage": 226,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        249,
+        585,
+        3073,
+        2857
+      ],
+      "focusRect": [
+        543,
+        1466,
+        1857,
+        1857
+      ],
+      "previewPartial": false,
+      "note": "完整玉楼春思图叶；方形聚焦水边楼阁。"
+    },
+    {
+      "id": "3-2-29",
+      "pdfPage": 234,
+      "printedPage": 227,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        312,
+        655,
+        2901,
+        2833
+      ],
+      "focusRect": [
+        578,
+        1491,
+        1857,
+        1857
+      ],
+      "previewPartial": false,
+      "note": "完整江亭晚眺图叶；方形聚焦近岸树木和亭台。"
+    },
+    {
+      "id": "3-2-30",
+      "pdfPage": 235,
+      "printedPage": 228,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        151,
+        595,
+        3181,
+        2978
+      ],
+      "focusRect": [
+        887,
+        1298,
+        2172,
+        2172
+      ],
+      "previewPartial": false,
+      "note": "完整仙山楼阁图叶；方形聚焦青绿山石与楼阁。"
+    },
+    {
+      "id": "3-2-31",
+      "pdfPage": 236,
+      "printedPage": 229,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        329,
+        665,
+        2891,
+        2853
+      ],
+      "focusRect": [
+        911,
+        1895,
+        1402,
+        1402
+      ],
+      "previewPartial": false,
+      "note": "完整犬戏图叶；方形聚焦犬与花树。"
+    },
+    {
+      "id": "3-2-32",
+      "pdfPage": 239,
+      "printedPage": 232,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        266,
+        605,
+        2968,
+        2822
+      ],
+      "focusRect": [
+        1016,
+        1252,
+        2102,
+        2102
+      ],
+      "previewPartial": false,
+      "note": "完整溪山行旅图叶；方形保留山石与近岸旅人。"
+    },
+    {
+      "id": "3-2-33",
+      "pdfPage": 240,
+      "printedPage": 233,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        221,
+        665,
+        3031,
+        2803
+      ],
+      "focusRect": [
+        1559,
+        1631,
+        1647,
+        1647
+      ],
+      "previewPartial": false,
+      "note": "完整江亭揽胜图叶；方形聚焦松岸亭台。"
+    },
+    {
+      "id": "3-2-34",
+      "pdfPage": 241,
+      "printedPage": 234,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        221,
+        585,
+        3090,
+        2958
+      ],
+      "focusRect": [
+        564,
+        1418,
+        2032,
+        2032
+      ],
+      "previewPartial": false,
+      "note": "完整松湖钓隐图叶；方形聚焦孤峰和松树。"
+    },
+    {
+      "id": "3-2-35",
+      "pdfPage": 242,
+      "printedPage": 235,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        179,
+        655,
+        3122,
+        2908
+      ],
+      "focusRect": [
+        684,
+        1232,
+        2172,
+        2172
+      ],
+      "previewPartial": false,
+      "note": "完整峻岭溪桥图叶；方形聚焦重山溪桥。"
+    },
+    {
+      "id": "3-2-36",
+      "pdfPage": 243,
+      "printedPage": 236,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        904,
+        2152,
+        1959,
+        1336
+      ],
+      "focusRect": [
+        1268,
+        2158,
+        1318,
+        1318
+      ],
+      "previewPartial": false,
+      "note": "下栏完整燃灯佛绘画主体；剔除装裱与印刷图注，方形聚焦佛像群体。"
+    },
+    {
+      "id": "3-2-37",
+      "pdfPage": 252,
+      "printedPage": 245,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        343,
+        474,
+        2215,
+        4223
+      ],
+      "focusRect": [
+        412,
+        2150,
+        2120,
+        2120
+      ],
+      "previewPartial": false,
+      "note": "起页仅有图注，改取书页245完整立轴；方形聚焦山中楼阁与人物。"
+    },
+    {
+      "id": "3-2-38",
+      "pdfPage": 258,
+      "printedPage": 251,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        343,
+        474,
+        2096,
+        4228
+      ],
+      "focusRect": [
+        386,
+        2555,
+        1997,
+        1997
+      ],
+      "previewPartial": false,
+      "note": "起页仅有图注，改取书页251完整图版；方形聚焦双兔及花草。"
+    },
+    {
+      "id": "3-2-39",
+      "pdfPage": 263,
+      "printedPage": 256,
+      "fileName": "宋画全集  第3卷  第2册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        524,
+        3192,
+        1452
+      ],
+      "focusRect": [
+        1296,
+        531,
+        1437,
+        1437
+      ],
+      "previewPartial": true,
+      "note": "上栏二骏长卷段；剔除下栏题跋，方形聚焦骑者和奔马。"
+    }
+  ]
+}

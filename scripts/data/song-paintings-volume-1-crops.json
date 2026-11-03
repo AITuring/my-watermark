@@ -1,0 +1,5594 @@
+{
+  "schemaVersion": 1,
+  "coordinateSystem": "Original embedded scan pixels: [x, y, width, height], top-left origin. PDF pages are 1-based.",
+  "items": [
+    {
+      "id": "1-1-1",
+      "pdfPage": 9,
+      "printedPage": 2,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        508,
+        3095,
+        2672
+      ],
+      "focusRect": [
+        420,
+        620,
+        1700,
+        1700
+      ],
+      "previewPartial": true,
+      "note": "书页2（PDF第9页）；跨页图版的右半幅，保留该页鸟虫龟与右端鉴藏印；方形取大鸟与虫禽局部，未拼接对页。"
+    },
+    {
+      "id": "1-1-2",
+      "pdfPage": 17,
+      "printedPage": 10,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        508,
+        3145,
+        3247
+      ],
+      "focusRect": [
+        0,
+        760,
+        2380,
+        2380
+      ],
+      "previewPartial": true,
+      "note": "书页10（PDF第17页）；跨页图版右半幅，松下两位文士与侍者；方形聚焦两位文士，未拼接对页。"
+    },
+    {
+      "id": "1-1-3",
+      "pdfPage": 21,
+      "printedPage": 14,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        342,
+        510,
+        2784,
+        1515
+      ],
+      "focusRect": [
+        1100,
+        720,
+        1300,
+        1300
+      ],
+      "previewPartial": false,
+      "note": "书页14（PDF第21页）上栏为完整绘画主体；剔除左端装裱、下栏题跋及印刷说明；方形聚焦棋局与人物。"
+    },
+    {
+      "id": "1-1-4",
+      "pdfPage": 29,
+      "printedPage": 22,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        2090,
+        3135,
+        1475
+      ],
+      "focusRect": [
+        1050,
+        2090,
+        1475,
+        1475
+      ],
+      "previewPartial": true,
+      "note": "书页22（PDF第29页）下栏山水为长卷的一段；剔除上栏书法题跋及印刷说明；方形取山峦、水岸与舟船，未拼接其他卷段。"
+    },
+    {
+      "id": "1-1-5",
+      "pdfPage": 42,
+      "printedPage": 35,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3476,
+      "sourceHeight": 5010,
+      "contextRect": [
+        355,
+        755,
+        1102,
+        2833
+      ],
+      "focusRect": [
+        355,
+        2170,
+        1102,
+        1102
+      ],
+      "previewPartial": false,
+      "note": "书页35（PDF第42页）可见完整立轴绘画主体；剔除上、下装裱题跋，保留画内题字；方形取楼阁高士与山石树木。"
+    },
+    {
+      "id": "1-1-6",
+      "pdfPage": 49,
+      "printedPage": 42,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        2015,
+        3155,
+        1407
+      ],
+      "focusRect": [
+        1080,
+        2015,
+        1400,
+        1400
+      ],
+      "previewPartial": true,
+      "note": "书页42（PDF第49页）下栏为夜宴长卷的听乐一段；剔除上栏引首书法与印刷说明；方形聚焦榻上宾主及侍女，未拼接其他卷段。"
+    },
+    {
+      "id": "1-1-7",
+      "pdfPage": 75,
+      "printedPage": 68,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        521,
+        2410,
+        1392
+      ],
+      "focusRect": [
+        833,
+        524,
+        1389,
+        1389
+      ],
+      "previewPartial": true,
+      "note": "长卷首栏的女仙山水段；取人物与山石，剔除右侧装裱及下栏题跋。"
+    },
+    {
+      "id": "1-1-8",
+      "pdfPage": 85,
+      "printedPage": 78,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        944,
+        2023,
+        2195,
+        1387
+      ],
+      "focusRect": [
+        1305,
+        2023,
+        1382,
+        1382
+      ],
+      "previewPartial": true,
+      "note": "下栏山水绘画段，避开引首与左侧书法；焦点取山间屋舍。"
+    },
+    {
+      "id": "1-1-9",
+      "pdfPage": 97,
+      "printedPage": 90,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        521,
+        2344,
+        1392
+      ],
+      "focusRect": [
+        590,
+        524,
+        1389,
+        1389
+      ],
+      "previewPartial": true,
+      "note": "首栏春山绘画段，剔除右端装裱鉴藏印与下栏题跋。"
+    },
+    {
+      "id": "1-1-10",
+      "pdfPage": 110,
+      "printedPage": 103,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3476,
+      "sourceHeight": 5010,
+      "contextRect": [
+        0,
+        606,
+        3473,
+        3272
+      ],
+      "focusRect": [
+        2016,
+        1617,
+        1425,
+        1425
+      ],
+      "previewPartial": true,
+      "note": "改取书页103的蝴蝶与草叶放大图版；主图起页含较多题跋，缩略图聚焦右侧彩蝶。"
+    },
+    {
+      "id": "1-1-11",
+      "pdfPage": 115,
+      "printedPage": 108,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        521,
+        2823,
+        1412
+      ],
+      "focusRect": [
+        1298,
+        537,
+        1396,
+        1396
+      ],
+      "previewPartial": true,
+      "note": "首栏纺车人物段；剔除下栏书法，焦点取妇人、纺车与童子。"
+    },
+    {
+      "id": "1-1-12",
+      "pdfPage": 123,
+      "printedPage": 116,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        354,
+        1933,
+        2812,
+        1292
+      ],
+      "focusRect": [
+        1059,
+        1937,
+        1285,
+        1285
+      ],
+      "previewPartial": true,
+      "note": "下栏寒雀枝条绘画段，剔除上栏引首，焦点取群雀。"
+    },
+    {
+      "id": "1-1-13",
+      "pdfPage": 131,
+      "printedPage": 124,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        386,
+        2493,
+        4131
+      ],
+      "focusRect": [
+        35,
+        2156,
+        2361,
+        2361
+      ],
+      "previewPartial": true,
+      "note": "跨页展开图版中的一页；保留窠石平远山水段，方形聚焦下部树石。"
+    },
+    {
+      "id": "1-1-14",
+      "pdfPage": 137,
+      "printedPage": 130,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        521,
+        2580,
+        1397
+      ],
+      "focusRect": [
+        489,
+        531,
+        1382,
+        1382
+      ],
+      "previewPartial": true,
+      "note": "上栏渔村雪景段，避开右侧题跋与下栏书法。"
+    },
+    {
+      "id": "1-1-15",
+      "pdfPage": 153,
+      "printedPage": 146,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        521,
+        2545,
+        1888
+      ],
+      "focusRect": [
+        382,
+        569,
+        1840,
+        1840
+      ],
+      "previewPartial": true,
+      "note": "画卷山水牧放段，剔除右侧装裱题签；方形取近景牧放与水岸。"
+    },
+    {
+      "id": "1-1-16",
+      "pdfPage": 163,
+      "printedPage": 156,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        2028,
+        3139,
+        1382
+      ],
+      "focusRect": [
+        1273,
+        2032,
+        1378,
+        1378
+      ],
+      "previewPartial": true,
+      "note": "下栏牧马长卷段；聚焦马群，剔除上栏装裱。"
+    },
+    {
+      "id": "1-1-17",
+      "pdfPage": 189,
+      "printedPage": 182,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        2028,
+        3139,
+        1377
+      ],
+      "focusRect": [
+        926,
+        2028,
+        1377,
+        1377
+      ],
+      "previewPartial": true,
+      "note": "下栏西岳神仙仪仗绘画段，剔除上栏空白装裱；聚焦群像。"
+    },
+    {
+      "id": "1-1-18",
+      "pdfPage": 217,
+      "printedPage": 210,
+      "fileName": "宋画全集  第1卷  第1册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        2028,
+        3139,
+        1382
+      ],
+      "focusRect": [
+        1099,
+        2032,
+        1378,
+        1378
+      ],
+      "previewPartial": true,
+      "note": "下栏维摩说法人物段；聚焦主尊与侍者，不拼接长卷。"
+    },
+    {
+      "id": "1-2-19",
+      "pdfPage": 9,
+      "printedPage": 2,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        511,
+        2930,
+        1397
+      ],
+      "focusRect": [
+        1232,
+        512,
+        1389,
+        1389
+      ],
+      "previewPartial": true,
+      "note": "上栏水岸群鸟与松树绘画段，剔除右端装裱；方形聚焦松树水禽。"
+    },
+    {
+      "id": "1-2-20",
+      "pdfPage": 21,
+      "printedPage": 14,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        511,
+        2628,
+        1267
+      ],
+      "focusRect": [
+        972,
+        517,
+        1250,
+        1250
+      ],
+      "previewPartial": true,
+      "note": "上栏芦汀雪景绘画段，剔除右侧装裱题跋；方形聚焦雪岸人物。"
+    },
+    {
+      "id": "1-2-21",
+      "pdfPage": 35,
+      "printedPage": 28,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        1995,
+        3145,
+        1390
+      ],
+      "focusRect": [
+        1725,
+        1998,
+        1380,
+        1380
+      ],
+      "previewPartial": true,
+      "note": "取书页28下方虹桥分段图版；原图为长卷，此页仅局部，不拼接上下段。"
+    },
+    {
+      "id": "1-2-22",
+      "pdfPage": 75,
+      "printedPage": 68,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        110,
+        3142,
+        4753
+      ],
+      "focusRect": [
+        17,
+        1325,
+        2257,
+        2257
+      ],
+      "previewPartial": true,
+      "note": "起页为龙纹引首，改取书页68的祥龙石放大图版；焦点为奇石孔洞。"
+    },
+    {
+      "id": "1-2-23",
+      "pdfPage": 81,
+      "printedPage": 74,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        2023,
+        3156,
+        1387
+      ],
+      "focusRect": [
+        1184,
+        2028,
+        1382,
+        1382
+      ],
+      "previewPartial": true,
+      "note": "下栏雪江归棹长卷段；避开上栏引首，方形取水岸舟桥。"
+    },
+    {
+      "id": "1-2-24",
+      "pdfPage": 94,
+      "printedPage": 87,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        333,
+        420,
+        2828,
+        4255
+      ],
+      "focusRect": [
+        350,
+        1500,
+        2800,
+        2800
+      ],
+      "previewPartial": false,
+      "note": "书页86为题签，完整作品图版在书页87；方形缩略突出锦鸡主体及芙蓉。"
+    },
+    {
+      "id": "1-2-25",
+      "pdfPage": 98,
+      "printedPage": 91,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        345,
+        417,
+        1505,
+        4257
+      ],
+      "focusRect": [
+        350,
+        2780,
+        1490,
+        1490
+      ],
+      "previewPartial": false,
+      "note": "完整竖幅图版；方形缩略取下部弹琴及听琴人物，预览保留全幅。"
+    },
+    {
+      "id": "1-2-26",
+      "pdfPage": 103,
+      "printedPage": 96,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        286,
+        560,
+        2928,
+        2673
+      ],
+      "focusRect": [
+        290,
+        1260,
+        1770,
+        1770
+      ],
+      "previewPartial": false,
+      "note": "完整团扇式册页，预览保留原有弧形轮廓；方形缩略取左下山鸟与枇杷主体。"
+    },
+    {
+      "id": "1-2-27",
+      "pdfPage": 104,
+      "printedPage": 97,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        250,
+        590,
+        2960,
+        2908
+      ],
+      "focusRect": [
+        275,
+        600,
+        2890,
+        2890
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；近方形缩略保留绣眼、梅枝与原款印。"
+    },
+    {
+      "id": "1-2-28",
+      "pdfPage": 107,
+      "printedPage": 100,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        505,
+        3148,
+        1419
+      ],
+      "focusRect": [
+        1900,
+        830,
+        1080,
+        1080
+      ],
+      "previewPartial": true,
+      "note": "取书页100上方青绿群山分段图版；原图为长卷，此页仅局部，不拼接上下段。"
+    },
+    {
+      "id": "1-2-29",
+      "pdfPage": 149,
+      "printedPage": 142,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        511,
+        3139,
+        1397
+      ],
+      "focusRect": [
+        1163,
+        519,
+        1389,
+        1389
+      ],
+      "previewPartial": true,
+      "note": "首栏醉归人物段，剔除下栏题跋；方形聚焦人物行列。"
+    },
+    {
+      "id": "1-2-30",
+      "pdfPage": 155,
+      "printedPage": 148,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        511,
+        3142,
+        1397
+      ],
+      "focusRect": [
+        764,
+        519,
+        1389,
+        1389
+      ],
+      "previewPartial": true,
+      "note": "上栏长夏江寺山水段，方形聚焦树林楼阁，保留画内题诗。"
+    },
+    {
+      "id": "1-2-31",
+      "pdfPage": 171,
+      "printedPage": 164,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        2078,
+        3146,
+        1438
+      ],
+      "focusRect": [
+        920,
+        2092,
+        1424,
+        1424
+      ],
+      "previewPartial": true,
+      "note": "下栏采薇人物绘画段，剔除上栏引首；聚焦树下二人。"
+    },
+    {
+      "id": "1-2-32",
+      "pdfPage": 185,
+      "printedPage": 178,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        2028,
+        3153,
+        1382
+      ],
+      "focusRect": [
+        1045,
+        2028,
+        1382,
+        1382
+      ],
+      "previewPartial": true,
+      "note": "下栏云山绘画段，剔除上栏装裱；方形取林木山峦。"
+    },
+    {
+      "id": "1-2-33",
+      "pdfPage": 197,
+      "printedPage": 190,
+      "fileName": "宋画全集  第1卷  第2册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 5008,
+      "contextRect": [
+        0,
+        2168,
+        3139,
+        1197
+      ],
+      "focusRect": [
+        344,
+        2168,
+        1187,
+        1187
+      ],
+      "previewPartial": true,
+      "note": "下栏潇湘山水长卷段，剔除白边装裱；取云山烟水。"
+    },
+    {
+      "id": "1-3-34",
+      "pdfPage": 9,
+      "printedPage": 2,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        2108,
+        3166,
+        1508
+      ],
+      "focusRect": [
+        990,
+        2115,
+        1493,
+        1493
+      ],
+      "previewPartial": true,
+      "note": "四梅组画取下栏一段梅枝；剔除白边与图注，方形聚焦梅花枝干。"
+    },
+    {
+      "id": "1-3-35",
+      "pdfPage": 34,
+      "printedPage": 27,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        600,
+        3469,
+        3184
+      ],
+      "focusRect": [
+        799,
+        600,
+        2083,
+        2083
+      ],
+      "previewPartial": true,
+      "note": "改取书页27的雪梅竹枝放大图版，避开引首与题诗；方形聚焦白梅花与覆雪竹枝。"
+    },
+    {
+      "id": "1-3-36",
+      "pdfPage": 37,
+      "printedPage": 30,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        357,
+        1458,
+        4231
+      ],
+      "focusRect": [
+        28,
+        3157,
+        1424,
+        1424
+      ],
+      "previewPartial": true,
+      "note": "原作横210厘米，此页仅跨页图版的一条竖幅；方形聚焦下方雉鸡与树石，保留原扫描色调。"
+    },
+    {
+      "id": "1-3-37",
+      "pdfPage": 45,
+      "printedPage": 38,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        163,
+        531,
+        3201,
+        3100
+      ],
+      "focusRect": [
+        469,
+        853,
+        2778,
+        2778
+      ],
+      "previewPartial": false,
+      "note": "完整猎犬图叶；方形聚焦犬身，剔除页边和图注。"
+    },
+    {
+      "id": "1-3-38",
+      "pdfPage": 46,
+      "printedPage": 39,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        271,
+        605,
+        2916,
+        2773
+      ],
+      "focusRect": [
+        549,
+        774,
+        2604,
+        2604
+      ],
+      "previewPartial": false,
+      "note": "完整鸡雏图叶；方形聚焦双雏，剔除图注。"
+    },
+    {
+      "id": "1-3-39",
+      "pdfPage": 48,
+      "printedPage": 41,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        437,
+        605,
+        2573,
+        2847
+      ],
+      "focusRect": [
+        1007,
+        1245,
+        1875,
+        1875
+      ],
+      "previewPartial": false,
+      "note": "完整苏武牧羊图叶；保留圆角画心，方形聚焦苏武与羊。"
+    },
+    {
+      "id": "1-3-40",
+      "pdfPage": 49,
+      "printedPage": 42,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        1111,
+        1969,
+        2076,
+        1369
+      ],
+      "focusRect": [
+        1469,
+        1970,
+        1368,
+        1368
+      ],
+      "previewPartial": true,
+      "note": "下栏后赤壁长卷山石绘画段，避开左侧题跋；方形聚焦树石与行舟人物。"
+    },
+    {
+      "id": "1-3-41",
+      "pdfPage": 59,
+      "printedPage": 52,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        816,
+        2004,
+        2278,
+        1379
+      ],
+      "focusRect": [
+        1185,
+        2004,
+        1379,
+        1379
+      ],
+      "previewPartial": true,
+      "note": "下栏鹿鸣篇宫廷场景；剔除左侧诗文与上栏引首，组卷仅取一景。"
+    },
+    {
+      "id": "1-3-42",
+      "pdfPage": 101,
+      "printedPage": 94,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        347,
+        2044,
+        2840,
+        1329
+      ],
+      "focusRect": [
+        1106,
+        2044,
+        1329,
+        1329
+      ],
+      "previewPartial": true,
+      "note": "下栏闵予小子组卷场景；保留人物与树木，避开左侧诗文及上栏引首。"
+    },
+    {
+      "id": "1-3-43",
+      "pdfPage": 131,
+      "printedPage": 124,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        1840,
+        1649,
+        1235
+      ],
+      "focusRect": [
+        226,
+        1858,
+        1215,
+        1215
+      ],
+      "previewPartial": true,
+      "note": "下栏节南山组卷的山石绘画段；避开右侧大片诗文与上栏引首。"
+    },
+    {
+      "id": "1-3-44",
+      "pdfPage": 170,
+      "printedPage": 163,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        378,
+        2088,
+        2702,
+        1349
+      ],
+      "focusRect": [
+        1085,
+        2094,
+        1337,
+        1337
+      ],
+      "previewPartial": true,
+      "note": "起页是引首题跋，改取书页163下栏豳风山水人物段，避开两侧诗文。"
+    },
+    {
+      "id": "1-3-45",
+      "pdfPage": 204,
+      "printedPage": 197,
+      "fileName": "宋画全集  第1卷  第3册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        330,
+        1473,
+        1236,
+        769
+      ],
+      "focusRect": [
+        568,
+        1475,
+        767,
+        767
+      ],
+      "previewPartial": true,
+      "note": "起页无绘画图版，改取书页197四叶中的左上画叶；仅保留建筑人物绘画部分，剔除上方诗文。"
+    },
+    {
+      "id": "1-4-46",
+      "pdfPage": 10,
+      "printedPage": 2,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        2004,
+        3142,
+        1369
+      ],
+      "focusRect": [
+        1021,
+        2008,
+        1361,
+        1361
+      ],
+      "previewPartial": true,
+      "note": "下栏江山万里长卷山水段，避开上栏引首；聚焦峰峦屋舍。"
+    },
+    {
+      "id": "1-4-47",
+      "pdfPage": 52,
+      "printedPage": 44,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        2108,
+        3215,
+        1503
+      ],
+      "focusRect": [
+        1090,
+        2108,
+        1500,
+        1500
+      ],
+      "previewPartial": true,
+      "note": "下栏江山秋色长卷段；方形聚焦山水村落，不拼接卷段。"
+    },
+    {
+      "id": "1-4-48",
+      "pdfPage": 70,
+      "printedPage": 62,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        476,
+        2937,
+        1389
+      ],
+      "focusRect": [
+        455,
+        483,
+        1382,
+        1382
+      ],
+      "previewPartial": true,
+      "note": "上栏万松金阙山水段，剔除右侧装裱；方形取松林与远岫。"
+    },
+    {
+      "id": "1-4-49",
+      "pdfPage": 82,
+      "printedPage": 74,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        471,
+        2951,
+        1533
+      ],
+      "focusRect": [
+        1319,
+        962,
+        1042,
+        1042
+      ],
+      "previewPartial": true,
+      "note": "上栏牧牛绘画段，剔除右端装裱及下栏题跋；方形聚焦小牛。"
+    },
+    {
+      "id": "1-4-50",
+      "pdfPage": 90,
+      "printedPage": 82,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        167,
+        536,
+        3211,
+        3139
+      ],
+      "focusRect": [
+        316,
+        568,
+        3021,
+        3021
+      ],
+      "previewPartial": false,
+      "note": "完整果熟来禽图叶；方形取果实与飞禽，剔除图注。"
+    },
+    {
+      "id": "1-4-51",
+      "pdfPage": 91,
+      "printedPage": 83,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        80,
+        600,
+        3291,
+        3080
+      ],
+      "focusRect": [
+        660,
+        1056,
+        2153,
+        2153
+      ],
+      "previewPartial": false,
+      "note": "完整葡萄草虫图叶；保留圆角画心，方形聚焦葡萄与昆虫。"
+    },
+    {
+      "id": "1-4-52",
+      "pdfPage": 93,
+      "printedPage": 85,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        80,
+        600,
+        3284,
+        3170
+      ],
+      "focusRect": [
+        180,
+        620,
+        3125,
+        3125
+      ],
+      "previewPartial": false,
+      "note": "完整枇杷山鸟图叶；方形聚焦枇杷与鸟。"
+    },
+    {
+      "id": "1-4-53",
+      "pdfPage": 94,
+      "printedPage": 86,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        69,
+        486,
+        2597,
+        1518
+      ],
+      "focusRect": [
+        705,
+        496,
+        1507,
+        1507
+      ],
+      "previewPartial": true,
+      "note": "四景组卷取上栏一段山水；剔除右侧装裱，方形取岸树村落。"
+    },
+    {
+      "id": "1-4-54",
+      "pdfPage": 119,
+      "printedPage": 111,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        600,
+        3469,
+        2034
+      ],
+      "focusRect": [
+        607,
+        615,
+        2014,
+        2014
+      ],
+      "previewPartial": true,
+      "note": "改取书页111的钱塘水面与舟船放大图版；保留淡墨原貌，未增强或调色。"
+    },
+    {
+      "id": "1-4-55",
+      "pdfPage": 122,
+      "printedPage": 114,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        486,
+        2417,
+        1612
+      ],
+      "focusRect": [
+        479,
+        487,
+        1611,
+        1611
+      ],
+      "previewPartial": true,
+      "note": "货郎长卷人物段；剔除右端装裱鉴藏印，方形聚焦货担与围观人物。"
+    },
+    {
+      "id": "1-4-56",
+      "pdfPage": 131,
+      "printedPage": 123,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        156,
+        600,
+        3125,
+        2252
+      ],
+      "focusRect": [
+        608,
+        603,
+        2236,
+        2236
+      ],
+      "previewPartial": false,
+      "note": "完整花篮绘画主体；方形聚焦花篮与花卉，剔除图注。"
+    },
+    {
+      "id": "1-4-57",
+      "pdfPage": 134,
+      "printedPage": 126,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        208,
+        531,
+        3160,
+        3090
+      ],
+      "focusRect": [
+        382,
+        1299,
+        1667,
+        1667
+      ],
+      "previewPartial": false,
+      "note": "完整骷髅幻戏图叶；保留圆角画心，方形聚焦骷髅与妇人。"
+    },
+    {
+      "id": "1-4-58",
+      "pdfPage": 135,
+      "printedPage": 127,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        618,
+        600,
+        2177,
+        2852
+      ],
+      "focusRect": [
+        1753,
+        2227,
+        903,
+        903
+      ],
+      "previewPartial": false,
+      "note": "完整鸳鸯图叶；方形聚焦双鸳鸯，保留画心轮廓。"
+    },
+    {
+      "id": "1-4-59",
+      "pdfPage": 136,
+      "printedPage": 128,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        1191,
+        1959,
+        1788,
+        1136
+      ],
+      "focusRect": [
+        1528,
+        1963,
+        1132,
+        1132
+      ],
+      "previewPartial": true,
+      "note": "水图组画取下栏右叶；剔除引首、白边与装裱，方形聚焦水纹。"
+    },
+    {
+      "id": "1-4-60",
+      "pdfPage": 169,
+      "printedPage": 161,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        285,
+        422,
+        2472,
+        4240
+      ],
+      "focusRect": [
+        382,
+        2192,
+        2361,
+        2361
+      ],
+      "previewPartial": false,
+      "note": "目录起页仅有图注，改用书页161的完整踏歌图；方形聚焦下方溪桥与踏歌人物。"
+    },
+    {
+      "id": "1-4-61",
+      "pdfPage": 176,
+      "printedPage": 168,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        427,
+        541,
+        2719,
+        3229
+      ],
+      "focusRect": [
+        660,
+        541,
+        2257,
+        2257
+      ],
+      "previewPartial": false,
+      "note": "完整孔丘像绘画主体；方形聚焦上身面容，剔除图注。"
+    },
+    {
+      "id": "1-4-62",
+      "pdfPage": 177,
+      "printedPage": 169,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        292,
+        605,
+        2847,
+        2768
+      ],
+      "focusRect": [
+        937,
+        1240,
+        1736,
+        1736
+      ],
+      "previewPartial": false,
+      "note": "完整石壁看云图叶；保留圆角画心，方形聚焦石壁与云气。"
+    },
+    {
+      "id": "1-4-63",
+      "pdfPage": 178,
+      "printedPage": 170,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        278,
+        605,
+        3066,
+        2768
+      ],
+      "focusRect": [
+        1354,
+        1434,
+        1597,
+        1597
+      ],
+      "previewPartial": false,
+      "note": "完整寒山子像图叶；方形聚焦人物，剔除图注。"
+    },
+    {
+      "id": "1-4-64",
+      "pdfPage": 179,
+      "printedPage": 171,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        31,
+        605,
+        3344,
+        3125
+      ],
+      "focusRect": [
+        174,
+        605,
+        3125,
+        3125
+      ],
+      "previewPartial": false,
+      "note": "完整梅石溪凫图叶；方形保留梅石与溪中水禽。"
+    },
+    {
+      "id": "1-4-65",
+      "pdfPage": 181,
+      "printedPage": 173,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        167,
+        600,
+        3076,
+        3070
+      ],
+      "focusRect": [
+        226,
+        662,
+        2951,
+        2951
+      ],
+      "previewPartial": false,
+      "note": "完整白蔷薇图叶；方形聚焦花枝，剔除图注。"
+    },
+    {
+      "id": "1-4-66",
+      "pdfPage": 183,
+      "printedPage": 175,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        215,
+        600,
+        3028,
+        2907
+      ],
+      "focusRect": [
+        1059,
+        1575,
+        1562,
+        1562
+      ],
+      "previewPartial": false,
+      "note": "完整松溪泛月图叶；方形聚焦松枝与小舟。"
+    },
+    {
+      "id": "1-4-67",
+      "pdfPage": 185,
+      "printedPage": 177,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        600,
+        3465,
+        3333
+      ],
+      "focusRect": [
+        76,
+        602,
+        3319,
+        3319
+      ],
+      "previewPartial": false,
+      "note": "目录起页无绘画，改取书页177的完整雪堂客话图；方形保留雪山屋舍。"
+    },
+    {
+      "id": "1-4-68",
+      "pdfPage": 186,
+      "printedPage": 178,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        253,
+        536,
+        3091,
+        2683
+      ],
+      "focusRect": [
+        469,
+        546,
+        2673,
+        2673
+      ],
+      "previewPartial": false,
+      "note": "完整梧竹溪堂图叶；方形聚焦庭院与树木。"
+    },
+    {
+      "id": "1-4-69",
+      "pdfPage": 187,
+      "printedPage": 179,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        201,
+        600,
+        3063,
+        2907
+      ],
+      "focusRect": [
+        660,
+        1056,
+        2153,
+        2153
+      ],
+      "previewPartial": false,
+      "note": "完整烟岫林居图叶；方形保留山峰与林居。"
+    },
+    {
+      "id": "1-4-70",
+      "pdfPage": 188,
+      "printedPage": 180,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        365,
+        541,
+        2871,
+        2733
+      ],
+      "focusRect": [
+        833,
+        962,
+        1944,
+        1944
+      ],
+      "previewPartial": false,
+      "note": "完整遥岑烟霭图叶；方形保留烟山林木。"
+    },
+    {
+      "id": "1-4-71",
+      "pdfPage": 189,
+      "printedPage": 181,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        177,
+        600,
+        3104,
+        3036
+      ],
+      "focusRect": [
+        226,
+        607,
+        3021,
+        3021
+      ],
+      "previewPartial": false,
+      "note": "完整柳溪卧笛图叶；方形聚焦柳树与水岸人物。"
+    },
+    {
+      "id": "1-4-72",
+      "pdfPage": 190,
+      "printedPage": 182,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        257,
+        541,
+        3052,
+        2896
+      ],
+      "focusRect": [
+        798,
+        982,
+        2014,
+        2014
+      ],
+      "previewPartial": false,
+      "note": "完整秋柳双鸦图叶；方形保留柳枝与双鸦。"
+    },
+    {
+      "id": "1-4-73",
+      "pdfPage": 191,
+      "printedPage": 183,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        309,
+        570,
+        2857,
+        2629
+      ],
+      "focusRect": [
+        1458,
+        1290,
+        1389,
+        1389
+      ],
+      "previewPartial": false,
+      "note": "完整疏柳寒鸦图叶；方形聚焦树干上的寒鸦。"
+    },
+    {
+      "id": "1-4-74",
+      "pdfPage": 192,
+      "printedPage": 184,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        365,
+        536,
+        2860,
+        2738
+      ],
+      "focusRect": [
+        434,
+        566,
+        2708,
+        2708
+      ],
+      "previewPartial": false,
+      "note": "完整雪栈行骑图叶；方形保留雪坡与行旅。"
+    },
+    {
+      "id": "1-4-75",
+      "pdfPage": 193,
+      "printedPage": 185,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        146,
+        605,
+        3145,
+        2991
+      ],
+      "focusRect": [
+        625,
+        1106,
+        2153,
+        2153
+      ],
+      "previewPartial": false,
+      "note": "完整三高游赏图叶；方形聚焦三位人物。"
+    },
+    {
+      "id": "1-4-76",
+      "pdfPage": 194,
+      "printedPage": 186,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        358,
+        531,
+        2881,
+        2638
+      ],
+      "focusRect": [
+        476,
+        544,
+        2625,
+        2625
+      ],
+      "previewPartial": false,
+      "note": "完整四羊图叶；方形聚焦坡上四羊。"
+    },
+    {
+      "id": "1-4-77",
+      "pdfPage": 195,
+      "printedPage": 187,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        215,
+        605,
+        3059,
+        2763
+      ],
+      "focusRect": [
+        1007,
+        1230,
+        1805,
+        1805
+      ],
+      "previewPartial": false,
+      "note": "完整柳塘牧马图叶；方形保留柳岸与马群。"
+    },
+    {
+      "id": "1-4-78",
+      "pdfPage": 196,
+      "printedPage": 188,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        1101,
+        352,
+        2055,
+        4226
+      ],
+      "focusRect": [
+        1181,
+        2634,
+        1944,
+        1944
+      ],
+      "previewPartial": false,
+      "note": "完整层叠冰绡图画心；方形聚焦下方白梅花枝，保留画内题诗。"
+    },
+    {
+      "id": "1-4-79",
+      "pdfPage": 200,
+      "printedPage": 192,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        375,
+        536,
+        2844,
+        2713
+      ],
+      "focusRect": [
+        1111,
+        1324,
+        1667,
+        1667
+      ],
+      "previewPartial": false,
+      "note": "完整橘绿图叶；方形聚焦橘实与叶片。"
+    },
+    {
+      "id": "1-4-80",
+      "pdfPage": 202,
+      "printedPage": 194,
+      "fileName": "宋画全集  第1卷  第4册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        0,
+        2004,
+        3194,
+        1374
+      ],
+      "focusRect": [
+        1299,
+        2008,
+        1361,
+        1361
+      ],
+      "previewPartial": true,
+      "note": "水墨写生组卷取下栏花鸟一段；方形取燕子与花枝，不拼接各叶。"
+    },
+    {
+      "id": "1-5-81",
+      "pdfPage": 9,
+      "printedPage": 2,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        333,
+        514,
+        2910,
+        2805
+      ],
+      "focusRect": [
+        496,
+        682,
+        2468,
+        2468
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-82",
+      "pdfPage": 10,
+      "printedPage": 3,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        118,
+        583,
+        3194,
+        2979
+      ],
+      "focusRect": [
+        460,
+        1179,
+        2383,
+        2383
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-83",
+      "pdfPage": 14,
+      "printedPage": 7,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        306,
+        479,
+        3159,
+        4055
+      ],
+      "focusRect": [
+        875,
+        919,
+        2527,
+        2527
+      ],
+      "previewPartial": true,
+      "note": "跳过起始书法题签，取后续墨龙放大局部；源扫描明显偏暗，已与PDF渲染核对，保持原色。"
+    },
+    {
+      "id": "1-5-84",
+      "pdfPage": 15,
+      "printedPage": 8,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        7,
+        451,
+        2695,
+        1223
+      ],
+      "focusRect": [
+        689,
+        451,
+        1223,
+        1223
+      ],
+      "previewPartial": true,
+      "note": "仅取上栏兰草，去除右侧装裱和下栏题跋。"
+    },
+    {
+      "id": "1-5-85",
+      "pdfPage": 22,
+      "printedPage": 15,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        306,
+        521,
+        3159,
+        1548
+      ],
+      "focusRect": [
+        954,
+        521,
+        1548,
+        1548
+      ],
+      "previewPartial": true,
+      "note": "取长卷兰草集中一段，未拼接对页。"
+    },
+    {
+      "id": "1-5-86",
+      "pdfPage": 27,
+      "printedPage": 20,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        194,
+        514,
+        3181,
+        2944
+      ],
+      "focusRect": [
+        534,
+        956,
+        2502,
+        2502
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-87",
+      "pdfPage": 28,
+      "printedPage": 21,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        118,
+        583,
+        3201,
+        3035
+      ],
+      "focusRect": [
+        739,
+        1038,
+        2580,
+        2580
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-88",
+      "pdfPage": 30,
+      "printedPage": 23,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        285,
+        583,
+        2840,
+        2702
+      ],
+      "focusRect": [
+        489,
+        853,
+        2432,
+        2432
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-89",
+      "pdfPage": 31,
+      "printedPage": 24,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        7,
+        1965,
+        3173,
+        1431
+      ],
+      "focusRect": [
+        719,
+        1965,
+        1431,
+        1431
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-90",
+      "pdfPage": 77,
+      "printedPage": 70,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        7,
+        451,
+        3180,
+        1431
+      ],
+      "focusRect": [
+        158,
+        594,
+        1288,
+        1288
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-91",
+      "pdfPage": 86,
+      "printedPage": 79,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        319,
+        2042,
+        3146,
+        1437
+      ],
+      "focusRect": [
+        733,
+        2042,
+        1437,
+        1437
+      ],
+      "previewPartial": true,
+      "note": "跳过引首书法，取后续下栏人物图段。"
+    },
+    {
+      "id": "1-5-92",
+      "pdfPage": 115,
+      "printedPage": 108,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        7,
+        2055,
+        3173,
+        1521
+      ],
+      "focusRect": [
+        992,
+        2055,
+        1521,
+        1521
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-93",
+      "pdfPage": 125,
+      "printedPage": 118,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        7,
+        451,
+        3180,
+        1424
+      ],
+      "focusRect": [
+        185,
+        451,
+        1424,
+        1424
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-94",
+      "pdfPage": 134,
+      "printedPage": 127,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        306,
+        403,
+        2402,
+        4291
+      ],
+      "focusRect": [
+        306,
+        1991,
+        2402,
+        2402
+      ],
+      "previewPartial": false,
+      "note": "目录起始页只有题签，改用后一页完整立轴。"
+    },
+    {
+      "id": "1-5-95",
+      "pdfPage": 137,
+      "printedPage": 130,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        7,
+        1965,
+        3201,
+        1431
+      ],
+      "focusRect": [
+        1404,
+        1965,
+        1431,
+        1431
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-96",
+      "pdfPage": 156,
+      "printedPage": 149,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        306,
+        410,
+        2465,
+        4284
+      ],
+      "focusRect": [
+        306,
+        1534,
+        2465,
+        2465
+      ],
+      "previewPartial": false,
+      "note": "起始页无本作图版，改用下一页完整立轴。"
+    },
+    {
+      "id": "1-5-97",
+      "pdfPage": 163,
+      "printedPage": 156,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        1764,
+        340,
+        1409,
+        4264
+      ],
+      "focusRect": [
+        1764,
+        2535,
+        1409,
+        1409
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-98",
+      "pdfPage": 169,
+      "printedPage": 162,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        7,
+        451,
+        3180,
+        1438
+      ],
+      "focusRect": [
+        1037,
+        451,
+        1438,
+        1438
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-5-99",
+      "pdfPage": 193,
+      "printedPage": 186,
+      "fileName": "宋画全集  第1卷  第5册.pdf",
+      "sourceWidth": 3472,
+      "sourceHeight": 4960,
+      "contextRect": [
+        7,
+        2083,
+        3187,
+        1549
+      ],
+      "focusRect": [
+        348,
+        2083,
+        1549,
+        1549
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-6-100",
+      "pdfPage": 9,
+      "printedPage": 2,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        1997,
+        3203,
+        1430
+      ],
+      "focusRect": [
+        1534,
+        1997,
+        1430,
+        1430
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-6-101",
+      "pdfPage": 21,
+      "printedPage": 14,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        477,
+        3189,
+        1331
+      ],
+      "focusRect": [
+        1558,
+        624,
+        1171,
+        1171
+      ],
+      "previewPartial": true,
+      "note": "取星宿长卷上栏绘画段，方形聚焦骑兽星神。"
+    },
+    {
+      "id": "1-6-102",
+      "pdfPage": 43,
+      "printedPage": 36,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        1836,
+        3189,
+        1276
+      ],
+      "focusRect": [
+        1474,
+        1836,
+        1276,
+        1276
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-6-103",
+      "pdfPage": 62,
+      "printedPage": 55,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        316,
+        442,
+        1999,
+        4266
+      ],
+      "focusRect": [
+        316,
+        2087,
+        1999,
+        1999
+      ],
+      "previewPartial": false,
+      "note": "目录起始页只有图注，改用后一页完整立轴。"
+    },
+    {
+      "id": "1-6-104",
+      "pdfPage": 70,
+      "printedPage": 63,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        330,
+        1957,
+        3171,
+        1312
+      ],
+      "focusRect": [
+        1577,
+        1957,
+        1312,
+        1312
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-6-105",
+      "pdfPage": 82,
+      "printedPage": 75,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        309,
+        442,
+        3192,
+        4273
+      ],
+      "focusRect": [
+        309,
+        1495,
+        3192,
+        3192
+      ],
+      "previewPartial": true,
+      "note": "跨页图版，取主体较完整一侧，未拼接。"
+    },
+    {
+      "id": "1-6-106",
+      "pdfPage": 86,
+      "printedPage": 79,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        330,
+        2077,
+        3171,
+        1424
+      ],
+      "focusRect": [
+        1679,
+        2077,
+        1424,
+        1424
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-6-107",
+      "pdfPage": 111,
+      "printedPage": 104,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        340,
+        484,
+        2855,
+        1548
+      ],
+      "focusRect": [
+        365,
+        484,
+        1548,
+        1548
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-6-108",
+      "pdfPage": 117,
+      "printedPage": 110,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        484,
+        3182,
+        1401
+      ],
+      "focusRect": [
+        931,
+        540,
+        953,
+        953
+      ],
+      "previewPartial": true,
+      "note": "取上栏人物，方形聚焦中间人物。"
+    },
+    {
+      "id": "1-6-109",
+      "pdfPage": 129,
+      "printedPage": 122,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        484,
+        2600,
+        1436
+      ],
+      "focusRect": [
+        667,
+        484,
+        1436,
+        1436
+      ],
+      "previewPartial": true,
+      "note": "仅取上栏草堂山水，去除右侧大段书法。"
+    },
+    {
+      "id": "1-6-110",
+      "pdfPage": 164,
+      "printedPage": 157,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        323,
+        2070,
+        3178,
+        1431
+      ],
+      "focusRect": [
+        497,
+        2070,
+        1431,
+        1431
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-6-111",
+      "pdfPage": 201,
+      "printedPage": 194,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        1240,
+        364,
+        1956,
+        4275
+      ],
+      "focusRect": [
+        1240,
+        2464,
+        1956,
+        1956
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-6-112",
+      "pdfPage": 203,
+      "printedPage": 196,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        1976,
+        3182,
+        1409
+      ],
+      "focusRect": [
+        734,
+        1976,
+        1409,
+        1409
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-6-113",
+      "pdfPage": 225,
+      "printedPage": 218,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        540,
+        3287,
+        3181
+      ],
+      "focusRect": [
+        219,
+        858,
+        2863,
+        2863
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-6-114",
+      "pdfPage": 228,
+      "printedPage": 221,
+      "fileName": "宋画全集  第1卷  第6册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        316,
+        442,
+        3185,
+        4273
+      ],
+      "focusRect": [
+        396,
+        1279,
+        3026,
+        3026
+      ],
+      "previewPartial": true,
+      "note": "跨页图版，取群像主体一侧，未拼接。"
+    },
+    {
+      "id": "1-7-115",
+      "pdfPage": 11,
+      "printedPage": 2,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        250,
+        541,
+        3064,
+        2976
+      ],
+      "focusRect": [
+        1528,
+        1731,
+        1786,
+        1786
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-116",
+      "pdfPage": 12,
+      "printedPage": 3,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        220,
+        621,
+        3108,
+        3010
+      ],
+      "focusRect": [
+        951,
+        1600,
+        1956,
+        1956
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-117",
+      "pdfPage": 14,
+      "printedPage": 5,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        190,
+        611,
+        3158,
+        3020
+      ],
+      "focusRect": [
+        624,
+        1155,
+        2416,
+        2416
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-118",
+      "pdfPage": 15,
+      "printedPage": 6,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        270,
+        541,
+        3004,
+        2876
+      ],
+      "focusRect": [
+        1548,
+        1691,
+        1726,
+        1726
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-119",
+      "pdfPage": 16,
+      "printedPage": 7,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        260,
+        611,
+        2988,
+        2759
+      ],
+      "focusRect": [
+        1106,
+        1356,
+        2014,
+        2014
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-120",
+      "pdfPage": 17,
+      "printedPage": 8,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        540,
+        541,
+        2474,
+        2736
+      ],
+      "focusRect": [
+        750,
+        1211,
+        2053,
+        2053
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-121",
+      "pdfPage": 18,
+      "printedPage": 9,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        471,
+        621,
+        2556,
+        2699
+      ],
+      "focusRect": [
+        1493,
+        1743,
+        1534,
+        1534
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-122",
+      "pdfPage": 19,
+      "printedPage": 10,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        190,
+        541,
+        3194,
+        3047
+      ],
+      "focusRect": [
+        1160,
+        1257,
+        2224,
+        2224
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-123",
+      "pdfPage": 20,
+      "printedPage": 11,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        160,
+        621,
+        3178,
+        2960
+      ],
+      "focusRect": [
+        1571,
+        1953,
+        1628,
+        1628
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-124",
+      "pdfPage": 21,
+      "printedPage": 12,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        280,
+        541,
+        2984,
+        2916
+      ],
+      "focusRect": [
+        1404,
+        1766,
+        1691,
+        1691
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-125",
+      "pdfPage": 22,
+      "printedPage": 13,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        230,
+        621,
+        3038,
+        2850
+      ],
+      "focusRect": [
+        905,
+        1419,
+        2052,
+        2052
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-126",
+      "pdfPage": 23,
+      "printedPage": 14,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        270,
+        541,
+        2994,
+        2836
+      ],
+      "focusRect": [
+        1074,
+        768,
+        1985,
+        1985
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-127",
+      "pdfPage": 24,
+      "printedPage": 15,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        190,
+        621,
+        3128,
+        2910
+      ],
+      "focusRect": [
+        757,
+        1349,
+        2182,
+        2182
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-128",
+      "pdfPage": 26,
+      "printedPage": 17,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        671,
+        621,
+        2166,
+        2870
+      ],
+      "focusRect": [
+        942,
+        1394,
+        1841,
+        1841
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-129",
+      "pdfPage": 27,
+      "printedPage": 18,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        620,
+        541,
+        2344,
+        2876
+      ],
+      "focusRect": [
+        925,
+        1589,
+        1828,
+        1828
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-130",
+      "pdfPage": 28,
+      "printedPage": 19,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        10,
+        551,
+        3488,
+        3421
+      ],
+      "focusRect": [
+        122,
+        1321,
+        2566,
+        2566
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-131",
+      "pdfPage": 29,
+      "printedPage": 20,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        270,
+        541,
+        3014,
+        2896
+      ],
+      "focusRect": [
+        384,
+        1555,
+        1882,
+        1882
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-132",
+      "pdfPage": 30,
+      "printedPage": 21,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        210,
+        621,
+        3088,
+        3010
+      ],
+      "focusRect": [
+        1009,
+        1524,
+        2107,
+        2107
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-133",
+      "pdfPage": 32,
+      "printedPage": 23,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        541,
+        611,
+        2426,
+        3090
+      ],
+      "focusRect": [
+        1378,
+        1955,
+        1577,
+        1577
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-134",
+      "pdfPage": 33,
+      "printedPage": 24,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        410,
+        541,
+        2714,
+        2896
+      ],
+      "focusRect": [
+        1143,
+        1537,
+        1900,
+        1900
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-135",
+      "pdfPage": 34,
+      "printedPage": 25,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        471,
+        611,
+        2546,
+        2599
+      ],
+      "focusRect": [
+        1108,
+        1428,
+        1782,
+        1782
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-136",
+      "pdfPage": 35,
+      "printedPage": 26,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        260,
+        541,
+        3054,
+        2886
+      ],
+      "focusRect": [
+        1471,
+        1464,
+        1732,
+        1732
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-137",
+      "pdfPage": 36,
+      "printedPage": 27,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        390,
+        611,
+        2718,
+        2569
+      ],
+      "focusRect": [
+        722,
+        1125,
+        2055,
+        2055
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-138",
+      "pdfPage": 37,
+      "printedPage": 28,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        300,
+        541,
+        2964,
+        2816
+      ],
+      "focusRect": [
+        1312,
+        1400,
+        1830,
+        1830
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-139",
+      "pdfPage": 38,
+      "printedPage": 29,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        240,
+        621,
+        3018,
+        2830
+      ],
+      "focusRect": [
+        527,
+        1611,
+        1840,
+        1840
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-140",
+      "pdfPage": 40,
+      "printedPage": 31,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        200,
+        621,
+        3088,
+        2950
+      ],
+      "focusRect": [
+        638,
+        1359,
+        2212,
+        2212
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-141",
+      "pdfPage": 41,
+      "printedPage": 32,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        541,
+        3204,
+        3628
+      ],
+      "focusRect": [
+        352,
+        1650,
+        2499,
+        2499
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-142",
+      "pdfPage": 43,
+      "printedPage": 34,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        60,
+        480,
+        3444,
+        3348
+      ],
+      "focusRect": [
+        954,
+        1484,
+        2344,
+        2344
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-143",
+      "pdfPage": 44,
+      "printedPage": 35,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        300,
+        621,
+        2938,
+        2709
+      ],
+      "focusRect": [
+        1250,
+        1705,
+        1625,
+        1625
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-144",
+      "pdfPage": 45,
+      "printedPage": 36,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        260,
+        541,
+        3014,
+        2776
+      ],
+      "focusRect": [
+        1166,
+        1513,
+        1804,
+        1804
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-145",
+      "pdfPage": 46,
+      "printedPage": 37,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        200,
+        611,
+        3098,
+        2970
+      ],
+      "focusRect": [
+        487,
+        1057,
+        2524,
+        2524
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-146",
+      "pdfPage": 47,
+      "printedPage": 38,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        290,
+        541,
+        2954,
+        2866
+      ],
+      "focusRect": [
+        362,
+        570,
+        2809,
+        2809
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-147",
+      "pdfPage": 48,
+      "printedPage": 39,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        290,
+        611,
+        2908,
+        2790
+      ],
+      "focusRect": [
+        377,
+        639,
+        2734,
+        2734
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-148",
+      "pdfPage": 50,
+      "printedPage": 41,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        220,
+        621,
+        3058,
+        2880
+      ],
+      "focusRect": [
+        435,
+        1485,
+        2016,
+        2016
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-149",
+      "pdfPage": 51,
+      "printedPage": 42,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        80,
+        541,
+        3424,
+        2986
+      ],
+      "focusRect": [
+        448,
+        840,
+        2687,
+        2687
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-150",
+      "pdfPage": 52,
+      "printedPage": 43,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        290,
+        611,
+        2898,
+        2699
+      ],
+      "focusRect": [
+        447,
+        1016,
+        2294,
+        2294
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-151",
+      "pdfPage": 53,
+      "printedPage": 44,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        50,
+        480,
+        3444,
+        3488
+      ],
+      "focusRect": [
+        567,
+        1902,
+        2066,
+        2066
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-152",
+      "pdfPage": 54,
+      "printedPage": 45,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        270,
+        611,
+        2978,
+        2749
+      ],
+      "focusRect": [
+        1273,
+        1243,
+        1924,
+        1924
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-153",
+      "pdfPage": 55,
+      "printedPage": 46,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        460,
+        541,
+        2664,
+        2936
+      ],
+      "focusRect": [
+        1259,
+        1458,
+        1865,
+        1865
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-154",
+      "pdfPage": 56,
+      "printedPage": 47,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        70,
+        621,
+        3348,
+        3171
+      ],
+      "focusRect": [
+        723,
+        1097,
+        2695,
+        2695
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-155",
+      "pdfPage": 58,
+      "printedPage": 49,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        290,
+        621,
+        2928,
+        2840
+      ],
+      "focusRect": [
+        794,
+        1189,
+        2272,
+        2272
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-156",
+      "pdfPage": 59,
+      "printedPage": 50,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        260,
+        541,
+        3044,
+        3107
+      ],
+      "focusRect": [
+        473,
+        1185,
+        2192,
+        2192
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-157",
+      "pdfPage": 60,
+      "printedPage": 51,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        270,
+        621,
+        2958,
+        2760
+      ],
+      "focusRect": [
+        546,
+        1035,
+        2346,
+        2346
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-158",
+      "pdfPage": 61,
+      "printedPage": 52,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        260,
+        541,
+        3024,
+        2936
+      ],
+      "focusRect": [
+        422,
+        776,
+        2701,
+        2701
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-159",
+      "pdfPage": 62,
+      "printedPage": 53,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        160,
+        621,
+        3178,
+        2830
+      ],
+      "focusRect": [
+        1267,
+        1357,
+        1981,
+        1981
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-160",
+      "pdfPage": 63,
+      "printedPage": 54,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        300,
+        541,
+        2944,
+        2696
+      ],
+      "focusRect": [
+        1243,
+        1296,
+        1941,
+        1941
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-161",
+      "pdfPage": 64,
+      "printedPage": 55,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        150,
+        611,
+        3178,
+        3080
+      ],
+      "focusRect": [
+        789,
+        1473,
+        2218,
+        2218
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-162",
+      "pdfPage": 65,
+      "printedPage": 56,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        340,
+        541,
+        2884,
+        2796
+      ],
+      "focusRect": [
+        524,
+        821,
+        2516,
+        2516
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-163",
+      "pdfPage": 66,
+      "printedPage": 57,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        340,
+        561,
+        2798,
+        3451
+      ],
+      "focusRect": [
+        480,
+        1373,
+        2518,
+        2518
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-164",
+      "pdfPage": 68,
+      "printedPage": 59,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        230,
+        611,
+        3038,
+        2669
+      ],
+      "focusRect": [
+        354,
+        611,
+        2669,
+        2669
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-165",
+      "pdfPage": 69,
+      "printedPage": 60,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        260,
+        541,
+        3054,
+        2826
+      ],
+      "focusRect": [
+        389,
+        1502,
+        1696,
+        1696
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-166",
+      "pdfPage": 70,
+      "printedPage": 61,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        190,
+        621,
+        3118,
+        2880
+      ],
+      "focusRect": [
+        379,
+        1197,
+        2304,
+        2304
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-167",
+      "pdfPage": 71,
+      "printedPage": 62,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        200,
+        541,
+        3144,
+        3067
+      ],
+      "focusRect": [
+        1152,
+        1614,
+        1994,
+        1994
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-168",
+      "pdfPage": 72,
+      "printedPage": 63,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        170,
+        611,
+        3148,
+        2940
+      ],
+      "focusRect": [
+        1639,
+        2081,
+        1470,
+        1470
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-169",
+      "pdfPage": 73,
+      "printedPage": 64,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        160,
+        541,
+        3244,
+        3087
+      ],
+      "focusRect": [
+        780,
+        927,
+        2624,
+        2624
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-170",
+      "pdfPage": 74,
+      "printedPage": 65,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        310,
+        611,
+        2858,
+        2689
+      ],
+      "focusRect": [
+        378,
+        799,
+        2151,
+        2151
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-171",
+      "pdfPage": 75,
+      "printedPage": 66,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        310,
+        541,
+        2964,
+        2786
+      ],
+      "focusRect": [
+        1737,
+        1168,
+        1532,
+        1532
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-172",
+      "pdfPage": 76,
+      "printedPage": 67,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        451,
+        621,
+        2606,
+        2509
+      ],
+      "focusRect": [
+        969,
+        1248,
+        1882,
+        1882
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-173",
+      "pdfPage": 78,
+      "printedPage": 69,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        340,
+        621,
+        2828,
+        2749
+      ],
+      "focusRect": [
+        1189,
+        1391,
+        1979,
+        1979
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-174",
+      "pdfPage": 79,
+      "printedPage": 70,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        280,
+        541,
+        2994,
+        2796
+      ],
+      "focusRect": [
+        519,
+        681,
+        2516,
+        2516
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-175",
+      "pdfPage": 80,
+      "printedPage": 71,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        130,
+        621,
+        3248,
+        3010
+      ],
+      "focusRect": [
+        637,
+        1073,
+        2558,
+        2558
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-176",
+      "pdfPage": 82,
+      "printedPage": 73,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        150,
+        611,
+        3168,
+        3000
+      ],
+      "focusRect": [
+        534,
+        1211,
+        2400,
+        2400
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-177",
+      "pdfPage": 83,
+      "printedPage": 74,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        290,
+        531,
+        2994,
+        2636
+      ],
+      "focusRect": [
+        1449,
+        1533,
+        1634,
+        1634
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-178",
+      "pdfPage": 84,
+      "printedPage": 75,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        260,
+        621,
+        2998,
+        2749
+      ],
+      "focusRect": [
+        296,
+        1514,
+        1787,
+        1787
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-179",
+      "pdfPage": 86,
+      "printedPage": 77,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        340,
+        431,
+        2908,
+        3712
+      ],
+      "focusRect": [
+        354,
+        1277,
+        2763,
+        2763
+      ],
+      "previewPartial": false,
+      "note": "目录所记书页76为说明页，改取书页77（PDF86）的完整绘画图版；方形聚焦岩石与桧树。"
+    },
+    {
+      "id": "1-7-180",
+      "pdfPage": 88,
+      "printedPage": 79,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        220,
+        621,
+        3058,
+        3020
+      ],
+      "focusRect": [
+        584,
+        1678,
+        1963,
+        1963
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-181",
+      "pdfPage": 89,
+      "printedPage": 80,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        290,
+        541,
+        2964,
+        2686
+      ],
+      "focusRect": [
+        630,
+        944,
+        2283,
+        2283
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-182",
+      "pdfPage": 90,
+      "printedPage": 81,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        200,
+        621,
+        3098,
+        2940
+      ],
+      "focusRect": [
+        345,
+        1062,
+        2499,
+        2499
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-183",
+      "pdfPage": 91,
+      "printedPage": 82,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        350,
+        541,
+        2864,
+        2816
+      ],
+      "focusRect": [
+        711,
+        1386,
+        1971,
+        1971
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-184",
+      "pdfPage": 92,
+      "printedPage": 83,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        200,
+        621,
+        3118,
+        2820
+      ],
+      "focusRect": [
+        849,
+        1185,
+        2256,
+        2256
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-185",
+      "pdfPage": 93,
+      "printedPage": 84,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        240,
+        541,
+        3074,
+        2936
+      ],
+      "focusRect": [
+        965,
+        1128,
+        2349,
+        2349
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-186",
+      "pdfPage": 94,
+      "printedPage": 85,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        310,
+        621,
+        2878,
+        2729
+      ],
+      "focusRect": [
+        1005,
+        1112,
+        2183,
+        2183
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-187",
+      "pdfPage": 96,
+      "printedPage": 87,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        330,
+        2062,
+        3178,
+        1458
+      ],
+      "focusRect": [
+        1290,
+        2098,
+        1385,
+        1385
+      ],
+      "previewPartial": true,
+      "note": "长卷分段；取书页87（PDF96）下栏山水绘画，排除上栏引首；方形聚焦山石、林木与舟居，未拼接其他页。"
+    },
+    {
+      "id": "1-7-188",
+      "pdfPage": 117,
+      "printedPage": 108,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        270,
+        541,
+        2964,
+        2836
+      ],
+      "focusRect": [
+        1391,
+        1378,
+        1843,
+        1843
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-189",
+      "pdfPage": 118,
+      "printedPage": 109,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        220,
+        611,
+        3078,
+        2900
+      ],
+      "focusRect": [
+        1834,
+        2061,
+        1450,
+        1450
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-190",
+      "pdfPage": 119,
+      "printedPage": 110,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        210,
+        541,
+        3094,
+        2986
+      ],
+      "focusRect": [
+        1064,
+        1213,
+        2240,
+        2240
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-191",
+      "pdfPage": 120,
+      "printedPage": 111,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        70,
+        621,
+        3368,
+        3161
+      ],
+      "focusRect": [
+        379,
+        1032,
+        2750,
+        2750
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-192",
+      "pdfPage": 121,
+      "printedPage": 112,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        360,
+        541,
+        2824,
+        2756
+      ],
+      "focusRect": [
+        419,
+        817,
+        2480,
+        2480
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-193",
+      "pdfPage": 122,
+      "printedPage": 113,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        160,
+        621,
+        3178,
+        2860
+      ],
+      "focusRect": [
+        576,
+        1136,
+        2345,
+        2345
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-194",
+      "pdfPage": 123,
+      "printedPage": 114,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        300,
+        541,
+        2964,
+        2786
+      ],
+      "focusRect": [
+        302,
+        959,
+        2368,
+        2368
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-195",
+      "pdfPage": 124,
+      "printedPage": 115,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        260,
+        621,
+        2988,
+        2800
+      ],
+      "focusRect": [
+        447,
+        1405,
+        2016,
+        2016
+      ],
+      "previewPartial": false,
+      "note": "完整册页图版；去除页边与印刷说明，方形缩略图聚焦画面主体。"
+    },
+    {
+      "id": "1-7-196",
+      "pdfPage": 125,
+      "printedPage": 116,
+      "fileName": "宋画全集  第1卷  第7册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        0,
+        1990,
+        3204,
+        1450
+      ],
+      "focusRect": [
+        1265,
+        2062,
+        1378,
+        1378
+      ],
+      "previewPartial": true,
+      "note": "长卷分段；取书页116（PDF125）下栏牡丹绘画段，排除上栏与印刷说明；方形聚焦花叶，未拼接其他段。"
+    },
+    {
+      "id": "1-8-197",
+      "pdfPage": 10,
+      "printedPage": 2,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        294,
+        554,
+        3000,
+        2817
+      ],
+      "focusRect": [
+        498,
+        666,
+        2592,
+        2592
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-198",
+      "pdfPage": 11,
+      "printedPage": 3,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        119,
+        617,
+        3277,
+        3123
+      ],
+      "focusRect": [
+        468,
+        898,
+        2842,
+        2842
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-199",
+      "pdfPage": 12,
+      "printedPage": 4,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        252,
+        554,
+        3049,
+        2866
+      ],
+      "focusRect": [
+        397,
+        1270,
+        2150,
+        2150
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-200",
+      "pdfPage": 13,
+      "printedPage": 5,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        140,
+        624,
+        3221,
+        2982
+      ],
+      "focusRect": [
+        737,
+        803,
+        2624,
+        2624
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-201",
+      "pdfPage": 14,
+      "printedPage": 6,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        42,
+        484,
+        3455,
+        3398
+      ],
+      "focusRect": [
+        171,
+        824,
+        3058,
+        3058
+      ],
+      "previewPartial": true,
+      "note": "画幅贴近书脊，所选单页右缘存在书脊裁断，按局部标记。"
+    },
+    {
+      "id": "1-8-202",
+      "pdfPage": 15,
+      "printedPage": 7,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        147,
+        624,
+        3186,
+        2961
+      ],
+      "focusRect": [
+        816,
+        728,
+        2517,
+        2517
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-203",
+      "pdfPage": 17,
+      "printedPage": 9,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        225,
+        624,
+        3044,
+        2898
+      ],
+      "focusRect": [
+        276,
+        812,
+        2637,
+        2637
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-204",
+      "pdfPage": 19,
+      "printedPage": 11,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        168,
+        624,
+        3179,
+        3080
+      ],
+      "focusRect": [
+        168,
+        670,
+        2988,
+        2988
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-205",
+      "pdfPage": 21,
+      "printedPage": 13,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        337,
+        442,
+        2890,
+        3873
+      ],
+      "focusRect": [
+        481,
+        1548,
+        2746,
+        2746
+      ],
+      "previewPartial": false,
+      "note": "起始页只有图注，改用下一页完整立轴。"
+    },
+    {
+      "id": "1-8-206",
+      "pdfPage": 24,
+      "printedPage": 16,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        547,
+        3189,
+        2901
+      ],
+      "focusRect": [
+        527,
+        779,
+        2669,
+        2669
+      ],
+      "previewPartial": true,
+      "note": "跨页图版，取孔雀主体较完整的一页，未拼接极窄对页。"
+    },
+    {
+      "id": "1-8-207",
+      "pdfPage": 26,
+      "printedPage": 18,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        189,
+        547,
+        3182,
+        3083
+      ],
+      "focusRect": [
+        720,
+        763,
+        2651,
+        2651
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-208",
+      "pdfPage": 27,
+      "printedPage": 19,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        316,
+        624,
+        2890,
+        3038
+      ],
+      "focusRect": [
+        460,
+        916,
+        2746,
+        2746
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-209",
+      "pdfPage": 28,
+      "printedPage": 20,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        49,
+        554,
+        3448,
+        3013
+      ],
+      "focusRect": [
+        785,
+        704,
+        2712,
+        2712
+      ],
+      "previewPartial": true,
+      "note": "画幅贴近书脊，单页边缘存在裁断，按局部标记。"
+    },
+    {
+      "id": "1-8-210",
+      "pdfPage": 29,
+      "printedPage": 21,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        42,
+        617,
+        3438,
+        3347
+      ],
+      "focusRect": [
+        171,
+        700,
+        3180,
+        3180
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-211",
+      "pdfPage": 30,
+      "printedPage": 22,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        259,
+        547,
+        3028,
+        2866
+      ],
+      "focusRect": [
+        260,
+        547,
+        2723,
+        2723
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-212",
+      "pdfPage": 31,
+      "printedPage": 23,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        302,
+        624,
+        2897,
+        3010
+      ],
+      "focusRect": [
+        519,
+        1461,
+        2173,
+        2173
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-213",
+      "pdfPage": 32,
+      "printedPage": 24,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        245,
+        547,
+        3070,
+        2971
+      ],
+      "focusRect": [
+        493,
+        622,
+        2822,
+        2822
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-214",
+      "pdfPage": 33,
+      "printedPage": 25,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        217,
+        624,
+        3045,
+        2912
+      ],
+      "focusRect": [
+        356,
+        697,
+        2766,
+        2766
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-215",
+      "pdfPage": 35,
+      "printedPage": 27,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        302,
+        624,
+        2890,
+        2758
+      ],
+      "focusRect": [
+        302,
+        762,
+        2482,
+        2482
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-216",
+      "pdfPage": 36,
+      "printedPage": 28,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        231,
+        547,
+        3119,
+        2719
+      ],
+      "focusRect": [
+        767,
+        547,
+        2583,
+        2583
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-217",
+      "pdfPage": 37,
+      "printedPage": 29,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        372,
+        624,
+        2757,
+        3200
+      ],
+      "focusRect": [
+        923,
+        1121,
+        2206,
+        2206
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-218",
+      "pdfPage": 39,
+      "printedPage": 31,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        196,
+        624,
+        3109,
+        3017
+      ],
+      "focusRect": [
+        439,
+        775,
+        2866,
+        2866
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-219",
+      "pdfPage": 40,
+      "printedPage": 32,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        287,
+        554,
+        2993,
+        2943
+      ],
+      "focusRect": [
+        977,
+        1584,
+        1913,
+        1913
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-220",
+      "pdfPage": 41,
+      "printedPage": 33,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        225,
+        624,
+        3030,
+        2989
+      ],
+      "focusRect": [
+        395,
+        774,
+        2690,
+        2690
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-221",
+      "pdfPage": 42,
+      "printedPage": 34,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        196,
+        547,
+        3203,
+        3258
+      ],
+      "focusRect": [
+        516,
+        604,
+        2883,
+        2883
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-222",
+      "pdfPage": 43,
+      "printedPage": 35,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        140,
+        624,
+        3228,
+        3263
+      ],
+      "focusRect": [
+        140,
+        624,
+        2744,
+        2744
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-223",
+      "pdfPage": 44,
+      "printedPage": 36,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        533,
+        547,
+        2494,
+        1983
+      ],
+      "focusRect": [
+        1044,
+        547,
+        1983,
+        1983
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-224",
+      "pdfPage": 45,
+      "printedPage": 37,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        498,
+        631,
+        2512,
+        1993
+      ],
+      "focusRect": [
+        1158,
+        830,
+        1794,
+        1794
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-225",
+      "pdfPage": 46,
+      "printedPage": 38,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        238,
+        554,
+        3077,
+        2964
+      ],
+      "focusRect": [
+        796,
+        776,
+        2519,
+        2519
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-226",
+      "pdfPage": 47,
+      "printedPage": 39,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        260,
+        624,
+        2974,
+        2807
+      ],
+      "focusRect": [
+        260,
+        694,
+        2386,
+        2386
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-227",
+      "pdfPage": 48,
+      "printedPage": 40,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        336,
+        554,
+        2888,
+        2754
+      ],
+      "focusRect": [
+        390,
+        1105,
+        2203,
+        2203
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-228",
+      "pdfPage": 49,
+      "printedPage": 41,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        302,
+        624,
+        2883,
+        2723
+      ],
+      "focusRect": [
+        799,
+        1169,
+        2178,
+        2178
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-229",
+      "pdfPage": 50,
+      "printedPage": 42,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        259,
+        554,
+        3063,
+        2901
+      ],
+      "focusRect": [
+        711,
+        989,
+        2466,
+        2466
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-230",
+      "pdfPage": 51,
+      "printedPage": 43,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        295,
+        624,
+        2904,
+        3038
+      ],
+      "focusRect": [
+        368,
+        903,
+        2759,
+        2759
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-231",
+      "pdfPage": 52,
+      "printedPage": 44,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        105,
+        547,
+        3357,
+        3377
+      ],
+      "focusRect": [
+        776,
+        1238,
+        2686,
+        2686
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-232",
+      "pdfPage": 53,
+      "printedPage": 45,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        77,
+        624,
+        3354,
+        3368
+      ],
+      "focusRect": [
+        580,
+        1141,
+        2851,
+        2851
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-233",
+      "pdfPage": 54,
+      "printedPage": 46,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        301,
+        554,
+        2958,
+        2831
+      ],
+      "focusRect": [
+        654,
+        837,
+        2548,
+        2548
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-234",
+      "pdfPage": 55,
+      "printedPage": 47,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        175,
+        624,
+        3137,
+        3003
+      ],
+      "focusRect": [
+        317,
+        699,
+        2853,
+        2853
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-235",
+      "pdfPage": 56,
+      "printedPage": 48,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        322,
+        547,
+        2909,
+        2733
+      ],
+      "focusRect": [
+        908,
+        615,
+        2323,
+        2323
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-236",
+      "pdfPage": 57,
+      "printedPage": 49,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        225,
+        624,
+        3037,
+        2800
+      ],
+      "focusRect": [
+        414,
+        694,
+        2660,
+        2660
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-237",
+      "pdfPage": 58,
+      "printedPage": 50,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        322,
+        547,
+        2930,
+        2957
+      ],
+      "focusRect": [
+        395,
+        634,
+        2784,
+        2784
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-238",
+      "pdfPage": 59,
+      "printedPage": 51,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        351,
+        568,
+        2883,
+        3235
+      ],
+      "focusRect": [
+        423,
+        816,
+        2739,
+        2739
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-239",
+      "pdfPage": 61,
+      "printedPage": 53,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        225,
+        624,
+        3066,
+        2961
+      ],
+      "focusRect": [
+        426,
+        920,
+        2665,
+        2665
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-240",
+      "pdfPage": 62,
+      "printedPage": 54,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        315,
+        547,
+        2937,
+        3076
+      ],
+      "focusRect": [
+        388,
+        690,
+        2790,
+        2790
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-241",
+      "pdfPage": 63,
+      "printedPage": 55,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        105,
+        624,
+        3284,
+        3130
+      ],
+      "focusRect": [
+        885,
+        1094,
+        2504,
+        2504
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-242",
+      "pdfPage": 64,
+      "printedPage": 56,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        210,
+        554,
+        3098,
+        2915
+      ],
+      "focusRect": [
+        509,
+        700,
+        2624,
+        2624
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-243",
+      "pdfPage": 65,
+      "printedPage": 57,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        217,
+        624,
+        3066,
+        2996
+      ],
+      "focusRect": [
+        249,
+        924,
+        2696,
+        2696
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-244",
+      "pdfPage": 66,
+      "printedPage": 58,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        294,
+        554,
+        3000,
+        2852
+      ],
+      "focusRect": [
+        396,
+        611,
+        2795,
+        2795
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-245",
+      "pdfPage": 67,
+      "printedPage": 59,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        140,
+        631,
+        3221,
+        2933
+      ],
+      "focusRect": [
+        358,
+        646,
+        2786,
+        2786
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-246",
+      "pdfPage": 68,
+      "printedPage": 60,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        161,
+        554,
+        3231,
+        2964
+      ],
+      "focusRect": [
+        442,
+        850,
+        2668,
+        2668
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-247",
+      "pdfPage": 69,
+      "printedPage": 61,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        253,
+        624,
+        3023,
+        2814
+      ],
+      "focusRect": [
+        428,
+        694,
+        2673,
+        2673
+      ],
+      "previewPartial": false,
+      "note": "完整绘画图版，剔除纸张白边与印刷图注；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-248",
+      "pdfPage": 70,
+      "printedPage": 62,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        265,
+        2145,
+        2500,
+        1570
+      ],
+      "focusRect": [
+        605,
+        2145,
+        1570,
+        1570
+      ],
+      "previewPartial": true,
+      "note": "多叶组画，仅选下栏牡丹一叶，剔除两端装裱。"
+    },
+    {
+      "id": "1-8-249",
+      "pdfPage": 82,
+      "printedPage": 74,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        1969,
+        3189,
+        1402
+      ],
+      "focusRect": [
+        1060,
+        1969,
+        1402,
+        1402
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-250",
+      "pdfPage": 100,
+      "printedPage": 92,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        1997,
+        3182,
+        1423
+      ],
+      "focusRect": [
+        886,
+        1997,
+        1423,
+        1423
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-251",
+      "pdfPage": 108,
+      "printedPage": 100,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        7,
+        2004,
+        3182,
+        1437
+      ],
+      "focusRect": [
+        1134,
+        2004,
+        1437,
+        1437
+      ],
+      "previewPartial": true,
+      "note": "取单页绘画图段，未拼接其他图段；方形裁切突出主体。"
+    },
+    {
+      "id": "1-8-252",
+      "pdfPage": 157,
+      "printedPage": 149,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3508,
+      "sourceHeight": 5055,
+      "contextRect": [
+        340,
+        690,
+        2110,
+        1350
+      ],
+      "focusRect": [
+        509,
+        690,
+        1350,
+        1350
+      ],
+      "previewPartial": true,
+      "note": "跳过起始大段书法，选后续六骏之一的黑马，剔除边框及右侧大段文字。"
+    },
+    {
+      "id": "1-8-253",
+      "pdfPage": 174,
+      "printedPage": 166,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        420,
+        498,
+        2750,
+        1429
+      ],
+      "focusRect": [
+        1636,
+        784,
+        1143,
+        1143
+      ],
+      "previewPartial": false,
+      "note": "仅取上栏神龟绘画，去除左装裱及下栏书法。"
+    },
+    {
+      "id": "1-8-254",
+      "pdfPage": 178,
+      "printedPage": 170,
+      "fileName": "宋画全集  第1卷  第8册.pdf",
+      "sourceWidth": 3504,
+      "sourceHeight": 5040,
+      "contextRect": [
+        75,
+        2172,
+        2800,
+        1591
+      ],
+      "focusRect": [
+        484,
+        2172,
+        1591,
+        1591
+      ],
+      "previewPartial": false,
+      "note": "仅取下栏问道绘画，去除上栏引首及右装裱。"
+    }
+  ]
+}
