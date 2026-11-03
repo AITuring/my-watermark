@@ -31,26 +31,35 @@
       "_ui-primitives-fe3eda55.js"
     ]
   },
-  "_RawDecoder-c7955d25.js": {
-    "file": "assets/RawDecoder-c7955d25.js",
+  "_RawDecoder-4234823e.js": {
+    "file": "assets/RawDecoder-4234823e.js",
     "imports": [
       "_image-tool-common-a5aa7966.js",
-      "_large-image-5ae8a390.js"
+      "_large-image-47e8dac2.js"
     ]
   },
-  "_SliderNumberField-ea985b8c.js": {
+  "_SliderNumberField-05e5ad4a.js": {
     "css": [
       "assets/SliderNumberField-a88bb8e6.css"
     ],
-    "file": "assets/SliderNumberField-ea985b8c.js",
+    "dynamicImports": [
+      "src/components/LandingScene.tsx"
+    ],
+    "file": "assets/SliderNumberField-05e5ad4a.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_rows-951e9fda.js",
-      "_three.module-dc7f53a7.js",
-      "_index-2cc8da82.js",
       "_ui-primitives-fe3eda55.js",
       "_ui-controls-ab38631a.js"
     ]
+  },
+  "_UTIF-77150d87.js": {
+    "file": "assets/UTIF-77150d87.js",
+    "imports": [
+      "_app-runtime-98ef8efd.js",
+      "__commonjs-dynamic-modules-3e972b61.js"
+    ],
+    "isDynamicEntry": true
   },
   "_UploadCard-17ce11a3.js": {
     "file": "assets/UploadCard-17ce11a3.js",
@@ -71,11 +80,14 @@
       "_app-runtime-98ef8efd.js"
     ]
   },
-  "_image-loading-c6b46bfb.js": {
-    "file": "assets/image-loading-c6b46bfb.js",
+  "_image-loading-09e93bbc.js": {
+    "dynamicImports": [
+      "_UTIF-77150d87.js"
+    ],
+    "file": "assets/image-loading-09e93bbc.js",
     "imports": [
-      "__commonjs-dynamic-modules-3e972b61.js",
-      "_large-image-5ae8a390.js"
+      "_app-runtime-98ef8efd.js",
+      "_large-image-47e8dac2.js"
     ]
   },
   "_image-tool-common-a5aa7966.js": {
@@ -112,7 +124,24 @@
       "_app-runtime-98ef8efd.js"
     ]
   },
-  "_index-46e72688.js": {
+  "_index-8a92f110.js": {
+    "assets": [
+      "assets/paper-grain-fc7eddd7.svg"
+    ],
+    "css": [
+      "assets/index-8db01062.css"
+    ],
+    "dynamicImports": [
+      "src/pages/song-paintings/share.ts"
+    ],
+    "file": "assets/index-8a92f110.js",
+    "imports": [
+      "_app-runtime-98ef8efd.js",
+      "_ui-primitives-fe3eda55.js"
+    ],
+    "isDynamicEntry": true
+  },
+  "_index-b53a2144.js": {
     "css": [
       "assets/index-c10b4d52.css"
     ],
@@ -122,7 +151,7 @@
       "src/utils/watermark-processing.ts",
       "src/utils/watermark-processing.ts"
     ],
-    "file": "assets/index-46e72688.js",
+    "file": "assets/index-b53a2144.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js",
@@ -134,44 +163,27 @@
     ],
     "isDynamicEntry": true
   },
-  "_index-55c1c6f8.js": {
-    "assets": [
-      "assets/paper-grain-fc7eddd7.svg"
-    ],
-    "css": [
-      "assets/index-8db01062.css"
-    ],
-    "dynamicImports": [
-      "src/pages/song-paintings/share.ts"
-    ],
-    "file": "assets/index-55c1c6f8.js",
-    "imports": [
-      "_app-runtime-98ef8efd.js",
-      "_ui-primitives-fe3eda55.js"
-    ],
-    "isDynamicEntry": true
-  },
-  "_index-5f3f50c5.js": {
-    "css": [
-      "assets/index-c3ff278b.css"
-    ],
-    "dynamicImports": [
-      "src/pages/river/openScene.ts"
-    ],
-    "file": "assets/index-5f3f50c5.js",
-    "imports": [
-      "_app-runtime-98ef8efd.js",
-      "_three.module-dc7f53a7.js",
-      "_ui-primitives-fe3eda55.js"
-    ],
-    "isDynamicEntry": true
-  },
   "_index-c5c9add0.js": {
     "file": "assets/index-c5c9add0.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js"
     ]
+  },
+  "_index-c9d6dfea.js": {
+    "css": [
+      "assets/index-c3ff278b.css"
+    ],
+    "dynamicImports": [
+      "src/pages/river/openScene.ts"
+    ],
+    "file": "assets/index-c9d6dfea.js",
+    "imports": [
+      "_app-runtime-98ef8efd.js",
+      "_three.module-8350214d.js",
+      "_ui-primitives-fe3eda55.js"
+    ],
+    "isDynamicEntry": true
   },
   "_jszip.min-0177f257.js": {
     "file": "assets/jszip.min-0177f257.js",
@@ -181,8 +193,8 @@
     ],
     "isDynamicEntry": true
   },
-  "_large-image-5ae8a390.js": {
-    "file": "assets/large-image-5ae8a390.js",
+  "_large-image-47e8dac2.js": {
+    "file": "assets/large-image-47e8dac2.js",
     "imports": [
       "index.html"
     ]
@@ -199,11 +211,11 @@
       "_app-runtime-98ef8efd.js"
     ]
   },
-  "_services-614c876d.js": {
-    "file": "assets/services-614c876d.js",
+  "_services-688643a4.js": {
+    "file": "assets/services-688643a4.js",
     "imports": [
       "_image-tool-common-a5aa7966.js",
-      "_large-image-5ae8a390.js"
+      "_large-image-47e8dac2.js"
     ]
   },
   "_sortable.esm-b83af0bb.js": {
@@ -215,8 +227,8 @@
   "_stackblur-es-5056fcf0.js": {
     "file": "assets/stackblur-es-5056fcf0.js"
   },
-  "_three.module-dc7f53a7.js": {
-    "file": "assets/three.module-dc7f53a7.js"
+  "_three.module-8350214d.js": {
+    "file": "assets/three.module-8350214d.js"
   },
   "_types-723ed6fd.js": {
     "file": "assets/types-723ed6fd.js"
@@ -247,9 +259,9 @@
       "assets/index-0175d1b7.css"
     ],
     "dynamicImports": [
-      "_index-5f3f50c5.js",
+      "_index-c9d6dfea.js",
       "src/pages/ancient-waves/index.tsx",
-      "_index-46e72688.js",
+      "_index-b53a2144.js",
       "src/pages/mosaic/index.tsx",
       "src/pages/puzzle/index.tsx",
       "src/pages/compress/index.tsx",
@@ -263,7 +275,7 @@
       "src/pages/focus-stack/index.tsx",
       "src/pages/focus-visualizer/index.tsx",
       "src/pages/artifact-ai/index.tsx",
-      "_index-55c1c6f8.js",
+      "_index-8a92f110.js",
       "src/pages/song-paintings/personal.tsx",
       "src/pages/wenwu/index.tsx",
       "src/pages/collage/index.tsx",
@@ -275,7 +287,7 @@
       "src/pages/museum-events/index.tsx",
       "src/pages/landing/index.tsx"
     ],
-    "file": "assets/index-2c54d019.js",
+    "file": "assets/index-636e86d4.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js"
@@ -308,113 +320,105 @@
     "isDynamicEntry": true,
     "src": "node_modules/qrcode-generator/dist/qrcode.mjs"
   },
-  "src/assets/era/三国.png": {
-    "file": "assets/三国-fbacab74.png",
-    "src": "src/assets/era/三国.png"
+  "src/assets/era/thumbnails/三国.webp": {
+    "file": "assets/三国-2938f96f.webp",
+    "src": "src/assets/era/thumbnails/三国.webp"
   },
-  "src/assets/era/东晋.png": {
-    "file": "assets/东晋-a44fdd97.png",
-    "src": "src/assets/era/东晋.png"
+  "src/assets/era/thumbnails/东晋.webp": {
+    "file": "assets/东晋-3890b18c.webp",
+    "src": "src/assets/era/thumbnails/东晋.webp"
   },
-  "src/assets/era/东汉.png": {
-    "file": "assets/东汉-d4c2aa1c.png",
-    "src": "src/assets/era/东汉.png"
+  "src/assets/era/thumbnails/东汉.webp": {
+    "file": "assets/东汉-71db73a8.webp",
+    "src": "src/assets/era/thumbnails/东汉.webp"
   },
-  "src/assets/era/五代.png": {
-    "file": "assets/五代-fd2e61ce.png",
-    "src": "src/assets/era/五代.png"
+  "src/assets/era/thumbnails/五代.webp": {
+    "file": "assets/五代-94519487.webp",
+    "src": "src/assets/era/thumbnails/五代.webp"
   },
-  "src/assets/era/元.png": {
-    "file": "assets/元-11be85a5.png",
-    "src": "src/assets/era/元.png"
+  "src/assets/era/thumbnails/元.webp": {
+    "file": "assets/元-044145d1.webp",
+    "src": "src/assets/era/thumbnails/元.webp"
   },
-  "src/assets/era/北宋.png": {
-    "file": "assets/北宋-edac65c2.png",
-    "src": "src/assets/era/北宋.png"
+  "src/assets/era/thumbnails/北宋.webp": {
+    "file": "assets/北宋-d9a2df3d.webp",
+    "src": "src/assets/era/thumbnails/北宋.webp"
   },
-  "src/assets/era/北朝.png": {
-    "file": "assets/北朝-4a3a9224.png",
-    "src": "src/assets/era/北朝.png"
+  "src/assets/era/thumbnails/北燕.webp": {
+    "file": "assets/北燕-6e34af9e.webp",
+    "src": "src/assets/era/thumbnails/北燕.webp"
   },
-  "src/assets/era/北燕.png": {
-    "file": "assets/北燕-e44edfd9.png",
-    "src": "src/assets/era/北燕.png"
+  "src/assets/era/thumbnails/北魏.webp": {
+    "file": "assets/北魏-0479bafe.webp",
+    "src": "src/assets/era/thumbnails/北魏.webp"
   },
-  "src/assets/era/北魏.png": {
-    "file": "assets/北魏-f220998b.png",
-    "src": "src/assets/era/北魏.png"
+  "src/assets/era/thumbnails/北齐.webp": {
+    "file": "assets/北齐-ef0fde85.webp",
+    "src": "src/assets/era/thumbnails/北齐.webp"
   },
-  "src/assets/era/北齐.png": {
-    "file": "assets/北齐-db993c1f.png",
-    "src": "src/assets/era/北齐.png"
+  "src/assets/era/thumbnails/南宋.webp": {
+    "file": "assets/南宋-4ff7f614.webp",
+    "src": "src/assets/era/thumbnails/南宋.webp"
   },
-  "src/assets/era/南宋.png": {
-    "file": "assets/南宋-68cec171.png",
-    "src": "src/assets/era/南宋.png"
+  "src/assets/era/thumbnails/南朝.webp": {
+    "file": "assets/南朝-5e6db9d3.webp",
+    "src": "src/assets/era/thumbnails/南朝.webp"
   },
-  "src/assets/era/南朝.png": {
-    "file": "assets/南朝-3046a892.png",
-    "src": "src/assets/era/南朝.png"
+  "src/assets/era/thumbnails/唐.webp": {
+    "file": "assets/唐-e441db34.webp",
+    "src": "src/assets/era/thumbnails/唐.webp"
   },
-  "src/assets/era/唐.png": {
-    "file": "assets/唐-674373c2.png",
-    "src": "src/assets/era/唐.png"
+  "src/assets/era/thumbnails/商.webp": {
+    "file": "assets/商-bdb303ec.webp",
+    "src": "src/assets/era/thumbnails/商.webp"
   },
-  "src/assets/era/商.png": {
-    "file": "assets/商-daee707c.png",
-    "src": "src/assets/era/商.png"
+  "src/assets/era/thumbnails/夏.webp": {
+    "file": "assets/夏-495220d0.webp",
+    "src": "src/assets/era/thumbnails/夏.webp"
   },
-  "src/assets/era/夏.png": {
-    "file": "assets/夏-5a2da315.png",
-    "src": "src/assets/era/夏.png"
+  "src/assets/era/thumbnails/战国.webp": {
+    "file": "assets/战国-4d3e0bd7.webp",
+    "src": "src/assets/era/thumbnails/战国.webp"
   },
-  "src/assets/era/战国.png": {
-    "file": "assets/战国-053150df.png",
-    "src": "src/assets/era/战国.png"
+  "src/assets/era/thumbnails/新石器时代.webp": {
+    "file": "assets/新石器时代-7d63bd94.webp",
+    "src": "src/assets/era/thumbnails/新石器时代.webp"
   },
-  "src/assets/era/新石器时代.png": {
-    "file": "assets/新石器时代-fea6ae43.png",
-    "src": "src/assets/era/新石器时代.png"
+  "src/assets/era/thumbnails/明.webp": {
+    "file": "assets/明-71867232.webp",
+    "src": "src/assets/era/thumbnails/明.webp"
   },
-  "src/assets/era/明.png": {
-    "file": "assets/明-ba7b5a7e.png",
-    "src": "src/assets/era/明.png"
+  "src/assets/era/thumbnails/春秋.webp": {
+    "file": "assets/春秋-5f242b07.webp",
+    "src": "src/assets/era/thumbnails/春秋.webp"
   },
-  "src/assets/era/春秋.png": {
-    "file": "assets/春秋-329e9f26.png",
-    "src": "src/assets/era/春秋.png"
+  "src/assets/era/thumbnails/清.webp": {
+    "file": "assets/清-8c748b9c.webp",
+    "src": "src/assets/era/thumbnails/清.webp"
   },
-  "src/assets/era/清.png": {
-    "file": "assets/清-7824366f.png",
-    "src": "src/assets/era/清.png"
+  "src/assets/era/thumbnails/秦.webp": {
+    "file": "assets/秦-fbd56446.webp",
+    "src": "src/assets/era/thumbnails/秦.webp"
   },
-  "src/assets/era/秦.png": {
-    "file": "assets/秦-acfe671e.png",
-    "src": "src/assets/era/秦.png"
+  "src/assets/era/thumbnails/西周.webp": {
+    "file": "assets/西周-1427c18d.webp",
+    "src": "src/assets/era/thumbnails/西周.webp"
   },
-  "src/assets/era/西周.png": {
-    "file": "assets/西周-53dea996.png",
-    "src": "src/assets/era/西周.png"
+  "src/assets/era/thumbnails/西夏.webp": {
+    "file": "assets/西夏-be470e1b.webp",
+    "src": "src/assets/era/thumbnails/西夏.webp"
   },
-  "src/assets/era/西夏.png": {
-    "file": "assets/西夏-b6156ab1.png",
-    "src": "src/assets/era/西夏.png"
+  "src/assets/era/thumbnails/西晋.webp": {
+    "file": "assets/西晋-d2038536.webp",
+    "src": "src/assets/era/thumbnails/西晋.webp"
   },
-  "src/assets/era/西晋.png": {
-    "file": "assets/西晋-69a76df8.png",
-    "src": "src/assets/era/西晋.png"
+  "src/assets/era/thumbnails/西汉.webp": {
+    "file": "assets/西汉-d5c6d63f.webp",
+    "src": "src/assets/era/thumbnails/西汉.webp"
   },
-  "src/assets/era/西汉.png": {
-    "file": "assets/西汉-ced14357.png",
-    "src": "src/assets/era/西汉.png"
-  },
-  "src/assets/era/隋.png": {
-    "file": "assets/隋-6c7f6d51.png",
-    "src": "src/assets/era/隋.png"
-  },
-  "src/assets/history/split_002.png": {
-    "file": "assets/split_002-3e38aba0.png",
-    "src": "src/assets/history/split_002.png"
+  "src/assets/era/thumbnails/隋.webp": {
+    "file": "assets/隋-9e6522b1.webp",
+    "src": "src/assets/era/thumbnails/隋.webp"
   },
   "src/assets/history/thumbnails/split_001.webp": {
     "file": "assets/split_001-49e89ce6.webp",
@@ -488,61 +492,71 @@
     "file": "assets/split_018-d7d95907.webp",
     "src": "src/assets/history/thumbnails/split_018.webp"
   },
-  "src/assets/wenwu-type/书法.png": {
-    "file": "assets/书法-b0548650.png",
-    "src": "src/assets/wenwu-type/书法.png"
+  "src/assets/wenwu-type/thumbnails/书法.webp": {
+    "file": "assets/书法-cc35c964.webp",
+    "src": "src/assets/wenwu-type/thumbnails/书法.webp"
   },
-  "src/assets/wenwu-type/书籍.png": {
-    "file": "assets/书籍-7a8b9030.png",
-    "src": "src/assets/wenwu-type/书籍.png"
+  "src/assets/wenwu-type/thumbnails/书籍.webp": {
+    "file": "assets/书籍-5cd12ff9.webp",
+    "src": "src/assets/wenwu-type/thumbnails/书籍.webp"
   },
-  "src/assets/wenwu-type/壁画.png": {
-    "file": "assets/壁画-27257f91.png",
-    "src": "src/assets/wenwu-type/壁画.png"
+  "src/assets/wenwu-type/thumbnails/壁画.webp": {
+    "file": "assets/壁画-190801af.webp",
+    "src": "src/assets/wenwu-type/thumbnails/壁画.webp"
   },
-  "src/assets/wenwu-type/服饰.png": {
-    "file": "assets/服饰-61148570.png",
-    "src": "src/assets/wenwu-type/服饰.png"
+  "src/assets/wenwu-type/thumbnails/服饰.webp": {
+    "file": "assets/服饰-7e45787c.webp",
+    "src": "src/assets/wenwu-type/thumbnails/服饰.webp"
   },
-  "src/assets/wenwu-type/木雕.png": {
-    "file": "assets/木雕-d6b906a9.png",
-    "src": "src/assets/wenwu-type/木雕.png"
+  "src/assets/wenwu-type/thumbnails/木雕.webp": {
+    "file": "assets/木雕-2fa82c44.webp",
+    "src": "src/assets/wenwu-type/thumbnails/木雕.webp"
   },
-  "src/assets/wenwu-type/漆器.png": {
-    "file": "assets/漆器-a79de57e.png",
-    "src": "src/assets/wenwu-type/漆器.png"
+  "src/assets/wenwu-type/thumbnails/漆器.webp": {
+    "file": "assets/漆器-5b97e59d.webp",
+    "src": "src/assets/wenwu-type/thumbnails/漆器.webp"
   },
-  "src/assets/wenwu-type/玉器.png": {
-    "file": "assets/玉器-1f68a721.png",
-    "src": "src/assets/wenwu-type/玉器.png"
+  "src/assets/wenwu-type/thumbnails/玉器.webp": {
+    "file": "assets/玉器-589fc8ae.webp",
+    "src": "src/assets/wenwu-type/thumbnails/玉器.webp"
   },
-  "src/assets/wenwu-type/玻璃.png": {
-    "file": "assets/玻璃-e8793112.png",
-    "src": "src/assets/wenwu-type/玻璃.png"
+  "src/assets/wenwu-type/thumbnails/玻璃.webp": {
+    "file": "assets/玻璃-0cfac8cd.webp",
+    "src": "src/assets/wenwu-type/thumbnails/玻璃.webp"
   },
-  "src/assets/wenwu-type/石刻.png": {
-    "file": "assets/石刻-8456df15.png",
-    "src": "src/assets/wenwu-type/石刻.png"
+  "src/assets/wenwu-type/thumbnails/石刻.webp": {
+    "file": "assets/石刻-062b3e37.webp",
+    "src": "src/assets/wenwu-type/thumbnails/石刻.webp"
   },
-  "src/assets/wenwu-type/绘画.png": {
-    "file": "assets/绘画-f827a029.png",
-    "src": "src/assets/wenwu-type/绘画.png"
+  "src/assets/wenwu-type/thumbnails/绘画.webp": {
+    "file": "assets/绘画-901c4953.webp",
+    "src": "src/assets/wenwu-type/thumbnails/绘画.webp"
   },
-  "src/assets/wenwu-type/象牙.png": {
-    "file": "assets/象牙-431528f1.png",
-    "src": "src/assets/wenwu-type/象牙.png"
+  "src/assets/wenwu-type/thumbnails/象牙.webp": {
+    "file": "assets/象牙-5a280a0a.webp",
+    "src": "src/assets/wenwu-type/thumbnails/象牙.webp"
   },
-  "src/assets/wenwu-type/金银.png": {
-    "file": "assets/金银-aaab7e02.png",
-    "src": "src/assets/wenwu-type/金银.png"
+  "src/assets/wenwu-type/thumbnails/金银.webp": {
+    "file": "assets/金银-0762f1d2.webp",
+    "src": "src/assets/wenwu-type/thumbnails/金银.webp"
   },
-  "src/assets/wenwu-type/陶瓷.png": {
-    "file": "assets/陶瓷-d6827461.png",
-    "src": "src/assets/wenwu-type/陶瓷.png"
+  "src/assets/wenwu-type/thumbnails/陶瓷.webp": {
+    "file": "assets/陶瓷-c7cd1ccd.webp",
+    "src": "src/assets/wenwu-type/thumbnails/陶瓷.webp"
   },
-  "src/assets/wenwu-type/青铜.png": {
-    "file": "assets/青铜-80ac40d0.png",
-    "src": "src/assets/wenwu-type/青铜.png"
+  "src/assets/wenwu-type/thumbnails/青铜.webp": {
+    "file": "assets/青铜-b1369eed.webp",
+    "src": "src/assets/wenwu-type/thumbnails/青铜.webp"
+  },
+  "src/components/LandingScene.tsx": {
+    "file": "assets/LandingScene-af73aa6b.js",
+    "imports": [
+      "_app-runtime-98ef8efd.js",
+      "_three.module-8350214d.js",
+      "_index-2cc8da82.js"
+    ],
+    "isDynamicEntry": true,
+    "src": "src/components/LandingScene.tsx"
   },
   "src/pages/ancient-waves/index.css": {
     "file": "assets/index-05ecfbd3.css",
@@ -552,10 +566,10 @@
     "css": [
       "assets/index-05ecfbd3.css"
     ],
-    "file": "assets/index-c8214a1a.js",
+    "file": "assets/index-35090b95.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
-      "_three.module-dc7f53a7.js",
+      "_three.module-8350214d.js",
       "_ui-primitives-fe3eda55.js"
     ],
     "isDynamicEntry": true,
@@ -577,7 +591,7 @@
     "dynamicImports": [
       "src/pages/artifact-ai/MarkdownRenderer.tsx"
     ],
-    "file": "assets/index-52b65fff.js",
+    "file": "assets/index-ba3cab2e.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js",
@@ -589,7 +603,7 @@
     "src": "src/pages/artifact-ai/index.tsx"
   },
   "src/pages/batch-workbench/index.tsx": {
-    "file": "assets/index-fa6b7904.js",
+    "file": "assets/index-682b4101.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-c5c9add0.js",
@@ -597,9 +611,9 @@
       "_ui-primitives-fe3eda55.js",
       "_ui-controls-ab38631a.js",
       "_types-723ed6fd.js",
-      "_services-614c876d.js",
+      "_services-688643a4.js",
       "_image-tool-common-a5aa7966.js",
-      "_large-image-5ae8a390.js"
+      "_large-image-47e8dac2.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/batch-workbench/index.tsx"
@@ -615,28 +629,28 @@
     "src": "src/pages/calendar/index.tsx"
   },
   "src/pages/collage/index.tsx": {
-    "file": "assets/index-2ebc6fba.js",
+    "file": "assets/index-a304376d.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js",
       "_ui-controls-ab38631a.js",
-      "_large-image-5ae8a390.js",
+      "_large-image-47e8dac2.js",
       "index.html"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/collage/index.tsx"
   },
   "src/pages/compress/index.tsx": {
-    "file": "assets/index-92927181.js",
+    "file": "assets/index-81f1c058.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_GenerativeBackground-6da2d4b6.js",
       "_ui-primitives-fe3eda55.js",
       "_ui-controls-ab38631a.js",
-      "_services-614c876d.js",
+      "_services-688643a4.js",
       "_index-c5c9add0.js",
       "_image-tool-common-a5aa7966.js",
-      "_large-image-5ae8a390.js",
+      "_large-image-47e8dac2.js",
       "index.html"
     ],
     "isDynamicEntry": true,
@@ -650,13 +664,13 @@
     "css": [
       "assets/index-37374a55.css"
     ],
-    "file": "assets/index-1e949dd6.js",
+    "file": "assets/index-a27e4aaa.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "index.html",
       "_ImageUploader-69279045.js",
       "_image-tool-common-a5aa7966.js",
-      "_large-image-5ae8a390.js",
+      "_large-image-47e8dac2.js",
       "_ui-primitives-fe3eda55.js",
       "_index-c5c9add0.js",
       "_ui-controls-ab38631a.js"
@@ -665,7 +679,7 @@
     "src": "src/pages/cover-collage/index.tsx"
   },
   "src/pages/crop/index.tsx": {
-    "file": "assets/index-164e432e.js",
+    "file": "assets/index-18ded48f.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "index.html",
@@ -674,42 +688,40 @@
       "_PanelCard-8ec61ae9.js",
       "_ui-controls-ab38631a.js",
       "_image-tool-common-a5aa7966.js",
-      "_large-image-5ae8a390.js"
+      "_large-image-47e8dac2.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/crop/index.tsx"
   },
   "src/pages/focus-stack/index.tsx": {
-    "file": "assets/index-ae09accd.js",
+    "file": "assets/index-e2357c34.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_iconify-5553e249.js",
       "index.html",
       "_sortable.esm-b83af0bb.js",
       "_ui-primitives-fe3eda55.js",
-      "_image-loading-c6b46bfb.js",
-      "_large-image-5ae8a390.js",
+      "_image-loading-09e93bbc.js",
+      "_large-image-47e8dac2.js",
       "_ImageUploader-69279045.js",
       "_ui-controls-ab38631a.js",
       "_PanelCard-8ec61ae9.js",
       "_UploadCard-17ce11a3.js",
-      "__commonjs-dynamic-modules-3e972b61.js",
       "_index-c5c9add0.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/focus-stack/index.tsx"
   },
   "src/pages/focus-visualizer/index.tsx": {
-    "file": "assets/index-38128329.js",
+    "file": "assets/index-d846c43b.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_iconify-5553e249.js",
       "_ui-primitives-fe3eda55.js",
       "_ui-controls-ab38631a.js",
-      "_image-loading-c6b46bfb.js",
-      "_large-image-5ae8a390.js",
-      "_RawDecoder-c7955d25.js",
-      "__commonjs-dynamic-modules-3e972b61.js",
+      "_image-loading-09e93bbc.js",
+      "_large-image-47e8dac2.js",
+      "_RawDecoder-4234823e.js",
       "index.html",
       "_image-tool-common-a5aa7966.js"
     ],
@@ -717,22 +729,20 @@
     "src": "src/pages/focus-visualizer/index.tsx"
   },
   "src/pages/gallery/index.tsx": {
-    "file": "assets/index-f5baa6d8.js",
+    "file": "assets/index-d5e5d682.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-c5c9add0.js",
       "index.html",
       "_iconify-5553e249.js",
       "_sortable.esm-b83af0bb.js",
-      "_SliderNumberField-ea985b8c.js",
+      "_SliderNumberField-05e5ad4a.js",
       "_image-tool-common-a5aa7966.js",
-      "_large-image-5ae8a390.js",
+      "_large-image-47e8dac2.js",
       "_PanelCard-8ec61ae9.js",
       "_ui-primitives-fe3eda55.js",
       "_ui-controls-ab38631a.js",
-      "_rows-951e9fda.js",
-      "_three.module-dc7f53a7.js",
-      "_index-2cc8da82.js"
+      "_rows-951e9fda.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/gallery/index.tsx"
@@ -745,13 +755,13 @@
     "css": [
       "assets/index-cfdacb57.css"
     ],
-    "file": "assets/index-f846391c.js",
+    "file": "assets/index-62e42b7a.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_iconify-5553e249.js",
       "_rows-951e9fda.js",
       "_image-tool-common-a5aa7966.js",
-      "_large-image-5ae8a390.js",
+      "_large-image-47e8dac2.js",
       "_ui-controls-ab38631a.js",
       "_ui-primitives-fe3eda55.js",
       "index.html"
@@ -787,7 +797,7 @@
     "css": [
       "assets/index-72ade40d.css"
     ],
-    "file": "assets/index-8051c05e.js",
+    "file": "assets/index-bd8094a5.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-25699f56.js",
@@ -798,13 +808,13 @@
     "src": "src/pages/landing/index.tsx"
   },
   "src/pages/mosaic/index.tsx": {
-    "file": "assets/index-6e4b9ebf.js",
+    "file": "assets/index-6e7b91c8.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-c5c9add0.js",
       "index.html",
       "_ui-primitives-fe3eda55.js",
-      "_large-image-5ae8a390.js",
+      "_large-image-47e8dac2.js",
       "_ui-controls-ab38631a.js",
       "_image-tool-common-a5aa7966.js"
     ],
@@ -825,7 +835,7 @@
     "src": "src/pages/museum-events/index.tsx"
   },
   "src/pages/museum/index.tsx": {
-    "file": "assets/index-b2cba88e.js",
+    "file": "assets/index-497cbd3e.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js",
@@ -836,62 +846,59 @@
     "src": "src/pages/museum/index.tsx"
   },
   "src/pages/photo-exif/index.tsx": {
-    "file": "assets/index-443cbce3.js",
+    "file": "assets/index-1c1333f0.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-controls-ab38631a.js",
       "_ui-primitives-fe3eda55.js",
-      "_image-loading-c6b46bfb.js",
+      "_image-loading-09e93bbc.js",
       "_image-tool-common-a5aa7966.js",
-      "_large-image-5ae8a390.js",
+      "_large-image-47e8dac2.js",
       "_UploadCard-17ce11a3.js",
       "_index-25699f56.js",
       "index.html",
       "_index-c5c9add0.js",
-      "__commonjs-dynamic-modules-3e972b61.js",
       "_PanelCard-8ec61ae9.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/photo-exif/index.tsx"
   },
   "src/pages/puzzle/index.tsx": {
-    "file": "assets/index-a74e088b.js",
+    "file": "assets/index-1d41cdc5.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-c5c9add0.js",
       "index.html",
       "_sortable.esm-b83af0bb.js",
-      "_SliderNumberField-ea985b8c.js",
+      "_SliderNumberField-05e5ad4a.js",
       "_iconify-5553e249.js",
       "_image-tool-common-a5aa7966.js",
       "_ui-primitives-fe3eda55.js",
       "_PanelCard-8ec61ae9.js",
       "_ui-controls-ab38631a.js",
-      "_large-image-5ae8a390.js",
-      "_rows-951e9fda.js",
-      "_three.module-dc7f53a7.js",
-      "_index-2cc8da82.js"
+      "_large-image-47e8dac2.js",
+      "_rows-951e9fda.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/puzzle/index.tsx"
   },
   "src/pages/raw-editor/index.tsx": {
-    "file": "assets/index-b4983044.js",
+    "file": "assets/index-4edd0a2a.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
-      "_RawDecoder-c7955d25.js",
-      "_three.module-dc7f53a7.js",
+      "_RawDecoder-4234823e.js",
+      "_three.module-8350214d.js",
       "_ui-controls-ab38631a.js",
       "_ui-primitives-fe3eda55.js",
       "index.html",
-      "_large-image-5ae8a390.js",
+      "_large-image-47e8dac2.js",
       "_image-tool-common-a5aa7966.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/raw-editor/index.tsx"
   },
   "src/pages/rename/index.tsx": {
-    "file": "assets/index-a655b1d8.js",
+    "file": "assets/index-2c8015b0.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js",
@@ -904,10 +911,10 @@
     "src": "src/pages/rename/index.tsx"
   },
   "src/pages/river/openScene.ts": {
-    "file": "assets/openScene-e893c881.js",
+    "file": "assets/openScene-78a4ccf0.js",
     "imports": [
-      "_three.module-dc7f53a7.js",
-      "_index-5f3f50c5.js",
+      "_three.module-8350214d.js",
+      "_index-c9d6dfea.js",
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js"
     ],
@@ -919,10 +926,10 @@
     "src": "src/pages/song-paintings/paper-grain.svg"
   },
   "src/pages/song-paintings/personal.tsx": {
-    "file": "assets/personal-4e886a04.js",
+    "file": "assets/personal-f52ef7e2.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
-      "_index-55c1c6f8.js",
+      "_index-8a92f110.js",
       "_ui-primitives-fe3eda55.js"
     ],
     "isDynamicEntry": true,
@@ -932,9 +939,9 @@
     "dynamicImports": [
       "node_modules/qrcode-generator/dist/qrcode.mjs"
     ],
-    "file": "assets/share-8ec9d58f.js",
+    "file": "assets/share-9bfe3786.js",
     "imports": [
-      "_index-55c1c6f8.js",
+      "_index-8a92f110.js",
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js"
     ],
@@ -963,12 +970,12 @@
     "src": "src/pages/split/index.tsx"
   },
   "src/pages/stitch/index.tsx": {
-    "file": "assets/index-7e659d62.js",
+    "file": "assets/index-6c3b70b6.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-c5c9add0.js",
       "_ui-controls-ab38631a.js",
-      "_large-image-5ae8a390.js",
+      "_large-image-47e8dac2.js",
       "_ui-primitives-fe3eda55.js",
       "index.html"
     ],
@@ -981,53 +988,69 @@
   },
   "src/pages/wenwu/index.tsx": {
     "assets": [
-      "assets/书法-b0548650.png",
-      "assets/书籍-7a8b9030.png",
-      "assets/壁画-27257f91.png",
-      "assets/服饰-61148570.png",
-      "assets/木雕-d6b906a9.png",
-      "assets/漆器-a79de57e.png",
-      "assets/玉器-1f68a721.png",
-      "assets/玻璃-e8793112.png",
-      "assets/石刻-8456df15.png",
-      "assets/绘画-f827a029.png",
-      "assets/象牙-431528f1.png",
-      "assets/金银-aaab7e02.png",
-      "assets/陶瓷-d6827461.png",
-      "assets/青铜-80ac40d0.png",
-      "assets/三国-fbacab74.png",
-      "assets/东晋-a44fdd97.png",
-      "assets/东汉-d4c2aa1c.png",
-      "assets/五代-fd2e61ce.png",
-      "assets/元-11be85a5.png",
-      "assets/北宋-edac65c2.png",
-      "assets/北朝-4a3a9224.png",
-      "assets/北燕-e44edfd9.png",
-      "assets/北魏-f220998b.png",
-      "assets/北齐-db993c1f.png",
-      "assets/南宋-68cec171.png",
-      "assets/南朝-3046a892.png",
-      "assets/唐-674373c2.png",
-      "assets/商-daee707c.png",
-      "assets/夏-5a2da315.png",
-      "assets/战国-053150df.png",
-      "assets/新石器时代-fea6ae43.png",
-      "assets/明-ba7b5a7e.png",
-      "assets/春秋-329e9f26.png",
-      "assets/清-7824366f.png",
-      "assets/秦-acfe671e.png",
-      "assets/西周-53dea996.png",
-      "assets/西夏-b6156ab1.png",
-      "assets/西晋-69a76df8.png",
-      "assets/西汉-ced14357.png",
-      "assets/隋-6c7f6d51.png",
-      "assets/split_002-3e38aba0.png"
+      "assets/split_001-49e89ce6.webp",
+      "assets/split_002-041c4b3f.webp",
+      "assets/split_003-65245d57.webp",
+      "assets/split_004-1a720072.webp",
+      "assets/split_005-088190ff.webp",
+      "assets/split_006-c87910cd.webp",
+      "assets/split_007-710c07d3.webp",
+      "assets/split_008-53485995.webp",
+      "assets/split_009-d52101b4.webp",
+      "assets/split_010-c9c7db0c.webp",
+      "assets/split_011-8e01ebf0.webp",
+      "assets/split_012-ba326607.webp",
+      "assets/split_013-dc2c9efe.webp",
+      "assets/split_014-4c148d9b.webp",
+      "assets/split_015-b56c6e66.webp",
+      "assets/split_016-9ca1f02a.webp",
+      "assets/split_017-c536ecc2.webp",
+      "assets/split_018-d7d95907.webp",
+      "assets/书法-cc35c964.webp",
+      "assets/书籍-5cd12ff9.webp",
+      "assets/壁画-190801af.webp",
+      "assets/服饰-7e45787c.webp",
+      "assets/木雕-2fa82c44.webp",
+      "assets/漆器-5b97e59d.webp",
+      "assets/玉器-589fc8ae.webp",
+      "assets/玻璃-0cfac8cd.webp",
+      "assets/石刻-062b3e37.webp",
+      "assets/绘画-901c4953.webp",
+      "assets/象牙-5a280a0a.webp",
+      "assets/金银-0762f1d2.webp",
+      "assets/陶瓷-c7cd1ccd.webp",
+      "assets/青铜-b1369eed.webp",
+      "assets/三国-2938f96f.webp",
+      "assets/东晋-3890b18c.webp",
+      "assets/东汉-71db73a8.webp",
+      "assets/五代-94519487.webp",
+      "assets/元-044145d1.webp",
+      "assets/北宋-d9a2df3d.webp",
+      "assets/北燕-6e34af9e.webp",
+      "assets/北魏-0479bafe.webp",
+      "assets/北齐-ef0fde85.webp",
+      "assets/南宋-4ff7f614.webp",
+      "assets/南朝-5e6db9d3.webp",
+      "assets/唐-e441db34.webp",
+      "assets/商-bdb303ec.webp",
+      "assets/夏-495220d0.webp",
+      "assets/战国-4d3e0bd7.webp",
+      "assets/新石器时代-7d63bd94.webp",
+      "assets/明-71867232.webp",
+      "assets/春秋-5f242b07.webp",
+      "assets/清-8c748b9c.webp",
+      "assets/秦-fbd56446.webp",
+      "assets/西周-1427c18d.webp",
+      "assets/西夏-be470e1b.webp",
+      "assets/西晋-d2038536.webp",
+      "assets/西汉-d5c6d63f.webp",
+      "assets/隋-9e6522b1.webp"
     ],
     "css": [
       "assets/index-ed8f8ab9.css",
       "assets/github-47e00288.css"
     ],
-    "file": "assets/index-6b012e85.js",
+    "file": "assets/index-4e7db895.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js",
@@ -1038,27 +1061,25 @@
     "src": "src/pages/wenwu/index.tsx"
   },
   "src/utils/index.ts": {
-    "file": "assets/index-4cdf197f.js",
+    "file": "assets/index-06f858e6.js",
     "imports": [
-      "_image-loading-c6b46bfb.js",
+      "_image-loading-09e93bbc.js",
       "_stackblur-es-5056fcf0.js",
-      "__commonjs-dynamic-modules-3e972b61.js",
-      "_large-image-5ae8a390.js",
-      "index.html",
       "_app-runtime-98ef8efd.js",
+      "_large-image-47e8dac2.js",
+      "index.html",
       "_ui-primitives-fe3eda55.js"
     ],
     "isDynamicEntry": true,
     "src": "src/utils/index.ts"
   },
   "src/utils/watermark-processing.ts": {
-    "file": "assets/watermark-processing-5b66d0bf.js",
+    "file": "assets/watermark-processing-c48dbffe.js",
     "imports": [
       "_stackblur-es-5056fcf0.js",
-      "_image-loading-c6b46bfb.js",
-      "_index-46e72688.js",
-      "_large-image-5ae8a390.js",
-      "__commonjs-dynamic-modules-3e972b61.js",
+      "_image-loading-09e93bbc.js",
+      "_index-b53a2144.js",
+      "_large-image-47e8dac2.js",
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-fe3eda55.js",
       "_ui-controls-ab38631a.js",
