@@ -53,6 +53,10 @@ export const ArtifactCard: React.FC<ArtifactCardProps> = ({
                         >
                             {typeIcon && (
                                 <img
+                                    loading="lazy"
+                                    decoding="async"
+                                    width={20}
+                                    height={20}
                                     src={typeIcon}
                                     alt={artifact.type}
                                     className="w-5 h-5 rounded-sm object-contain"
@@ -65,6 +69,10 @@ export const ArtifactCard: React.FC<ArtifactCardProps> = ({
                         >
                             {eraIcon && (
                                 <img
+                                    loading="lazy"
+                                    decoding="async"
+                                    width={20}
+                                    height={20}
                                     src={eraIcon}
                                     alt={artifact.era}
                                     className="w-5 h-5 object-contain"

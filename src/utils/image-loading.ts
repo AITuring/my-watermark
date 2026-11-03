@@ -1,7 +1,7 @@
 // `utif` ships without first-party TypeScript declarations in this package.
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore Runtime dependency is present; declarations are not bundled.
-import * as UTIF from "utif";
+import type * as UTIF from "utif";
 import {
     canUseLocalLargeImageService,
     getLargeImageAsset,
@@ -109,6 +109,7 @@ function loadImageElement(file: File): Promise<HTMLImageElement> {
 
 async function decodeTiffToCanvas(file: File): Promise<HTMLCanvasElement> {
     const buffer = await file.arrayBuffer();
+    const UTIF = await import("utif");
     const ifds = UTIF.decode(buffer);
     const mainIfd = pickMainIfd(ifds);
     UTIF.decodeImage(buffer, mainIfd, ifds);

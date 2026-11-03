@@ -3,6 +3,7 @@ import { ImageIcon } from "lucide-react";
 
 import { resolveArtifactImageUrl } from "./assets";
 import { artifactImageCatalog } from "./artifactImageCatalog";
+import artifactThumbnails from "./artifactThumbnails.json";
 import type { Artifact } from "./types";
 import { extractMuseumNames } from "./utils";
 
@@ -210,8 +211,13 @@ export const ArtifactImage: React.FC<ArtifactImageProps> = ({
 }) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [isVisible, setIsVisible] = useState(eager);
+    const [thumbnailFailed, setThumbnailFailed] = useState(false);
     const [hasError, setHasError] = useState(false);
     const imageUrl = useArtifactImage(artifact, isVisible || eager);
+    const localFile = (artifactImageCatalog[artifact.id]?.localImage || artifact.image)?.split("/").pop();
+    const thumbnail = localFile ? (artifactThumbnails as Record<string, string>)[localFile] : undefined;
+    const thumbnailUrl = thumbnail ? `${import.meta.env.BASE_URL}wenwu/thumbnails/${encodeURIComponent(thumbnail)}` : undefined;
+    const displayUrl = !eager && !thumbnailFailed && thumbnailUrl ? thumbnailUrl : imageUrl;
     const museumName = extractMuseumNames(artifact.collectionLocation)[0];
     const catalogEntry = artifactImageCatalog[artifact.id];
     const placeholderText =
@@ -245,6 +251,7 @@ export const ArtifactImage: React.FC<ArtifactImageProps> = ({
 
     useEffect(() => {
         setHasError(false);
+        setThumbnailFailed(false);
     }, [artifact.id, imageUrl]);
 
     return (
@@ -252,14 +259,18 @@ export const ArtifactImage: React.FC<ArtifactImageProps> = ({
             ref={containerRef}
             className={`${className} relative overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-100 dark:from-slate-800 dark:via-slate-900 dark:to-slate-800`}
         >
-            {imageUrl && !hasError ? (
+            {(isVisible || eager) && displayUrl && !hasError ? (
                 <img
-                    src={imageUrl}
+                    src={displayUrl}
+                    decoding="async"
                     alt={alt}
                     loading={eager ? "eager" : "lazy"}
                     referrerPolicy="no-referrer"
                     className={`${imageClassName} block`}
-                    onError={() => setHasError(true)}
+                    onError={() => {
+                        if (displayUrl === thumbnailUrl && !thumbnailFailed) setThumbnailFailed(true);
+                        else setHasError(true);
+                    }}
                 />
             ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4 text-center">
