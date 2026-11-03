@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import "./landing.css";
 import DarkToggle from "@/components/DarkToggle";
 import {
     Album,
@@ -79,8 +79,6 @@ interface ToolItem {
     };
 }
 
-const MotionLink = motion(Link);
-
 const ToolCard = ({
     item,
     index,
@@ -91,14 +89,13 @@ const ToolCard = ({
     const IconComponent = item.iconComponent;
 
     return (
-        <MotionLink
+        <Link
             to={item.href}
+            reloadDocument={item.href === "/split"}
             onPointerEnter={() => preloadRoute(item.href)}
             onFocus={() => preloadRoute(item.href)}
             onPointerDown={() => preloadRoute(item.href)}
-            whileHover={{ y: -4, scale: 1.005 }}
-            whileTap={{ scale: 0.98 }}
-            className={`group relative overflow-hidden rounded-lg border border-stone-200/60 dark:border-stone-700/60 bg-[#eff0f0] dark:bg-[#262626] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-none ${item.colorTheme.border} transition-all duration-300 cursor-pointer p-4 flex flex-col items-start justify-between gap-3 h-64 md:h-72`}
+            className={`landing-tool-card group relative overflow-hidden rounded-lg border border-stone-200/60 dark:border-stone-700/60 bg-[#eff0f0] dark:bg-[#262626] shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-none ${item.colorTheme.border} transition-all duration-300 cursor-pointer p-4 flex flex-col items-start justify-between gap-3 h-64 md:h-72`}
         >
             {/* 背景装饰：微弱的色块 - 进一步减淡以突出水墨 */}
             <div
@@ -110,8 +107,10 @@ const ToolCard = ({
                 <img
                     src={HISTORY_ICONS[index % HISTORY_ICONS.length]}
                     alt=""
-                    loading="lazy"
+                    loading={index < 5 ? "eager" : "lazy"}
                     decoding="async"
+                    width={128}
+                    height={128}
                     className="w-full h-full object-contain object-right-bottom"
                 />
             </div>
@@ -174,7 +173,7 @@ const ToolCard = ({
                     <path d="m9 18 6-6-6-6" />
                 </svg>
             </div>
-        </MotionLink>
+        </Link>
     );
 };
 
@@ -284,67 +283,16 @@ export default function Landing() {
             {/* 顶部 Header */}
             <header className="fixed top-0 left-0 w-full px-6 pt-4 pb-2 z-50 flex justify-between items-center bg-[#FDFBF7]/80 dark:bg-[#1a1a1a]/80 backdrop-blur-sm border-b border-stone-200/50 dark:border-stone-700/50">
                 <div className="flex items-center gap-3 cursor-pointer">
-                    <motion.div
-                        className="relative w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-[#FDFBF7] font-bold text-lg shadow-sm"
-                        initial="rest"
-                        animate="rest"
-                        whileHover="hover"
-                    >
-                        <motion.span
-                            className="font-mono text-4xl"
-                            animate={{ rotate: [0, 360] }}
-                            transition={{ duration: 3, ease: "linear", repeat: Infinity }}
-                        >
+                    <div className="landing-logo relative w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-[#FDFBF7] font-bold text-lg shadow-sm">
+                        <span className="landing-logo-face font-mono text-4xl" aria-hidden="true">
                             ☺
-                        </motion.span>
-                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none">
-                            <motion.span
-                                className="absolute -ml-4 select-none"
-                                variants={{
-                                    rest: { opacity: 0 },
-                                    hover: {
-                                        y: [0, -16, -32],
-                                        opacity: [0, 1, 0],
-                                        scale: [0.7, 1, 0.9],
-                                        transition: { duration: 1.4, repeat: Infinity, repeatDelay: 0.4, ease: "easeOut" },
-                                    },
-                                }}
-                                aria-hidden="true"
-                            >
-                                😊
-                            </motion.span>
-                            <motion.span
-                                className="absolute select-none"
-                                variants={{
-                                    rest: { opacity: 0 },
-                                    hover: {
-                                        y: [0, -16, -32],
-                                        opacity: [0, 1, 0],
-                                        scale: [0.7, 1, 0.9],
-                                        transition: { duration: 1.4, repeat: Infinity, repeatDelay: 0.4, ease: "easeOut", delay: 0.2 },
-                                    },
-                                }}
-                                aria-hidden="true"
-                            >
-                                😊
-                            </motion.span>
-                            <motion.span
-                                className="absolute ml-4 select-none"
-                                variants={{
-                                    rest: { opacity: 0 },
-                                    hover: {
-                                        y: [0, -16, -32],
-                                        opacity: [0, 1, 0],
-                                        scale: [0.7, 1, 0.9],
-                                        transition: { duration: 1.4, repeat: Infinity, repeatDelay: 0.4, ease: "easeOut", delay: 0.4 },
-                                    },
-                                }}
-                                aria-hidden="true"
-                            >
-                                😊
-                            </motion.span>
+                        </span>
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none" aria-hidden="true">
+                            <span className="landing-logo-bubble absolute -ml-4 select-none">😊</span>
+                            <span className="landing-logo-bubble absolute select-none">😊</span>
+                            <span className="landing-logo-bubble absolute ml-4 select-none">😊</span>
                         </div>
-                    </motion.div>
+                    </div>
                     <div className="flex flex-col">
                         <span className="font-bold text-stone-800 dark:text-stone-100 leading-tight font-mono tracking-wide text-xl">
                             笑谈间气吐霓虹
@@ -363,31 +311,18 @@ export default function Landing() {
             <main className="container mx-auto px-4 pt-32 pb-24 max-w-[1600px] relative z-10">
                 {/* Hero Section */}
                 <div className="mb-16 text-center max-w-2xl mx-auto">
-                    <motion.h1
-                        initial={false}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8 }}
-                        className="text-3xl md:text-4xl font-bold text-stone-800 dark:text-stone-100 tracking-wide mb-6 font-mono"
+                    <h1
+                        className="landing-enter text-3xl md:text-4xl font-bold text-stone-800 dark:text-stone-100 tracking-wide mb-6 font-mono"
                     >
                         创意与效率的
-                        <motion.span
-                            className="text-stone-500 dark:text-stone-400 relative inline-block mx-2"
-                            initial="rest"
-                            animate="rest"
-                            whileHover="hover"
-                        >
+                        <span className="landing-hero-accent text-stone-500 dark:text-stone-400 relative inline-block mx-2">
                             工具箱
-                            <motion.span
-                                className="absolute -top-6 right-2 select-none"
-                                variants={{
-                                    rest: { opacity: 0, scale: 0.6, y: 6, rotate: -12 },
-                                    hover: { opacity: 1, scale: 1, y: 0, rotate: 0 },
-                                }}
-                                transition={{ type: "spring", stiffness: 360, damping: 20 }}
+                            <span
+                                className="landing-hero-smile absolute -top-6 right-2 select-none"
                                 aria-hidden="true"
                             >
                                 😊
-                            </motion.span>
+                            </span>
                             <svg
                                 className="absolute -bottom-1 left-0 w-full h-2 text-stone-300 -z-10"
                                 viewBox="0 0 100 10"
@@ -400,45 +335,28 @@ export default function Landing() {
                                     fill="none"
                                 />
                             </svg>
-                        </motion.span>
-                    </motion.h1>
-                    <motion.p
-                        initial={false}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, delay: 0.15 }}
-                        className="text-sm md:text-base text-stone-500 dark:text-stone-400 leading-relaxed font-mono tracking-wide"
+                        </span>
+                    </h1>
+                    <p
+                        className="landing-enter landing-enter-description text-sm md:text-base text-stone-500 dark:text-stone-400 leading-relaxed font-mono tracking-wide"
                     >
                         共 {items.length} 个应用，按卡片简介快速选择最合适的工具。
-                    </motion.p>
-
-                    {/* <motion.p
-                        initial={false}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
-                        className="text-sm md:text-base text-stone-500 leading-relaxed font-mono tracking-wide max-w-lg mx-auto"
-                    >
-                        一站式图片处理与实用工具集合
-                        <br className="hidden md:block" />
-                        <span className="opacity-80 mt-2 block">
-                            简化工作流程，让创作回归纯粹与愉悦
-                        </span>
-                    </motion.p> */}
+                    </p>
                 </div>
 
                 {/* Tools Grid - Adjusted for more compact layout */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6 xl:gap-8">
                     {items.map((item, index) => (
-                        <motion.div
+                        <div
                             key={item.id}
-                            initial={false}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: index * 0.05 }}
+                            className="landing-enter"
+                            style={{ animationDelay: `${Math.min(index, 5) * 0.05}s` }}
                         >
                             <ToolCard
                                 item={item}
                                 index={index}
                             />
-                        </motion.div>
+                        </div>
                     ))}
                 </div>
             </main>

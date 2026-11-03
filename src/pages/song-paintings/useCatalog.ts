@@ -20,10 +20,13 @@ function visitorInitial(source: Catalog) {
 }
 
 export function useCatalog(source: Catalog, mode: CatalogMode) {
-    const [state, setState] = useState(() => mode === "visitor" ? visitorInitial(source) : { catalog: source, warning: "", blocked: false });
+    // Published read flags and browser-only progress must not affect the server
+    // HTML or the first hydration render. Restore visitor progress on mount.
+    const [state, setState] = useState(() => ({ catalog: mode === "visitor" ? withReadIds(source, new Set()) : source, warning: "", blocked: false }));
     const [connected, setConnected] = useState(false);
     const [saving, setSaving] = useState(false);
     const stateRef = useRef(state);
+    const visitorReady = useRef(false);
     const busy = useRef(false);
     const generation = useRef(0);
     const connection = useRef({ token: "", revision: "" });
@@ -36,10 +39,14 @@ export function useCatalog(source: Catalog, mode: CatalogMode) {
         let alive = true;
         const refresh = async () => {
             if (mode === "visitor") {
-                // Visitor progress never inherits the author's published read flags.
-                setState((previous) => ({ ...previous, catalog: withReadIds(source, idsFor(previous.catalog)) }));
+                const next = visitorReady.current
+                    ? { ...stateRef.current, catalog: withReadIds(source, idsFor(stateRef.current.catalog)) }
+                    : visitorInitial(source);
+                visitorReady.current = true;
+                update(next);
                 return;
             }
+            visitorReady.current = false;
             if (!import.meta.env.DEV) { setState({ catalog: source, warning: "", blocked: false }); return; }
             if (busy.current) return;
             const refreshGeneration = ++generation.current;
@@ -102,7 +109,7 @@ export function useCatalog(source: Catalog, mode: CatalogMode) {
     };
 
     const saveVisitor = async (modify: (ids: Set<string>) => void) => {
-        if (mode !== "visitor") return false;
+        if (mode !== "visitor" || !visitorReady.current) return false;
         const action = () => {
             let ids = idsFor(stateRef.current.catalog);
             try {
@@ -124,7 +131,7 @@ export function useCatalog(source: Catalog, mode: CatalogMode) {
 
     const toggleRead = async (id: string, read: boolean) => {
         if (mode === "personal") return saveLocal({ id, changes: { read } });
-        if (stateRef.current.blocked) return false;
+        if (!visitorReady.current || stateRef.current.blocked) return false;
         const ids = idsFor(stateRef.current.catalog);
         if (read) ids.add(id); else ids.delete(id);
         update({ ...stateRef.current, catalog: withReadIds(source, ids) });
@@ -137,7 +144,7 @@ export function useCatalog(source: Catalog, mode: CatalogMode) {
 
     return {
         catalog: state.catalog, readIds: idsFor(state.catalog), warning: state.warning, saving,
-        canEditReading: mode === "visitor" ? !state.blocked : devPersonal && connected,
+        canEditReading: mode === "visitor" ? visitorReady.current && !state.blocked : devPersonal && connected,
         canEditMetadata: devPersonal && connected,
         toggleRead, mergeProgress, saveArtwork: (id: string, changes: ArtworkChanges) => saveLocal({ id, changes }),
     };

@@ -1,0 +1,5 @@
+[
+  { "route": "/", "entry": "src/pages/landing/index.tsx", "file": "index.html", "title": "MyTools · 应用库" },
+  { "route": "/split", "entry": "src/pages/split/index.tsx", "file": "split.html", "title": "图片切图 · MyTools" },
+  { "route": "/song-paintings", "entry": "src/pages/song-paintings/index.tsx", "file": "song-paintings.html", "title": "宋画全集 · MyTools" }
+]

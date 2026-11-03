@@ -22,7 +22,7 @@ export default function VolumeIndexEntry({ volume, entries, readCount, selected,
     onSelect: () => void;
 }) {
     const [open, setOpen] = useState(false);
-    const [compact, setCompact] = useState(() => window.matchMedia("(max-width: 720px)").matches);
+    const [compact, setCompact] = useState(false);
     const openOnPointerDown = useRef(false);
     const list = useRef<HTMLUListElement>(null);
     const collections = [...new Set(entries.map((item) => item.collection.trim()).filter(Boolean))];
@@ -32,6 +32,7 @@ export default function VolumeIndexEntry({ volume, entries, readCount, selected,
     useEffect(() => {
         const query = window.matchMedia("(max-width: 720px)");
         const update = () => setCompact(query.matches);
+        update();
         query.addEventListener("change", update);
         return () => query.removeEventListener("change", update);
     }, []);

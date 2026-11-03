@@ -34,44 +34,17 @@ jobs:
 
       - name: Write Vercel static config into dist
         run: |
-          cat > dist/vercel.json <<'JSON'
-          {
-            "framework": null,
-            "installCommand": "",
-            "buildCommand": "",
-            "outputDirectory": ".",
-            "routes": [
-              {
-                "src": "/split",
-                "headers": {
-                  "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
-                  "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
-                  "Cross-Origin-Opener-Policy": "same-origin",
-                  "Cross-Origin-Embedder-Policy": "require-corp"
-                },
-                "continue": true
-              },
-              {
-                "src": "/",
-                "headers": {
-                  "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
-                  "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400"
-                },
-                "continue": true
-              },
-              {
-                "src": "/index.html",
-                "headers": {
-                  "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
-                  "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400"
-                },
-                "continue": true
-              },
-              { "handle": "filesystem" },
-              { "src": "/(.*)", "dest": "/index.html" }
-            ]
-          }
-          JSON
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const { routes } = JSON.parse(readFileSync('vercel.json', 'utf8'));
+          writeFileSync('dist/vercel.json', JSON.stringify({
+            framework: null,
+            installCommand: '',
+            buildCommand: '',
+            outputDirectory: '.',
+            routes,
+          }, null, 2) + '\n');
+          NODE
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4

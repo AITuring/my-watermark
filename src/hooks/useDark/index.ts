@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { startTransition, useEffect, useState, useCallback } from "react";
 
 const getScheduledIsDark = (now: Date) => {
     const minutes = now.getHours() * 60 + now.getMinutes();
@@ -26,20 +26,24 @@ const useDark = (): [boolean, () => void] => {
         const lastSwitchTime = getLastSwitchPoint(now);
         const scheduledIsDark = getScheduledIsDark(now);
 
-        const storedTheme = localStorage.getItem("theme_preference");
-        const storedTimeStr = localStorage.getItem("theme_preference_time");
+        try {
+            const storedTheme = localStorage.getItem("theme_preference");
+            const storedTimeStr = localStorage.getItem("theme_preference_time");
 
-        if (storedTheme && storedTimeStr) {
-            const storedTime = parseInt(storedTimeStr, 10);
-            // Only respect manual setting if it was made AFTER the last auto-switch point
-            if (storedTime > lastSwitchTime) {
-                return storedTheme === "dark";
+            if (storedTheme && storedTimeStr) {
+                const storedTime = parseInt(storedTimeStr, 10);
+                // Only respect manual setting if it was made AFTER the last auto-switch point
+                if (storedTime > lastSwitchTime) {
+                    return storedTheme === "dark";
+                }
             }
-        }
+        } catch { /* Use the schedule when browser storage is unavailable. */ }
         return scheduledIsDark;
     }, []);
 
-    const [isDark, setIsDark] = useState<boolean>(calculateState);
+    // Keep the server and the first hydration render identical. Preferences are
+    // restored after mounting without writing over the saved manual setting.
+    const [isDark, setIsDark] = useState(false);
 
     useEffect(() => {
         const root = document.documentElement;
@@ -54,12 +58,13 @@ const useDark = (): [boolean, () => void] => {
     useEffect(() => {
         const checkTheme = () => {
             const newState = calculateState();
-            setIsDark((prev) => {
-                if (prev !== newState) return newState;
-                return prev;
+            // Let pending route boundaries hydrate before this context update.
+            startTransition(() => {
+                setIsDark((prev) => prev !== newState ? newState : prev);
             });
         };
 
+        checkTheme();
         const interval = setInterval(checkTheme, 60000); // Check every minute
 
         // Check when window gains focus (user comes back to tab)
@@ -74,8 +79,10 @@ const useDark = (): [boolean, () => void] => {
     const toggleTheme = () => {
         setIsDark((prev) => {
             const newIsDark = !prev;
-            localStorage.setItem("theme_preference", newIsDark ? "dark" : "light");
-            localStorage.setItem("theme_preference_time", Date.now().toString());
+            try {
+                localStorage.setItem("theme_preference", newIsDark ? "dark" : "light");
+                localStorage.setItem("theme_preference_time", Date.now().toString());
+            } catch { /* Keep the toggle usable when browser storage is blocked. */ }
             return newIsDark;
         });
     };

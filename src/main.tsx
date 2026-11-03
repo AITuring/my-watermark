@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { inject } from "@vercel/analytics";
-import { registerSW } from "virtual:pwa-register";
+import { registerAppServiceWorker } from "./utils/register-service-worker";
 import App from "./App";
 import "./index.css";
 
@@ -11,16 +11,19 @@ window.global = globalThis;
 // Route imports recover in lazyWithImportRecovery. Do not suppress Vite's
 // rejection globally: a failed speculative preload must not reload this page.
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+const root = document.getElementById("root") as HTMLElement;
+const app = (
     <React.StrictMode>
         <App />
     </React.StrictMode>
 );
 
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-        window.setTimeout(() => {
-            registerSW({ immediate: true });
-        }, 5000);
-    });
+if (root.dataset.prerendered === "true") {
+    // Keep the already-visible page while its lazy route hydrates. React can
+    // replay interactions made inside a still-dehydrated Suspense boundary.
+    ReactDOM.hydrateRoot(root, app);
+} else {
+    ReactDOM.createRoot(root).render(app);
 }
+
+if (import.meta.env.PROD) registerAppServiceWorker();

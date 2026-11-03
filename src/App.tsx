@@ -1,5 +1,5 @@
-import React, { Component, Suspense, useEffect, type ErrorInfo, type ReactNode } from "react";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import React, { Component, Suspense, useEffect, type ComponentType, type ErrorInfo, type ReactNode } from "react";
+import { BrowserRouter, Link, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "./context";
 import "./App.css";
 import { Toaster } from "sonner";
@@ -72,71 +72,97 @@ const SplitIsolationGuard = () => {
         }
 
         const reloadKey = "split-coop-coep-reload";
-        if (window.sessionStorage.getItem(reloadKey) === "1") return;
-        window.sessionStorage.setItem(reloadKey, "1");
-        const reload = () => window.location.replace(window.location.href);
-        if (!("serviceWorker" in navigator)) {
-            reload();
+        try {
+            if (window.sessionStorage.getItem(reloadKey) === "1") return;
+            window.sessionStorage.setItem(reloadKey, "1");
+        } catch {
+            // Without a reload marker, a browser that denies storage could loop.
             return;
         }
-        void navigator.serviceWorker.getRegistrations().then(async (registrations) => {
-            await Promise.all(registrations.map((registration) => registration.unregister()));
-            reload();
-        }).catch(reload);
+        // A document navigation applies the isolation headers. The worker
+        // preserves these headers, so removing registrations is unnecessary.
+        window.location.replace(window.location.href);
     }, [location.pathname]);
 
     useEffect(() => {
         if (location.pathname === "/split" && typeof window !== "undefined" && window.crossOriginIsolated) {
-            window.sessionStorage.removeItem("split-coop-coep-reload");
+            try {
+                window.sessionStorage.removeItem("split-coop-coep-reload");
+            } catch { /* Isolation is already active; storage is optional. */ }
         }
     }, [location.pathname]);
 
     return null;
 };
 
-const App = () => {
+type AppContentsProps = { initialPath?: string; InitialPage?: ComponentType<object> };
+
+const RouteReady = ({ path, children }: { path: string; children: ReactNode }) => {
+    useEffect(() => {
+        // This effect is inside Suspense: it records actual route hydration,
+        // separately from the earlier paint of its prerendered HTML.
+        const name = `mytools:route-ready:${path}`;
+        performance.clearMarks(name);
+        performance.mark(name);
+    }, [path]);
+    return <>{children}</>;
+};
+
+// Shared by the browser and build-time rendering so hydration keeps the exact
+// same providers, Suspense boundaries and useId paths.
+export const AppContents = ({ initialPath, InitialPage }: AppContentsProps = {}) => {
+    const LandingPage = initialPath === "/" && InitialPage ? InitialPage : Landing;
     return (
         <ThemeProvider>
             <div className="min-h-screen w-screen bg-background text-foreground">
-                <BrowserRouter>
-                    <SplitIsolationGuard />
-                    {/* <ChineseStyleNavbar /> */}
-                    <div
-                        className="flex flex-col w-screen"
-                        // style={{ height: "calc(100vh - 80px)" }}
-                    >
-                        <Routes>
-                            <Route
-                                path="/"
-                                element={
-                                    <RouteErrorBoundary key="landing">
-                                        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">正在加载页面...</div>}>
-                                            <Landing />
-                                        </Suspense>
-                                    </RouteErrorBoundary>
-                                }
-                            />
-                            {routeItems.map((item) => (
+                <SplitIsolationGuard />
+                {/* <ChineseStyleNavbar /> */}
+                <div
+                    className="flex flex-col w-screen"
+                    // style={{ height: "calc(100vh - 80px)" }}
+                >
+                    <Routes>
+                        <Route
+                            path="/"
+                            element={
+                                <RouteErrorBoundary key="landing">
+                                    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">正在加载页面...</div>}>
+                                        <RouteReady path="/"><LandingPage /></RouteReady>
+                                    </Suspense>
+                                </RouteErrorBoundary>
+                            }
+                        />
+                        {routeItems.map((item) => {
+                            const Page = initialPath === item.url && InitialPage ? InitialPage : item.Page;
+                            return (
                                 <Route
                                     key={item.id}
                                     path={item.url}
                                     element={
                                         <RouteErrorBoundary key={item.id}>
                                             <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">正在加载页面...</div>}>
-                                                <item.Page />
+                                                <RouteReady path={item.url}><Page /></RouteReady>
                                             </Suspense>
                                         </RouteErrorBoundary>
                                     }
                                 />
-                            ))}
-                        </Routes>
-                    </div>
-                    <FloatingButtons />
-                    <Toaster position="top-center" richColors />
-                </BrowserRouter>
+                            );
+                        })}
+                        <Route path="*" element={
+                            <main className="mx-auto max-w-lg p-8">
+                                <h1 className="text-xl font-semibold">页面不存在</h1>
+                                <Link to="/" className="mt-4 inline-block underline">返回应用库</Link>
+                            </main>
+                        } />
+                    </Routes>
+                </div>
+                <FloatingButtons />
+                <Toaster position="top-center" richColors />
             </div>
         </ThemeProvider>
     );
 };
+
+const App = () => <BrowserRouter><AppContents /></BrowserRouter>;
 
 export default App;

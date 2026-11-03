@@ -5,34 +5,38 @@
   "outputDirectory": "dist",
   "routes": [
     {
-      "src": "/split",
+      "src": "/sw\\.js",
       "headers": {
-        "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
-        "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+        "Cache-Control": "no-store, max-age=0, must-revalidate",
+        "CDN-Cache-Control": "no-store",
+        "Cloudflare-CDN-Cache-Control": "no-store",
+        "Service-Worker-Allowed": "/"
+      },
+      "continue": true
+    },
+    {
+      "src": "/(?:.*\\.html|[^.]*)",
+      "headers": {
+        "Cache-Control": "no-store, max-age=0, must-revalidate",
+        "CDN-Cache-Control": "no-store",
+        "Cloudflare-CDN-Cache-Control": "no-store"
+      },
+      "continue": true
+    },
+    {
+      "src": "/split(?:/|\\.html|/index\\.html)?",
+      "headers": {
         "Cross-Origin-Opener-Policy": "same-origin",
         "Cross-Origin-Embedder-Policy": "require-corp"
       },
       "continue": true
     },
     {
-      "src": "/",
-      "headers": {
-        "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
-        "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400"
-      },
-      "continue": true
-    },
-    {
-      "src": "/index.html",
-      "headers": {
-        "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
-        "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=86400"
-      },
-      "continue": true
-    },
-    {
       "src": "/assets/(.*)",
       "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "CDN-Cache-Control": "public, max-age=31536000, immutable",
+        "Cloudflare-CDN-Cache-Control": "public, max-age=31536000, immutable",
         "Cross-Origin-Resource-Policy": "same-origin"
       },
       "continue": true
@@ -44,11 +48,65 @@
       },
       "continue": true
     },
-    { "handle": "filesystem" },
-    { "src": "/assets/(.*)", "status": 404 },
-    { "src": "/(.*)", "dest": "/index.html" }
+    {
+      "src": "/index\\.html",
+      "status": 308,
+      "headers": {
+        "Location": "/"
+      }
+    },
+    {
+      "src": "/split\\.html",
+      "status": 308,
+      "headers": {
+        "Location": "/split"
+      }
+    },
+    {
+      "src": "/song-paintings\\.html",
+      "status": 308,
+      "headers": {
+        "Location": "/song-paintings"
+      }
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/assets/(.*)",
+      "status": 404,
+      "headers": {
+        "Cache-Control": "no-store, max-age=0, must-revalidate",
+        "CDN-Cache-Control": "no-store",
+        "Cloudflare-CDN-Cache-Control": "no-store"
+      }
+    },
+    {
+      "src": "/(?:sw\\.js|manifest\\.webmanifest)",
+      "status": 404,
+      "headers": {
+        "Cache-Control": "no-store, max-age=0, must-revalidate",
+        "CDN-Cache-Control": "no-store",
+        "Cloudflare-CDN-Cache-Control": "no-store"
+      }
+    },
+    {
+      "src": "/split/?",
+      "dest": "/split.html"
+    },
+    {
+      "src": "/song-paintings/?",
+      "dest": "/song-paintings.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/app.html"
+    }
   ],
   "crons": [
-    { "path": "/api/trigger-deploy", "schedule": "0 0 * * *" }
+    {
+      "path": "/api/trigger-deploy",
+      "schedule": "0 0 * * *"
+    }
   ]
 }
