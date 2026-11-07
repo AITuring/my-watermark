@@ -32,7 +32,6 @@ type WorkerRequest = {
 
 let worker: Worker | null = null;
 let workerPromise: Promise<Worker> | null = null;
-let workerBlobUrl: string | null = null;
 let requestId = 0;
 const pending = new Map<number, PendingRequest>();
 
@@ -43,17 +42,10 @@ const getWorker = async (): Promise<Worker> => {
   if (worker) return worker;
   if (workerPromise) return workerPromise;
 
-  // The CDN serves the Vite IIFE worker with metadata that some Chromium
-  // builds reject when it is loaded directly as a Worker script. Fetching the
-  // same source and creating a Blob worker keeps execution same-origin while
-  // avoiding that startup check.
+  // Vite compiles the TypeScript worker and embeds it as a Blob URL. Fetching
+  // the source URL here would run uncompiled TypeScript in production.
   workerPromise = (async () => {
-    const workerUrl = new URL('../workers/jpeg-vips.worker.ts', import.meta.url);
-    const response = await fetch(workerUrl.href, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`WASM JPEG Worker 加载失败：HTTP ${response.status}`);
-    const source = await response.text();
-    workerBlobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
-    const nextWorker = new Worker(workerBlobUrl);
+    const nextWorker = new JpegVipsWorker();
     nextWorker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const message = event.data;
       const request = pending.get(message.id);
@@ -77,20 +69,12 @@ const getWorker = async (): Promise<Worker> => {
       nextWorker.terminate();
       worker = null;
       workerPromise = null;
-      if (workerBlobUrl) {
-        URL.revokeObjectURL(workerBlobUrl);
-        workerBlobUrl = null;
-      }
     };
     worker = nextWorker;
     return nextWorker;
   })().catch((error) => {
     worker = null;
     workerPromise = null;
-    if (workerBlobUrl) {
-      URL.revokeObjectURL(workerBlobUrl);
-      workerBlobUrl = null;
-    }
     throw error instanceof Error ? error : new Error('WASM JPEG Worker 加载失败');
   });
   return workerPromise;
@@ -123,4 +107,6 @@ export const cropJpegWithWasm = (file: File, region: JpegWasmRegion) => request(
   file,
   ...region,
 });
+
+import JpegVipsWorker from '../workers/jpeg-vips.worker?worker&inline';
 
