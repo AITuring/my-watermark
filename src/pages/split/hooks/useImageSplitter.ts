@@ -236,9 +236,13 @@ const loadSourceImageItem = async (file: File, index: number, onStatus: (status:
     try {
       return await loadLargeJpegWithWasm(file, index, jpegSize!, onStatus);
     } catch (error) {
-      console.warn('WASM JPEG decoder unavailable; falling back to the safe large-image error.', error);
+      console.warn('WASM JPEG decoder failed to load or decode the image.', error);
+      const reason = error instanceof Error ? error.message : String(error);
+      const isolationHint = window.crossOriginIsolated
+        ? ''
+        : ' 当前页面未启用跨源隔离，请直接刷新 /split 后重试。';
       throw new Error(
-        `图片 ${file.name} 为 ${jpegSize!.width}×${jpegSize!.height}，浏览器 WASM 解码失败。请检查浏览器是否支持跨源隔离，或使用本机开发服务。`
+        `图片 ${file.name} 为 ${jpegSize!.width}×${jpegSize!.height}（约 ${Math.round(jpegSize!.width * jpegSize!.height / 1_000_000)} 百万像素），浏览器 WASM 处理失败：${reason}。${isolationHint}`
       );
     }
   }
