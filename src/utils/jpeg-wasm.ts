@@ -1,3 +1,5 @@
+import jpegVipsWorkerUrl from '../workers/jpeg-vips.worker?worker&url';
+
 export interface JpegWasmRegion {
   x: number;
   y: number;
@@ -42,10 +44,16 @@ const getWorker = async (): Promise<Worker> => {
   if (worker) return worker;
   if (workerPromise) return workerPromise;
 
-  // Vite compiles the TypeScript worker and embeds it as a Blob URL. Fetching
-  // the source URL here would run uncompiled TypeScript in production.
+  // Vite compiles the TypeScript worker to a same-origin module asset.
   workerPromise = (async () => {
-    const nextWorker = new JpegVipsWorker();
+    const response = await fetch(jpegVipsWorkerUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`WASM JPEG Worker 加载失败：HTTP ${response.status}`);
+    const contentType = response.headers.get('content-type') || '';
+    if (!/javascript|ecmascript/i.test(contentType)) {
+      throw new Error(`WASM JPEG Worker 加载失败：返回了 ${contentType || '未知类型'}，预期 JavaScript`);
+    }
+    await response.body?.cancel();
+    const nextWorker = new Worker(jpegVipsWorkerUrl, { type: 'module' });
     nextWorker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const message = event.data;
       const request = pending.get(message.id);
@@ -107,6 +115,4 @@ export const cropJpegWithWasm = (file: File, region: JpegWasmRegion) => request(
   file,
   ...region,
 });
-
-import JpegVipsWorker from '../workers/jpeg-vips.worker?worker&inline';
 
