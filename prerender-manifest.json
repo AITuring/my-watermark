@@ -1,10 +1,10 @@
 {
   "/": {
     "scripts": [
-      "assets/index-1ac15d61.js",
+      "assets/index-7629e22c.js",
       "assets/app-runtime-98ef8efd.js",
       "assets/ui-primitives-fe3eda55.js",
-      "assets/index-2f7639ea.js",
+      "assets/index-f9ca0ebc.js",
       "assets/index-25699f56.js"
     ],
     "styles": [
@@ -14,10 +14,10 @@
   },
   "/split": {
     "scripts": [
-      "assets/index-1ac15d61.js",
+      "assets/index-7629e22c.js",
       "assets/app-runtime-98ef8efd.js",
       "assets/ui-primitives-fe3eda55.js",
-      "assets/index-c6333df4.js",
+      "assets/index-e96df94d.js",
       "assets/image-tool-common-a5aa7966.js",
       "assets/ui-controls-ab38631a.js"
     ],
@@ -28,7 +28,7 @@
   },
   "/song-paintings": {
     "scripts": [
-      "assets/index-1ac15d61.js",
+      "assets/index-7629e22c.js",
       "assets/app-runtime-98ef8efd.js",
       "assets/ui-primitives-fe3eda55.js",
       "assets/index-8a92f110.js"
