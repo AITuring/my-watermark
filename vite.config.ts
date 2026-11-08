@@ -49,7 +49,7 @@ export default defineConfig({
         },
     },
     worker: {
-        format: "es",
+        format: "iife",
     },
     build: {
         manifest: true,

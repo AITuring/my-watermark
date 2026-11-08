@@ -44,7 +44,7 @@ const getWorker = async (): Promise<Worker> => {
   if (worker) return worker;
   if (workerPromise) return workerPromise;
 
-  // Vite compiles the TypeScript worker to a same-origin module asset.
+  // Vite compiles the TypeScript worker to a same-origin classic script.
   workerPromise = (async () => {
     const response = await fetch(jpegVipsWorkerUrl, { cache: 'no-store' });
     if (!response.ok) throw new Error(`WASM JPEG Worker 加载失败：HTTP ${response.status}`);
@@ -53,7 +53,7 @@ const getWorker = async (): Promise<Worker> => {
       throw new Error(`WASM JPEG Worker 加载失败：返回了 ${contentType || '未知类型'}，预期 JavaScript`);
     }
     await response.body?.cancel();
-    const nextWorker = new Worker(jpegVipsWorkerUrl, { type: 'module' });
+    const nextWorker = new Worker(jpegVipsWorkerUrl);
     nextWorker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const message = event.data;
       const request = pending.get(message.id);
@@ -70,8 +70,8 @@ const getWorker = async (): Promise<Worker> => {
       });
     };
     nextWorker.onerror = (event) => {
-      const detail = event.message || (event.filename ? `${event.filename}:${event.lineno || 0}` : '');
-      const error = new Error(detail ? `WASM JPEG Worker 加载失败：${detail}` : 'WASM JPEG Worker 加载失败');
+      const detail = event.message || (event.filename ? `${event.filename}:${event.lineno || 0}` : '浏览器未提供脚本错误详情');
+      const error = new Error(`WASM JPEG Worker 加载失败（${jpegVipsWorkerUrl}）：${detail}`);
       pending.forEach(({ reject }) => reject(error));
       pending.clear();
       nextWorker.terminate();
