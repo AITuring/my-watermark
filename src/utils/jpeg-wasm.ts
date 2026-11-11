@@ -1,3 +1,5 @@
+import jpegVipsWorkerUrl from '../workers/jpeg-vips.worker?worker&url';
+
 export interface JpegWasmRegion {
   x: number;
   y: number;
@@ -32,7 +34,6 @@ type WorkerRequest = {
 
 let worker: Worker | null = null;
 let workerPromise: Promise<Worker> | null = null;
-let workerBlobUrl: string | null = null;
 let requestId = 0;
 const pending = new Map<number, PendingRequest>();
 
@@ -43,17 +44,16 @@ const getWorker = async (): Promise<Worker> => {
   if (worker) return worker;
   if (workerPromise) return workerPromise;
 
-  // The CDN serves the Vite IIFE worker with metadata that some Chromium
-  // builds reject when it is loaded directly as a Worker script. Fetching the
-  // same source and creating a Blob worker keeps execution same-origin while
-  // avoiding that startup check.
+  // Vite compiles the TypeScript worker to a same-origin classic script.
   workerPromise = (async () => {
-    const workerUrl = new URL('../workers/jpeg-vips.worker.ts', import.meta.url);
-    const response = await fetch(workerUrl.href, { cache: 'no-store' });
+    const response = await fetch(jpegVipsWorkerUrl, { cache: 'no-store' });
     if (!response.ok) throw new Error(`WASM JPEG Worker 加载失败：HTTP ${response.status}`);
-    const source = await response.text();
-    workerBlobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
-    const nextWorker = new Worker(workerBlobUrl);
+    const contentType = response.headers.get('content-type') || '';
+    if (!/javascript|ecmascript/i.test(contentType)) {
+      throw new Error(`WASM JPEG Worker 加载失败：返回了 ${contentType || '未知类型'}，预期 JavaScript`);
+    }
+    await response.body?.cancel();
+    const nextWorker = new Worker(jpegVipsWorkerUrl);
     nextWorker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const message = event.data;
       const request = pending.get(message.id);
@@ -70,27 +70,19 @@ const getWorker = async (): Promise<Worker> => {
       });
     };
     nextWorker.onerror = (event) => {
-      const detail = event.message || (event.filename ? `${event.filename}:${event.lineno || 0}` : '');
-      const error = new Error(detail ? `WASM JPEG Worker 加载失败：${detail}` : 'WASM JPEG Worker 加载失败');
+      const detail = event.message || (event.filename ? `${event.filename}:${event.lineno || 0}` : '浏览器未提供脚本错误详情');
+      const error = new Error(`WASM JPEG Worker 加载失败（${jpegVipsWorkerUrl}）：${detail}`);
       pending.forEach(({ reject }) => reject(error));
       pending.clear();
       nextWorker.terminate();
       worker = null;
       workerPromise = null;
-      if (workerBlobUrl) {
-        URL.revokeObjectURL(workerBlobUrl);
-        workerBlobUrl = null;
-      }
     };
     worker = nextWorker;
     return nextWorker;
   })().catch((error) => {
     worker = null;
     workerPromise = null;
-    if (workerBlobUrl) {
-      URL.revokeObjectURL(workerBlobUrl);
-      workerBlobUrl = null;
-    }
     throw error instanceof Error ? error : new Error('WASM JPEG Worker 加载失败');
   });
   return workerPromise;

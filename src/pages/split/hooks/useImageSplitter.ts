@@ -23,6 +23,7 @@ import {
 } from '@/pages/split/utils';
 import { setPendingCropTransfer } from '@/utils/crop-transfer';
 import { createJpegWasmPreview, cropJpegWithWasm } from '@/utils/jpeg-wasm';
+import { createJpegNativePreview, cropJpegNatively } from '@/utils/jpeg-native';
 
 interface SourceImageItem extends SplitSourceItemSummary {
   image: HTMLImageElement;
@@ -30,6 +31,7 @@ interface SourceImageItem extends SplitSourceItemSummary {
   previewUrl: string;
   file?: File;
   wasmSource?: boolean;
+  nativeSource?: boolean;
   localSourceId?: string;
 }
 
@@ -62,6 +64,7 @@ const WASM_PREVIEW_MAX_DIMENSION = 2400;
 // tile needs decoded RGB memory plus libvips and Blob output buffers, so the
 // compressed file size alone is not a useful safety limit.
 const WASM_MAX_TILE_PIXELS = 48_000_000;
+const MAX_BROWSER_TILE_SIDE = 16_384;
 
 const canUseLocalSplitService = () => {
   if (typeof window === 'undefined') return false;
@@ -218,6 +221,34 @@ const loadLargeJpegWithWasm = async (
   }
 };
 
+const loadLargeJpegNatively = async (
+  file: File,
+  index: number,
+  jpegSize: { width: number; height: number },
+  onStatus: (status: SplitLoadingStatus) => void
+): Promise<SourceImageItem> => {
+  onStatus({ title: '正在生成浏览器预览', detail: file.name });
+  const preview = await createJpegNativePreview(file, jpegSize.width, jpegSize.height, WASM_PREVIEW_MAX_DIMENSION);
+  const previewUrl = URL.createObjectURL(preview);
+  try {
+    const image = await loadImage(previewUrl);
+    return {
+      id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+      fileName: file.name,
+      naturalWidth: jpegSize.width,
+      naturalHeight: jpegSize.height,
+      image,
+      originalUrl: previewUrl,
+      previewUrl,
+      file,
+      nativeSource: true,
+    };
+  } catch (error) {
+    URL.revokeObjectURL(previewUrl);
+    throw error;
+  }
+};
+
 const loadSourceImageItem = async (file: File, index: number, onStatus: (status: SplitLoadingStatus) => void): Promise<SourceImageItem> => {
   const jpegSize = await readJpegSize(file);
   const oversize = jpegSize && (
@@ -233,12 +264,23 @@ const loadSourceImageItem = async (file: File, index: number, onStatus: (status:
     }
   }
   if (oversize) {
+    if (typeof createImageBitmap === 'function') {
+      try {
+        return await loadLargeJpegNatively(file, index, jpegSize!, onStatus);
+      } catch (error) {
+        console.warn('Browser JPEG region decoder unavailable; trying WASM.', error);
+      }
+    }
     try {
       return await loadLargeJpegWithWasm(file, index, jpegSize!, onStatus);
     } catch (error) {
-      console.warn('WASM JPEG decoder unavailable; falling back to the safe large-image error.', error);
+      console.warn('WASM JPEG decoder failed to load or decode the image.', error);
+      const reason = error instanceof Error ? error.message : String(error);
+      const isolationHint = window.crossOriginIsolated
+        ? ''
+        : ' 当前页面未启用跨源隔离，请直接刷新 /split 后重试。';
       throw new Error(
-        `图片 ${file.name} 为 ${jpegSize!.width}×${jpegSize!.height}，浏览器 WASM 解码失败。请检查浏览器是否支持跨源隔离，或使用本机开发服务。`
+        `图片 ${file.name} 为 ${jpegSize!.width}×${jpegSize!.height}（约 ${Math.round(jpegSize!.width * jpegSize!.height / 1_000_000)} 百万像素），浏览器 WASM 处理失败：${reason}。${isolationHint}`
       );
     }
   }
@@ -308,6 +350,26 @@ const buildWasmSplitImages = async (
   }
 };
 
+const buildNativeSplitImages = async (
+  file: File,
+  regions: WasmRegion[],
+  onProgress?: (completed: number, total: number) => void
+): Promise<SplitImage[]> => {
+  const images: SplitImage[] = [];
+  try {
+    for (const [index, region] of regions.entries()) {
+      const blob = await cropJpegNatively(file, region);
+      const url = URL.createObjectURL(blob);
+      images.push({ id: index, url, previewUrl: url, blob, fileName: region.fileName });
+      onProgress?.(index + 1, regions.length);
+    }
+    return images;
+  } catch (error) {
+    revokeGeneratedImageUrls(images);
+    throw error;
+  }
+};
+
 type WasmRegion = {
   x: number;
   y: number;
@@ -325,24 +387,31 @@ const appendWasmPartSuffix = (fileName: string, part: number, total: number) => 
     : `${fileName}${suffix}`;
 };
 
-/** Split oversized browser-WASM crops into bounded strips. */
+/** Keep each browser canvas below both its side and pixel budgets. */
 const splitWasmRegions = (regions: WasmRegion[], orientation?: Orientation): WasmRegion[] => {
   const result: WasmRegion[] = [];
   for (const region of regions) {
     const splitOrientation = orientation ?? (region.width >= region.height ? 'vertical' : 'horizontal');
-    const axisLength = splitOrientation === 'vertical' ? region.width : region.height;
-    const fixedLength = splitOrientation === 'vertical' ? region.height : region.width;
-    const maxAxisLength = Math.max(1, Math.floor(WASM_MAX_TILE_PIXELS / Math.max(1, fixedLength)));
-    const partCount = Math.max(1, Math.ceil(axisLength / maxAxisLength));
+    let columns = Math.max(1, Math.ceil(region.width / MAX_BROWSER_TILE_SIDE));
+    let rows = Math.max(1, Math.ceil(region.height / MAX_BROWSER_TILE_SIDE));
+    while (Math.ceil(region.width / columns) * Math.ceil(region.height / rows) > WASM_MAX_TILE_PIXELS) {
+      if (splitOrientation === 'vertical') columns += 1;
+      else rows += 1;
+    }
+    const tileWidth = Math.ceil(region.width / columns);
+    const tileHeight = Math.ceil(region.height / rows);
+    const partCount = columns * rows;
 
     for (let part = 0; part < partCount; part += 1) {
-      const offset = part * maxAxisLength;
-      const span = Math.min(maxAxisLength, axisLength - offset);
+      const column = splitOrientation === 'vertical' ? Math.floor(part / rows) : part % columns;
+      const row = splitOrientation === 'vertical' ? part % rows : Math.floor(part / columns);
+      const xOffset = column * tileWidth;
+      const yOffset = row * tileHeight;
       result.push({
-        x: splitOrientation === 'vertical' ? region.x + offset : region.x,
-        y: splitOrientation === 'horizontal' ? region.y + offset : region.y,
-        width: splitOrientation === 'vertical' ? span : region.width,
-        height: splitOrientation === 'horizontal' ? span : region.height,
+        x: region.x + xOffset,
+        y: region.y + yOffset,
+        width: Math.min(tileWidth, region.width - xOffset),
+        height: Math.min(tileHeight, region.height - yOffset),
         fileName: appendWasmPartSuffix(region.fileName, part + 1, partCount),
       });
     }
@@ -535,7 +604,7 @@ export function useImageSplitter() {
 
   useEffect(() => {
     const syncGeneratedPreview = async () => {
-      if (isProcessing || !generatedMode || generatedMode === 'grid' || sourceItems.length !== 1 || activeSource?.localSourceId || activeSource?.wasmSource) return;
+      if (isProcessing || !generatedMode || generatedMode === 'grid' || sourceItems.length !== 1 || activeSource?.localSourceId || activeSource?.file) return;
       if (!sourceImage || !canvasRef.current || generatedImages.length === 0) return;
 
       const targetPlan = generatedMode === 'vertical' ? verticalPlan : horizontalPlan;
@@ -669,22 +738,24 @@ export function useImageSplitter() {
         // runtime source of truth as well as the marker, so a state/cache
         // boundary cannot accidentally send an oversized crop down the
         // single-tile path.
-        const isBrowserWasm = Boolean(item.file && !item.localSourceId);
-        const regions = isBrowserWasm
+        const isBrowserLarge = Boolean(item.file && !item.localSourceId);
+        const regions = isBrowserLarge
           ? splitWasmRegions(requestedRegions, orientation)
           : requestedRegions;
         const autoSubdivided = regions.length !== requestedRegions.length;
         const onProgress = (completed: number, total: number) => setLoadingStatus({
           title: orientation === 'vertical' ? '正在生成纵向切片' : '正在生成横向切片',
           detail: autoSubdivided
-            ? `原图 ${sourceIndex + 1}/${sourceItems.length} · WASM 自动细分 ${completed}/${total}`
+            ? `原图 ${sourceIndex + 1}/${sourceItems.length} · 自动细分 ${completed}/${total}`
             : `原图 ${sourceIndex + 1}/${sourceItems.length} · 切片 ${completed}/${total}`,
           completed, total,
         });
         onProgress(0, regions.length);
         const itemImages = item.localSourceId
           ? await buildLocalSplitImages(item.localSourceId, regions, onProgress)
-          : isBrowserWasm && item.file
+          : item.nativeSource && item.file
+            ? await buildNativeSplitImages(item.file, regions, onProgress)
+          : isBrowserLarge && item.file
             ? await buildWasmSplitImages(item.file, regions, onProgress)
             : await buildAxisSplitImages(item.image, canvasRef.current, orientation, plan, onProgress);
         nextImages.push(...itemImages.map((image) => ({ ...image, id: nextId++ })));
@@ -741,21 +812,23 @@ export function useImageSplitter() {
                   width: Math.round(region.width), height: Math.round(region.height),
                   fileName: region.fileName,
                 }));
-        const isBrowserWasm = Boolean(item.file && !item.localSourceId);
-        const wasmRegions = isBrowserWasm ? splitWasmRegions(regions) : regions;
-        const autoSubdivided = wasmRegions.length !== regions.length;
+        const isBrowserLarge = Boolean(item.file && !item.localSourceId);
+        const browserRegions = isBrowserLarge ? splitWasmRegions(regions) : regions;
+        const autoSubdivided = browserRegions.length !== regions.length;
         const onProgress = (completed: number, total: number) => setLoadingStatus({
           title: '正在生成网格切片',
           detail: autoSubdivided
-            ? `原图 ${sourceIndex + 1}/${sourceItems.length} · WASM 自动细分 ${completed}/${total}`
+            ? `原图 ${sourceIndex + 1}/${sourceItems.length} · 自动细分 ${completed}/${total}`
             : `原图 ${sourceIndex + 1}/${sourceItems.length} · 切片 ${completed}/${total}`,
           completed, total,
         });
-        onProgress(0, wasmRegions.length);
+        onProgress(0, browserRegions.length);
         const itemImages = item.localSourceId
           ? await buildLocalSplitImages(item.localSourceId, regions, onProgress)
-            : isBrowserWasm && item.file
-            ? await buildWasmSplitImages(item.file, wasmRegions, onProgress)
+            : item.nativeSource && item.file
+            ? await buildNativeSplitImages(item.file, browserRegions, onProgress)
+            : isBrowserLarge && item.file
+            ? await buildWasmSplitImages(item.file, browserRegions, onProgress)
             : await buildGridSplitImages(
               item.image,
               canvasRef.current,

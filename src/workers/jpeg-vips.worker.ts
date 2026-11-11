@@ -103,13 +103,18 @@ const writeJpeg = (image: VipsImage) => {
 
 self.onmessage = async (event: MessageEvent<RequestMessage>) => {
   const request = event.data;
+  let stage = '参数检查';
   try {
     if (!request?.file || !Number.isFinite(request.id)) throw new Error('WASM 请求参数无效');
+    stage = '初始化 libvips';
     const vips = await getVips();
+    stage = '创建 JPEG 数据源';
     const source = createSource(vips, request.file);
     let image: VipsImage | null = null;
+    let fullImage: VipsImage | null = null;
     try {
       if (request.type === 'preview') {
+        stage = '生成预览';
         image = vips.Image.thumbnailSource(source, Math.max(320, request.maxDimension ?? 2400), {
           size: 'down',
           // Keep the JPEG's stored coordinate system aligned with the header
@@ -118,6 +123,7 @@ self.onmessage = async (event: MessageEvent<RequestMessage>) => {
           no_rotate: true,
         });
       } else {
+        stage = '读取原图';
         const width = Math.max(1, Math.floor(request.width ?? 0));
         const height = Math.max(1, Math.floor(request.height ?? 0));
         const x = Math.max(0, Math.floor(request.x ?? 0));
@@ -125,13 +131,11 @@ self.onmessage = async (event: MessageEvent<RequestMessage>) => {
         // JPEG is decoded top-to-bottom. Sequential access lets libvips keep
         // a bounded scanline cache instead of materialising a random-access
         // image for every tile, which is critical for 300–800MB files.
-        const fullImage = vips.Image.newFromSource(source, '', { access: 'sequential' });
-        try {
-          image = fullImage.crop(x, y, width, height);
-        } finally {
-          fullImage.delete();
-        }
+        fullImage = vips.Image.newFromSource(source, '', { access: 'sequential' });
+        stage = '裁切原图';
+        image = fullImage.crop(x, y, width, height);
       }
+      stage = '写出 JPEG';
       const buffer = writeJpeg(image);
       const response: ResponseMessage = {
         id: request.id,
@@ -144,13 +148,15 @@ self.onmessage = async (event: MessageEvent<RequestMessage>) => {
         .postMessage(response, [buffer]);
     } finally {
       image?.delete();
+      fullImage?.delete();
       source.delete();
     }
   } catch (error) {
+    const detail = error instanceof Error ? error.message || error.stack || error.name : String(error);
     const response: ResponseMessage = {
       id: request.id,
       type: 'error',
-      message: error instanceof Error ? error.message : 'WASM JPEG 解码失败',
+      message: `${stage}失败：${detail}`,
     };
     self.postMessage(response);
   }

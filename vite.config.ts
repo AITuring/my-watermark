@@ -48,6 +48,9 @@ export default defineConfig({
             "Cross-Origin-Embedder-Policy": "require-corp",
         },
     },
+    worker: {
+        format: "iife",
+    },
     build: {
         manifest: true,
         rollupOptions: { output: { manualChunks: routeChunks } },
