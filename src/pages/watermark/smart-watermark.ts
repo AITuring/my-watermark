@@ -3,6 +3,7 @@ import type { ImageType, MixedWatermarkConfig, WatermarkPosition } from '@/types
 import { createTextWatermark } from '@/utils/text-watermark';
 import { getImageOpaqueBounds, getAdaptiveWatermarkRenderMetrics } from '@/utils/watermark-editor';
 import { findSmartWatermarkPosition, loadPositionImage } from './smart-position';
+import { getWatermarkLayoutMetrics } from './layout-metrics';
 
 export interface SmartWatermarkResult {
     url: string;
@@ -25,18 +26,19 @@ export async function createSmartWatermark(
     const context = sample.getContext('2d', {willReadFrequently: true});
     if (!context) throw new Error('无法分析图片');
     context.drawImage(photo, 0, 0, sample.width, sample.height);
-    const short = Math.min(image.width, image.height);
     let best: (SmartWatermarkResult & {score: number}) | undefined;
-    const layouts = overrides.layout ? [overrides.layout] : ['horizontal', 'vertical'] as const;
+    const chosenDirection=overrides.layout||(overrides.horizontalPreset?'horizontal':overrides.verticalPreset?'vertical':undefined);
+    const layouts = chosenDirection ? [chosenDirection] : ['horizontal', 'vertical'] as const;
     for (const layout of layouts) {
         const candidateConfig = {...config, layout, color: '#ffffff'};
         const draft = await createTextWatermark(candidateConfig);
         if (!draft) return {url: '', config: candidateConfig, position: {id:image.id,x:0.04,y:0.04,scaleX:1,scaleY:1,rotation:0}};
         const logo = await loadPositionImage(draft);
         const bounds = getImageOpaqueBounds(logo);
-        // A title glyph is 4.5% of the short edge, capped to keep the complete caption inside the photo.
+        // Resolve ORIGINAL-pixel typography first, then fit the complete block.
         const titleSize = Math.max(24, config.fontSize * 4);
-        const renderFactor = Math.min(short * 0.045 / titleSize,
+        const metrics=getWatermarkLayoutMetrics(image.width,image.height,config.referenceTextHeight);
+        const renderFactor = Math.min(metrics.title / titleSize,
             image.width * 0.65 / bounds.width, image.height * 0.65 / bounds.height);
         const baseWidth = getAdaptiveWatermarkRenderMetrics(image.width, image.height, logo).width;
         const scale = bounds.width * renderFactor / baseWidth;

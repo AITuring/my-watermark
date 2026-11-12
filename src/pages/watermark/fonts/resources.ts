@@ -44,7 +44,10 @@ export function loadFontResource(urls: string[]) {
     let request=pending.get(key);
     if(!request) {
         request=limited(()=>readResource(candidates));pending.set(key,request);
-        request.catch(()=>pending.delete(key));
+        // Keep only in-flight bytes. Loaded FontFaces and Cache Storage own the result;
+        // retaining every ArrayBuffer here would duplicate memory across font switches.
+        const forget=()=>{if(pending.get(key)===request)pending.delete(key);};
+        void request.then(forget,forget);
     }
     return request;
 }

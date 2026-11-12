@@ -13,10 +13,10 @@ export interface WatermarkFont {
     source: string;
     tags: string;
 }
-export const DEFAULT_FONT_ID = 'system-song';
+export const DEFAULT_FONT_ID = 'fzxijinljw';
 export const FONT_CATEGORIES = ['全部', '古籍刻本', '篆书', '隶书', '楷书', '行书', '草书', '宋体', '黑体', '手写', '名家', '已导入'];
 export const WATERMARK_FONTS: WatermarkFont[] = [
-    {id:DEFAULT_FONT_ID,name:'系统宋体',category:'宋体',source:'',tags:'系统 默认'},
+    {id:'system-song',name:'系统宋体',category:'宋体',source:'',tags:'系统'},
     ...catalog,
     {id:'aoyagi-lishu',name:'青柳隶书',category:'隶书',fontUrl:'/fonts/aoyagi-lishu/aoyagi-lishu.ttf',source:'https://opentype.jp/aoyagireisho.htm',tags:'隶书 青柳衡山 SIMO'},
     {id:'local-lisu',name:'系统隶书',category:'隶书',localSource:'local("LiSu"), local("隶书"), local("STLiti")',source:'',tags:'本机字体'},
@@ -54,7 +54,7 @@ async function loadFace(face:FontFace) {
 const listeners = new Set<() => void>();
 export const subscribeFonts = (listener: () => void) => { listeners.add(listener); return () => {listeners.delete(listener);}; };
 export const getImportedFonts = () => importedFonts;
-export const fontFamily = (id = DEFAULT_FONT_ID) => id === DEFAULT_FONT_ID
+export const fontFamily = (id = DEFAULT_FONT_ID) => id === 'system-song'
     ? '"Songti SC", "SimSun", serif' : `"WM_${id}", "Songti SC", serif`;
 export const fontName = (id = DEFAULT_FONT_ID) => [...WATERMARK_FONTS,...importedFonts].find(font => font.id === id)?.name || '系统宋体';
 
@@ -119,7 +119,7 @@ async function registerFont(font: WatermarkFont): Promise<FontFace[]> {
 }
 
 export async function ensureWatermarkFont(id = DEFAULT_FONT_ID, text = '秋声赋卷') {
-    if (id === DEFAULT_FONT_ID) return fontFamily(id);
+    if (id === 'system-song') return fontFamily(id);
     let pending=registered.get(id);
     if (!pending) {
         const font=[...WATERMARK_FONTS,...importedFonts].find(item=>item.id===id);

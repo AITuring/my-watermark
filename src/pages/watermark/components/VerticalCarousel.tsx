@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import type React from "react";
 
 import ImageAssetPicker from "@/components/ImageAssetPicker";
+import ImageUploader from "@/components/ImageUploader";
+import {ChevronLeft, ChevronRight, Plus, Trash2} from 'lucide-react';
 import type { ImageType } from "@/types";
 
 interface VerticalCarouselProps {
@@ -10,6 +12,7 @@ interface VerticalCarouselProps {
     setImageUploaderVisible: React.Dispatch<React.SetStateAction<boolean>>;
     setCurrentImg: React.Dispatch<React.SetStateAction<ImageType | null>>;
     height?: number;
+    currentImageId?: string;
 }
 
 const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
@@ -17,10 +20,13 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     setImages,
     setImageUploaderVisible,
     setCurrentImg,
+    currentImageId,
 }) => {
+    const [collapsed, setCollapsed] = useState(false);
     const [selectedImageId, setSelectedImageId] = useState<string | null>(
         images[0]?.id ?? null
     );
+    const selectedId = currentImageId ?? selectedImageId;
 
     useEffect(() => {
         if (!images.length) {
@@ -41,7 +47,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
             setImageUploaderVisible(true);
             setCurrentImg(null);
             setSelectedImageId(null);
-        } else if (id === selectedImageId) {
+        } else if (id === selectedId) {
             setSelectedImageId(newImages[0].id);
             setCurrentImg(newImages[0]);
         }
@@ -70,19 +76,35 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     };
 
     return (
-        <div
-            className="overflow-hidden rounded-lg border bg-background shadow-sm"
-            style={{ height: "100%", maxHeight: "100%", width: "24%", minWidth: 180, flexShrink: 0 }}
-        >
+        <aside className={`wm-source-rail ${collapsed ? 'is-collapsed' : ''}`} aria-label="背景图片列表">
+            <header className="wm-source-header">
+                {!collapsed && <span className="wm-source-count">图片 <span>{images.length}</span></span>}
+                <button type="button" className="wm-source-icon" aria-label={collapsed ? '展开图片列表' : '收起图片列表'} aria-expanded={!collapsed} title={collapsed ? '展开图片列表' : '收起图片列表'} onClick={()=>setCollapsed(previous=>!previous)}>
+                    {collapsed ? <ChevronRight size={15}/> : <ChevronLeft size={15}/>}
+                </button>
+            </header>
+            <div className="wm-source-actions">
+                <ImageUploader onUpload={files=>void handleImagesUpload(files).catch(error=>{
+                    console.error('添加背景图片失败',error);alert('图片添加失败，请重试。');
+                })} fileType="背景图片" className="wm-source-add">
+                    <button type="button" className="wm-source-add-button" aria-label="添加背景图片" title="添加背景图片"><Plus size={15}/>{!collapsed && <span>添加</span>}</button>
+                </ImageUploader>
+                {!collapsed && <button type="button" className="wm-source-add-button wm-source-clear" aria-label="清空图片列表" title="清空图片列表" onClick={()=>{
+                    setImages([]);setImageUploaderVisible(true);setCurrentImg(null);setSelectedImageId(null);
+                }}><Trash2 size={14}/><span>清空</span></button>}
+            </div>
+            {collapsed && <span className="wm-source-mini-count" title={`${images.length} 张背景图片`}>{images.length}</span>}
             <ImageAssetPicker
                 images={images}
-                selectedId={selectedImageId}
+                selectedId={selectedId}
                 layout="list"
                 title="背景图片"
-                className="h-full"
-                headerClassName="flex-wrap gap-2 [&>div]:ml-auto [&>div]:gap-0 [&>div_button]:px-2 [&>div_button]:text-xs [&>div_button_svg]:h-3 [&>div_button_svg]:w-3 [&>div_button_svg]:mr-1 [&>div]:shrink-0 [&>div]:whitespace-nowrap [&>div:first-child]:whitespace-nowrap"
+                showHeader={false}
+                className="wm-source-picker"
                 scrollAreaClassName="flex-1"
-                itemsClassName="space-y-2 p-2"
+                itemsClassName="wm-source-items"
+                itemClassName="wm-source-thumb"
+                imageClassName="wm-source-image"
                 onSelect={(image) => {
                     setSelectedImageId(image.id);
                     setCurrentImg(image);
@@ -96,7 +118,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                 }}
                 onUpload={handleImagesUpload}
             />
-        </div>
+        </aside>
     );
 };
 

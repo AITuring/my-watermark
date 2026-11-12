@@ -28,7 +28,7 @@ test('catalog has distinct entries covering seal, clerical, regular, running and
 
 test('system font works without network and concurrent requests share font metadata',async()=>{
     const {api,calls,faces,resourceCalls}=environment();
-    await api.ensureWatermarkFont(); assert.equal(calls.length,0);
+    await api.ensureWatermarkFont('system-song'); assert.equal(calls.length,0);
     await Promise.all([api.ensureWatermarkFont('yidianyan','秋声'),api.ensureWatermarkFont('yidianyan','赵孟頫')]);
     assert.equal(calls.length,1);assert.equal(faces.size,1);
     const face=[...faces][0];
@@ -37,6 +37,18 @@ test('system font works without network and concurrent requests share font metad
     assert.ok(calls[0].startsWith('/fonts/watermark/'));
     assert.ok(resourceCalls[0][0].includes('part.woff2'));
     assert.equal(api.missingFontCharacters('yidianyan','秋声'), '');
+});
+
+test('default Song uses the bundled Founder Xi Jinling font and loads its actual glyphs',async()=>{
+    const {api,state,calls,resourceCalls}=environment();
+    assert.equal(api.DEFAULT_FONT_ID,'fzxijinljw');
+    const font=catalog.find(item=>item.id===api.DEFAULT_FONT_ID);
+    assert.equal(font.name,'方正细金陵简体');assert.equal(font.category,'宋体');
+    state.css=await readFile(new URL(`../public${font.metadataUrl}`,import.meta.url),'utf8');
+    const family=await api.ensureWatermarkFont(undefined,'江山放牧图卷');
+    assert.ok(family.includes('WM_fzxijinljw'));
+    assert.equal(calls[0],font.metadataUrl);assert.ok(resourceCalls.length>0);
+    assert.equal(api.missingFontCharacters(api.DEFAULT_FONT_ID,'江山放牧图卷'),'');
 });
 
 test('unicode coverage checks ranges, wildcard ranges and missing characters',async()=>{
@@ -68,11 +80,14 @@ test('local font import rejects invalid files and registers valid session fonts'
 });
 
 const rendererCode=ts.transpileModule(await readFile(new URL('../src/utils/text-watermark.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+const presetCode=ts.transpileModule(await readFile(new URL('../src/pages/watermark/layout-presets.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+const geometryLayoutCode=ts.transpileModule(await readFile(new URL('../src/utils/text-watermark-layout.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+const presets={},layoutGeometry={};vm.runInNewContext(presetCode,{exports:presets});vm.runInNewContext(geometryLayoutCode,{exports:layoutGeometry});
 function renderer() {
     const exports={},canvases=[],requested=[];
     const document={fonts:{load:async()=>[]},createElement(){
         const calls=[];
-        const context={font:'',fillStyle:'',textAlign:'',scale(){},translate(){},save(){},restore(){},fillRect(){},drawImage(){},
+        const context={font:'',fillStyle:'',textAlign:'',scale(){},translate(){},rotate(){},save(){},restore(){},fillRect(){},drawImage(){},
             measureText(text){return {width:Array.from(text).length*40};},
             strokeText(){throw new Error('Text outlines must remain disabled');},
             fillText(text){calls.push({text,font:this.font,color:this.fillStyle});},
@@ -81,17 +96,17 @@ function renderer() {
         canvases.push(canvas);return canvas;
     }};
     class Image {naturalWidth=50;naturalHeight=100;set src(value){this.onload();}}
-    vm.runInNewContext(rendererCode,{exports,document,Image,Error,Promise,require(path){return path.includes('registry')?{async ensureWatermarkFont(id,text){requested.push({id,text});return `"${id || 'song'}"`;}}:{getImageOpaqueBounds:()=>({x:5,y:10,width:40,height:80})};}});
+    vm.runInNewContext(rendererCode,{exports,document,Image,Error,Promise,require(path){return path.includes('registry')?{async ensureWatermarkFont(id,text){requested.push({id,text});return `"${id || 'song'}"`;}}:path.includes('layout-presets')?presets:path.includes('text-watermark-layout')?layoutGeometry:{getImageOpaqueBounds:()=>({x:5,y:10,width:40,height:80})};}});
     return {render:exports.createTextWatermark,canvases,requested};
 }
 const baseConfig={enabled:true,textOnly:true,icon:'logo.png',textLine1:'秋声赋',textLine2:'元',fontSize:30,color:'#cc2828',layout:'horizontal',gap:20};
 
-test('title and caption use independently loaded fonts and retain selected solid color',async()=>{
+test('title and caption use one loaded font, the same size and selected solid color',async()=>{
     const r=renderer();await r.render({...baseConfig,fontId:'title',captionFontId:'caption'});
     const calls=r.canvases[0].calls;
-    assert.equal(calls.length,2);assert.ok(calls[0].font.includes('"title"'));assert.ok(calls[1].font.includes('"caption"'));
+    assert.equal(calls.length,4);assert.ok(calls.every(call=>call.font.includes('"title"')));assert.equal(new Set(calls.map(call=>call.font)).size,1);
     assert.ok(calls.every(call=>call.color==='#cc2828'));
-    assert.equal(r.requested[0].text,'秋声赋');assert.equal(r.requested[1].text,'元');
+    assert.equal(r.requested[0].text,'秋声赋·元');assert.equal(r.requested.length,1);
 });
 
 test('inline edit regions match rendered title and caption in both directions',async()=>{
@@ -102,7 +117,7 @@ test('inline edit regions match rendered title and caption in both directions',a
         assert.equal(regions[0].field,'textLine1');assert.equal(regions[1].field,'textLine2');
         assert.ok(regions.every(region=>region.width>0&&region.height>0&&region.fontSize>0));
         if(layout==='horizontal') assert.ok(regions[0].y+regions[0].height<regions[1].y);
-        else assert.ok(regions[0].x+regions[0].width<regions[1].x);
+        else assert.ok(regions[1].x+regions[1].width<regions[0].x);
         for(const region of regions) {
             assert.ok(region.x>=0&&region.y>=0);
             assert.ok(region.x+region.width<=r.canvases[0].width);
@@ -231,12 +246,13 @@ test('every built-in font has an immediate real-glyph gallery image',async()=>{
 
 test('downloaded fonts have distinct catalog entries, retained source metadata and real subset files',async()=>{
     const sources=JSON.parse(await readFile(new URL('../public/fonts/watermark/founder/sources.json',import.meta.url),'utf8'));
-    assert.equal(sources.length,38);
-    assert.equal(new Set(sources.map(source=>source.sha256)).size,38);
+    assert.ok(sources.length>=38);
+    assert.equal(new Set(sources.map(source=>source.sha256)).size,sources.length);
+    assert.equal(new Set(sources.map(source=>source.postScriptName)).size,sources.length);
     for(const source of sources){
         const font=catalog.find(font=>font.id===source.id);
         assert.ok(font,source.id);assert.equal(font.name,source.name);
-        assert.ok(font.tags.includes('名家'),source.id);
+        assert.ok(font.tags.includes('本地字体'),source.id);
         assert.ok(source.copyright.length>0,source.id);
         assert.ok(source.previewText.length>0,source.id);
         assert.ok(source.subsetBytes<source.sourceBytes,source.id);

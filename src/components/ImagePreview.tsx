@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -44,35 +44,42 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
     const [meta, setMeta] = useState<{
+        src?: string;
         width?: number;
         height?: number;
         size?: number;
     }>({});
+    const [failedSource, setFailedSource] = useState<string>();
+    const source = images[Math.min(index, images.length - 1)];
     const dimsText = useMemo(() => {
-        return meta.width && meta.height ? `${meta.width}×${meta.height}` : "";
-    }, [meta.width, meta.height]);
+        return meta.src === source && meta.width && meta.height ? `${meta.width}×${meta.height}` : "";
+    }, [meta.src, source, meta.width, meta.height]);
     const sizeText = useMemo(() => {
-        if (typeof meta.size !== "number") return "";
+        if (meta.src !== source || typeof meta.size !== "number") return "";
         return meta.size < 1024 * 1024
             ? `${Math.round(meta.size / 1024)}KB`
             : `${(meta.size / 1024 / 1024).toFixed(2)}MB`;
-    }, [meta.size]);
+    }, [meta.src, source, meta.size]);
 
     useEffect(() => {
-        if (!open || images.length === 0) return;
-        const src = images[index];
-        if (!src) return;
+        if (!open || !source) return;
+        const src = source;
         let cancelled = false;
+        const controller = new AbortController();
+        setMeta({ src });
+        setFailedSource(undefined);
         const img = new Image();
         img.onload = () => {
             if (!cancelled) {
                 setMeta((m) => ({
                     ...m,
+                    src,
                     width: img.naturalWidth,
                     height: img.naturalHeight,
                 }));
             }
         };
+        img.onerror = () => { if (!cancelled) setFailedSource(src); };
         img.src = src;
         (async () => {
             try {
@@ -86,12 +93,17 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                         const padding = (base64.match(/=+$/) || [""])[0].length;
                         size = Math.floor((base64.length * 3) / 4) - padding;
                     }
+                } else if (isBlob) {
+                    const response = await fetch(src, { signal: controller.signal });
+                    const length = response.headers.get('content-length');
+                    if (length) size = Number(length);
+                    await response.body?.cancel();
                 } else {
                     try {
-                        const headRes = await fetch(src, { method: "HEAD" });
+                        const headRes = await fetch(src, { method: "HEAD", signal: controller.signal });
                         const sizeStr = headRes.headers.get("content-length");
                         if (sizeStr) size = Number(sizeStr);
-                    } catch {}
+                    } catch { /* Size metadata is optional. */ }
                     if (!size) {
                         const sameOrigin = (() => {
                             try {
@@ -101,24 +113,27 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                                 return false;
                             }
                         })();
-                        if (sameOrigin || isBlob) {
+                        if (sameOrigin) {
                             try {
-                                const getRes = await fetch(src);
+                                const getRes = await fetch(src, { signal: controller.signal });
                                 const blob = await getRes.blob();
                                 size = blob.size;
-                            } catch {}
+                            } catch { /* Cross-origin metadata may be unavailable. */ }
                         }
                     }
                 }
                 if (!cancelled) {
                     setMeta((m) => ({ ...m, size }));
                 }
-            } catch {}
+            } catch { /* Switching images aborts obsolete metadata requests. */ }
         })();
         return () => {
             cancelled = true;
+            controller.abort();
+            img.onload = null;
+            img.onerror = null;
         };
-    }, [open, index, images]);
+    }, [open, source]);
 
     useEffect(() => {
         if (open) {
@@ -251,7 +266,8 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-transparent border-none">
+            <DialogContent aria-describedby={undefined} className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-transparent border-none">
+                <DialogTitle className="sr-only">图片预览</DialogTitle>
                 <div className="relative w-full h-full flex flex-col">
                     <div
                         className="flex-1 flex items-center justify-center overflow-hidden"
@@ -275,12 +291,15 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
                                 }}
                                 className="origin-center"
                             >
-                                <img
-                                    src={images[index]}
+                                {failedSource === source ? (
+                                    <p role="alert" className="rounded-md bg-black/70 p-4 text-white">图片暂时无法加载，请关闭后重新选择图片。</p>
+                                ) : <img
+                                    key={source}
+                                    src={source}
                                     alt="预览图片"
                                     className="max-w-full max-h-[calc(90vh-80px)] object-contain"
                                     draggable={false}
-                                />
+                                />}
                             </div>
                         )}
                     </div>

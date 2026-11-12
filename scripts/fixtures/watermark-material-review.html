@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>整图水印素材验证</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f0eee8;color:#36332d;font:14px/1.5 system-ui}header{padding:16px 22px;border-bottom:1px solid #d6d0c5}h1{margin:0 0 6px;font-size:18px}p{margin:0}button,select,input{font:inherit}button,select{padding:6px 10px}input{width:100px;padding:6px}nav{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:12px}label{display:flex;gap:6px;align-items:center}main{padding:18px 22px}.views{display:grid;grid-template-columns:1fr 1fr;gap:16px}.view{min-width:0}h2{font-size:14px;font-weight:500;margin:0 0 6px}.view img{display:block;width:100%;height:auto;object-fit:contain;background:#e2dfd7;max-height:750px}.view img[hidden]{display:none}#facts{margin:12px 0;padding:12px 0;border-bottom:1px solid #d6d0c5;overflow-wrap:anywhere}#cases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.case{border:0;padding:0;background:transparent;text-align:left;cursor:pointer}.case img{width:100%;height:205px;object-fit:contain;background:#e2dfd7;display:block}.case strong{display:block;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.case[aria-pressed=true]{outline:2px solid #8a6b39;outline-offset:4px}.meta{font-size:12px;color:#6d655a}#status{min-height:22px}#errors{color:#ae382e;white-space:pre-wrap}@media(max-width:800px){.views{grid-template-columns:1fr}#cases{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style></head><body>
+<header><h1>整图水印素材验证</h1><p>固定文案：《江山放牧图卷》 · 北宋·祁序·故宫博物院藏 · 笑谈间气吐霓虹摄</p>
+<nav>
+ <label>模式<select id="mode"><option value="mixed">图文 · 纯图形图标</option><option value="image">图片 · 图案与署名整图</option><option value="text">文字 · 同一字体</option></select></label>
+ <label>排版<select id="layout"><option value="single" selected>留白一组 · 避开主体</option><option value="distributed">非主体区域＋辅助署名</option></select></label>
+ <label>字号倍率<input id="scale" type="number" value="1" min=".5" max="2" step=".1"></label>
+ <button id="run">重新生成整组</button>
+ <span id="status" role="status">准备中…</span>
+</nav></header>
+<main>
+ <label>当前图原画参考字高（原始像素，可留空）<input id="reference" type="number" min="0" placeholder="自动估算"><button id="apply-reference">应用当前图</button></label>
+ <div id="facts" aria-live="polite"></div>
+ <div class="views"><div class="view"><h2>完整原图预览</h2><img id="original" alt="完整原图"></div><div class="view"><h2>完整画面叠印预览</h2><img id="result" alt="整图水印结果"></div></div>
+ <p id="errors" role="alert"></p><hr><div id="cases"></div>
+</main><script type="module" src="./watermark-material-review.ts"></script></body></html>

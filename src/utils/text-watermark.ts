@@ -1,115 +1,76 @@
-import { ensureWatermarkFont } from "@/pages/watermark/fonts/registry";
-import { getImageOpaqueBounds } from "@/utils/watermark-editor";
-import type { MixedWatermarkConfig } from "@/types";
+import {ensureWatermarkFont} from '@/pages/watermark/fonts/registry';
+import {getWatermarkPreset} from '@/pages/watermark/layout-presets';
+import {getImageOpaqueBounds} from '@/utils/watermark-editor';
+import {arrangeWatermark} from './text-watermark-layout';
+import type {MixedWatermarkConfig} from '@/types';
 
-export interface WatermarkTextRegion {
-    field: 'textLine1' | 'textLine2';
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    fontSize: number;
-    fontFamily: string;
-    letterSpacing: number;
+type Field='textLine1'|'textLine2';
+type Rect={x:number;y:number;width:number;height:number};
+export interface WatermarkTextRegion extends Rect{
+    field:Field;fontSize:number;fontFamily:string;letterSpacing:number;
+    inputOffsetX?:number;inputOffsetY?:number;lineHeight?:number;
+}
+type Glyph={text:string;x:number;y:number;angle:number;field?:Field;ink:Rect};
+type TextShape=Rect&{glyphs:Glyph[]};
+
+function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Field}[],vertical:boolean,size:number,spacing:number):TextShape{
+    const glyphs:Glyph[]=[];let cursor=0,left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
+    for(const run of runs)for(const text of Array.from(run.text)){
+        const m=ctx.measureText(text),box={left:-(m.actualBoundingBoxLeft??0),right:m.actualBoundingBoxRight??m.width,top:-(m.actualBoundingBoxAscent??size*.85),bottom:m.actualBoundingBoxDescent??size*.15};
+        if(text===' '){cursor+=vertical?size*.65:m.width+spacing;continue;}
+        let x=cursor,y=0,angle=0,ink:Rect;
+        if(vertical){
+            angle=text==='《'||text==='》'?Math.PI/2:0;
+            const b=angle?{left:-box.bottom,right:-box.top,top:box.left,bottom:box.right}:box;
+            const w=b.right-b.left,h=b.bottom-b.top;
+            x=-w/2-b.left;y=cursor+(size-h)/2-b.top;
+            ink={x:-w/2,y:cursor+(size-h)/2,width:w,height:h};cursor+=size+spacing;
+        }else{ink={x:cursor+box.left,y:box.top,width:box.right-box.left,height:box.bottom-box.top};cursor+=m.width+spacing;}
+        glyphs.push({text,x,y,angle,field:run.field,ink});left=Math.min(left,ink.x);top=Math.min(top,ink.y);right=Math.max(right,ink.x+ink.width);bottom=Math.max(bottom,ink.y+ink.height);
+    }
+    if(!glyphs.length)return{x:0,y:0,width:0,height:0,glyphs:[]};
+    return{x:0,y:0,width:right-left,height:bottom-top,glyphs:glyphs.map(g=>({...g,x:g.x-left,y:g.y-top,ink:{...g.ink,x:g.ink.x-left,y:g.ink.y-top}}))};
 }
 
-/** Render at export resolution; preview and batch export share the same layout. */
-export async function createTextWatermark(config: MixedWatermarkConfig, onLayout?: (regions: WatermarkTextRegion[]) => void): Promise<string> {
-    const lines = [config.textLine1.trim(), config.textLine2.trim()];
-    if (!lines.some(Boolean) && (config.textOnly || !config.icon)) return "";
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("无法创建文字水印");
-    let icon: HTMLImageElement | undefined;
-    if (!config.textOnly && config.icon) {
-        icon = await new Promise<HTMLImageElement>((resolve, reject) => {
-            const image = new Image();
-            image.onload = () => resolve(image);
-            image.onerror = () => reject(new Error("水印图标加载失败"));
-            image.src = config.icon;
-        });
-    }
-    const families = await Promise.all([
-        ensureWatermarkFont(config.fontId,lines[0]),
-        ensureWatermarkFont(config.captionFontId,lines[1]),
-    ]);
-    const sizes = [Math.max(24, config.fontSize * 4), Math.max(24, config.fontSize * 2.6)];
-    await Promise.all(sizes.map((size,index) => document.fonts.load(`${size}px ${families[index]}`,lines[index] || "秋")));
-    const vertical = config.layout === "vertical";
-    const padding = sizes[0] * 0.3;
-    const gap = sizes[0] * (config.lineGap ?? 0.25);
-    const letterSpacing = sizes[0] * (config.letterSpacing ?? 0);
-    const blocks = lines.map((text, index) => {
-        const size = sizes[index];
-        ctx.font = `${size}px ${families[index]}`;
-        const characters = Array.from(text);
-        return { text, size, family: families[index], characters, field: index === 0 ? 'textLine1' as const : 'textLine2' as const,
-            width: vertical ? size * 1.3 : ctx.measureText(text).width + Math.max(0,characters.length-1) * letterSpacing,
-            height: vertical ? characters.length * size * 1.2 + Math.max(0,characters.length-1) * letterSpacing : size * 1.4 };
-    }).filter(block => block.text);
-    const textWidth = (vertical ? blocks.reduce((sum, b) => sum + b.width, 0) + gap * Math.max(0,blocks.length - 1)
-        : Math.max(0,...blocks.map(b => b.width))) + padding * 2;
-    const textHeight = (vertical ? Math.max(0,...blocks.map(b => b.height))
-        : blocks.reduce((sum, b) => sum + b.height, 0) + gap * Math.max(0,blocks.length - 1)) + padding * 2;
-    const iconBounds = icon ? getImageOpaqueBounds(icon) : undefined;
-    const iconH = icon ? sizes[0] * 2.2 * (config.iconScale ?? 1) : 0;
-    const iconW = icon ? iconH * iconBounds!.width / iconBounds!.height : 0;
-    const iconGap = icon ? sizes[0] * 0.4 : 0;
-    const width = vertical ? Math.max(textWidth, iconW + padding * 2) : textWidth + iconW + iconGap;
-    const height = vertical ? textHeight + iconH + iconGap : Math.max(textHeight, iconH + padding * 2);
-    const scale = Math.min(1, 8192 / Math.max(width, height));
-    canvas.width = Math.max(1, Math.ceil(width * scale));
-    canvas.height = Math.max(1, Math.ceil(height * scale));
-    ctx.scale(scale, scale);
-    ctx.fillStyle = config.color;
-    if (icon) {
-        const iconCanvas = document.createElement('canvas');
-        iconCanvas.width = Math.ceil(iconW);
-        iconCanvas.height = Math.ceil(iconH);
-        const iconCtx = iconCanvas.getContext('2d');
-        if (!iconCtx) throw new Error('无法绘制水印图标');
-        iconCtx.drawImage(icon, iconBounds!.x, iconBounds!.y, iconBounds!.width, iconBounds!.height, 0, 0, iconW, iconH);
-        iconCtx.globalCompositeOperation = 'source-in';
-        iconCtx.fillStyle = config.color;
-        iconCtx.fillRect(0, 0, iconW, iconH);
-        ctx.save();
-        ctx.drawImage(iconCanvas, vertical ? (width - iconW) / 2 : padding, vertical ? padding : (height - iconH) / 2);
-        ctx.restore();
-    }
-    const textX = vertical ? (width - textWidth) / 2 : iconW + iconGap;
-    const textY = vertical ? iconH + iconGap : (height - textHeight) / 2;
-    ctx.translate(textX, textY);
-    const drawText = (text: string, x: number, y: number) => {
-        ctx.fillText(text, x, y);
-    };
-    ctx.textBaseline = "middle";
-    let offset = padding;
-    const regions: WatermarkTextRegion[] = [];
-    for (const block of blocks) {
-        regions.push({field: block.field, x: (textX + (vertical ? offset : padding)) * scale,
-            y: (textY + (vertical ? padding : offset)) * scale,
-            width: block.width * scale, height: block.height * scale,
-            fontSize: block.size * scale, fontFamily: block.family, letterSpacing: letterSpacing * scale});
-        ctx.font = `${block.size}px ${block.family}`;
-        ctx.textAlign = vertical ? "center" : "left";
-        if (vertical) {
-            block.characters.forEach((character, index) => {
-                drawText(character, offset + block.width / 2,
-                    padding + block.size * 0.7 + index * (block.size * 1.2 + letterSpacing));
-            });
-            offset += block.width + gap;
-        } else {
-            if (!letterSpacing) drawText(block.text, padding, offset + block.height / 2);
-            else {
-                let x = padding;
-                for (const character of block.characters) {
-                    drawText(character,x,offset + block.height / 2);
-                    x += ctx.measureText(character).width + letterSpacing;
-                }
-            }
-            offset += block.height + gap;
+/** Original pixels are preserved by the caller; the same PNG is used for preview and export. */
+export async function createTextWatermark(config:MixedWatermarkConfig,onLayout?:(regions:WatermarkTextRegion[])=>void):Promise<string>{
+    const runs=([['textLine1',config.textLine1],['textLine2',config.textLine2]] as const).map(([field,text])=>({field,text:text.trim()})).filter(run=>run.text);
+    if(!runs.length&&(config.textOnly||!config.icon)){onLayout?.([]);return '';}
+    const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)throw Error('无法创建文字水印');
+    const family=await ensureWatermarkFont(config.fontId||config.captionFontId,runs.map(run=>run.text).join('·'));
+    const size=Math.max(24,config.fontSize*4),spacing=size*(config.letterSpacing??.1),vertical=config.layout==='vertical';
+    await document.fonts.load(`${size}px ${family}`,runs.map(run=>run.text).join('')||'秋');ctx.font=`${size}px ${family}`;
+    const preset=getWatermarkPreset(config),single=preset==='single'||runs.length<2;
+    const joined=runs.flatMap((run,index)=>index?[{text:' · '},run]:[run]);
+    const shapes=single&&runs.length?[measureShape(ctx,joined,vertical,size,spacing)]:runs.map(run=>measureShape(ctx,[run],vertical,size,spacing));
+    let icon:HTMLImageElement|undefined;
+    if(!config.textOnly&&config.icon)icon=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(Error('水印图标加载失败'));image.src=config.icon;});
+    const iconBounds=icon?getImageOpaqueBounds(icon):undefined;
+    const geometry=arrangeWatermark(shapes,vertical,preset==='centered',size,size*(config.lineGap??.55),iconBounds?iconBounds.width/iconBounds.height:undefined);
+    // Icon-only mode retains the existing size control; text layouts lock icon proportions.
+    if(!shapes.length&&config.iconScale){for(const item of geometry.items){item.width*=config.iconScale;item.height*=config.iconScale;}geometry.width*=config.iconScale;geometry.height*=config.iconScale;}
+    const padding=size*.3,scale=Math.min(1,8192/Math.max(geometry.width+padding*2,geometry.height+padding*2));
+    canvas.width=Math.max(1,Math.ceil((geometry.width+padding*2)*scale));canvas.height=Math.max(1,Math.ceil((geometry.height+padding*2)*scale));
+    ctx.scale(scale,scale);ctx.font=`${size}px ${family}`;ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle=config.color;
+    const regions:WatermarkTextRegion[]=[];
+    for(const item of geometry.items){
+        const x=padding+item.x,y=padding+item.y;
+        if(item.role==='icon'&&icon&&iconBounds){
+            const tint=document.createElement('canvas');tint.width=Math.max(1,Math.ceil(item.width*3));tint.height=Math.max(1,Math.ceil(item.height*3));const c=tint.getContext('2d');if(!c)throw Error('无法绘制水印图标');
+            c.drawImage(icon,iconBounds.x,iconBounds.y,iconBounds.width,iconBounds.height,0,0,tint.width,tint.height);c.globalCompositeOperation='source-in';c.fillStyle=config.color;c.fillRect(0,0,tint.width,tint.height);ctx.drawImage(tint,x,y,item.width,item.height);continue;
+        }
+        const shape=shapes[item.index!];
+        for(const glyph of shape.glyphs){ctx.save();ctx.translate(x+glyph.x,y+glyph.y);if(glyph.angle)ctx.rotate(glyph.angle);ctx.fillText(glyph.text,0,0);ctx.restore();}
+        for(const field of ['textLine1','textLine2'] as const){
+            const glyphs=shape.glyphs.filter(g=>g.field===field);if(!glyphs.length)continue;
+            const left=Math.min(...glyphs.map(g=>g.ink.x)),top=Math.min(...glyphs.map(g=>g.ink.y)),right=Math.max(...glyphs.map(g=>g.ink.x+g.ink.width)),bottom=Math.max(...glyphs.map(g=>g.ink.y+g.ink.height));
+            const first=glyphs[0],metrics=ctx.measureText(first.text),asc=metrics.fontBoundingBoxAscent??size*.85,desc=metrics.fontBoundingBoxDescent??size*.15;
+            const inputX=vertical?left+(right-left-size)/2:first.x;
+            const inputY=vertical?first.ink.y+(first.ink.height-size)/2:first.y-(asc+(size-asc-desc)/2);
+            const bleed=1;
+            regions.push({field,x:(x+left-bleed)*scale,y:(y+top-bleed)*scale,width:(right-left+bleed*2)*scale,height:(bottom-top+bleed*2)*scale,fontSize:size*scale,fontFamily:family,letterSpacing:spacing*scale,
+                inputOffsetX:(inputX-left+bleed)*scale,inputOffsetY:(inputY-top+bleed)*scale,lineHeight:1});
         }
     }
-    onLayout?.(regions);
-    return canvas.toDataURL("image/png");
+    onLayout?.(regions);return canvas.toDataURL('image/png');
 }

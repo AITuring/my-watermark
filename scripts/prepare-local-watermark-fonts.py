@@ -28,15 +28,21 @@ def font_name(font, name_id):
 
 
 def category(name):
+    if any(word in name for word in ('刻本', '刻宋', '字典')):
+        return '古籍刻本'
     if any(word in name for word in ('篆', '甲骨')):
         return '篆书'
     if any(word in name for word in ('隶', '帛书')):
         return '隶书'
+    if any(word in name for word in ('宋', '金陵')):
+        return '宋体'
+    if '黑' in name:
+        return '黑体'
     if any(word in name for word in ('草',)):
         return '草书'
     if any(word in name for word in ('楷', '瘦金')):
         return '楷书'
-    return '行书'
+    return '行书' if '行' in name else '手写'
 
 
 def normalize_feature_parameters(font):
@@ -107,10 +113,12 @@ def build(path):
 
     aliases = name.replace('孫過庭', '孙过庭').replace('李陽冰', '李阳冰').replace('篆書', '篆书').replace('草書', '草书').replace('文征明', '文徵明')
     font_category = category(name)
+    maker = '方正' if name.startswith('方正') else '书体坊' if any(word in name for word in ('书体坊', '書體坊')) else ''
+    grouping = '名家' if font_category in {'篆书', '隶书', '楷书', '行书', '草书'} else font_category
     entry = dict(id=identity, name=name, category=font_category,
                  cssUrl=f'/fonts/watermark/founder/{css_name}',
                  metadataUrl=f'/fonts/watermark/founder/{css_name}', source='',
-                 tags=f'名家 本地字体 方正 {aliases} {path.stem}')
+                 tags=f'{grouping} 本地字体 {maker} {aliases} {path.stem}')
     source = dict(id=identity, file=path.name, sha256=digest, name=name,
                   postScriptName=font_name(font, 6), copyright=copyright_text,
                   trademark=font_name(font, 7), license=font_name(font, 13),
@@ -127,10 +135,31 @@ def main():
     parser.add_argument('directory', type=Path)
     parser.add_argument('--match', default='FZ*.TTF')
     parser.add_argument('--jobs', type=int, default=4)
+    parser.add_argument('--skip-existing', action='store_true', help='Skip known file hashes or internal PostScript names')
     args = parser.parse_args()
     paths = sorted(path for path in args.directory.glob(args.match) if path.is_file())
     if not paths:
         raise SystemExit('No matching fonts')
+    if args.skip_existing:
+        known = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else []
+        hashes = {source['sha256'] for source in known}
+        names = {source['postScriptName'] for source in known if source.get('postScriptName')}
+        selected = []
+        for path in paths:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            with TTFont(path) as font:
+                postscript = font_name(font, 6)
+            if digest in hashes or postscript and postscript in names:
+                print(f'Skip existing: {path.name}', flush=True)
+                continue
+            selected.append(path)
+            hashes.add(digest)
+            if postscript:
+                names.add(postscript)
+        paths = selected
+        if not paths:
+            print('No new fonts to bundle', flush=True)
+            return
     OUT.mkdir(parents=True, exist_ok=True)
     entries, sources = [], []
     with ProcessPoolExecutor(max_workers=args.jobs) as pool:

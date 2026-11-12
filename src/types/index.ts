@@ -30,6 +30,7 @@ interface MixedWatermarkConfig {
     letterSpacing?: number;
     lineGap?: number;
     iconScale?: number;
+    referenceTextHeight?: number;
     icon: string; // URL of the icon
     textLine1: string;
     textLine2: string;
@@ -37,6 +38,8 @@ interface MixedWatermarkConfig {
     fontSize: number;
     gap: number;
     layout?: 'horizontal' | 'vertical';
+    horizontalPreset?: 'single' | 'paired' | 'centered';
+    verticalPreset?: 'single' | 'paired';
 }
 
 interface TextWatermarkConfig {

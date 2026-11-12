@@ -123,7 +123,7 @@ const InlineWatermarkTextEditor = forwardRef<InlineWatermarkEditorHandle, Props>
     // font size, position, zoom and rotation unchanged when editing begins.
     const transform = node.getAbsoluteTransform().copy()
         .scale(node.width() / crop.width, node.height() / crop.height)
-        .translate(region.x - crop.x, region.y - crop.y);
+        .translate(region.x + (region.inputOffsetX??0) - crop.x, region.y + (region.inputOffsetY??0) - crop.y);
     const fontSize = region.fontSize;
     const extra = fontSize * .3;
     const context = session.maskedImage.getContext('2d')!;
@@ -132,17 +132,17 @@ const InlineWatermarkTextEditor = forwardRef<InlineWatermarkEditorHandle, Props>
     const width = vertical ? region.width : Math.max(region.width,
         context.measureText(draft).width + Math.max(0, characters.length - 1) * region.letterSpacing);
     const height = vertical ? Math.max(region.height,
-        characters.length * fontSize * 1.2 + Math.max(0, characters.length - 1) * region.letterSpacing) : region.height;
+        characters.length * fontSize * (region.lineHeight?1:1.2) + Math.max(0, characters.length - 1) * region.letterSpacing) : region.height;
     return createPortal(<textarea ref={input} className="wm-inline-text-editor"
         aria-label={region.field === 'textLine1' ? '原位编辑主标题' : '原位编辑说明文字'}
         title="Enter 确认 · Esc 取消 · 点击外部保存"
         defaultValue={session.value} maxLength={120} rows={1} spellCheck={false}
         style={{left: 0, top: 0, width: width + (vertical ? 0 : extra), height: height + (vertical ? extra : 0),
             fontSize, fontFamily: region.fontFamily, color: session.color, caretColor: session.color,
-            opacity: node.getAbsoluteOpacity(), lineHeight: vertical ? 1.3 : 1.4,
-            letterSpacing: region.letterSpacing + (vertical ? fontSize * .2 : 0),
-            writingMode: vertical ? 'vertical-lr' : 'horizontal-tb',
-            textOrientation: vertical ? 'upright' : undefined,
+            opacity: node.getAbsoluteOpacity(), lineHeight: region.lineHeight??(vertical ? 1.3 : 1.4),
+            letterSpacing: region.letterSpacing + (vertical&&!region.lineHeight ? fontSize * .2 : 0),
+            writingMode: vertical ? 'vertical-rl' : 'horizontal-tb',
+            textOrientation: vertical ? 'mixed' : undefined,
             transform: `matrix(${transform.getMatrix().join(',')})`}}
         onChange={event => setDraft(event.currentTarget.value)}
         onCompositionStart={() => { composing.current = true; }}

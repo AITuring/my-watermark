@@ -1,4 +1,5 @@
 import WatermarkFontPicker from "./WatermarkFontPicker";
+import WatermarkLayoutControl from "./WatermarkLayoutControl";
 import WatermarkBlurPreview from "./WatermarkBlurPreview";
 import WatermarkColorControl from "./WatermarkColorControl";
 import WatermarkTextInput from "./WatermarkTextInput";
@@ -1227,10 +1228,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         <Slider value={[watermarkOpacity]} max={1} step={0.01} onValueChange={(v) => setWatermarkOpacity(v[0])} className="w-24 flex-shrink-0" />
                                         <span className="text-xs font-mono text-gray-500 w-7 text-right">{Math.round(watermarkOpacity * 100)}%</span>
                                         {/* <div className="w-px h-3 bg-gray-200 dark:bg-slate-700 mx-1"></div> */}
-                                        <div className="flex items-center gap-1.5 cursor-pointer ml-auto" onClick={() => setWatermarkBlur(!watermarkBlur)}>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">背景模糊</span>
-                                            <Switch checked={watermarkBlur} onCheckedChange={setWatermarkBlur} className="scale-75" />
-                                        </div>
+
                                     </div>
 
                                     <div className="flex items-center gap-2">
@@ -1240,7 +1238,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         {/* <div className="w-px h-3 bg-gray-200 dark:bg-slate-700 mx-1"></div> */}
                                         <div className="flex items-center gap-1.5 cursor-pointer ml-auto" onClick={() => setShowGuideLines(!showGuideLines)}>
                                             <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">辅助线</span>
-                                            <Switch checked={showGuideLines} onCheckedChange={setShowGuideLines} className="scale-75" />
+                                            <Switch aria-label="辅助线" checked={showGuideLines} onCheckedChange={setShowGuideLines} />
                                         </div>
                                     </div>
                                 </div>
@@ -1304,22 +1302,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                     </div>
                                     <WatermarkColorControl value={mixedWatermarkConfig.color} onAuto={onAutoColor}
                                         onChange={color => updateConfig({color})} />
-                                    <WatermarkFontPicker value={mixedWatermarkConfig.fontId} text={mixedWatermarkConfig.textLine1}
-                                        onChange={fontId => updateConfig({fontId})} />
-                                    <WatermarkFontPicker label="说明字体" value={mixedWatermarkConfig.captionFontId} text={mixedWatermarkConfig.textLine2}
-                                        onChange={captionFontId => updateConfig({captionFontId})} />
-                                    <div className="space-y-2">
-                                        <Label>布局方向</Label>
-                                        <Select value={mixedWatermarkConfig.layout} onValueChange={(val: "horizontal" | "vertical")=>setMixedWatermarkConfig(prev=>({ ...prev, layout: val }))}>
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="horizontal">水平</SelectItem>
-                                                <SelectItem value="vertical">垂直</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
+                                    <WatermarkFontPicker label="统一字体" value={mixedWatermarkConfig.fontId} text={[mixedWatermarkConfig.textLine1,mixedWatermarkConfig.textLine2].filter(Boolean).join(' · ')}
+                                        onChange={fontId => updateConfig({fontId,captionFontId:fontId})} />
+                                    <WatermarkLayoutControl config={{...mixedWatermarkConfig,textOnly:watermarkMode==='text'}} onChange={updateConfig}/>
                                 </div>
                             )}
                         </div>
@@ -1329,7 +1314,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="grid grid-cols-2 gap-4 px-6 py-2 border-t dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+                <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 px-4 py-2 border-t dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                     <Button
                         variant="ghost"
                         className={`flex items-center justify-center gap-2 h-9 rounded-full transition-all ${
@@ -1354,6 +1339,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                         <Images className="h-3.5 w-3.5" />
                         <span className="text-xs font-medium">水印</span>
                     </Button>
+                    <label htmlFor="wm-mobile-blur" className="flex items-center gap-2 pl-2 text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                        背景模糊<Switch id="wm-mobile-blur" checked={watermarkBlur} onCheckedChange={setWatermarkBlur}/>
+                    </label>
                 </div>
             </div>
 

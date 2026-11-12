@@ -1,6 +1,7 @@
-import { missingFontCharacters } from "./fonts/registry";
+import { DEFAULT_FONT_ID, missingFontCharacters } from "./fonts/registry";
 import { applyColorToWatermark, extractDominantColors, getAdaptiveWatermarkRenderMetrics, getWatermarkMaximumScale, fitWatermarkPosition } from "@/utils/watermark-editor";
 import { extractWatermarkCaption } from "./filename-watermark";
+import { resolveWatermarkTypography } from './font-selection';
 import { createSmartWatermark } from "./smart-watermark";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
     DEFAULT_MIXED_WATERMARK_CONFIG,
     DEFAULT_WATERMARK_URL,
     applyWatermarkConfigPatch,
+    unifyWatermarkFontPatch,
     buildImagesWithPositions,
     buildWatermarkColorMap,
     buildWatermarkPositions,
@@ -49,6 +51,7 @@ import {
 } from "@/utils/file-storage";
 import { importWithRecovery } from "@/utils/import-recovery";
 import { findSmartWatermarkPosition, loadPositionImage } from "./smart-position";
+import { PreviewUrlLease, recoverPreviewUrl } from "@/utils/preview-url-lease";
 
 const WATERMARK_OVERSIZE_THRESHOLD_BYTES = 30 * 1024 * 1024;
 
@@ -77,7 +80,8 @@ const Watermark: React.FC = () => {
         useState<MixedWatermarkConfig>({ ...DEFAULT_MIXED_WATERMARK_CONFIG });
     const [smartEnabled, setSmartEnabled] = useState(true);
     const [previewZoom,setPreviewZoom] = useState(1);
-    const [imageTint,setImageTint] = useState('');
+    const [imageTints,setImageTints] = useState<Record<string,string>>({});
+    const imageTint = currentImg ? imageTints[currentImg.id] || '' : '';
     const [suggestedColors,setSuggestedColors] = useState<string[]>([]);
     const colorRequest = useRef(0);
     const [settingsPanelOpen,setSettingsPanelOpen] = useState(false);
@@ -96,12 +100,15 @@ const Watermark: React.FC = () => {
         ...baseWatermarkConfig,
         ...(currentImg ? extractWatermarkCaption(currentImg.file.name) : null),
         ...(currentImg ? manualConfigs[currentImg.id] : null),
-    }), [baseWatermarkConfig, currentImg, manualConfigs]);
+        ...resolveWatermarkTypography(currentImg?.file.name||'',baseWatermarkConfig,currentImg?manualConfigs[currentImg.id]:{},smartEnabled),
+    }), [baseWatermarkConfig, currentImg, manualConfigs, smartEnabled]);
     const mixedWatermarkConfig = {...desiredConfig, ...automaticStyle,
-        ...(currentImg ? manualConfigs[currentImg.id] : null)};
+        ...(currentImg ? manualConfigs[currentImg.id] : null),
+        ...resolveWatermarkTypography(currentImg?.file.name||'',baseWatermarkConfig,currentImg?manualConfigs[currentImg.id]:{},smartEnabled)};
     const configRef = useRef(mixedWatermarkConfig);
     configRef.current = mixedWatermarkConfig;
     const patchWatermarkConfig = (patch:Partial<MixedWatermarkConfig>) => {
+        patch=unifyWatermarkFontPatch(patch);
         if (!currentImg) {setBaseWatermarkConfig(prev=>({...prev,...patch}));return;}
         const targets = editScope === "all" ? images : [currentImg];
         setManualConfigs(prev => applyWatermarkConfigPatch(prev, targets.map(image=>image.id), patch));
@@ -113,6 +120,7 @@ const Watermark: React.FC = () => {
         for (const key of Object.keys(next) as (keyof MixedWatermarkConfig)[]) {
             if (next[key] !== configRef.current[key]) Object.assign(changes, {[key]:next[key]});
         }
+        Object.assign(changes,unifyWatermarkFontPatch(changes));
         if (Object.keys(changes).length) {
             setManualConfigs(prev => {
                 const result = {...prev};
@@ -141,7 +149,7 @@ const Watermark: React.FC = () => {
     const [imagesHydrated, setImagesHydrated] = useState(false);
 
     const dropzoneRef = useRef<HTMLDivElement>(null);
-    const managedPreviewUrlsRef = useRef<Set<string>>(new Set());
+    const previewUrlLeaseRef = useRef(new PreviewUrlLease());
     const oversizeDecisionResolverRef = useRef<
         ((decision: "download" | "compress") => void) | null
     >(null);
@@ -162,7 +170,7 @@ const Watermark: React.FC = () => {
             const image = images.find(candidate => candidate.id === item.id);
             if (!image) throw new Error("图片不存在");
             const config = {...baseWatermarkConfig, ...extractWatermarkCaption(image.file.name),
-                ...manualConfigs[image.id], textOnly: watermarkMode === "text"};
+                ...manualConfigs[image.id], ...resolveWatermarkTypography(image.file.name,baseWatermarkConfig,manualConfigs[image.id],smartEnabled),textOnly: watermarkMode === "text"};
             if (smartEnabled) {
                 const result = await createSmartWatermark(image, config, manualConfigs[image.id]);
                 return {url: result.url, position: manualPositions.current.has(image.id) ? item.position : result.position};
@@ -195,7 +203,7 @@ const Watermark: React.FC = () => {
         ? images.findIndex((img) => img.id === currentImg.id)
         : -1;
 
-    useEffect(() => { setWatermarkColorUrls({}); }, [watermarkMode,storedImageWatermarkUrl]);
+    useEffect(() => {setWatermarkColorUrls({}); setImageTints({}); colorRequest.current++;}, [watermarkMode,storedImageWatermarkUrl]);
     useEffect(() => { setAutomaticStyle({}); }, [watermarkMode,currentImg?.id]);
 
     useEffect(() => {
@@ -227,8 +235,8 @@ const Watermark: React.FC = () => {
                 if (!cancelled) {
                     setWatermarkColorUrls({});
                     setWatermarkUrl(url);
-                    const missing = missingFontCharacters(config.fontId || "system-song",config.textLine1)
-                        + missingFontCharacters(config.captionFontId || "system-song",config.textLine2);
+                    const missing = missingFontCharacters(config.fontId || DEFAULT_FONT_ID,config.textLine1)
+                        + missingFontCharacters(config.captionFontId || DEFAULT_FONT_ID,config.textLine2);
                     setFontNotice(missing ? `所选字体缺少「${[...new Set(Array.from(missing))].join("")}」，这些字使用系统宋体补齐。` : "");
                     setAutomaticStyle(result ? {color:result.config.color, layout:result.config.layout} : {});
                     if (logo && currentImg) {
@@ -250,27 +258,37 @@ const Watermark: React.FC = () => {
     }, [watermarkMode, desiredConfig, storedImageWatermarkUrl, smartEnabled, currentImg, manualConfigs]);
 
     useEffect(() => {
-        const nextUrls = new Set(
-            images
-                .map((img) => img.previewUrl)
-                .filter((url): url is string => Boolean(url))
-        );
+        const lease = previewUrlLeaseRef.current;
+        lease.retain(images.flatMap(image => image.previewUrl ? [image.previewUrl] : []));
+        return () => lease.release();
+    }, [images]);
 
-        managedPreviewUrlsRef.current.forEach((url) => {
-            if (!nextUrls.has(url)) {
-                URL.revokeObjectURL(url);
+    // Recover URLs invalidated by an earlier session/update, preserving IDs and edits.
+    useEffect(() => {
+        let cancelled = false;
+        void Promise.all(images.map(async image => {
+            if (!image.previewUrl) return;
+            const previewUrl = await recoverPreviewUrl(image.previewUrl, async () => {
+                const { createPreviewUrl } = await import("@/utils/image-loading");
+                return createPreviewUrl(image.file);
+            });
+            if (!previewUrl) return;
+            if (cancelled) {
+                if (previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl);
+                return;
             }
+            const replace = (candidate: ImageType) => candidate.id === image.id
+                && candidate.previewUrl === image.previewUrl ? { ...candidate, previewUrl } : candidate;
+            setImages(previous => previous.map(replace));
+            setCurrentImg(previous => previous ? replace(previous) : previous);
+        })).catch(error => {
+            if (!cancelled) setSmartError(error instanceof Error ? error.message : "图片预览恢复失败，请重新添加图片。");
         });
-
-        managedPreviewUrlsRef.current = nextUrls;
+        return () => { cancelled = true; };
     }, [images]);
 
     useEffect(() => {
         return () => {
-            managedPreviewUrlsRef.current.forEach((url) => {
-                URL.revokeObjectURL(url);
-            });
-            managedPreviewUrlsRef.current.clear();
             if (oversizeDecisionResolverRef.current) {
                 oversizeDecisionResolverRef.current("download");
                 oversizeDecisionResolverRef.current = null;
@@ -420,14 +438,15 @@ const Watermark: React.FC = () => {
         return () => {cancelled=true;};
     }, [currentImg?.previewUrl]);
 
-    const changeImageTint = async (color: string) => {
+    const changeImageTint = async (color: string, batch = editScope === 'all') => {
         if (!currentImg) return;
         const request = ++colorRequest.current;
-        const imageId = currentImg.id, batch = editScope === 'all';
+        const imageId = currentImg.id;
+        const targetIds = batch ? images.map(image => image.id) : [imageId];
         try {
             const url = color === 'transparent' ? watermarkUrl : await applyColorToWatermark(watermarkUrl,color);
             if (request !== colorRequest.current) return;
-            setImageTint(color === 'transparent' ? '' : color);
+            setImageTints(previous => {const next = {...previous}; for (const id of targetIds) {if (color === 'transparent') delete next[id]; else next[id] = color;} return next;});
             handleWatermarkColorChange(imageId,url,batch);
         } catch {setSmartError('水印颜色更新失败，请重试');}
     };
@@ -715,10 +734,11 @@ const Watermark: React.FC = () => {
 
         return (
             <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-stone-100 dark:bg-slate-950">
-                <div className={`wm-desktop-layout flex min-h-0 flex-1 gap-4 p-4 pb-3 ${settingsPanelOpen ? "has-settings-panel" : ""}`}>
+                <div className={`wm-desktop-layout flex min-h-0 flex-1 gap-3 p-3 pb-2 ${settingsPanelOpen ? "has-settings-panel" : ""}`}>
                     {images.length > 0 && (
                         <VerticalCarousel
                             images={images}
+                            currentImageId={currentImg?.id}
                             setImages={setImages}
                             setImageUploaderVisible={setImageUploaderVisible}
                             setCurrentImg={setCurrentImg}
@@ -727,6 +747,8 @@ const Watermark: React.FC = () => {
                     )}
                     {currentImg && (
                         <WatermarkEditor
+                            settingsOpen={settingsPanelOpen}
+                            onColorPanelOpenChange={open=>{if(open)setSettingsPanelOpen(false);}}
                             watermarkUrl={watermarkUrl}
                             textConfig={watermarkMode === 'image' ? undefined : {...mixedWatermarkConfig, textOnly: watermarkMode === 'text'}}
                             onTextChange={patchWatermarkConfig}
@@ -743,6 +765,9 @@ const Watermark: React.FC = () => {
                             watermarkColor={
                                 watermarkColorUrls[currentImg.id] || ""
                             }
+                            selectedColor={watermarkMode === 'image' ? imageTint : mixedWatermarkConfig.color}
+                            automaticColor={watermarkMode === 'image' ? !imageTint : !manualConfigs[currentImg.id]?.color}
+                            onTintChange={changeImageTint}
                             onTextColorChange={watermarkMode !== "image" ? handleTextColorChange : undefined}
                             onColorChange={(color, batch) =>
                                 handleWatermarkColorChange(currentImg.id, color, batch)
@@ -753,6 +778,7 @@ const Watermark: React.FC = () => {
                             onBatchEditingChange={batch => setEditScope(batch ? "all" : "current")}
                             watermarkBlur={watermarkBlur}
                             watermarkOpacity={watermarkOpacity}
+                            onWatermarkOpacityChange={setWatermarkOpacity}
                         />
                     )}
                 </div>

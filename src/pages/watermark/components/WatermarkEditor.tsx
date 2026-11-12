@@ -1,4 +1,6 @@
 import WatermarkBlurPreview from "./WatermarkBlurPreview";
+import {PreviewZoomControl, WatermarkColorControl} from "./PreviewAppearanceControls";
+import {zoomAroundCenter} from "../preview-zoom";
 import InlineWatermarkTextEditor, { type InlineWatermarkEditorHandle } from './InlineWatermarkTextEditor';
 import { useStableWatermarkImage } from "../hooks/useStableWatermarkImage";
 /* eslint-disable react/display-name */
@@ -83,6 +85,8 @@ interface DominantColor {
 
 interface WatermarkEditorProps {
     watermarkUrl: string;
+    settingsOpen?: boolean;
+    onColorPanelOpenChange?: (open: boolean) => void;
     textConfig?: MixedWatermarkConfig;
     onTextChange?: (patch: Partial<MixedWatermarkConfig>) => void;
     previewZoom?: number;
@@ -96,14 +100,18 @@ interface WatermarkEditorProps {
     onAllTransform: (position: WatermarkPosition) => void;
     onSmartPosition: (batch: boolean, scale: number) => Promise<void>;
     watermarkColor?: string;
+    selectedColor?: string;
+    automaticColor?: boolean;
+    onTintChange?: (color: string, batch: boolean) => void | Promise<void>;
     onColorChange?: (watermarkUrl: string, batch: boolean) => void;
     onTextColorChange?: (color: string, batch: boolean) => void;
     watermarkBlur?: boolean;
     watermarkOpacity?: number; // 新增透明度属性
+    onWatermarkOpacityChange?: (value: number) => void;
 }
 
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
-    watermarkUrl,
+    watermarkUrl, settingsOpen = false, onColorPanelOpenChange,
     textConfig, onTextChange,
     batchEditing, onBatchEditingChange, previewZoom, onPreviewZoomChange,
     backgroundPreviewUrl,
@@ -112,11 +120,12 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     onTransform,
     onAllTransform,
     onSmartPosition,
-    watermarkColor,
+    watermarkColor, selectedColor, automaticColor, onTintChange,
     onColorChange,
     onTextColorChange,
     watermarkBlur = false,
     watermarkOpacity = 1, // 默认不透明
+    onWatermarkOpacityChange,
 }) => {
     // 背景图片相关设置
     const [previewBounds,setPreviewBounds] = useState({width:600,height:400});
@@ -151,7 +160,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const [dominantColors, setDominantColors] = useState<DominantColor[]>([]);
     const [coloredWatermarkUrl, setColoredWatermarkUrl] =
         useState(watermarkUrl);
-    const [isProcessingColor, setIsProcessingColor] = useState(false);
+    const colorRequest = useRef(0);
     const watermarkImage = useStableWatermarkImage(coloredWatermarkUrl);
     const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 });
     const [position, setPosition] = useState<WatermarkPosition>(
@@ -171,7 +180,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const [backgroundSliderValue, setBackgroundSliderValue] = useState(1);
     const stageRef = useRef(null);
 
-    const [customColor, setCustomColor] = useState(""); // 自定义颜色状态
+    const [localColor, setLocalColor] = useState("");
 
     // 预览缩放状态
     const [localPreviewScale, setLocalPreviewScale] = useState(1);
@@ -181,8 +190,13 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         setLocalPreviewScale(value);
         onPreviewZoomChange?.(value);
     };
-    useEffect(() => { if (previewScale === 1) setPreviewPos({x:0,y:0}); }, [previewScale]);
     const [previewPos, setPreviewPos] = useState({ x: 0, y: 0 });
+    const previousZoom = useRef(previewScale);
+    useEffect(() => {
+        const oldScale = previousZoom.current;
+        previousZoom.current = previewScale;
+        if (previewScale !== oldScale) setPreviewPos(previous => zoomAroundCenter(previous, oldScale, previewScale, backgroundImageSize.width, backgroundImageSize.height));
+    }, [previewScale, backgroundImageSize.width, backgroundImageSize.height]);
 
     // Toolbar state
     const [isToolbarExpanded, setIsToolbarExpanded] = useState(true);
@@ -195,6 +209,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     >("horizontal");
     const toolbarRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [colorPanelOpen, setColorPanelOpen] = useState(false);
+    const colorPanelVisible = colorPanelOpen && !settingsOpen;
+    useEffect(() => {if (settingsOpen) setColorPanelOpen(false);}, [settingsOpen]);
+    const changeColorPanelOpen = (open: boolean) => {setColorPanelOpen(open); onColorPanelOpenChange?.(open);};
     const isDraggingRef = useRef(false);
 
     const isVerticalLayout = toolbarOrientation === "vertical";
@@ -368,49 +386,17 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         window.addEventListener("mouseup", handleMouseUp);
     };
 
-    const handleZoomIn = () => {
-        setPreviewScale((prev) => Math.min(prev * 1.2, 5));
-    };
-
-    const handleZoomOut = () => {
-        setPreviewScale((prev) => {
-            const newScale = Math.max(prev / 1.2, 1);
-            if (newScale <= 1.05) {
-                setPreviewPos({ x: 0, y: 0 });
-                return 1;
-            }
-            return newScale;
-        });
-    };
-
-    const handleResetZoom = () => {
-        setPreviewScale(1);
-        setPreviewPos({ x: 0, y: 0 });
-    };
-
-    // 应用水印颜色的函数
     const applyWatermarkColor = async (color: string) => {
-        if (onTextColorChange) { onTextColorChange(color, isBatch); return; }
-        if (!color || isProcessingColor) return;
-
-        setIsProcessingColor(true);
+        if (onTextColorChange) {onTextColorChange(color, isBatch); return;}
+        if (onTintChange) {await onTintChange(color, isBatch); return;}
+        const request = ++colorRequest.current;
         try {
-            const newWatermarkUrl = color === "transparent"
-                ? watermarkUrl
-                : await applyColorToWatermark(watermarkUrl, color);
-
-            setColoredWatermarkUrl(newWatermarkUrl);
-            onColorChange?.(newWatermarkUrl, isBatch);
-        } catch (error) {
-            console.error("应用水印颜色到水印失败:", error);
-        } finally {
-            // 延迟重置处理状态，避免快速连续点击
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    setIsProcessingColor(false);
-                }, 300);
-            });
-        }
+            const url = color === "transparent" ? watermarkUrl : await applyColorToWatermark(watermarkUrl, color);
+            if (request !== colorRequest.current) return;
+            setLocalColor(color === "transparent" ? "" : color);
+            setColoredWatermarkUrl(url);
+            onColorChange?.(url, isBatch);
+        } catch (error) {console.error("应用水印颜色失败:", error);}
     };
 
     // 当水印URL改变时，重置彩色水印URL
@@ -907,7 +893,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     ]);
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col relative group">
+        <div className="wm-preview-workspace flex min-h-0 min-w-0 flex-1 flex-col relative group">
             <div
                 ref={containerRef}
                 className="relative min-h-0 flex-1 pb-20 rounded-2xl overflow-hidden bg-stone-200/50 dark:bg-slate-900/70 flex items-center justify-center border border-slate-200/50 shadow-inner"
@@ -1013,7 +999,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 {/* Floating Toolbar */}
                 <div
                     ref={toolbarRef}
-                    className={`absolute z-20 transition-all duration-300 ${
+                    className={`wm-floating-toolbar absolute z-20 transition-all duration-300 ${
                         !toolbarPos
                             ? "bottom-6 left-1/2 -translate-x-1/2"
                             : ""
@@ -1042,7 +1028,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                         e.stopPropagation();
                                         setIsToolbarExpanded(false);
                                     }}
-                                    className="w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center text-slate-400 hover:text-slate-600 border border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity no-drag"
+                                    className="w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center text-slate-400 hover:text-slate-600 border border-slate-100 transition-opacity no-drag"
                                     title="收起"
                                 >
                                     <Icon
@@ -1061,7 +1047,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                         isVerticalLayout
                                             ? "flex-col"
                                             : "flex-row"
-                                    } items-center gap-3`}
+                                    } items-center gap-2`}
                                 >
                             {/* <div className="p-1.5 bg-slate-100 text-slate-500 rounded-full">
                                 <Icon
@@ -1074,17 +1060,17 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                             onValueChange={handlePositionChange}
                                         >
                                             <SelectTrigger aria-label="水印位置"
-                                                className={`h-9 text-sm bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-blue-500/40 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors font-medium text-slate-700 dark:text-slate-200 [&>span]:flex [&>span]:items-center no-drag ${
+                                                className={`h-8 text-xs bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-blue-500/40 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors font-medium text-slate-700 dark:text-slate-200 [&>span]:flex [&>span]:items-center no-drag ${
                                                     isVerticalLayout
                                                         ? "w-8 justify-center px-0 [&>svg]:hidden"
-                                                        : "w-[110px] px-3 justify-between"
+                                                        : "w-[88px] px-2 justify-between"
                                                 }`}
                                             >
                                                 <SelectValue
                                                     placeholder={
                                                         isVerticalLayout
                                                             ? ""
-                                                            : "选择位置"
+                                                            : "位置"
                                                     }
                                                 />
                                                 {isVerticalLayout &&
@@ -1192,7 +1178,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                             <Switch
                                                 checked={isBatch}
                                                 onCheckedChange={setIsBatch}
-                                                className="scale-75 data-[state=checked]:bg-blue-600"
+                                                aria-label="批量编辑"
                                             />
                                             <button type="button" onClick={() => setIsBatch(!isBatch)}
                                                 className={`text-xs font-medium transition-colors ${
@@ -1212,238 +1198,14 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                             </TooltipProvider>
                         </div>
 
-                        {/* Divider */}
-                        {dominantColors.length > 0 && (
-                            <div
-                                className={
-                                    isVerticalLayout
-                                        ? "w-full h-px bg-slate-200"
-                                        : "w-px h-6 bg-slate-200"
-                                }
-                            ></div>
-                        )}
-
-                        {/* Color Group */}
-                        {dominantColors.length > 0 && (
-                            <div className="flex items-center gap-2 no-drag">
-                                {/* <div className="p-1.5 bg-slate-100 text-slate-500 rounded-full mr-1">
-                                    <Icon
-                                        icon="mdi:palette-swatch-outline"
-                                        className="w-3.5 h-3.5"
-                                    />
-                                </div> */}
-                                <div
-                                    className={`flex ${
-                                        isVerticalLayout
-                                            ? "flex-col"
-                                            : "flex-row"
-                                    } items-center gap-2`}
-                                >
-                                    {/* Original */}
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <button
-                                                    title="清除颜色"
-                                                    className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
-                                                        !customColor &&
-                                                        coloredWatermarkUrl ===
-                                                            watermarkUrl
-                                                            ? "border-blue-500 bg-blue-50 shadow-sm"
-                                                            : "border-slate-200 bg-transparent hover:bg-slate-50"
-                                                    }`}
-                                                    onClick={() =>
-                                                        !isProcessingColor &&
-                                                        applyWatermarkColor(
-                                                            "transparent"
-                                                        )
-                                                    }
-                                                >
-                                                    <Icon
-                                                        icon="mdi:image-off-outline"
-                                                        className={`w-3.5 h-3.5 ${
-                                                            !customColor &&
-                                                            coloredWatermarkUrl ===
-                                                                watermarkUrl
-                                                                ? "text-blue-500"
-                                                                : "text-slate-400"
-                                                        }`}
-                                                    />
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>原色</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-
-                                    {/* Extracted Colors */}
-                                    {dominantColors.map((color, index) => (
-                                        <TooltipProvider key={index}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <button
-                                                        title="应用水印颜色"
-                                                        className="w-6 h-6 rounded-full border border-slate-100 shadow-sm hover:scale-110 active:scale-95 transition-all"
-                                                        style={{
-                                                            backgroundColor:
-                                                                color.color,
-                                                        }}
-                                                        onClick={() =>
-                                                            applyWatermarkColor(
-                                                                color.color
-                                                            )
-                                                        }
-                                                    />
-                                                </TooltipTrigger>
-                                                <TooltipContent side="top">
-                                                    <p>{color.color}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    ))}
-
-                                    {/* Custom */}
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <div
-                                                    className={`relative w-6 h-6 rounded-full border transition-all hover:scale-110 active:scale-95 flex items-center justify-center overflow-hidden ${
-                                                        customColor
-                                                            ? "border-blue-500 shadow-sm"
-                                                            : "border-slate-200 bg-white hover:bg-slate-50"
-                                                    }`}
-                                                >
-                                                    <div
-                                                        className="absolute inset-0"
-                                                        style={{
-                                                            backgroundColor:
-                                                                customColor ||
-                                                                "transparent",
-                                                        }}
-                                                    ></div>
-                                                    {!customColor && (
-                                                        <Icon
-                                                            icon="mdi:plus"
-                                                            className="w-4 h-4 text-slate-300"
-                                                        />
-                                                    )}
-                                                    <input
-                                                        title="自定义颜色"
-                                                        type="color"
-                                                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                                                        onInput={(event) => {
-                                                            if (onTextColorChange) onTextColorChange(event.currentTarget.value, isBatch);
-                                                        }}
-                                                        onChange={(e) => {
-                                                            setCustomColor(
-                                                                e.target.value
-                                                            );
-                                                            !isProcessingColor &&
-                                                                applyWatermarkColor(
-                                                                    e.target
-                                                                        .value
-                                                                );
-                                                        }}
-                                                    />
-                                                </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                <p>自定义</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Divider */}
-                        <div
-                            className={
-                                isVerticalLayout
-                                    ? "w-full h-px bg-slate-200"
-                                    : "w-px h-6 bg-slate-200"
-                            }
-                        ></div>
-
-                        {/* Zoom Controls */}
-                        <div
-                            className={`flex ${
-                                isVerticalLayout ? "flex-col" : "flex-row"
-                            } items-center gap-2 no-drag`}
-                        >
-                            {/* <div className="p-1.5 bg-slate-100 text-slate-500 rounded-full mr-1">
-                                <Icon
-                                    icon="mdi:magnify"
-                                    className="w-3.5 h-3.5"
-                                />
-                            </div> */}
-
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <div
-                                            className={`flex ${
-                                                isVerticalLayout
-                                                    ? "flex-col"
-                                                    : "flex-row"
-                                            } items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5`}
-                                        >
-                                            <button
-                                                title="缩小"
-                                                className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-300 hover:text-blue-600 transition-all disabled:opacity-50"
-                                                onClick={handleZoomOut}
-                                                disabled={previewScale <= 1}
-                                            >
-                                                <Icon
-                                                    icon="mdi:minus"
-                                                    className="w-3.5 h-3.5"
-                                                />
-                                            </button>
-                                            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-300 w-9 text-center select-none tabular-nums">
-                                                {Math.round(previewScale * 100)}
-                                                %
-                                            </span>
-                                            <button
-                                                title="放大"
-                                                className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-300 hover:text-blue-600 transition-all disabled:opacity-50"
-                                                onClick={handleZoomIn}
-                                                disabled={previewScale >= 5}
-                                            >
-                                                <Icon
-                                                    icon="mdi:plus"
-                                                    className="w-3.5 h-3.5"
-                                                />
-                                            </button>
-                                        </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">
-                                        <p>缩放图片</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-
-                            {previewScale > 1 && (
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <button
-                                                title="重置缩放"
-                                                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                                                onClick={handleResetZoom}
-                                            >
-                                                <Icon
-                                                    icon="mdi:refresh"
-                                                    className="w-4 h-4"
-                                                />
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            <p>重置缩放</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            )}
+                        <span className="wm-canvas-divider" aria-hidden="true"/>
+                        <div className="wm-canvas-appearance no-drag">
+                            <WatermarkColorControl open={colorPanelVisible} onOpenChange={changeColorPanelOpen} color={selectedColor ?? textConfig?.color ?? localColor}
+                                opacity={watermarkOpacity} onOpacityChange={onWatermarkOpacityChange}
+                                automatic={automaticColor ?? !(selectedColor || localColor)} textMode={Boolean(textConfig)}
+                                suggestions={dominantColors.map(item => '#' + [item.r, item.g, item.b].map(channel => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0')).join(''))} onChange={color => void applyWatermarkColor(color)}/>
+                            <span className="wm-canvas-divider" aria-hidden="true"/>
+                            <PreviewZoomControl value={previewScale} onChange={setPreviewScale}/>
                         </div>
 
 

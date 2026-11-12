@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import WatermarkEditor from '/src/pages/watermark/components/WatermarkEditor';
 import WatermarkFontPicker from '/src/pages/watermark/components/WatermarkFontPicker';
+import WatermarkLayoutControl from '/src/pages/watermark/components/WatermarkLayoutControl';
 import {createTextWatermark} from '/src/utils/text-watermark';
 import {extractWatermarkCaption} from '/src/pages/watermark/filename-watermark';
 import type {MixedWatermarkConfig, WatermarkPosition} from '/src/types';
@@ -13,7 +14,7 @@ const filenames = [
     '南宋-马远梅石溪凫图-故宫博物院藏-尺寸小颜色好-DSC_0123.jpg',
 ];
 const caption = extractWatermarkCaption(filenames[0])!;
-const initial: MixedWatermarkConfig = {enabled:true, icon:'/logo.png', textOnly:true, ...caption,
+const initial: MixedWatermarkConfig = {enabled:true, icon:'/watermark-symbol.png', textOnly:true, ...caption,
     fontSize:30, color:'#443b31', gap:20, layout:'horizontal'};
 
 function Fixture() {
@@ -56,8 +57,8 @@ function Fixture() {
             <button onClick={()=>{setConfig(initial);setPosition({...position,id:position.id==='first'?'second':'first',x:.06,y:.12,scaleX:4});}}>切换图片</button>
         </div>
         <div style={{display:'flex',gap:16}}>
-            <WatermarkFontPicker value={config.fontId} text={config.textLine1} onChange={fontId=>setConfig({...config,fontId})}/>
-            <WatermarkFontPicker label="说明字体" value={config.captionFontId} text={config.textLine2} onChange={captionFontId=>setConfig({...config,captionFontId})}/>
+            <WatermarkFontPicker value={config.fontId} text={config.textLine1+config.textLine2} onChange={fontId=>setConfig({...config,fontId,captionFontId:fontId})}/>
+            <WatermarkLayoutControl config={config} onChange={patch=>setConfig(previous=>({...previous,...patch}))}/>
         </div>
         <output aria-label="当前文字">{JSON.stringify({textLine1:config.textLine1,textLine2:config.textLine2})}</output>
         {error && <p role="alert">{error}</p>}

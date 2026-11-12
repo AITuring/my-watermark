@@ -17,6 +17,7 @@ type ImageAssetPickerProps = {
     title?: ReactNode;
     className?: string;
     headerClassName?: string;
+    showHeader?: boolean;
     scrollAreaClassName?: string;
     itemsClassName?: string;
     itemClassName?: string;
@@ -37,6 +38,7 @@ export default function ImageAssetPicker({
     title = "背景图片",
     className,
     headerClassName,
+    showHeader = true,
     scrollAreaClassName,
     itemsClassName,
     itemClassName,
@@ -71,7 +73,7 @@ export default function ImageAssetPicker({
 
     return (
         <div className={cn("flex h-full flex-col bg-background", className)}>
-            <div
+            {showHeader && <div
                 className={cn(
                     "flex items-center justify-between border-b p-3 dark:border-slate-800",
                     headerClassName
@@ -107,7 +109,7 @@ export default function ImageAssetPicker({
                         </Button>
                     </ImageUploader>
                 </div>
-            </div>
+            </div>}
 
             <ScrollArea className={cn("flex-1", scrollAreaClassName)}>
                 {images.length > 0 ? (
@@ -129,6 +131,8 @@ export default function ImageAssetPicker({
                                         : "hover:ring-1 hover:ring-primary/50",
                                     itemClassName
                                 )}
+                                data-selected={selectedId === image.id}
+                                title={image.file.name}
                                 onClick={() => onSelect(image)}
                             >
                                 <img
@@ -151,6 +155,7 @@ export default function ImageAssetPicker({
                                         variant="outline"
                                         size="icon"
                                         className="h-6 w-6 border-none bg-white/80 opacity-70 transition-opacity hover:opacity-100 dark:bg-slate-800/80 dark:text-slate-200"
+                                        aria-label={`预览 ${image.file.name}`}
                                         onClick={(event) => {
                                             event.stopPropagation();
                                             setPreviewIndex(index);
@@ -163,6 +168,7 @@ export default function ImageAssetPicker({
                                         variant="destructive"
                                         size="icon"
                                         className="h-6 w-6 opacity-70 transition-opacity hover:opacity-100"
+                                        aria-label={`移除 ${image.file.name}`}
                                         onClick={(event) => {
                                             event.stopPropagation();
                                             onDelete(image.id);

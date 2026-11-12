@@ -6,16 +6,21 @@ import {
 } from "@/types";
 
 export const DEFAULT_WATERMARK_URL = "/logo.png";
+export const DEFAULT_SYMBOL_URL = "/watermark-symbol.png";
 
 export const DEFAULT_MIXED_WATERMARK_CONFIG: MixedWatermarkConfig = {
     enabled: true,
-    icon: DEFAULT_WATERMARK_URL,
+    icon: DEFAULT_SYMBOL_URL,
     textLine1: "",
     textLine2: "",
     color: "#000000",
     fontSize: 30,
     gap: 20,
     layout: "horizontal",
+    horizontalPreset: "single",
+    verticalPreset: "paired",
+    letterSpacing: 0.1,
+    lineGap: 0.55,
 };
 
 export const createDefaultWatermarkPosition = (
@@ -66,6 +71,12 @@ export function applyWatermarkConfigPatch(
     patch: Partial<MixedWatermarkConfig>,
 ): Record<string, Partial<MixedWatermarkConfig>> {
     const next = {...previous};
-    imageIds.forEach(id => { next[id] = {...previous[id], ...patch}; });
+    const unifiedPatch=unifyWatermarkFontPatch(patch);
+    imageIds.forEach(id => { next[id] = {...previous[id], ...unifiedPatch}; });
     return next;
+}
+
+export function unifyWatermarkFontPatch(patch:Partial<MixedWatermarkConfig>):Partial<MixedWatermarkConfig> {
+    const fontId=patch.fontId??patch.captionFontId;
+    return fontId===undefined?patch:{...patch,fontId,captionFontId:fontId};
 }
