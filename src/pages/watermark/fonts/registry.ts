@@ -22,14 +22,14 @@ export const WATERMARK_FONTS: WatermarkFont[] = [
     {id:'local-lisu',name:'系统隶书',category:'隶书',localSource:'local("LiSu"), local("隶书"), local("STLiti")',source:'',tags:'本机字体'},
 ];
 export const MASTER_FONTS = [
-    {name:'颜真卿',description:'颜体：在线一点颜；名家字库可导入',id:'yidianyan'},
-    {name:'褚遂良',description:'雁塔圣教序 · 楷书',source:'https://www.foundertype.com/index.php/FontInfo/index/id/5538.html'},
-    {name:'欧阳询',description:'九成宫 · 楷书',source:'https://fl.foundertype.com/FindFont.html'},
-    {name:'柳公权',description:'玄秘塔 · 楷书',source:'https://fl.foundertype.com/FindFont.html'},
-    {name:'王羲之',description:'兰亭 · 行书',source:'https://fl.foundertype.com/FindFont.html'},
-    {name:'赵孟頫',description:'楷书 / 行书',source:'https://fl.foundertype.com/FindFont.html'},
-    {name:'米芾',description:'行书',source:'https://fl.foundertype.com/FindFont.html'},
-    {name:'孙过庭',description:'书谱 · 草书',source:'https://fl.foundertype.com/FindFont.html'},
+    {name:'颜真卿',description:'方正颜真卿楷书 · 另有行书',id:'fzyanzqksjf'},
+    {name:'褚遂良',description:'方正褚遂良楷书',id:'fzchuslksjw'},
+    {name:'欧阳询',description:'方正欧阳询楷书',id:'fzouyxksjf'},
+    {name:'柳公权',description:'方正柳公权楷书',id:'fzliugqksjw'},
+    {name:'王羲之',description:'方正王羲之行书',id:'fzwangxzxsjf'},
+    {name:'赵孟頫',description:'方正赵孟頫楷书 · 另有行书',id:'fzzhaomfksjf'},
+    {name:'米芾',description:'方正米芾行书',id:'fzmifxsjw'},
+    {name:'孙过庭',description:'方正孙过庭草书 · 繁体',id:'fzsungtcsfu'},
 ];
 let importedFonts: WatermarkFont[] = [];
 const registered = new Map<string, Promise<FontFace[]>>();

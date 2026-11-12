@@ -2,7 +2,15 @@
 
 桌面底栏固定 72px：水印类型下拉、标题/说明直接输入、统一设置、编辑范围和导出。字体排版、智能适配、外观位置及导出参数移入右侧设置面板，打开时为面板预留空间。编辑范围与预览里的批量开关同步；透明度、背景模糊、模式、智能适配开关与质量为全局设置。内容、字体、颜色、大小、位置按当前或全部图片操作。导出按钮始终导出全部图片，等待最新预览，使用请求锁避免重复任务。多张图片打包成一个 ZIP，避免浏览器拦截连续下载；重名图片在包内自动加序号，不覆盖。
 
-在线目录固定版本，详见 `src/pages/watermark/fonts/catalog.json`；内置字体列表直接使用真实字形的本地 PNG 预览，打开即显示，不依赖远程字体下载。24 张预览由实际字体渲染“永和九年”，生成工具见 `scripts/fixtures/watermark-font-previews.html`。字体元数据和样张字形子集由 `scripts/prepare-watermark-fonts.py` 固定版本打包。选用字体时按正文 Unicode 覆盖加载所需子集，并发上限 4，支持 Cache Storage 缓存和延迟 180ms 的镜像竞速；标题和说明分别选字体。加载失败保留原选择，可重试。字体缺字时明确提示哪些字用系统宋体补齐。导入 TTF/OTF/WOFF/WOFF2 文件不上传，仅在本次页面会话有效。
+在线目录固定版本，详见 `src/pages/watermark/fonts/catalog.json`；65 款内置字体直接使用真实字形的本地 PNG 预览，打开即显示，不依赖远程字体下载。原有预览由实际字体渲染“永和九年”，生成工具见 `scripts/fixtures/watermark-font-previews.html`；新增本地字体的预览由 `scripts/prepare-local-watermark-fonts.py` 生成，古文字字库缺少样张用字时选用该字库实际包含的汉字。字体元数据和样张字形子集由 `scripts/prepare-watermark-fonts.py` 固定版本打包。选用字体时按正文 Unicode 覆盖加载所需子集，并发上限 4，支持 Cache Storage 缓存和延迟 180ms 的镜像竞速；标题和说明分别选字体。加载失败保留原选择，可重试。字体缺字时明确提示哪些字用系统宋体补齐。导入 TTF/OTF/WOFF/WOFF2 文件不上传，仅在本次页面会话有效。
+
+## 预览文字原位编辑
+
+文字及图文模式下，点击／轻触预览中的标题或说明，会在对应位置打开透明的原生文字输入框，无底色、边框和阴影，保留水印字体、字号、颜色及透明度；编辑时临时隐藏对应的底层文字，避免新旧文字重叠，图标和另一行文字继续显示。支持横排、竖排和预览缩放。Enter 确认，Esc 取消，点击外部或移出焦点保存；中文输入法选词时的 Enter 不提交编辑。修改按当前／全部图片范围应用，底栏文字和导出配置同步更新。按住拖动仍移动水印，点击图标仍显示变换控件。
+
+开发服务器下打开 `/scripts/fixtures/watermark-inline-edit.html` 可复查点击命中、键盘确认／取消、点击外部保存、拖动和缩放。`node --test scripts/test-watermark-fonts.mjs scripts/test-watermark-filename.mjs` 包含文字区域与实际渲染布局一致性的检查。
+
+文件名按“时代-作者（可省略）标题-馆藏-备注（可省略）-原始照片名”解析。馆藏作为标题范围的边界；馆藏之后的所有备注、处理说明和原始照片名不进入标题。作者可与书名号标题连写，也可单独用连字符分隔；无书名号且与标题连写的作者，以常见作者前缀识别。主标题保留作品名称及其书名号、墓室壁面等名称上下文，说明格式为“时代·作者·馆藏 / 摄影署名”，缺失字段省略。
 
 ## 来源与许可
 
@@ -10,7 +18,7 @@
 - 一点颜：固定 `@chinese-fonts/yidianyan@3.0.0`。其字体元数据注明 Dr. Hann-Tzong Wang / Ichiten Fonts Project、GPL v2 or later。这是“一点颜”颜体风格字体，不是方正颜真卿字库。传统字体的简体覆盖有限，使用时会提示缺字。
 - Google Fonts 的马善政、刘建毛草，原项目分别为 <https://github.com/google/fonts/tree/main/ofl/mashanzheng> 和 <https://github.com/google/fonts/tree/main/ofl/liujianmaocao>，通过固定版本 Fontsource 提供。
 - 青柳隶书 2.01：原作者发布 <https://opentype.jp/aoyagireisho.htm>。随附使用说明允许免费商用及免费再分发，要求连同使用说明及字体解说提供。原始 TTF、使用说明、解说 PDF/DOC 位于 `public/fonts/aoyagi-lishu/`，未修改字体文件。覆盖表由原 TTF 的 cmap format 4 生成。部分汉字只有繁体，不能保证简体完整覆盖。
-- 褚遂良等名家字库：提供官方来源与授权字体导入入口，不打包或代理未获得再分发授权的商业字体。褚遂良官方页：<https://www.foundertype.com/index.php/FontInfo/index/id/5538.html>。
+- 用户提供的方正字体：收录下载目录顶层的 38 款 TTF，包括秦小篆、甲骨文、石鼓文、李阳冰篆书、马王堆帛书，以及褚遂良、欧阳询、柳公权、颜真卿、王羲之、赵孟頫等字体。显示名称取自字体内部名称，保留简／简繁／繁U版别，支持书体分类、名家分类及简繁姓名搜索。`scripts/prepare-local-watermark-fonts.py` 将它们转换为每组 256 个 Unicode 字符的 WOFF2，按实际正文加载，并从原字体生成真实 PNG 预览；下载目录原件不修改。文件名、SHA256、字数和原字体版权、商标、许可字段保存在 `public/fonts/watermark/founder/sources.json`，各字体子集保留原有名称及版权表。部分原字体的 `vrt2` 特性含无效参数，转换时移除该参数，保留竖排替换规则，并在清单中记录。
 
 ## 验证
 

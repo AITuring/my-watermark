@@ -12,8 +12,8 @@ interface ImageWithFixedWidthProps {
     scaleX?: number;
     scaleY?: number;
     draggable?: boolean;
-    onClick?: () => void;
-    onTap?: () => void;
+    onClick?: (event: Konva.KonvaEventObject<MouseEvent>) => void;
+    onTap?: (event: Konva.KonvaEventObject<TouchEvent>) => void;
     onDblClick?: () => void;
     onDblTap?: () => void;
     onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;

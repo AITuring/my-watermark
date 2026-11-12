@@ -728,6 +728,8 @@ const Watermark: React.FC = () => {
                     {currentImg && (
                         <WatermarkEditor
                             watermarkUrl={watermarkUrl}
+                            textConfig={watermarkMode === 'image' ? undefined : {...mixedWatermarkConfig, textOnly: watermarkMode === 'text'}}
+                            onTextChange={patchWatermarkConfig}
                             backgroundOriginalWidth={currentImg.width}
                             backgroundPreviewUrl={currentImg.previewUrl || ""}
                             currentWatermarkPosition={currentWatermarkPosition}

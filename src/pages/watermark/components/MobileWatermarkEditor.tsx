@@ -2,6 +2,7 @@ import WatermarkFontPicker from "./WatermarkFontPicker";
 import WatermarkBlurPreview from "./WatermarkBlurPreview";
 import WatermarkColorControl from "./WatermarkColorControl";
 import WatermarkTextInput from "./WatermarkTextInput";
+import InlineWatermarkTextEditor, { type InlineWatermarkEditorHandle } from './InlineWatermarkTextEditor';
 import { useStableWatermarkImage } from "../hooks/useStableWatermarkImage";
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -244,6 +245,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     const [isInteracting, setIsInteracting] = useState(false);
 
     const watermarkRef = useRef<Konva.Image>(null);
+    const inlineEditorRef = useRef<InlineWatermarkEditorHandle>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
     const stageRef = useRef<Konva.Stage>(null);
     const layerRef = useRef<Konva.Layer>(null);
@@ -930,11 +932,12 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     };
 
     // 处理水印点击事件
-    const onWatermarkClick = () => {
+    const onWatermarkClick = (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
         if (watermarkRef.current && transformerRef.current) {
             transformerRef.current.nodes([watermarkRef.current]);
             transformerRef.current.getLayer().batchDraw();
         }
+        inlineEditorRef.current?.edit(event);
     };
 
     // 切换辅助线显示状态
@@ -1079,6 +1082,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                     height={backgroundImageSize.height}
                     className="bg-gray-100 dark:bg-slate-950"
                     style={{
+                        position: 'relative',
                         margin: "0 auto",
                         maxWidth: "100%",
                         maxHeight: "100%",
@@ -1162,6 +1166,13 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                         />
                     </Layer>
                 </Stage>
+                <InlineWatermarkTextEditor ref={inlineEditorRef}
+                    sessionKey={`${currentWatermarkPosition?.id}:${watermarkMode}`}
+                    config={watermarkMode === 'image' ? undefined : {...mixedWatermarkConfig, textOnly: watermarkMode === 'text'}}
+                    onChange={patch => {
+                        if (onConfigPatch) onConfigPatch(patch);
+                        else setMixedWatermarkConfig(previous => ({...previous, ...patch}));
+                    }} />
             </div>
 
             {/* 移动端控制面板 - Tabbed Layout */}

@@ -2,8 +2,19 @@ import { ensureWatermarkFont } from "@/pages/watermark/fonts/registry";
 import { getImageOpaqueBounds } from "@/utils/watermark-editor";
 import type { MixedWatermarkConfig } from "@/types";
 
+export interface WatermarkTextRegion {
+    field: 'textLine1' | 'textLine2';
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    fontSize: number;
+    fontFamily: string;
+    letterSpacing: number;
+}
+
 /** Render at export resolution; preview and batch export share the same layout. */
-export async function createTextWatermark(config: MixedWatermarkConfig): Promise<string> {
+export async function createTextWatermark(config: MixedWatermarkConfig, onLayout?: (regions: WatermarkTextRegion[]) => void): Promise<string> {
     const lines = [config.textLine1.trim(), config.textLine2.trim()];
     if (!lines.some(Boolean) && (config.textOnly || !config.icon)) return "";
     const canvas = document.createElement("canvas");
@@ -32,7 +43,7 @@ export async function createTextWatermark(config: MixedWatermarkConfig): Promise
         const size = sizes[index];
         ctx.font = `${size}px ${families[index]}`;
         const characters = Array.from(text);
-        return { text, size, family: families[index], characters,
+        return { text, size, family: families[index], characters, field: index === 0 ? 'textLine1' as const : 'textLine2' as const,
             width: vertical ? size * 1.3 : ctx.measureText(text).width + Math.max(0,characters.length-1) * letterSpacing,
             height: vertical ? characters.length * size * 1.2 + Math.max(0,characters.length-1) * letterSpacing : size * 1.4 };
     }).filter(block => block.text);
@@ -65,14 +76,20 @@ export async function createTextWatermark(config: MixedWatermarkConfig): Promise
         ctx.drawImage(iconCanvas, vertical ? (width - iconW) / 2 : padding, vertical ? padding : (height - iconH) / 2);
         ctx.restore();
     }
-    ctx.translate(vertical ? (width - textWidth) / 2 : iconW + iconGap,
-        vertical ? iconH + iconGap : (height - textHeight) / 2);
+    const textX = vertical ? (width - textWidth) / 2 : iconW + iconGap;
+    const textY = vertical ? iconH + iconGap : (height - textHeight) / 2;
+    ctx.translate(textX, textY);
     const drawText = (text: string, x: number, y: number) => {
         ctx.fillText(text, x, y);
     };
     ctx.textBaseline = "middle";
     let offset = padding;
+    const regions: WatermarkTextRegion[] = [];
     for (const block of blocks) {
+        regions.push({field: block.field, x: (textX + (vertical ? offset : padding)) * scale,
+            y: (textY + (vertical ? padding : offset)) * scale,
+            width: block.width * scale, height: block.height * scale,
+            fontSize: block.size * scale, fontFamily: block.family, letterSpacing: letterSpacing * scale});
         ctx.font = `${block.size}px ${block.family}`;
         ctx.textAlign = vertical ? "center" : "left";
         if (vertical) {
@@ -93,5 +110,6 @@ export async function createTextWatermark(config: MixedWatermarkConfig): Promise
             offset += block.height + gap;
         }
     }
+    onLayout?.(regions);
     return canvas.toDataURL("image/png");
 }

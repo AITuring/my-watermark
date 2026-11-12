@@ -94,6 +94,35 @@ test('title and caption use independently loaded fonts and retain selected solid
     assert.equal(r.requested[0].text,'秋声赋');assert.equal(r.requested[1].text,'元');
 });
 
+test('inline edit regions match rendered title and caption in both directions',async()=>{
+    for (const layout of ['horizontal','vertical']) {
+        const r=renderer();let regions;
+        await r.render({...baseConfig,layout},value=>{regions=value;});
+        assert.equal(regions.length,2);
+        assert.equal(regions[0].field,'textLine1');assert.equal(regions[1].field,'textLine2');
+        assert.ok(regions.every(region=>region.width>0&&region.height>0&&region.fontSize>0));
+        if(layout==='horizontal') assert.ok(regions[0].y+regions[0].height<regions[1].y);
+        else assert.ok(regions[0].x+regions[0].width<regions[1].x);
+        for(const region of regions) {
+            assert.ok(region.x>=0&&region.y>=0);
+            assert.ok(region.x+region.width<=r.canvases[0].width);
+            assert.ok(region.y+region.height<=r.canvases[0].height);
+        }
+    }
+});
+
+test('inline edit regions preserve caption identity with no title and follow icon offsets and output scaling',async()=>{
+    for (const layout of ['horizontal','vertical']) {
+        const r=renderer();let regions;
+        await r.render({...baseConfig,textOnly:false,layout,textLine1:'',textLine2:'秋'.repeat(150)},value=>{regions=value;});
+        assert.equal(regions.length,1);assert.equal(regions[0].field,'textLine2');
+        assert.ok(regions[0].x>0&&regions[0].y>0);
+        assert.ok(regions[0].x+regions[0].width<=r.canvases[0].width);
+        assert.ok(regions[0].y+regions[0].height<=r.canvases[0].height);
+        assert.ok(Math.max(r.canvases[0].width,r.canvases[0].height)<=8192);
+    }
+});
+
 test('spacing changes the watermark footprint; vertical text handles astral characters once',async()=>{
     const a=renderer(),b=renderer();await a.render(baseConfig);await b.render({...baseConfig,letterSpacing:0.3});
     assert.ok(b.canvases[0].width>a.canvases[0].width);
@@ -198,6 +227,37 @@ test('every built-in font has an immediate real-glyph gallery image',async()=>{
         signatures.add(createHash('sha256').update(image).digest('hex'));
     }
     assert.ok(signatures.size>=20,'gallery must not show the same fallback font for all entries');
+});
+
+test('downloaded fonts have distinct catalog entries, retained source metadata and real subset files',async()=>{
+    const sources=JSON.parse(await readFile(new URL('../public/fonts/watermark/founder/sources.json',import.meta.url),'utf8'));
+    assert.equal(sources.length,38);
+    assert.equal(new Set(sources.map(source=>source.sha256)).size,38);
+    for(const source of sources){
+        const font=catalog.find(font=>font.id===source.id);
+        assert.ok(font,source.id);assert.equal(font.name,source.name);
+        assert.ok(font.tags.includes('名家'),source.id);
+        assert.ok(source.copyright.length>0,source.id);
+        assert.ok(source.previewText.length>0,source.id);
+        assert.ok(source.subsetBytes<source.sourceBytes,source.id);
+        for(const part of source.subsets){
+            const bytes=await readFile(new URL(`../public/fonts/watermark/founder/${part}`,import.meta.url));
+            assert.equal(bytes.subarray(0,4).toString(),'wOF2',part);
+        }
+    }
+    const {api}=environment();
+    for(const master of api.MASTER_FONTS)assert.ok(api.WATERMARK_FONTS.some(font=>font.id===master.id),master.name);
+});
+
+test('local Qin small seal loads only required glyph subsets and reports missing Han characters',async()=>{
+    const {api,state,calls,resourceCalls}=environment();
+    const font=catalog.find(font=>font.id==='fzqinxiaozhuan');
+    state.css=await readFile(new URL(`../public${font.metadataUrl}`,import.meta.url),'utf8');
+    await api.ensureWatermarkFont(font.id,'永和九年𠮷');
+    assert.equal(calls.length,1);assert.equal(calls[0],font.metadataUrl);
+    assert.ok(resourceCalls.length>0&&resourceCalls.length<23);
+    assert.ok(resourceCalls.every(urls=>urls[0].includes('/fonts/watermark/founder/')));
+    assert.equal(api.missingFontCharacters(font.id,'𠮷'),'𠮷');
 });
 
 const adaptiveCode=ts.transpileModule(await readFile(new URL('../src/pages/watermark/adaptive-color.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;

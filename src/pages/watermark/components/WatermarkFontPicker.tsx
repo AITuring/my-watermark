@@ -46,7 +46,7 @@ export default function WatermarkFontPicker({value = DEFAULT_FONT_ID,onChange,te
     useEffect(()=>()=>{if(hoverTimer.current)clearTimeout(hoverTimer.current);},[]);
     const imported=useSyncExternalStore(subscribeFonts,getImportedFonts,getImportedFonts);
     const sample=text || '秋声赋卷 山川清远';
-    const fonts=[...WATERMARK_FONTS,...imported].filter(font => (category==='全部' || category==='古籍刻本' && font.tags.includes('古籍刻本') || category==='名家' && font.tags.includes('颜真卿') || font.category===category)
+    const fonts=[...WATERMARK_FONTS,...imported].filter(font => (category==='全部' || category==='古籍刻本' && font.tags.includes('古籍刻本') || category==='名家' && (font.tags.includes('名家') || font.tags.includes('颜真卿')) || font.category===category)
         && `${font.name} ${font.category} ${font.tags}`.toLowerCase().includes(query.toLowerCase()));
     const masters=MASTER_FONTS.filter(font => `${font.name} ${font.description}`.includes(query));
     const changeOpen=(next:boolean) => {
@@ -102,10 +102,10 @@ export default function WatermarkFontPicker({value = DEFAULT_FONT_ID,onChange,te
                         </button>
                         {font.source && <a href={font.source} target="_blank" rel="noreferrer" className="wm-font-source">来源与许可<ExternalLink size={10}/></a>}
                     </div>)}</div>
-                    {(category==='名家' || query && masters.length>0) && <div className="wm-master-list">
-                        <p className="wm-label">名家字库</p><p className="wm-help">颜体在线字体可直接试用；其他名家字库取得授权后导入 TTF / OTF，在本机处理。</p>
+                    {(category==='名家' || category==='全部' && query && masters.length>0) && <div className="wm-master-list">
+                        <p className="wm-label">名家字库</p><p className="wm-help">选择已收录的名家字体，也可导入本机字体。</p>
                         {masters.map(master=><div key={master.name} className="wm-master-row"><div><strong>{master.name}</strong><span>{master.description}</span></div>
-                            {'id' in master && master.id?<button type="button" className="wm-secondary-button" onClick={()=>void choose(master.id!)}>在线试用</button>:<div className="flex items-center gap-3"><a href={master.source} target="_blank" rel="noreferrer" className="wm-font-source">官方字库<ExternalLink size={11}/></a><button type="button" className="wm-secondary-button" onClick={()=>input.current?.click()}>导入授权字体</button></div>}
+                            <button type="button" className="wm-secondary-button" onClick={()=>void choose(master.id)}>使用字体</button>
                         </div>)}
                     </div>}
                     {!fonts.length && category!=='名家' && !masters.length && <p className="wm-help py-8 text-center">没有匹配字体，可换个关键词或导入字体文件。</p>}

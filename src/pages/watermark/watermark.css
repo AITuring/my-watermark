@@ -1,3 +1,21 @@
+.wm-inline-text-editor {
+    position: absolute;
+    z-index: 30;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    outline: none;
+    background: transparent;
+    appearance: none;
+    resize: none;
+    overflow: hidden;
+    white-space: pre;
+    transform-origin: top left;
+    box-shadow: none;
+}
+
 /* 在 src/Watermark.css 中添加样式 */
 @keyframes scrollUp {
     0% {

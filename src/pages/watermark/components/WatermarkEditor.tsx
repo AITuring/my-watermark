@@ -1,4 +1,5 @@
 import WatermarkBlurPreview from "./WatermarkBlurPreview";
+import InlineWatermarkTextEditor, { type InlineWatermarkEditorHandle } from './InlineWatermarkTextEditor';
 import { useStableWatermarkImage } from "../hooks/useStableWatermarkImage";
 /* eslint-disable react/display-name */
 import React, { useState, useEffect, useRef } from "react";
@@ -23,7 +24,7 @@ import { Icon } from "@iconify/react";
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
-import { WatermarkPosition } from "@/types";
+import { WatermarkPosition, MixedWatermarkConfig } from "@/types";
 import {
     extractDominantColors,
     applyColorToWatermark,
@@ -82,6 +83,8 @@ interface DominantColor {
 
 interface WatermarkEditorProps {
     watermarkUrl: string;
+    textConfig?: MixedWatermarkConfig;
+    onTextChange?: (patch: Partial<MixedWatermarkConfig>) => void;
     previewZoom?: number;
     onPreviewZoomChange?: (value: number) => void;
     batchEditing?: boolean;
@@ -101,6 +104,7 @@ interface WatermarkEditorProps {
 
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     watermarkUrl,
+    textConfig, onTextChange,
     batchEditing, onBatchEditingChange, previewZoom, onPreviewZoomChange,
     backgroundPreviewUrl,
     backgroundOriginalWidth,
@@ -162,6 +166,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     );
 
     const watermarkRef = useRef<Konva.Image>(null);
+    const inlineEditorRef = useRef<InlineWatermarkEditorHandle>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
     const [backgroundSliderValue, setBackgroundSliderValue] = useState(1);
     const stageRef = useRef(null);
@@ -562,11 +567,12 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     }, [currentWatermarkPosition]);
 
-    const onWatermarkClick = () => {
+    const onWatermarkClick = (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
         if (watermarkRef.current && transformerRef.current) {
             transformerRef.current.nodes([watermarkRef.current]);
             transformerRef.current.getLayer().batchDraw();
         }
+        inlineEditorRef.current?.edit(event);
     };
 
     useEffect(() => {
@@ -907,6 +913,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 className="relative min-h-0 flex-1 pb-20 rounded-2xl overflow-hidden bg-stone-200/50 dark:bg-slate-900/70 flex items-center justify-center border border-slate-200/50 shadow-inner"
             >
                 <Stage
+                    style={{position: 'relative'}}
                     width={backgroundImageSize.width}
                     height={backgroundImageSize.height}
                     scale={{ x: previewScale, y: previewScale }}
@@ -999,6 +1006,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                         )}
                     </Layer>
                 </Stage>
+                <InlineWatermarkTextEditor ref={inlineEditorRef}
+                    sessionKey={`${currentWatermarkPosition?.id}:${Boolean(textConfig?.textOnly)}`}
+                    config={textConfig} onChange={patch => onTextChange?.(patch)} />
 
                 {/* Floating Toolbar */}
                 <div
