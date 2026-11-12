@@ -297,3 +297,19 @@ export async function applyColorToWatermark(
         image.src = watermarkUrl;
     });
 }
+
+export function getWatermarkMaximumScale(imageWidth: number, imageHeight: number, watermark: HTMLImageElement) {
+    const metrics = getAdaptiveWatermarkRenderMetrics(imageWidth,imageHeight,watermark,1);
+    return Math.min(imageWidth / metrics.width,imageHeight / metrics.height) * 0.98;
+}
+
+/** Font, direction and icon changes must not push a manually placed watermark off the photo. */
+export function fitWatermarkPosition(
+    imageWidth: number, imageHeight: number, watermark: HTMLImageElement, position: import('@/types').WatermarkPosition,
+) {
+    const scale = Math.max(0.01,Math.min(position.scaleX,getWatermarkMaximumScale(imageWidth,imageHeight,watermark)));
+    const metrics = getAdaptiveWatermarkRenderMetrics(imageWidth,imageHeight,watermark,scale);
+    return {...position,scaleX:scale,scaleY:scale,
+        x:Math.max(0,Math.min(position.x,1-metrics.width/imageWidth)),
+        y:Math.max(0,Math.min(position.y,1-metrics.height/imageHeight))};
+}

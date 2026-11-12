@@ -17,7 +17,6 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     setImages,
     setImageUploaderVisible,
     setCurrentImg,
-    height = 600,
 }) => {
     const [selectedImageId, setSelectedImageId] = useState<string | null>(
         images[0]?.id ?? null
@@ -73,7 +72,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     return (
         <div
             className="overflow-hidden rounded-lg border bg-background shadow-sm"
-            style={{ height: `${height}px`, width: "30%", flexShrink: 0 }}
+            style={{ height: "100%", maxHeight: "100%", width: "24%", minWidth: 180, flexShrink: 0 }}
         >
             <ImageAssetPicker
                 images={images}
@@ -81,6 +80,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                 layout="list"
                 title="背景图片"
                 className="h-full"
+                headerClassName="flex-wrap gap-2 [&>div]:ml-auto [&>div]:gap-0 [&>div_button]:px-2 [&>div_button]:text-xs [&>div_button_svg]:h-3 [&>div_button_svg]:w-3 [&>div_button_svg]:mr-1 [&>div]:shrink-0 [&>div]:whitespace-nowrap [&>div:first-child]:whitespace-nowrap"
                 scrollAreaClassName="flex-1"
                 itemsClassName="space-y-2 p-2"
                 onSelect={(image) => {

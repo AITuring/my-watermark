@@ -1,4 +1,5 @@
-import * as StackBlur from "stackblur-canvas";
+import { createTextWatermark } from "@/utils/text-watermark";
+import { createBlurredWatermarkBackground, createWatermarkBlurPatch } from "@/utils/watermark-blur";
 import { ImageType, MixedWatermarkConfig, WatermarkPosition } from "@/types";
 import {
     createPreviewUrl,
@@ -8,6 +9,7 @@ import {
 } from "@/utils/image-loading";
 import {
     getAdaptiveWatermarkRenderMetrics,
+    fitWatermarkPosition,
     getImageOpaqueBounds,
 } from "@/utils/watermark-editor";
 import { compositeLargeImage, getLargeImageAsset } from '@/utils/large-image';
@@ -267,125 +269,7 @@ export async function loadImageData(
 export async function createMixedWatermark(
     config: MixedWatermarkConfig
 ): Promise<string> {
-    const { icon, textLine1, textLine2, color, fontSize, gap, layout = "horizontal" } =
-        config;
-    const memoryManager = MemoryManager.getInstance();
-
-    let iconImg: HTMLImageElement;
-    try {
-        iconImg = await loadImage(icon);
-    } catch (error) {
-        console.error("Failed to load icon", error);
-        return "";
-    }
-
-    const canvas = memoryManager.getCanvas();
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-        memoryManager.releaseCanvas(canvas);
-        return "";
-    }
-
-    const font = `bold ${fontSize}px "SimSun", "Songti SC", serif`;
-    ctx.font = font;
-
-    const lineHeight = fontSize * 1.2;
-    const targetIconHeight = fontSize * 2.5;
-    const scale = targetIconHeight / iconImg.height;
-    const targetIconWidth = iconImg.width * scale;
-
-    let totalWidth = 0;
-    let totalHeight = 0;
-
-    if (layout === "vertical") {
-        const colWidth = fontSize;
-        const colGap = fontSize * 0.5;
-        const textBlockH =
-            Math.max(textLine1.length, textLine2.length) * lineHeight;
-        const textBlockW =
-            (textLine1 ? colWidth : 0) +
-            (textLine2 ? colWidth : 0) +
-            (textLine1 && textLine2 ? colGap : 0);
-
-        totalWidth = Math.max(targetIconWidth, textBlockW);
-        totalHeight = targetIconHeight + gap + textBlockH;
-    } else {
-        const text1Metrics = ctx.measureText(textLine1);
-        const text2Metrics = ctx.measureText(textLine2);
-        const textWidth = Math.max(text1Metrics.width, text2Metrics.width);
-        const textHeight = lineHeight * 2;
-
-        totalWidth = targetIconWidth + gap + textWidth;
-        totalHeight = Math.max(targetIconHeight, textHeight);
-    }
-
-    canvas.width = totalWidth;
-    canvas.height = totalHeight;
-    ctx.clearRect(0, 0, totalWidth, totalHeight);
-
-    const iconCanvas = memoryManager.getCanvas();
-    iconCanvas.width = targetIconWidth;
-    iconCanvas.height = targetIconHeight;
-    const iconCtx = iconCanvas.getContext("2d");
-    if (!iconCtx) {
-        memoryManager.releaseCanvas(iconCanvas);
-        memoryManager.releaseCanvas(canvas);
-        return "";
-    }
-
-    iconCtx.drawImage(iconImg, 0, 0, targetIconWidth, targetIconHeight);
-    iconCtx.globalCompositeOperation = "source-in";
-    iconCtx.fillStyle = color;
-    iconCtx.fillRect(0, 0, targetIconWidth, targetIconHeight);
-
-    const iconX = layout === "vertical" ? (totalWidth - targetIconWidth) / 2 : 0;
-    const iconY =
-        layout === "vertical" ? 0 : (totalHeight - targetIconHeight) / 2;
-
-    ctx.drawImage(iconCanvas, iconX, iconY);
-    memoryManager.releaseCanvas(iconCanvas);
-
-    ctx.font = font;
-    ctx.fillStyle = color;
-    ctx.textBaseline = "top";
-
-    if (layout === "vertical") {
-        ctx.textAlign = "center";
-        const colWidth = fontSize;
-        const colGap = fontSize * 0.5;
-        const textBlockW =
-            (textLine1 ? colWidth : 0) +
-            (textLine2 ? colWidth : 0) +
-            (textLine1 && textLine2 ? colGap : 0);
-
-        const startX = (totalWidth - textBlockW) / 2;
-        const startY = targetIconHeight + gap;
-
-        if (textLine1) {
-            const l1X = startX + colWidth / 2;
-            for (let i = 0; i < textLine1.length; i++) {
-                ctx.fillText(textLine1[i], l1X, startY + i * lineHeight);
-            }
-        }
-        if (textLine2) {
-            const offset = textLine1 ? colWidth + colGap : 0;
-            const l2X = startX + offset + colWidth / 2;
-            for (let i = 0; i < textLine2.length; i++) {
-                ctx.fillText(textLine2[i], l2X, startY + i * lineHeight);
-            }
-        }
-    } else {
-        ctx.textBaseline = "middle";
-        ctx.textAlign = "left";
-        const textX = targetIconWidth + gap;
-        const midY = totalHeight / 2;
-        ctx.fillText(textLine1, textX, midY - lineHeight / 2);
-        ctx.fillText(textLine2, textX, midY + lineHeight / 2);
-    }
-
-    const dataUrl = canvas.toDataURL("image/png");
-    memoryManager.releaseCanvas(canvas);
-    return dataUrl;
+    return createTextWatermark(config);
 }
 
 function calculateWatermarkPosition(
@@ -394,6 +278,7 @@ function calculateWatermarkPosition(
     imageHeight: number,
     position: WatermarkPosition
 ) {
+    position = fitWatermarkPosition(imageWidth,imageHeight,watermarkImage,position);
     const contentBounds = getImageOpaqueBounds(watermarkImage);
     const renderMetrics = getAdaptiveWatermarkRenderMetrics(
         imageWidth,
@@ -404,8 +289,8 @@ function calculateWatermarkPosition(
     const watermarkWidth = renderMetrics.width;
     const watermarkHeight = renderMetrics.height;
 
-    const relX = Math.max(0, Math.min(1, position.x || 0.5));
-    const relY = Math.max(0, Math.min(1, position.y || 0.5));
+    const relX = Math.max(0, Math.min(1, position.x ?? 0.5));
+    const relY = Math.max(0, Math.min(1, position.y ?? 0.5));
     let pxX = relX * imageWidth;
     let pxY = relY * imageHeight;
 
@@ -433,8 +318,7 @@ export async function processImage(
     watermarkBlur: boolean,
     quality: number,
     watermarkOpacity = 1,
-    onProgress?: (progress: number) => void,
-    mixedConfig?: MixedWatermarkConfig
+    onProgress?: (progress: number) => void
 ): Promise<{ blob: Blob; name: string; mimeType: string }> {
     const largeAsset = await getLargeImageAsset(file);
     if (largeAsset) {
@@ -456,10 +340,10 @@ export async function processImage(
         ctx.translate(overlayWidth / 2, overlayHeight / 2);
         ctx.rotate(radians);
         ctx.drawImage(watermarkImage,
-            mixedConfig?.enabled ? 0 : placement.crop.x,
-            mixedConfig?.enabled ? 0 : placement.crop.y,
-            mixedConfig?.enabled ? watermarkImage.naturalWidth : placement.crop.width,
-            mixedConfig?.enabled ? watermarkImage.naturalHeight : placement.crop.height,
+            placement.crop.x,
+            placement.crop.y,
+            placement.crop.width,
+            placement.crop.height,
             -placement.width / 2, -placement.height / 2, placement.width, placement.height);
         const overlay = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
             (blob) => blob ? resolve(blob) : reject(new Error('大图水印图层生成失败')), 'image/png'
@@ -519,55 +403,11 @@ export async function processImage(
                     watermarkPosition;
 
                 if (watermarkBlur) {
-                    tempCanvas = memoryManager.getCanvas();
-                    const tempCtx = tempCanvas.getContext("2d");
-                    if (!tempCtx) {
-                        throw new Error("无法创建模糊画布");
-                    }
-                    tempCanvas.width = imageWidth;
-                    tempCanvas.height = imageHeight;
-                    tempCtx.drawImage(
-                        image as CanvasImageSource,
-                        0,
-                        0,
-                        imageWidth,
-                        imageHeight
-                    );
-
-                    StackBlur.canvasRGBA(
-                        tempCanvas,
-                        0,
-                        0,
-                        imageWidth,
-                        imageHeight,
-                        20
-                    );
-
-                    const centerX = watermarkX + watermarkWidth / 2;
-                    const centerY = watermarkY + watermarkHeight / 2;
-                    const outerRadius = Math.max(watermarkWidth, watermarkHeight);
-                    const gradient = ctx.createRadialGradient(
-                        centerX,
-                        centerY,
-                        0,
-                        centerX,
-                        centerY,
-                        outerRadius
-                    );
-                    gradient.addColorStop(0, "rgba(0, 0, 0, 1)");
-                    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-                    ctx.globalCompositeOperation = "destination-out";
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(
-                        watermarkX,
-                        watermarkY,
-                        watermarkWidth,
-                        watermarkHeight
-                    );
-
-                    ctx.globalCompositeOperation = "destination-over";
-                    ctx.drawImage(tempCanvas, 0, 0);
+                    tempCanvas = createBlurredWatermarkBackground(image as CanvasImageSource, imageWidth, imageHeight);
+                    const patch = createWatermarkBlurPatch(tempCanvas, {
+                        x: watermarkX, y: watermarkY, width: watermarkWidth, height: watermarkHeight,
+                    });
+                    ctx.drawImage(patch.canvas, patch.x, patch.y, patch.width, patch.height);
                 }
 
                 ctx.globalCompositeOperation = "source-over";
@@ -579,153 +419,11 @@ export async function processImage(
                 );
                 ctx.rotate((position.rotation * Math.PI) / 180);
 
-                if (mixedConfig && mixedConfig.enabled) {
-                    const {
-                        textLine1,
-                        textLine2,
-                        color,
-                        gap,
-                        layout = "horizontal",
-                    } = mixedConfig;
-
-                    const iconImg = new Image();
-                    iconImg.crossOrigin = "anonymous";
-                    await new Promise<void>((resolveLoad, rejectLoad) => {
-                        iconImg.onload = () => resolveLoad();
-                        iconImg.onerror = () =>
-                            rejectLoad(new Error("混合水印图标加载失败"));
-                        iconImg.src = mixedConfig.icon;
-                    });
-
-                    const rectW = watermarkWidth;
-                    const rectH = watermarkHeight;
-                    const designFS = 100;
-                    const designGap = (gap / mixedConfig.fontSize) * designFS;
-                    const designLineHeight = designFS * 1.2;
-                    const designIconH = designFS * 2.5;
-                    const scaleIcon = designIconH / iconImg.height;
-                    const designIconW = iconImg.width * scaleIcon;
-
-                    let designTotalW = 0;
-                    let designTotalH = 0;
-                    const colWidth = designFS;
-                    const colGap = designFS * 0.5;
-                    let textBlockW = 0;
-                    let textBlockH = 0;
-                    let horzTextW = 0;
-                    let horzTextH = 0;
-
-                    if (layout === "vertical") {
-                        textBlockH =
-                            Math.max(textLine1.length, textLine2.length) *
-                            designLineHeight;
-                        textBlockW =
-                            (textLine1 ? colWidth : 0) +
-                            (textLine2 ? colWidth : 0) +
-                            (textLine1 && textLine2 ? colGap : 0);
-                        designTotalW = Math.max(designIconW, textBlockW);
-                        designTotalH = designIconH + designGap + textBlockH;
-                    } else {
-                        const measureCanvas = memoryManager.getCanvas();
-                        const measureCtx = measureCanvas.getContext("2d");
-                        if (!measureCtx) {
-                            memoryManager.releaseCanvas(measureCanvas);
-                            throw new Error("无法创建文字测量画布");
-                        }
-                        measureCtx.font = `bold ${designFS}px "SimSun", "Songti SC", serif`;
-                        const m1 = measureCtx.measureText(textLine1);
-                        const m2 = measureCtx.measureText(textLine2);
-                        horzTextW = Math.max(m1.width, m2.width);
-                        horzTextH = designLineHeight * 2;
-                        designTotalW = designIconW + designGap + horzTextW;
-                        designTotalH = Math.max(designIconH, horzTextH);
-                        memoryManager.releaseCanvas(measureCanvas);
-                    }
-
-                    const scaleFactor = Math.min(rectW / designTotalW, rectH / designTotalH);
-                    const realFS = designFS * scaleFactor;
-                    const realIconW = designIconW * scaleFactor;
-                    const realIconH = designIconH * scaleFactor;
-                    const realGap = designGap * scaleFactor;
-                    const realLineHeight = designLineHeight * scaleFactor;
-                    const contentW = designTotalW * scaleFactor;
-                    const contentH = designTotalH * scaleFactor;
-                    const startX = -contentW / 2;
-                    const startY = -contentH / 2;
-
-                    const iconX =
-                        layout === "vertical"
-                            ? startX + (contentW - realIconW) / 2
-                            : startX;
-                    const iconY =
-                        layout === "vertical"
-                            ? startY
-                            : startY + (contentH - realIconH) / 2;
-
-                    const iCanvas = memoryManager.getCanvas();
-                    iCanvas.width = realIconW;
-                    iCanvas.height = realIconH;
-                    const iCtx = iCanvas.getContext("2d");
-                    if (!iCtx) {
-                        memoryManager.releaseCanvas(iCanvas);
-                        throw new Error("无法创建图标画布");
-                    }
-                    iCtx.drawImage(iconImg, 0, 0, realIconW, realIconH);
-                    iCtx.globalCompositeOperation = "source-in";
-                    iCtx.fillStyle = color;
-                    iCtx.fillRect(0, 0, realIconW, realIconH);
-                    ctx.drawImage(iCanvas, iconX, iconY);
-                    memoryManager.releaseCanvas(iCanvas);
-
-                    ctx.font = `bold ${realFS}px "SimSun", "Songti SC", serif`;
-                    ctx.fillStyle = color;
-
-                    if (layout === "vertical") {
-                        ctx.textBaseline = "top";
-                        ctx.textAlign = "center";
-
-                        const realColWidth = colWidth * scaleFactor;
-                        const realColGap = colGap * scaleFactor;
-                        const realTextBlockW = textBlockW * scaleFactor;
-                        const textBlockX = startX + (contentW - realTextBlockW) / 2;
-                        const textBlockY = iconY + realIconH + realGap;
-
-                        if (textLine1) {
-                            const l1X = textBlockX + realColWidth / 2;
-                            for (let i = 0; i < textLine1.length; i++) {
-                                ctx.fillText(textLine1[i], l1X, textBlockY + i * realLineHeight);
-                            }
-                        }
-                        if (textLine2) {
-                            const l2X =
-                                textBlockX +
-                                (textLine1 ? realColWidth + realColGap : 0) +
-                                realColWidth / 2;
-                            for (let i = 0; i < textLine2.length; i++) {
-                                ctx.fillText(textLine2[i], l2X, textBlockY + i * realLineHeight);
-                            }
-                        }
-                    } else {
-                        ctx.textBaseline = "middle";
-                        ctx.textAlign = "left";
-                        const textX = iconX + realIconW + realGap;
-                        const textCenterY = startY + contentH / 2;
-                        ctx.fillText(textLine1, textX, textCenterY - realLineHeight / 2);
-                        ctx.fillText(textLine2, textX, textCenterY + realLineHeight / 2);
-                    }
-                } else {
-                    ctx.drawImage(
-                        watermarkImage,
-                        watermarkCrop.x,
-                        watermarkCrop.y,
-                        watermarkCrop.width,
-                        watermarkCrop.height,
-                        -watermarkWidth / 2,
-                        -watermarkHeight / 2,
-                        watermarkWidth,
-                        watermarkHeight
-                    );
-                }
+                ctx.drawImage(
+                    watermarkImage,
+                    watermarkCrop.x, watermarkCrop.y, watermarkCrop.width, watermarkCrop.height,
+                    -watermarkWidth / 2, -watermarkHeight / 2, watermarkWidth, watermarkHeight
+                );
 
                 ctx.restore();
                 exportStarted = true;

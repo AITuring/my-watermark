@@ -24,6 +24,12 @@ interface ImgWithPosition {
 
 interface MixedWatermarkConfig {
     enabled: boolean;
+    textOnly?: boolean;
+    fontId?: string;
+    captionFontId?: string;
+    letterSpacing?: number;
+    lineGap?: number;
+    iconScale?: number;
     icon: string; // URL of the icon
     textLine1: string;
     textLine2: string;

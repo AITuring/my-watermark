@@ -1,0 +1,227 @@
+[
+  {
+    "id": "jxzk",
+    "name": "江西拙楷",
+    "category": "楷书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/jxzk@3.0.0/dist/江西拙楷/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/jxzk",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/jxzk-5a7a597021de.css"
+  },
+  {
+    "id": "lxgwwenkai",
+    "name": "霞鹜文楷",
+    "category": "楷书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/lxgwwenkai@3.0.0/dist/LXGWWenKai-Regular/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/lxgwwenkai",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/lxgwwenkai-97c8a17df3c0.css"
+  },
+  {
+    "id": "zqzmxs",
+    "name": "钟齐志莽行书",
+    "category": "行书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/zqzmxs@3.0.0/dist/钟齐志莽行书/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/zqzmxs",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/zqzmxs-05340ff0efa1.css"
+  },
+  {
+    "id": "rmjzqpybxs",
+    "name": "瑞美加张清平硬笔行书",
+    "category": "行书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/rmjzqpybxs@3.0.0/dist/瑞美加张清平硬笔行书/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/rmjzqpybxs",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/rmjzqpybxs-ff506c3a50e1.css"
+  },
+  {
+    "id": "hlxsjt",
+    "name": "鸿雷行书简体",
+    "category": "行书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/hlxsjt@3.0.0/dist/鸿雷行书简体/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/hlxsjt",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/hlxsjt-1e0268dc76cf.css"
+  },
+  {
+    "id": "ysyrxk",
+    "name": "演示悠然小楷",
+    "category": "楷书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/ysyrxk@3.0.0/dist/slideyouran-Regular2_0/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/ysyrxk",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/ysyrxk-51131e51ec62.css"
+  },
+  {
+    "id": "yidianyan",
+    "name": "一点颜",
+    "category": "楷书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/yidianyan@3.0.0/dist/yidianyan/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/yidianyan",
+    "tags": "颜真卿 颜体",
+    "metadataUrl": "/fonts/watermark/yidianyan-e99363377f15.css"
+  },
+  {
+    "id": "xuandongkaishu",
+    "name": "玄冬楷书",
+    "category": "楷书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/xuandongkaishu@3.0.0/dist/XuandongKaishu/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/xuandongkaishu",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/xuandongkaishu-7c9a47c141c0.css"
+  },
+  {
+    "id": "rzjryzzk",
+    "name": "润植家如印奏章楷",
+    "category": "楷书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/rzjryzzk@3.0.0/dist/nzgrRuYinZouZhangKai/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/rzjryzzk",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/rzjryzzk-0d3d56cd6fcd.css"
+  },
+  {
+    "id": "ysbzt",
+    "name": "峄山碑篆体",
+    "category": "篆书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/ysbzt@3.0.0/dist/峄山碑篆体/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/ysbzt",
+    "tags": "李斯 峄山碑",
+    "metadataUrl": "/fonts/watermark/ysbzt-0830036289ba.css"
+  },
+  {
+    "id": "crgkk",
+    "name": "程荣光刻楷",
+    "category": "楷书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/crgkk@2.0.0/dist/程荣光刻楷/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/crgkk",
+    "tags": " 古籍刻本 旧字形 印刷",
+    "metadataUrl": "/fonts/watermark/crgkk-370080284225.css"
+  },
+  {
+    "id": "lywkpmydb",
+    "name": "霞鹜文楷屏幕阅读版",
+    "category": "楷书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/lywkpmydb@2.0.0/dist/LXGWWenKaiScreen/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/lywkpmydb",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/lywkpmydb-94e29b04789f.css"
+  },
+  {
+    "id": "syst",
+    "name": "思源宋体",
+    "category": "宋体",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/syst@3.0.0/dist/SourceHanSerifCN/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/syst",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/syst-4e1ae28a53bc.css"
+  },
+  {
+    "id": "zqfs",
+    "name": "朱雀仿宋",
+    "category": "宋体",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/zqfs@3.0.0/dist/ZhuqueFangsong-Regular/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/zqfs",
+    "tags": " 古籍刻本 旧字形 印刷",
+    "metadataUrl": "/fonts/watermark/zqfs-a2d08de1688a.css"
+  },
+  {
+    "id": "hwmct",
+    "name": "汇文明朝体",
+    "category": "宋体",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/hwmct@3.0.0/dist/汇文明朝体/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/hwmct",
+    "tags": " 古籍刻本 旧字形 印刷",
+    "metadataUrl": "/fonts/watermark/hwmct-562fa5eb3276.css"
+  },
+  {
+    "id": "jhlst",
+    "name": "京華老宋体",
+    "category": "宋体",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/jhlst@3.0.0/dist/京華老宋体v2_002/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/jhlst",
+    "tags": " 古籍刻本 旧字形 印刷",
+    "metadataUrl": "/fonts/watermark/jhlst-d690cda08c73.css"
+  },
+  {
+    "id": "dyh",
+    "name": "得意黑",
+    "category": "黑体",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/dyh@3.0.0/dist/SmileySans-Oblique/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/dyh",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/dyh-702b215f3952.css"
+  },
+  {
+    "id": "xiaolai",
+    "name": "小赖体",
+    "category": "手写",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/xiaolai@3.0.0/dist/Xiaolai/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/xiaolai",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/xiaolai-bc5fad08add3.css"
+  },
+  {
+    "id": "yozai",
+    "name": "悠哉",
+    "category": "手写",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/yozai@3.0.0/dist/Yozai-Regular/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/yozai",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/yozai-f1a1eaa6b823.css"
+  },
+  {
+    "id": "yzklct",
+    "name": "有字库龙藏体",
+    "category": "草书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/yzklct@3.0.0/dist/有字库龙藏体/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/yzklct",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/yzklct-6016577c09b2.css"
+  },
+  {
+    "id": "ma-shan-zheng",
+    "name": "马善政楷书",
+    "category": "楷书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@fontsource/ma-shan-zheng@5.2.5/400.css",
+    "source": "https://github.com/google/fonts/tree/main/ofl/mashanzheng",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/ma-shan-zheng-c5d92bbfb631.css"
+  },
+  {
+    "id": "liu-jian-mao-cao",
+    "name": "刘建毛草",
+    "category": "草书",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@fontsource/liu-jian-mao-cao@5.2.5/400.css",
+    "source": "https://github.com/google/fonts/tree/main/ofl/liujianmaocao",
+    "tags": "",
+    "metadataUrl": "/fonts/watermark/liu-jian-mao-cao-3c6b661d9c1c.css"
+  },
+  {
+    "id": "rzjkxzdmh",
+    "name": "润植家康熙字典美化体",
+    "category": "宋体",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/rzjkxzdmh@3.0.0/dist/nzgrKangxi/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/rzjkxzdmh",
+    "tags": "古籍刻本 复古 字典",
+    "metadataUrl": "/fonts/watermark/rzjkxzdmh-6ae6b814d89a.css"
+  },
+  {
+    "id": "fhst",
+    "name": "飞花宋体",
+    "category": "宋体",
+    "cssUrl": "https://cdn.jsdelivr.net/npm/@chinese-fonts/fhst@3.0.0/dist/飞花宋体/result.css",
+    "source": "https://chinese-font.netlify.app/fonts/fhst",
+    "tags": "古籍刻本 宋体 古风",
+    "metadataUrl": "/fonts/watermark/fhst-b9cc3cab9009.css"
+  },
+  {
+    "id": "kesong",
+    "name": "香萃刻宋",
+    "category": "宋体",
+    "cssUrl": "/fonts/watermark/kesong-7a8007c5f609.css",
+    "metadataUrl": "/fonts/watermark/kesong-7a8007c5f609.css",
+    "source": "https://github.com/Miiiller/Xiangcui-Kesong",
+    "tags": "古籍刻本 雕版 刻宋 旧字形 香萃"
+  }
+]

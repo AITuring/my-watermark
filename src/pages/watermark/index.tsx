@@ -1,3 +1,7 @@
+import { missingFontCharacters } from "./fonts/registry";
+import { applyColorToWatermark, extractDominantColors, getAdaptiveWatermarkRenderMetrics, getWatermarkMaximumScale, fitWatermarkPosition } from "@/utils/watermark-editor";
+import { extractWatermarkCaption } from "./filename-watermark";
+import { createSmartWatermark } from "./smart-watermark";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +13,6 @@ import {
 import { useNavigate } from "react-router-dom";
 import {
     adjustBatchSizeAndConcurrency,
-    debounce,
 } from "@/utils/watermark-common";
 import { useDeviceDetect } from "@/hooks";
 import {
@@ -27,6 +30,7 @@ import DesktopToolbar from "@/pages/watermark/components/DesktopToolbar";
 import {
     DEFAULT_MIXED_WATERMARK_CONFIG,
     DEFAULT_WATERMARK_URL,
+    applyWatermarkConfigPatch,
     buildImagesWithPositions,
     buildWatermarkColorMap,
     buildWatermarkPositions,
@@ -59,18 +63,65 @@ const Watermark: React.FC = () => {
     const [images, setImages] = useState<ImageType[]>([]);
     const deviceType = useDeviceDetect();
     const isMobile = deviceType === "mobile";
-    const editorHeight = window.innerHeight * (isMobile ? 0.6 : 0.8);
+    const editorHeight = isMobile ? window.innerHeight * 0.6 : Math.max(200,window.innerHeight - 350);
 
     const [currentImg, setCurrentImg] = useState<ImageType | null>(null);
     const [watermarkUrl, setWatermarkUrl] =
         useState<string>(DEFAULT_WATERMARK_URL);
-    const [watermarkMode, setWatermarkMode] = useState<"image" | "mixed">(
+    const [watermarkMode, setWatermarkMode] = useState<"image" | "mixed" | "text">(
         "image"
     );
     const [storedImageWatermarkUrl, setStoredImageWatermarkUrl] =
         useState<string>(DEFAULT_WATERMARK_URL);
-    const [mixedWatermarkConfig, setMixedWatermarkConfig] =
+    const [baseWatermarkConfig, setBaseWatermarkConfig] =
         useState<MixedWatermarkConfig>({ ...DEFAULT_MIXED_WATERMARK_CONFIG });
+    const [smartEnabled, setSmartEnabled] = useState(true);
+    const [previewZoom,setPreviewZoom] = useState(1);
+    const [imageTint,setImageTint] = useState('');
+    const [suggestedColors,setSuggestedColors] = useState<string[]>([]);
+    const colorRequest = useRef(0);
+    const [settingsPanelOpen,setSettingsPanelOpen] = useState(false);
+    const [editScope, setEditScope] = useState<"current" | "all">("current");
+    const placementRequest = useRef(0);
+    const queuedPlacement = useRef<{imageId:string; placement?:string; scale?:number} | null>(null);
+    const exportInFlight = useRef(false);
+    const [smartError, setSmartError] = useState("");
+    const [fontNotice, setFontNotice] = useState("");
+    const [watermarkMaxScale,setWatermarkMaxScale] = useState(12);
+    const [smartPending, setSmartPending] = useState(false);
+    const [manualConfigs, setManualConfigs] = useState<Record<string, Partial<MixedWatermarkConfig>>>({});
+    const [automaticStyle, setAutomaticStyle] = useState<Partial<MixedWatermarkConfig>>({});
+    const manualPositions = useRef(new Set<string>());
+    const desiredConfig = useMemo(() => ({
+        ...baseWatermarkConfig,
+        ...(currentImg ? extractWatermarkCaption(currentImg.file.name) : null),
+        ...(currentImg ? manualConfigs[currentImg.id] : null),
+    }), [baseWatermarkConfig, currentImg, manualConfigs]);
+    const mixedWatermarkConfig = {...desiredConfig, ...automaticStyle,
+        ...(currentImg ? manualConfigs[currentImg.id] : null)};
+    const configRef = useRef(mixedWatermarkConfig);
+    configRef.current = mixedWatermarkConfig;
+    const patchWatermarkConfig = (patch:Partial<MixedWatermarkConfig>) => {
+        if (!currentImg) {setBaseWatermarkConfig(prev=>({...prev,...patch}));return;}
+        const targets = editScope === "all" ? images : [currentImg];
+        setManualConfigs(prev => applyWatermarkConfigPatch(prev, targets.map(image=>image.id), patch));
+    };
+    const setMixedWatermarkConfig: React.Dispatch<React.SetStateAction<MixedWatermarkConfig>> = (action) => {
+        const next = typeof action === "function" ? action(configRef.current) : action;
+        if (!currentImg) { setBaseWatermarkConfig(next); return; }
+        const changes: Partial<MixedWatermarkConfig> = {};
+        for (const key of Object.keys(next) as (keyof MixedWatermarkConfig)[]) {
+            if (next[key] !== configRef.current[key]) Object.assign(changes, {[key]:next[key]});
+        }
+        if (Object.keys(changes).length) {
+            setManualConfigs(prev => {
+                const result = {...prev};
+                const targets = editScope === "all" ? images : [currentImg];
+                targets.forEach(image => {result[image.id] = {...prev[image.id],...changes};});
+                return result;
+            });
+        }
+    };
     const [watermarkPositions, setWatermarkPositions] = useState<
         WatermarkPosition[]
     >([]);
@@ -81,7 +132,7 @@ const Watermark: React.FC = () => {
     const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
     const [quality, setQuality] = useState(0.95);
     const [watermarkBlur, setWatermarkBlur] = useState(true);
-    const [watermarkOpacity, setWatermarkOpacity] = useState(0.8);
+    const [watermarkOpacity, setWatermarkOpacity] = useState(1);
     const [mobileView, setMobileView] = useState<"editor" | "gallery">(
         "editor"
     );
@@ -107,6 +158,18 @@ const Watermark: React.FC = () => {
         watermarkOpacity,
         watermarkBlur,
         quality,
+        resolveWatermark: watermarkMode === "image" ? undefined : async (item) => {
+            const image = images.find(candidate => candidate.id === item.id);
+            if (!image) throw new Error("图片不存在");
+            const config = {...baseWatermarkConfig, ...extractWatermarkCaption(image.file.name),
+                ...manualConfigs[image.id], textOnly: watermarkMode === "text"};
+            if (smartEnabled) {
+                const result = await createSmartWatermark(image, config, manualConfigs[image.id]);
+                return {url: result.url, position: manualPositions.current.has(image.id) ? item.position : result.position};
+            }
+            const {createMixedWatermark} = await import("@/utils/watermark-processing");
+            return {url: await createMixedWatermark(config), position:item.position};
+        },
         oversizeThresholdBytes: WATERMARK_OVERSIZE_THRESHOLD_BYTES,
         onOversizedFiles: async (files) => {
             await setPendingCropTransfer("compress", files);
@@ -132,26 +195,59 @@ const Watermark: React.FC = () => {
         ? images.findIndex((img) => img.id === currentImg.id)
         : -1;
 
+    useEffect(() => { setWatermarkColorUrls({}); }, [watermarkMode,storedImageWatermarkUrl]);
+    useEffect(() => { setAutomaticStyle({}); }, [watermarkMode,currentImg?.id]);
+
     useEffect(() => {
-        if (watermarkMode === "mixed") {
-            const generate = async () => {
-                if (!mixedWatermarkConfig.icon) return;
+        let cancelled = false;
+        setSmartError("");
+        if (watermarkMode === "image") {
+            setSmartPending(false);
+            setWatermarkUrl(storedImageWatermarkUrl);
+            if (currentImg) void loadPositionImage(storedImageWatermarkUrl).then(logo=>{
+                if(cancelled) return;
+                setWatermarkMaxScale(getWatermarkMaximumScale(currentImg.width,currentImg.height,logo));
+                setWatermarkPositions(prev=>prev.map(position=>position.id===currentImg.id
+                    ? fitWatermarkPosition(currentImg.width,currentImg.height,logo,position):position));
+            }).catch(error=>{if(!cancelled)setSmartError(error instanceof Error?error.message:"水印加载失败");});
+            return () => {cancelled=true;};
+        }
+        setSmartPending(true);
+        const timer = window.setTimeout(async () => {
+            try {
                 const { createMixedWatermark } = await importWithRecovery(
                     () => import("@/utils/watermark-processing"),
                     "utils:watermark-processing"
                 );
-                const url = await createMixedWatermark(mixedWatermarkConfig);
-                if (url) {
+                const config = {...desiredConfig, textOnly: watermarkMode === "text"};
+                const result = smartEnabled && currentImg
+                    ? await createSmartWatermark(currentImg, config, manualConfigs[currentImg.id]) : null;
+                const url = result ? result.url : await createMixedWatermark(config);
+                const logo = url ? await loadPositionImage(url) : null;
+                if (!cancelled) {
+                    setWatermarkColorUrls({});
                     setWatermarkUrl(url);
+                    const missing = missingFontCharacters(config.fontId || "system-song",config.textLine1)
+                        + missingFontCharacters(config.captionFontId || "system-song",config.textLine2);
+                    setFontNotice(missing ? `所选字体缺少「${[...new Set(Array.from(missing))].join("")}」，这些字使用系统宋体补齐。` : "");
+                    setAutomaticStyle(result ? {color:result.config.color, layout:result.config.layout} : {});
+                    if (logo && currentImg) {
+                        setWatermarkMaxScale(getWatermarkMaximumScale(currentImg.width,currentImg.height,logo));
+                        setWatermarkPositions(prev => prev.map(position => position.id === currentImg.id
+                            ? fitWatermarkPosition(currentImg.width,currentImg.height,logo,
+                                result && !manualPositions.current.has(currentImg.id) ? result.position : position)
+                            : position));
+                    }
                 }
-            };
-
-            const timer = window.setTimeout(generate, 100);
-            return () => window.clearTimeout(timer);
-        }
-
-        setWatermarkUrl(storedImageWatermarkUrl);
-    }, [watermarkMode, mixedWatermarkConfig, storedImageWatermarkUrl]);
+            } catch (error) {
+                console.error("生成文字水印失败", error);
+                if (!cancelled) setSmartError(error instanceof Error ? error.message : "无法生成水印，请重试。");
+            } finally {
+                if (!cancelled) setSmartPending(false);
+            }
+        }, 100);
+        return () => { cancelled = true; window.clearTimeout(timer); };
+    }, [watermarkMode, desiredConfig, storedImageWatermarkUrl, smartEnabled, currentImg, manualConfigs]);
 
     useEffect(() => {
         const nextUrls = new Set(
@@ -282,6 +378,20 @@ const Watermark: React.FC = () => {
             : clearFileSession("watermark-images"));
     }, [images, imagesHydrated]);
 
+    const handleTextColorChange = (color: string, batch = editScope === "all") => {
+        const targets = batch ? images : currentImg ? [currentImg] : [];
+        setManualConfigs(prev => {
+            const next = {...prev};
+            for (const image of targets) {
+                const config = {...prev[image.id]};
+                if (color === "transparent") delete config.color;
+                else config.color = color;
+                next[image.id] = config;
+            }
+            return next;
+        });
+    };
+
     const handleWatermarkColorChange = (
         imageId: string,
         newWatermarkUrl: string,
@@ -301,6 +411,27 @@ const Watermark: React.FC = () => {
         });
     };
 
+    useEffect(() => {
+        let cancelled = false;
+        setSuggestedColors([]);
+        if (currentImg?.previewUrl) void loadPositionImage(currentImg.previewUrl).then(image => {
+            if (!cancelled) setSuggestedColors(extractDominantColors(image,5).map(item=>'#'+[item.r,item.g,item.b].map(channel=>Math.max(0,Math.min(255,channel)).toString(16).padStart(2,'0')).join('')));
+        }).catch(()=>{});
+        return () => {cancelled=true;};
+    }, [currentImg?.previewUrl]);
+
+    const changeImageTint = async (color: string) => {
+        if (!currentImg) return;
+        const request = ++colorRequest.current;
+        const imageId = currentImg.id, batch = editScope === 'all';
+        try {
+            const url = color === 'transparent' ? watermarkUrl : await applyColorToWatermark(watermarkUrl,color);
+            if (request !== colorRequest.current) return;
+            setImageTint(color === 'transparent' ? '' : color);
+            handleWatermarkColorChange(imageId,url,batch);
+        } catch {setSmartError('水印颜色更新失败，请重试');}
+    };
+
     const handleWatermarkUpload = (files: File[]) => {
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -311,7 +442,7 @@ const Watermark: React.FC = () => {
                 return;
             }
 
-            setMixedWatermarkConfig((prev) => ({ ...prev, icon: url }));
+            patchWatermarkConfig({icon:url});
         };
         reader.readAsDataURL(files[0]);
     };
@@ -320,6 +451,7 @@ const Watermark: React.FC = () => {
         imageId: string,
         position: Omit<WatermarkPosition, "id">
     ) => {
+        manualPositions.current.add(imageId);
         setWatermarkPositions((prev) =>
             prev.map((pos) =>
                 pos.id === imageId ? { ...pos, ...position } : pos
@@ -331,6 +463,7 @@ const Watermark: React.FC = () => {
     const handleAllWatermarkTransform = (
         position: Omit<WatermarkPosition, "id">
     ) => {
+        images.forEach(image => manualPositions.current.add(image.id));
         setWatermarkPositions((prev) =>
             prev.map((img) => ({
                 ...position,
@@ -338,6 +471,49 @@ const Watermark: React.FC = () => {
             }))
         );
     };
+
+    const handlePlacementChange = React.useCallback(async (placement?: string, scale?: number) => {
+        if (!currentImg || !watermarkUrl) return;
+        if (smartPending) {
+            queuedPlacement.current = {
+                ...(queuedPlacement.current?.imageId === currentImg.id ? queuedPlacement.current : {}),
+                imageId:currentImg.id,
+                ...(placement ? {placement} : {}), ...(scale !== undefined ? {scale} : {}),
+            };
+            return;
+        }
+        const request = ++placementRequest.current;
+        try {
+            const logo = await loadPositionImage(watermarkUrl);
+            if (request !== placementRequest.current) return;
+            const targets = editScope === "all" ? images : [currentImg];
+            targets.forEach(image => manualPositions.current.add(image.id));
+            const ids = new Set(targets.map(image => image.id));
+            const anchors: Record<string,[number,number]> = {
+                'top-left':[0,0], 'top-mid':[0.5,0], 'top-right':[1,0],
+                'mid-left':[0,0.5], center:[0.5,0.5], 'mid-right':[1,0.5],
+                'bottom-left':[0,1], 'bottom-mid':[0.5,1], 'bottom-right':[1,1],
+            };
+            setWatermarkPositions(prev => prev.map(position => {
+                if (!ids.has(position.id)) return position;
+                const image = targets.find(image => image.id === position.id)!;
+                const nextScale = Math.min(scale ?? position.scaleX,getWatermarkMaximumScale(image.width,image.height,logo));
+                const metrics = getAdaptiveWatermarkRenderMetrics(image.width,image.height,logo,nextScale);
+                const maxX = Math.max(0,1-metrics.width/image.width), maxY = Math.max(0,1-metrics.height/image.height);
+                const anchor = placement ? anchors[placement] : undefined;
+                return {...position,scaleX:nextScale,scaleY:nextScale,
+                    x:anchor ? anchor[0]*maxX : Math.min(position.x,maxX),
+                    y:anchor ? anchor[1]*maxY : Math.min(position.y,maxY)};
+            }));
+        } catch(error) { setSmartError(error instanceof Error ? error.message : "位置设置失败"); }
+    }, [currentImg,watermarkUrl,smartPending,editScope,images]);
+
+    useEffect(() => {
+        if (smartPending || !queuedPlacement.current) return;
+        const queued = queuedPlacement.current;
+        queuedPlacement.current = null;
+        if (queued.imageId === currentImg?.id) void handlePlacementChange(queued.placement,queued.scale);
+    }, [smartPending,currentImg?.id,handlePlacementChange]);
 
     const handleSmartWatermarkPosition = async (
         imageId: string,
@@ -361,6 +537,7 @@ const Watermark: React.FC = () => {
             }
         }
         if (!positions.length) throw new Error("图片分析失败，请重试");
+        positions.forEach(position => manualPositions.current.add(position.id));
         const byId = new Map(positions.map((position) => [position.id, position]));
         setWatermarkPositions((prev) => prev.map((position) => byId.get(position.id) || position));
         if (positions.length !== targets.length) {
@@ -369,14 +546,16 @@ const Watermark: React.FC = () => {
     };
 
     const handleApplyWatermark = async () => {
+        if (exportInFlight.current || smartPending) return;
         if (!watermarkUrl) {
-            alert("请上传水印图片！");
+            alert(watermarkMode === "image" ? "请上传水印图片！" : "请输入水印文字，并等待预览生成。");
             return;
         }
 
         const { batchSize, globalConcurrency } =
             adjustBatchSizeAndConcurrency(images);
 
+        exportInFlight.current = true;
         try {
             console.log("水印下载开始！");
 
@@ -399,16 +578,13 @@ const Watermark: React.FC = () => {
             await downloadImagesWithWatermarkBatch(
                 allImageData,
                 batchSize,
-                globalConcurrency,
-                watermarkMode === "mixed" ? mixedWatermarkConfig : undefined
+                globalConcurrency
             );
         } catch (error) {
             console.error("处理水印失败:", error);
-            alert("处理水印失败，请重试。");
-        }
+            alert(error instanceof Error ? error.message : "处理水印失败，请重试。");
+        } finally { exportInFlight.current = false; }
     };
-
-    const handleApplyWatermarkDebounced = debounce(handleApplyWatermark, 500);
 
     const resolveOversizeDecision = (decision: "download" | "compress") => {
         oversizeDecisionResolverRef.current?.(decision);
@@ -453,8 +629,13 @@ const Watermark: React.FC = () => {
 
                 <div className="flex-1 overflow-hidden relative">
                     {mobileView === "editor" && currentImg ? (
+                        <div className="flex min-h-0 flex-1 flex-col">
+                        {watermarkMode !== "image" && <label className="flex items-center gap-2 p-2 text-sm">
+                            <input type="checkbox" checked={smartEnabled} onChange={event => setSmartEnabled(event.target.checked)} />智能适配大小、颜色和排版
+                        </label>}
                         <MobileWatermarkEditor
                             watermarkUrl={watermarkUrl}
+                            backgroundOriginalWidth={currentImg.width}
                             backgroundPreviewUrl={currentImg.previewUrl || ""}
                             currentWatermarkPosition={currentWatermarkPosition}
                             onTransform={(position) =>
@@ -478,10 +659,14 @@ const Watermark: React.FC = () => {
                             }}
                             watermarkOpacity={watermarkOpacity}
                             setWatermarkOpacity={setWatermarkOpacity}
+                            batchEditing={editScope === "all"}
+                            onBatchEditingChange={batch => setEditScope(batch ? "all" : "current")}
                             watermarkBlur={watermarkBlur}
                             setWatermarkBlur={setWatermarkBlur}
                             quality={quality}
                             setQuality={setQuality}
+                            onConfigPatch={patchWatermarkConfig}
+                            onAutoColor={() => handleTextColorChange("transparent")}
                             watermarkMode={watermarkMode}
                             setWatermarkMode={setWatermarkMode}
                             mixedWatermarkConfig={mixedWatermarkConfig}
@@ -489,10 +674,11 @@ const Watermark: React.FC = () => {
                             onWatermarkUpload={handleWatermarkUpload}
                             onBack={() => setMobileView("gallery")}
                             stackPreviews={stackPreviews}
-                            onGenerate={handleApplyWatermarkDebounced}
+                            onGenerate={handleApplyWatermark}
                             isGenerating={loading}
                             generateProgress={smoothProgress}
                         />
+                        </div>
                     ) : (
                         <MobileImageGallery
                             images={images}
@@ -528,8 +714,8 @@ const Watermark: React.FC = () => {
         }
 
         return (
-            <div className="flex flex-col h-screen justify-between bg-slate-50 dark:bg-slate-950">
-                <div className="flex p-4 justify-between gap-2">
+            <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-stone-100 dark:bg-slate-950">
+                <div className={`wm-desktop-layout flex min-h-0 flex-1 gap-4 p-4 pb-3 ${settingsPanelOpen ? "has-settings-panel" : ""}`}>
                     {images.length > 0 && (
                         <VerticalCarousel
                             images={images}
@@ -539,9 +725,10 @@ const Watermark: React.FC = () => {
                             height={editorHeight}
                         />
                     )}
-                    {watermarkUrl && currentImg && (
+                    {currentImg && (
                         <WatermarkEditor
                             watermarkUrl={watermarkUrl}
+                            backgroundOriginalWidth={currentImg.width}
                             backgroundPreviewUrl={currentImg.previewUrl || ""}
                             currentWatermarkPosition={currentWatermarkPosition}
                             onTransform={(position) =>
@@ -554,20 +741,60 @@ const Watermark: React.FC = () => {
                             watermarkColor={
                                 watermarkColorUrls[currentImg.id] || ""
                             }
+                            onTextColorChange={watermarkMode !== "image" ? handleTextColorChange : undefined}
                             onColorChange={(color, batch) =>
                                 handleWatermarkColorChange(currentImg.id, color, batch)
                             }
+                            previewZoom={previewZoom}
+                            onPreviewZoomChange={setPreviewZoom}
+                            batchEditing={editScope === "all"}
+                            onBatchEditingChange={batch => setEditScope(batch ? "all" : "current")}
+                            watermarkBlur={watermarkBlur}
                             watermarkOpacity={watermarkOpacity}
                         />
                     )}
                 </div>
 
                 <DesktopToolbar
+                    previewZoom={previewZoom}
+                    onPreviewZoomChange={setPreviewZoom}
+                    imageTint={imageTint}
+                    suggestedColors={suggestedColors}
+                    onImageTintChange={color=>void changeImageTint(color)}
+                    onSmartPosition={() => {if(currentImg) void handleSmartWatermarkPosition(currentImg.id,editScope==='all',currentWatermarkPosition?.scaleX || 1);}}
+                    settingsOpen={settingsPanelOpen}
+                    onSettingsOpenChange={setSettingsPanelOpen}
+                    editScope={editScope}
+                    setEditScope={setEditScope}
+                    imageCount={images.length}
+                    currentFilename={currentImg?.file.name || ""}
+                    maxScale={watermarkMaxScale}
+                    scale={currentWatermarkPosition?.scaleX || 1}
+                    onScaleChange={scale => void handlePlacementChange(undefined,scale)}
+                    onPositionChange={placement => void handlePlacementChange(placement)}
+                    onAutoColor={() => handleTextColorChange("transparent")}
+                    fontNotice={fontNotice}
+                    smartPending={smartPending}
+                    smartError={smartError}
+                    smartEnabled={smartEnabled}
+                    setSmartEnabled={setSmartEnabled}
+                    onResetSmart={() => {
+                        if (currentImg) {
+                            const targets = editScope === "all" ? images : [currentImg];
+                            targets.forEach(image => manualPositions.current.delete(image.id));
+                            setManualConfigs(prev => {
+                                const next = {...prev};
+                                targets.forEach(image => {next[image.id] = prev[image.id]?.icon ? {icon:prev[image.id].icon} : {};});
+                                return next;
+                            });
+                        }
+                        setSmartEnabled(true);
+                    }}
                     watermarkMode={watermarkMode}
                     setWatermarkMode={setWatermarkMode}
                     storedImageWatermarkUrl={storedImageWatermarkUrl}
                     mixedWatermarkConfig={mixedWatermarkConfig}
-                    setMixedWatermarkConfig={setMixedWatermarkConfig}
+                    onConfigPatch={patchWatermarkConfig}
                     onWatermarkUpload={handleWatermarkUpload}
                     watermarkBlur={watermarkBlur}
                     setWatermarkBlur={setWatermarkBlur}
@@ -575,7 +802,7 @@ const Watermark: React.FC = () => {
                     setQuality={setQuality}
                     watermarkOpacity={watermarkOpacity}
                     setWatermarkOpacity={setWatermarkOpacity}
-                    onGenerate={handleApplyWatermarkDebounced}
+                    onGenerate={handleApplyWatermark}
                     loading={loading}
                     progress={smoothProgress}
                 />

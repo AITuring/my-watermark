@@ -10,8 +10,8 @@ export const DEFAULT_WATERMARK_URL = "/logo.png";
 export const DEFAULT_MIXED_WATERMARK_CONFIG: MixedWatermarkConfig = {
     enabled: true,
     icon: DEFAULT_WATERMARK_URL,
-    textLine1: "第一行文字",
-    textLine2: "第二行文字",
+    textLine1: "",
+    textLine2: "",
     color: "#000000",
     fontSize: 30,
     gap: 20,
@@ -59,3 +59,13 @@ export const getTopStackPreviews = (images: ImageType[]) =>
             id: img.id,
             url: img.previewUrl!,
         }));
+
+export function applyWatermarkConfigPatch(
+    previous: Record<string, Partial<MixedWatermarkConfig>>,
+    imageIds: string[],
+    patch: Partial<MixedWatermarkConfig>,
+): Record<string, Partial<MixedWatermarkConfig>> {
+    const next = {...previous};
+    imageIds.forEach(id => { next[id] = {...previous[id], ...patch}; });
+    return next;
+}

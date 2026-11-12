@@ -1,11 +1,13 @@
+import { watermarkOutputName, uniqueArchiveName } from "../export-names";
 import { useCallback, useState } from "react";
 import pLimit from "p-limit";
 import confetti from "canvas-confetti";
-import { ImgWithPosition, MixedWatermarkConfig } from "@/types";
+import { ImgWithPosition, WatermarkPosition } from "@/types";
 import { useSmoothProgress } from "@/pages/watermark/hooks/useSmoothProgress";
 import { importWithRecovery } from "@/utils/import-recovery";
 
 interface UseWatermarkBatchProcessorOptions {
+    resolveWatermark?: (image: ImgWithPosition) => Promise<{url: string; position: WatermarkPosition}>;
     watermarkUrl: string;
     watermarkColorUrls: Record<string, string>;
     watermarkOpacity: number;
@@ -22,14 +24,8 @@ interface UseWatermarkBatchProcessorOptions {
 
 const DEFAULT_OVERSIZE_THRESHOLD_BYTES = 30 * 1024 * 1024;
 
-function getDownloadExtension(mimeType: string): string {
-    if (mimeType === "image/webp") {
-        return "webp";
-    }
-    return "jpg";
-}
-
 export function useWatermarkBatchProcessor({
+    resolveWatermark,
     watermarkUrl,
     watermarkColorUrls,
     watermarkOpacity,
@@ -48,8 +44,7 @@ export function useWatermarkBatchProcessor({
         async (
             imgPositionList: ImgWithPosition[],
             batchSize = 5,
-            globalConcurrency = 10,
-            mixedConfig?: MixedWatermarkConfig
+            globalConcurrency = 10
         ) => {
             const limit = pLimit(globalConcurrency);
             const downloadLink = document.createElement("a");
@@ -59,6 +54,8 @@ export function useWatermarkBatchProcessor({
                 Promise<HTMLImageElement>
             >();
             const oversizedFiles: File[] = [];
+            const outputFiles: File[] = [];
+            let processedCount = 0;
             let downloadedCount = 0;
 
             setLoading(true);
@@ -117,7 +114,7 @@ export function useWatermarkBatchProcessor({
                 for (let i = 0; i < imgPositionList.length; i += batchSize) {
                     const batch = imgPositionList.slice(i, i + batchSize);
 
-                    const tasks = batch.map((img, index) =>
+                    const tasks = batch.map((img) =>
                         limit(async () => {
                             console.log(`开始处理图片 ${img.id}`, {
                                 watermarkColorUrl: watermarkColorUrls[img.id],
@@ -127,9 +124,11 @@ export function useWatermarkBatchProcessor({
                                 quality,
                             });
 
-                            const { file, position } = img;
-                            const watermarkSrc =
-                                watermarkColorUrls[img.id] || watermarkUrl;
+                            const { file } = img;
+                            const resolved = await resolveWatermark?.(img);
+                            const position = resolved?.position || img.position;
+                            const watermarkSrc = watermarkColorUrls[img.id] || resolved?.url || watermarkUrl;
+                            if (!watermarkSrc || (resolved && !resolved.url)) throw new Error(`${file.name} 缺少水印文字`);
 
                             let watermarkImg: HTMLImageElement;
                             try {
@@ -168,18 +167,10 @@ export function useWatermarkBatchProcessor({
                                     console.log(
                                         `图片 ${img.id} 处理进度: ${progress}%`
                                     );
-                                },
-                                mixedConfig
+                                }
                             );
 
-                            const sliceName = name.split(".")[0];
-                            const outputFile = new File(
-                                [blob],
-                                `${sliceName}-mark.${getDownloadExtension(
-                                    mimeType
-                                )}`,
-                                { type: mimeType }
-                            );
+                            const outputFile = new File([blob],watermarkOutputName(name,mimeType),{type:mimeType});
 
                             console.log(`图片 ${img.id} 处理完成`, {
                                 size: outputFile.size,
@@ -189,13 +180,11 @@ export function useWatermarkBatchProcessor({
                             if (outputFile.size > oversizeThresholdBytes) {
                                 oversizedFiles.push(outputFile);
                             } else {
-                                triggerDownload(outputFile);
+                                outputFiles.push(outputFile);
                             }
 
-                            const progress =
-                                ((i + index + 1) / imgPositionList.length) *
-                                100;
-                            updateProgressSmoothly(Math.min(progress, 100));
+                            processedCount += 1;
+                            updateProgressSmoothly(processedCount / imgPositionList.length * 90);
                         })
                     );
 
@@ -220,10 +209,26 @@ export function useWatermarkBatchProcessor({
                         : "download";
 
                     if (decision === "download") {
-                        oversizedFiles.forEach(triggerDownload);
+                        outputFiles.push(...oversizedFiles);
                     } else if (onOversizedFiles) {
                         await onOversizedFiles(oversizedFiles);
                     }
+                }
+
+                if (outputFiles.length) {
+                    setLoading(true);
+                    if (outputFiles.length === 1) triggerDownload(outputFiles[0]);
+                    else {
+                        const {default:JSZip} = await importWithRecovery(()=>import("jszip"),"watermark:zip");
+                        const archive = new JSZip();
+                        const used = new Set<string>();
+                        outputFiles.sort((a,b)=>a.name.localeCompare(b.name,'zh-CN',{numeric:true}));
+                        outputFiles.forEach(file=>archive.file(uniqueArchiveName(file.name,used),file));
+                        const blob = await archive.generateAsync({type:"blob",compression:"STORE",streamFiles:true},
+                            metadata=>updateProgressSmoothly(90+metadata.percent*0.1));
+                        triggerDownload(new File([blob],`watermarks-${outputFiles.length}.zip`,{type:"application/zip"}));
+                    }
+                    updateProgressSmoothly(100);
                 }
 
                 if (downloadedCount > 0) {
@@ -268,6 +273,7 @@ export function useWatermarkBatchProcessor({
             watermarkColorUrls,
             watermarkOpacity,
             watermarkUrl,
+            resolveWatermark,
         ]
     );
 

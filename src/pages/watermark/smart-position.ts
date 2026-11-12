@@ -1,3 +1,4 @@
+import { analyzeWatermarkColor } from './adaptive-color';
 import { WatermarkPosition } from "@/types";
 import { getAdaptiveWatermarkRenderMetrics } from "@/utils/watermark-editor";
 
@@ -9,7 +10,8 @@ export function findSmartWatermarkPosition(
     id: string,
     scale: number,
     originalWidth = photo.naturalWidth,
-    originalHeight = photo.naturalHeight
+    originalHeight = photo.naturalHeight,
+    colorAware = false
 ): WatermarkPosition {
     const width = photo.naturalWidth;
     const height = photo.naturalHeight;
@@ -48,8 +50,8 @@ export function findSmartWatermarkPosition(
 
     const boxW = Math.min(w, Math.max(1, Math.ceil(metrics.width * w / originalWidth)));
     const boxH = Math.min(h, Math.max(1, Math.ceil(metrics.height * h / originalHeight)));
-    const marginX = Math.min(Math.round(w * 0.015), Math.max(0, (w - boxW) >> 1));
-    const marginY = Math.min(Math.round(h * 0.015), Math.max(0, (h - boxH) >> 1));
+    const marginX = Math.min(Math.round(w * 0.035), Math.max(0, (w - boxW) >> 1));
+    const marginY = Math.min(Math.round(h * 0.035), Math.max(0, (h - boxH) >> 1));
     const maxX = Math.max(marginX, w - boxW - marginX);
     const maxY = Math.max(marginY, h - boxH - marginY);
     const step = Math.max(2, Math.round(Math.min(w, h) / 32));
@@ -65,7 +67,17 @@ export function findSmartWatermarkPosition(
             const centerX = (x + boxW / 2) / w;
             const centerY = (y + boxH / 2) / h;
             const centerPenalty = Math.max(0, 1 - Math.hypot(centerX - 0.5, centerY - 0.5) * 1.4);
-            const score = energy / (boxW * boxH) + centerPenalty * 18;
+            let readabilityPenalty = 0;
+            if (colorAware) {
+                const pixels:number[]=[];
+                for(let sy=0;sy<5;sy++)for(let sx=0;sx<5;sx++) {
+                    const px=Math.min(w-1,x+Math.floor((sx+.5)*boxW/5));
+                    const py=Math.min(h-1,y+Math.floor((sy+.5)*boxH/5));
+                    const offset=(py*w+px)*4;pixels.push(data[offset],data[offset+1],data[offset+2],data[offset+3]);
+                }
+                readabilityPenalty=(1-analyzeWatermarkColor(pixels).coverage)*45;
+            }
+            const score = energy / (boxW * boxH) + centerPenalty * 18 + readabilityPenalty;
             if (score < bestScore) {
                 bestScore = score;
                 bestX = x;
