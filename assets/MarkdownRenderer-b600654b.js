@@ -1,1 +1,0 @@
-import{r as e,j as n}from"./app-runtime-ee4f2b0d.js";import{M as r,r as o,a as s}from"./index-4b4e4474.js";function t({content:t,components:a,highlight:i=!0,renderToken:m=0,onRenderComplete:p}){return e.useEffect(()=>{null==p||p(m)},[t,i,p,m]),n.jsx(r,{remarkPlugins:[o],rehypePlugins:i?[s]:[],components:a,children:t})}export{t as default};
