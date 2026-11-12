@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><style>body{background:#eee}#samples{display:grid;grid-template-columns:repeat(3,1fr)}canvas{width:360px;height:110px;background:white}</style><button id="download" disabled>下载预览 PNG</button><h1 id="status">生成预览</h1><div id="samples"></div><script type="module">
+import {WATERMARK_FONTS,prepareFontPreview,fontFamily,FONT_PREVIEW_TEXT} from '/src/pages/watermark/fonts/registry.ts';
+const fonts=WATERMARK_FONTS.filter(font=>!font.localSource && (!new URLSearchParams(location.search).has('ids') || new URLSearchParams(location.search).get('ids').split(',').includes(font.id)));document.getElementById('download').dataset.count=fonts.length;
+let completed=0;
+await Promise.all(fonts.map(async font=>{
+ try {
+  await prepareFontPreview(font.id);
+  const canvas=document.createElement('canvas');canvas.width=360;canvas.height=110;canvas.dataset.font=font.id;
+  const ctx=canvas.getContext('2d');ctx.font=`72px ${fontFamily(font.id)}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#111111';ctx.fillText(FONT_PREVIEW_TEXT,180,57);
+  const card=document.createElement('div');const title=document.createElement('p');title.textContent=font.name;const image=new Image();image.src=canvas.toDataURL('image/png');image.dataset.font=font.id;card.append(title,image);document.getElementById('samples').append(card);
+  completed++;
+ }catch(error){const p=document.createElement('p');p.textContent=font.id+': '+error.message;document.body.append(p);}
+ document.getElementById('status').textContent=`完成 ${completed}/${fonts.length}`;
+}));
+</script>
+
+<script type="module">
+import JSZip from 'jszip';
+const button=document.getElementById('download');
+const check=setInterval(()=>{if(document.querySelectorAll('#samples img').length===Number(button.dataset.count)){button.disabled=false;clearInterval(check);}},100);
+button.onclick=async()=>{const zip=new JSZip();document.querySelectorAll('#samples img').forEach(image=>zip.file('preview-'+image.dataset.font+'.png',image.src.split(',')[1],{base64:true}));const url=URL.createObjectURL(await zip.generateAsync({type:'blob'}));const link=document.createElement('a');link.href=url;link.download='watermark-font-previews.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);};
+</script>

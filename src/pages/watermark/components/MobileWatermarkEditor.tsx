@@ -1,3 +1,8 @@
+import WatermarkFontPicker from "./WatermarkFontPicker";
+import WatermarkBlurPreview from "./WatermarkBlurPreview";
+import WatermarkColorControl from "./WatermarkColorControl";
+import WatermarkTextInput from "./WatermarkTextInput";
+import { useStableWatermarkImage } from "../hooks/useStableWatermarkImage";
 import React, { useState, useEffect, useRef } from "react";
 import {
     Stage,
@@ -87,7 +92,10 @@ const drawGuideLines = (layer: Konva.Layer, width: number, height: number) => {
 
 interface MobileWatermarkEditorProps {
     watermarkUrl: string;
+    batchEditing?: boolean;
+    onBatchEditingChange?: (value:boolean) => void;
     backgroundPreviewUrl: string;
+    backgroundOriginalWidth?: number;
     currentWatermarkPosition?: WatermarkPosition;
     stackPreviews?: { id: string; url: string }[];
     onTransform: (position: {
@@ -123,8 +131,10 @@ interface MobileWatermarkEditorProps {
     setWatermarkBlur: (val: boolean) => void;
     quality: number;
     setQuality: (val: number) => void;
-    watermarkMode: "image" | "mixed";
-    setWatermarkMode: (mode: "image" | "mixed") => void;
+    onAutoColor?: () => void;
+    onConfigPatch?: (patch:Partial<MixedWatermarkConfig>) => void;
+    watermarkMode: "image" | "mixed" | "text";
+    setWatermarkMode: (mode: "image" | "mixed" | "text") => void;
     mixedWatermarkConfig: MixedWatermarkConfig;
     setMixedWatermarkConfig: React.Dispatch<React.SetStateAction<MixedWatermarkConfig>>;
     onWatermarkUpload: (files: File[]) => void;
@@ -132,7 +142,9 @@ interface MobileWatermarkEditorProps {
 
 const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     watermarkUrl,
+    batchEditing, onBatchEditingChange,
     backgroundPreviewUrl,
+    backgroundOriginalWidth,
     currentWatermarkPosition,
     onTransform,
     onAllTransform,
@@ -153,6 +165,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     setWatermarkBlur,
     quality,
     setQuality,
+    onAutoColor, onConfigPatch,
     watermarkMode,
     setWatermarkMode,
     mixedWatermarkConfig,
@@ -174,7 +187,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     });
 
     // 水印相关设置
-    const [watermarkImage] = useImage(watermarkUrl);
+    const watermarkImage = useStableWatermarkImage(watermarkUrl);
     const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 });
     const [position, setPosition] = useState<WatermarkPosition>(() => {
         if (currentWatermarkPosition) {
@@ -195,7 +208,13 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     const [showGuideLines, setShowGuideLines] = useState(true);
 
     // 批量or单独
-    const [isBatch, setIsBatch] = useState<boolean>(true);
+    const updateConfig = (patch:Partial<MixedWatermarkConfig>) => {
+        if(onConfigPatch) onConfigPatch(patch);
+        else setMixedWatermarkConfig(prev=>({...prev,...patch}));
+    };
+    const [localBatch, setLocalBatch] = useState<boolean>(false);
+    const isBatch = batchEditing ?? localBatch;
+    const setIsBatch = (value:boolean) => {setLocalBatch(value);onBatchEditingChange?.(value);};
 
     const [backgroundScale, setBackgroundScale] = useState(0.2);
 
@@ -364,20 +383,6 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     useEffect(() => {
         if (backgroundImage && backgroundImageStatus === "loaded") {
             setIsLoading(false);
-            const scaleWidth =
-                backgroundFixWidthVW / backgroundImage.naturalWidth;
-            const windowHeight = window.innerHeight * 0.74;
-            const scaleHeight = windowHeight / backgroundImage.naturalHeight;
-            const scale = Math.min(scaleWidth, scaleHeight);
-
-            const ratio =
-                backgroundImage.naturalWidth / backgroundImage.naturalHeight;
-            const width = windowHeight * ratio;
-            const height = windowHeight;
-            setBackgroundImageSize({ width, height });
-            updateGuideLines();
-            setCurrentScale(1);
-
             // 添加：计算水印标准化比例
             if (watermarkImage) {
                 const standardScale = getAdaptiveWatermarkBaseScale(
@@ -433,7 +438,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
             const scale = Math.min(scaleWidth, scaleHeight);
             setBackgroundScale(scale);
             // 修正：保持水印的 currentScale 为 1（由用户交互再改变）
-            setCurrentScale(1);
+
         }
     }, [backgroundImage, backgroundImageStatus]);
 
@@ -514,6 +519,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         if (!stage) return;
 
         const layer = stage.getLayers()[0];
+        if (!layer) return;
         drawGuideLines(
             layer,
             backgroundImageSize.width,
@@ -525,6 +531,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     useEffect(() => {
         if (currentWatermarkPosition) {
             setPosition(currentWatermarkPosition);
+            setCurrentScale(currentWatermarkPosition.scaleX);
             // 同步更新 selectedPosition 以保持一致性
             const pos = currentWatermarkPosition;
             if (pos.x === 0 && pos.y === 0) setSelectedPosition("topLeft");
@@ -1087,6 +1094,12 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 y={0}
                             />
                         )}
+                        {watermarkBlur && backgroundImage && watermarkImage && (
+                            <WatermarkBlurPreview photo={backgroundImage} watermark={watermarkImage}
+                                width={backgroundImageSize.width} height={backgroundImageSize.height}
+                                position={{...position, scaleX: currentScale}}
+                                originalWidth={backgroundOriginalWidth || backgroundImage.naturalWidth} />
+                        )}
                         {watermarkImage && (
                             <ImageWithFixedWidth
                                 src={watermarkUrl}
@@ -1116,6 +1129,9 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 ref={watermarkRef}
                                 onClick={onWatermarkClick}
                                 onTap={onWatermarkClick}
+                                onDragMove={event => setPosition(prev => ({...prev,
+                                    x: event.target.x() / backgroundImageSize.width,
+                                    y: event.target.y() / backgroundImageSize.height}))}
                                 onDragEnd={handleDragEnd}
                                 onTransformEnd={handleTransform}
                                 onTouchStart={handleTouchStart}
@@ -1225,13 +1241,14 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                         <div className="w-full flex flex-col gap-4">
                             <div className="space-y-2">
                                 <Label>水印模式</Label>
-                                <Select value={watermarkMode} onValueChange={(val: "image" | "mixed") => setWatermarkMode(val)}>
+                                <Select value={watermarkMode} onValueChange={(val: "image" | "mixed" | "text") => setWatermarkMode(val)}>
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="image">图片水印</SelectItem>
-                                        <SelectItem value="mixed">混合水印</SelectItem>
+                                        <SelectItem value="text">文字水印</SelectItem>
+                                        <SelectItem value="mixed">图文水印</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1247,13 +1264,13 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <div className="space-y-2">
+                                    {watermarkMode === "mixed" && <div className="space-y-2">
                                         <Label>上传图标</Label>
                                         <ImageUploader
                                             onUpload={(files) => {
                                                 const reader = new FileReader();
                                                 reader.onload = (e) => {
-                                                    setMixedWatermarkConfig(prev => ({ ...prev, icon: e.target?.result as string }));
+                                                    updateConfig({icon: e.target?.result as string});
                                                 };
                                                 reader.readAsDataURL(files[0]);
                                             }}
@@ -1264,29 +1281,22 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                                 <Upload className="w-4 h-4 mr-2" /> 更换图标
                                             </Button>
                                         </ImageUploader>
-                                    </div>
+                                    </div>}
 
                                     <div className="space-y-2">
-                                        <Label>第一行文字</Label>
-                                        <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第一行文字" aria-label="第一行文字" placeholder="请输入第一行文字" value={mixedWatermarkConfig.textLine1} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine1: e.target.value }))} />
+                                        <Label>主标题</Label>
+                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第一行文字" aria-label="第一行文字" maxLength={120} placeholder="请输入主标题" value={mixedWatermarkConfig.textLine1} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine1: value }))} />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>第二行文字</Label>
-                                        <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第二行文字" aria-label="第二行文字" placeholder="请输入第二行文字" value={mixedWatermarkConfig.textLine2} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: e.target.value }))} />
+                                        <Label>说明文字（可选）</Label>
+                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第二行文字" aria-label="第二行文字" maxLength={120} placeholder="说明文字（可选）" value={mixedWatermarkConfig.textLine2} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: value }))} />
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>文字颜色</Label>
-                                        <div className="flex gap-2">
-                                            <input type="color" className="h-10 w-20 p-1 rounded border" title="文字颜色" aria-label="文字颜色" value={mixedWatermarkConfig.color} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, color: e.target.value }))} />
-                                            <input type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="颜色值" aria-label="颜色值" placeholder="#000000" value={mixedWatermarkConfig.color} onChange={(e)=>setMixedWatermarkConfig(prev=>({ ...prev, color: e.target.value }))} />
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <Label>字体大小: {mixedWatermarkConfig.fontSize}px</Label>
-                                        </div>
-                                        <Slider value={[mixedWatermarkConfig.fontSize]} min={12} max={100} step={1} onValueChange={(v)=>setMixedWatermarkConfig(prev=>({ ...prev, fontSize: v[0] }))} />
-                                    </div>
+                                    <WatermarkColorControl value={mixedWatermarkConfig.color} onAuto={onAutoColor}
+                                        onChange={color => updateConfig({color})} />
+                                    <WatermarkFontPicker value={mixedWatermarkConfig.fontId} text={mixedWatermarkConfig.textLine1}
+                                        onChange={fontId => updateConfig({fontId})} />
+                                    <WatermarkFontPicker label="说明字体" value={mixedWatermarkConfig.captionFontId} text={mixedWatermarkConfig.textLine2}
+                                        onChange={captionFontId => updateConfig({captionFontId})} />
                                     <div className="space-y-2">
                                         <Label>布局方向</Label>
                                         <Select value={mixedWatermarkConfig.layout} onValueChange={(val: "horizontal" | "vertical")=>setMixedWatermarkConfig(prev=>({ ...prev, layout: val }))}>

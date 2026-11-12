@@ -1,7 +1,7 @@
 import { useState, useEffect, forwardRef } from "react";
 import Konva from "konva";
 import { Image as KonvaImage } from "react-konva";
-import useImage from "use-image";
+import { useStableWatermarkImage } from "../hooks/useStableWatermarkImage";
 import { getImageOpaqueBounds } from "@/utils/watermark-editor";
 
 interface ImageWithFixedWidthProps {
@@ -16,6 +16,7 @@ interface ImageWithFixedWidthProps {
     onTap?: () => void;
     onDblClick?: () => void;
     onDblTap?: () => void;
+    onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void;
     onDragEnd?: (e: Konva.KonvaEventObject<DragEvent>) => void;
     onTransformEnd?: (e: Konva.KonvaEventObject<Event>) => void;
     onTouchStart?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
@@ -46,7 +47,7 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
         },
         ref
     ) => {
-        const [image, status] = useImage(src);
+        const image = useStableWatermarkImage(src);
         const [size, setSize] = useState({ width: fixedWidth, height: 0 });
         const [crop, setCrop] = useState({
             x: 0,
@@ -56,13 +57,13 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
         });
 
         useEffect(() => {
-            if (image && status === "loaded") {
+            if (image) {
                 const bounds = getImageOpaqueBounds(image);
                 const height = (bounds.height / bounds.width) * fixedWidth;
                 setSize({ width: fixedWidth, height });
                 setCrop(bounds);
             }
-        }, [image, fixedWidth, status]);
+        }, [image, fixedWidth]);
 
         return (
             <KonvaImage

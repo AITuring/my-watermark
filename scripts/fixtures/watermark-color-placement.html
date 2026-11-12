@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><style>body{margin:20px;background:#eceae5;color:#282c31;font:13px system-ui}h1{font-size:18px}#cases{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.case{background:white;border-radius:8px;padding:10px}canvas{width:100%;display:block;border-radius:5px}p{margin:7px 0 0;font-size:11px;color:#666}</style><h1 id="status">整条自动水印流程：正在处理</h1><div id="cases"></div><script type="module">
+import {colorCases,casePixels} from './watermark-color-cases.js';
+import {createSmartWatermark} from '/src/pages/watermark/smart-watermark.ts';
+import {loadPositionImage} from '/src/pages/watermark/smart-position.ts';
+import {getImageOpaqueBounds,getAdaptiveWatermarkRenderMetrics} from '/src/utils/watermark-editor.ts';
+import {analyzeWatermarkColor} from '/src/pages/watermark/adaptive-color.ts';
+let done=0;
+for(const item of colorCases){
+ const canvas=document.createElement('canvas');canvas.width=960;canvas.height=640;const ctx=canvas.getContext('2d');const bg=document.createElement('canvas');bg.width=96;bg.height=64;bg.getContext('2d').putImageData(new ImageData(casePixels(item),96,64),0,0);ctx.drawImage(bg,0,0,960,640);const previewUrl=canvas.toDataURL();
+ const result=await createSmartWatermark({id:item.name,width:960,height:640,previewUrl},{enabled:true,icon:'',textOnly:true,textLine1:'风月同天',textLine2:'山川异域',color:'#000000',fontSize:30,gap:20,layout:'horizontal'});
+ const logo=await loadPositionImage(result.url);const bounds=getImageOpaqueBounds(logo);const metrics=getAdaptiveWatermarkRenderMetrics(960,640,logo,result.position.scaleX);const x=result.position.x*960,y=result.position.y*640;
+ const region=ctx.getImageData(Math.floor(x),Math.floor(y),Math.max(1,Math.min(960-Math.ceil(x),Math.ceil(metrics.width))),Math.max(1,Math.min(640-Math.ceil(y),Math.ceil(metrics.height))));
+ const diagnostic=analyzeWatermarkColor(region.data);ctx.drawImage(logo,bounds.x,bounds.y,bounds.width,bounds.height,x,y,metrics.width,metrics.height);
+ const card=document.createElement('div');card.className='case';card.dataset.name=item.name;card.dataset.coverage=diagnostic.coverage;card.dataset.color=result.config.color;const note=document.createElement('p');note.textContent=`${item.name} · ${result.config.color} · ${result.config.layout==='vertical'?'竖排':'横排'} · ${Math.round(diagnostic.coverage*100)}%`;card.append(canvas,note);document.getElementById('cases').append(card);document.getElementById('status').textContent=`整条自动流程：${++done}/20（颜色、位置、方向共同适配）`;
+}
+</script>

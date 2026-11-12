@@ -1,3 +1,5 @@
+import WatermarkBlurPreview from "./WatermarkBlurPreview";
+import { useStableWatermarkImage } from "../hooks/useStableWatermarkImage";
 /* eslint-disable react/display-name */
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -80,31 +82,40 @@ interface DominantColor {
 
 interface WatermarkEditorProps {
     watermarkUrl: string;
+    previewZoom?: number;
+    onPreviewZoomChange?: (value: number) => void;
+    batchEditing?: boolean;
+    onBatchEditingChange?: (value:boolean) => void;
     backgroundPreviewUrl: string;
+    backgroundOriginalWidth?: number;
     currentWatermarkPosition?: WatermarkPosition;
     onTransform: (position: WatermarkPosition) => void;
     onAllTransform: (position: WatermarkPosition) => void;
     onSmartPosition: (batch: boolean, scale: number) => Promise<void>;
     watermarkColor?: string;
     onColorChange?: (watermarkUrl: string, batch: boolean) => void;
+    onTextColorChange?: (color: string, batch: boolean) => void;
+    watermarkBlur?: boolean;
     watermarkOpacity?: number; // 新增透明度属性
 }
 
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     watermarkUrl,
+    batchEditing, onBatchEditingChange, previewZoom, onPreviewZoomChange,
     backgroundPreviewUrl,
+    backgroundOriginalWidth,
     currentWatermarkPosition,
     onTransform,
     onAllTransform,
     onSmartPosition,
     watermarkColor,
     onColorChange,
+    onTextColorChange,
+    watermarkBlur = false,
     watermarkOpacity = 1, // 默认不透明
 }) => {
     // 背景图片相关设置
-    const [backgroundFixWidthVW, setBackgroundFixWidthVW] = useState(
-        () => window.innerHeight * 0.8
-    );
+    const [previewBounds,setPreviewBounds] = useState({width:600,height:400});
     const [backgroundImageUrl, setBackgroundImageUrl] = useState("");
     const [backgroundImage, backgroundImageStatus] =
         useImage(backgroundImageUrl);
@@ -123,7 +134,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const [currentScale, setCurrentScale] = useState(1);
 
     // 批量or单独
-    const [isBatch, setIsBatch] = useState<boolean>(true);
+    const [localBatch, setLocalBatch] = useState<boolean>(false);
+    const isBatch = batchEditing ?? localBatch;
+    const setIsBatch = (value:boolean) => {setLocalBatch(value);onBatchEditingChange?.(value);};
 
     // 添加选择位置的状态
     const [selectedPosition, setSelectedPosition] = useState("center");
@@ -135,7 +148,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const [coloredWatermarkUrl, setColoredWatermarkUrl] =
         useState(watermarkUrl);
     const [isProcessingColor, setIsProcessingColor] = useState(false);
-    const [watermarkImage] = useImage(coloredWatermarkUrl);
+    const watermarkImage = useStableWatermarkImage(coloredWatermarkUrl);
     const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 });
     const [position, setPosition] = useState<WatermarkPosition>(
         currentWatermarkPosition || {
@@ -156,7 +169,14 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const [customColor, setCustomColor] = useState(""); // 自定义颜色状态
 
     // 预览缩放状态
-    const [previewScale, setPreviewScale] = useState(1);
+    const [localPreviewScale, setLocalPreviewScale] = useState(1);
+    const previewScale = previewZoom ?? localPreviewScale;
+    const setPreviewScale = (next: number | ((previous: number) => number)) => {
+        const value = typeof next === 'function' ? next(previewScale) : next;
+        setLocalPreviewScale(value);
+        onPreviewZoomChange?.(value);
+    };
+    useEffect(() => { if (previewScale === 1) setPreviewPos({x:0,y:0}); }, [previewScale]);
     const [previewPos, setPreviewPos] = useState({ x: 0, y: 0 });
 
     // Toolbar state
@@ -365,6 +385,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     // 应用水印颜色的函数
     const applyWatermarkColor = async (color: string) => {
+        if (onTextColorChange) { onTextColorChange(color, isBatch); return; }
         if (!color || isProcessingColor) return;
 
         setIsProcessingColor(true);
@@ -409,6 +430,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         if (!stage) return;
 
         const layer = stage.getLayers()[0];
+        if (!layer) return;
         const guideLines = layer.find(".guide-line");
         guideLines.forEach((line) => line.destroy());
 
@@ -419,26 +441,16 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         );
     };
 
-    // 更新背景图片宽度的状态
-    const updateBackgroundWidth = () => {
-        const vwWidth = window.innerHeight * 0.8;
-        setBackgroundFixWidthVW(vwWidth);
-    };
-
-    // 添加resize事件监听器
     useEffect(() => {
-        window.addEventListener("resize", updateBackgroundWidth);
-        const handleResize = () => {
-            updateBackgroundWidth();
-            // updateWatermarkSize(currentScale);
-        };
-        window.addEventListener("resize", handleResize);
-        handleResize();
-        return () => {
-            window.removeEventListener("resize", updateBackgroundWidth);
-            window.removeEventListener("resize", handleResize);
-        };
-    }, [currentScale]);
+        const container = containerRef.current;
+        if (!container) return;
+        const observer = new ResizeObserver(entries => {
+            const bounds = entries[0]?.contentRect;
+            if (bounds) setPreviewBounds({width:Math.max(1,bounds.width-32),height:Math.max(1,bounds.height-32)});
+        });
+        observer.observe(container);
+        return () => observer.disconnect();
+    }, []);
 
     // 更新水印尺寸
     const updateWatermarkSize = (scale) => {
@@ -472,15 +484,13 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     useEffect(() => {
         if (backgroundImage && backgroundImageStatus === "loaded") {
             const scaleWidth =
-                backgroundFixWidthVW / backgroundImage.naturalWidth;
-            const windowHeight = window.innerHeight * 0.82;
+                previewBounds.width / backgroundImage.naturalWidth;
+            const windowHeight = previewBounds.height;
             const scaleHeight = windowHeight / backgroundImage.naturalHeight;
             const scale = Math.min(scaleWidth, scaleHeight);
 
-            const ratio =
-                backgroundImage.naturalWidth / backgroundImage.naturalHeight;
-            const width = windowHeight * ratio;
-            const height = windowHeight;
+            const width = backgroundImage.naturalWidth * scale;
+            const height = backgroundImage.naturalHeight * scale;
             setBackgroundImageSize({ width, height });
             setBackgroundScale(scale);
             updateGuideLines();
@@ -506,7 +516,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     }, [
         backgroundImage,
         backgroundImageStatus,
-        backgroundFixWidthVW,
+        previewBounds,
         watermarkImage,
     ]);
 
@@ -536,6 +546,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         if (!stage) return;
 
         const layer = stage.getLayers()[0];
+        if (!layer) return;
         drawGuideLines(
             layer,
             backgroundImageSize.width,
@@ -546,6 +557,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     useEffect(() => {
         if (currentWatermarkPosition) {
             setPosition(currentWatermarkPosition);
+            setCurrentScale(currentWatermarkPosition.scaleX);
+            setSelectedPosition("");
         }
     }, [currentWatermarkPosition]);
 
@@ -888,10 +901,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     ]);
 
     return (
-        <div className="flex flex-1 flex-col h-full relative group">
+        <div className="flex min-h-0 flex-1 flex-col relative group">
             <div
                 ref={containerRef}
-                className="relative flex-1 rounded-2xl overflow-hidden bg-slate-100/50 flex items-center justify-center border border-slate-200/50 shadow-inner"
+                className="relative min-h-0 flex-1 pb-20 rounded-2xl overflow-hidden bg-stone-200/50 dark:bg-slate-900/70 flex items-center justify-center border border-slate-200/50 shadow-inner"
             >
                 <Stage
                     width={backgroundImageSize.width}
@@ -919,6 +932,12 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                 width={backgroundImageSize.width} // 统一，不使用 backgroundSliderValue
                                 height={backgroundImageSize.height} // 统一，不使用 backgroundSliderValue
                             />
+                        )}
+                        {watermarkBlur && backgroundImage && watermarkImage && (
+                            <WatermarkBlurPreview photo={backgroundImage} watermark={watermarkImage}
+                                width={backgroundImageSize.width} height={backgroundImageSize.height}
+                                position={{...position, scaleX: currentScale}}
+                                originalWidth={backgroundOriginalWidth || backgroundImage.naturalWidth} />
                         )}
                         {watermarkImage && (
                             <>
@@ -949,7 +968,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                     ref={watermarkRef}
                                     onClick={onWatermarkClick}
                                     onTap={onWatermarkClick}
-                                    onDragEnd={handleDragEnd}
+                                    onDragMove={event => setPosition(prev => ({...prev,
+                                    x: event.target.x() / backgroundImageSize.width,
+                                    y: event.target.y() / backgroundImageSize.height}))}
+                                onDragEnd={handleDragEnd}
                                     onTransformEnd={handleTransform}
                                     opacity={watermarkOpacity}
                                 />
@@ -1000,9 +1022,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                     {isToolbarExpanded ? (
                         <div className="relative group">
                             <div
-                                className={`bg-white/80 backdrop-blur-xl shadow-2xl shadow-black/10 border border-white/60 rounded-[2rem] p-3 flex ${
+                                className={`wm-floating-controls bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl shadow-black/10 border border-slate-200 dark:border-slate-700 rounded-xl p-2 flex ${
                                     isVerticalLayout ? "flex-col" : "flex-row"
-                                } items-center gap-4 transition-all hover:bg-white hover:shadow-black/15 cursor-move select-none`}
+                                } items-center gap-2 transition-colors cursor-move select-none`}
                             >
                                 {/* Collapse Button */}
                                 <button
@@ -1037,18 +1059,15 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                     className="w-3.5 h-3.5"
                                 />
                             </div> */}
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger>
                                         <Select
                                             value={selectedPosition}
                                             onValueChange={handlePositionChange}
                                         >
-                                            <SelectTrigger
-                                                className={`h-8 text-xs bg-transparent border-0 focus:ring-0 hover:bg-slate-50/50 rounded-md transition-colors font-medium text-slate-600 [&>span]:flex [&>span]:items-center no-drag ${
+                                            <SelectTrigger aria-label="水印位置"
+                                                className={`h-9 text-sm bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-blue-500/40 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors font-medium text-slate-700 dark:text-slate-200 [&>span]:flex [&>span]:items-center no-drag ${
                                                     isVerticalLayout
                                                         ? "w-8 justify-center px-0 [&>svg]:hidden"
-                                                        : "w-[80px] px-2 justify-between"
+                                                        : "w-[110px] px-3 justify-between"
                                                 }`}
                                             >
                                                 <SelectValue
@@ -1066,7 +1085,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                                         />
                                                     )}
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className="rounded-xl border-slate-200 bg-white p-1 text-slate-700 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                                                 <SelectGroup>
                                                     <SelectItem value="smart" disabled={isFindingPosition} className="text-xs cursor-pointer">
                                                         {isFindingPosition ? "正在分析图片…" : "智能位置 · 避开复杂区域"}
@@ -1125,25 +1144,22 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                                             <SelectItem
                                                                 key={item.v}
                                                                 value={item.v}
-                                                                className="justify-center text-center text-xs py-1.5 cursor-pointer focus:bg-blue-50 focus:text-blue-600 rounded-sm pr-2 [&>span.absolute]:hidden data-[state=checked]:bg-blue-100 data-[state=checked]:text-blue-600"
+                                                                className="justify-center text-center text-sm py-2.5 cursor-pointer focus:bg-blue-50 focus:text-blue-600 dark:focus:bg-slate-700 dark:focus:text-blue-300 rounded-md pr-2 [&>span.absolute]:hidden data-[state=checked]:bg-blue-100 data-[state=checked]:text-blue-600 dark:data-[state=checked]:bg-slate-700 dark:data-[state=checked]:text-blue-300"
                                                                 title={item.t}
                                                             >
                                                                 <Icon
                                                                     icon={
                                                                         item.i
                                                                     }
-                                                                    className="w-4 h-4"
+                                                                    className="inline-block w-4 h-4 mr-1.5"
                                                                 />
+                                                                {item.t}
                                                             </SelectItem>
                                                         ))}
                                                     </div>
                                                 </SelectGroup>
                                             </SelectContent>
                                         </Select>
-                                    </TooltipTrigger>
-                                    <TooltipContent>快速定位</TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
 
                             <div
                                 className={
@@ -1155,21 +1171,20 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
                             <TooltipProvider>
                                 <Tooltip>
-                                    <TooltipTrigger>
+                                    <TooltipTrigger asChild>
                                         <div
                                             className={`flex ${
                                                 isVerticalLayout
                                                     ? "flex-col gap-1"
                                                     : "flex-row gap-2"
                                             } items-center cursor-pointer group/batch select-none no-drag`}
-                                            onClick={() => setIsBatch(!isBatch)}
                                         >
                                             <Switch
                                                 checked={isBatch}
                                                 onCheckedChange={setIsBatch}
                                                 className="scale-75 data-[state=checked]:bg-blue-600"
                                             />
-                                            <span
+                                            <button type="button" onClick={() => setIsBatch(!isBatch)}
                                                 className={`text-xs font-medium transition-colors ${
                                                     isBatch
                                                         ? "text-blue-600"
@@ -1177,7 +1192,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                                 } w-[24px]`}
                                             >
                                                 {isBatch ? "批量" : "单独"}
-                                            </span>
+                                            </button>
                                         </div>
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -1307,6 +1322,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                                         title="自定义颜色"
                                                         type="color"
                                                         className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                                                        onInput={(event) => {
+                                                            if (onTextColorChange) onTextColorChange(event.currentTarget.value, isBatch);
+                                                        }}
                                                         onChange={(e) => {
                                                             setCustomColor(
                                                                 e.target.value
@@ -1359,11 +1377,11 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                                 isVerticalLayout
                                                     ? "flex-col"
                                                     : "flex-row"
-                                            } items-center bg-slate-100 rounded-lg p-0.5`}
+                                            } items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5`}
                                         >
                                             <button
                                                 title="缩小"
-                                                className="p-1 hover:bg-white rounded-md text-slate-500 hover:text-blue-600 transition-all disabled:opacity-50"
+                                                className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-300 hover:text-blue-600 transition-all disabled:opacity-50"
                                                 onClick={handleZoomOut}
                                                 disabled={previewScale <= 1}
                                             >
@@ -1372,13 +1390,13 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                                     className="w-3.5 h-3.5"
                                                 />
                                             </button>
-                                            <span className="text-[10px] font-medium text-slate-500 w-9 text-center select-none tabular-nums">
+                                            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-300 w-9 text-center select-none tabular-nums">
                                                 {Math.round(previewScale * 100)}
                                                 %
                                             </span>
                                             <button
                                                 title="放大"
-                                                className="p-1 hover:bg-white rounded-md text-slate-500 hover:text-blue-600 transition-all disabled:opacity-50"
+                                                className="p-1 hover:bg-white dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-300 hover:text-blue-600 transition-all disabled:opacity-50"
                                                 onClick={handleZoomIn}
                                                 disabled={previewScale >= 5}
                                             >
