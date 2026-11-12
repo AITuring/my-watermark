@@ -1,10 +1,10 @@
 import WatermarkBlurPreview from "./WatermarkBlurPreview";
 import {PreviewZoomControl, WatermarkColorControl} from "./PreviewAppearanceControls";
-import {zoomAroundCenter} from "../preview-zoom";
+import {fitPreviewImage, previewPositionForCenter, previewCenterForPosition} from "../preview-zoom";
 import InlineWatermarkTextEditor, { type InlineWatermarkEditorHandle } from './InlineWatermarkTextEditor';
 import { useStableWatermarkImage } from "../hooks/useStableWatermarkImage";
 /* eslint-disable react/display-name */
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import {
     Select,
     SelectContent,
@@ -30,7 +30,6 @@ import { WatermarkPosition, MixedWatermarkConfig } from "@/types";
 import {
     extractDominantColors,
     applyColorToWatermark,
-    getAdaptiveWatermarkBaseScale,
     getAdaptiveWatermarkRenderMetrics,
 } from "@/utils/watermark-editor";
 import ImageWithFixedWidth from "@/pages/watermark/components/ImageWithFixedWidth";
@@ -141,8 +140,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const [backgroundScale, setBackgroundScale] = useState(0.2);
     // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例）
 
-    // 水印相对于背景图片的标准化比例（基于图片较短边的百分比）
-    const [watermarkStandardScale, setWatermarkStandardScale] = useState(0.1);
     // 当前设置的比例，为了方便按钮操作（这是水印的比例，不是背景的比例）
     const [currentScale, setCurrentScale] = useState(1);
 
@@ -177,8 +174,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const watermarkRef = useRef<Konva.Image>(null);
     const inlineEditorRef = useRef<InlineWatermarkEditorHandle>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
-    const [backgroundSliderValue, setBackgroundSliderValue] = useState(1);
-    const stageRef = useRef(null);
+    const stageRef = useRef<Konva.Stage>(null);
 
     const [localColor, setLocalColor] = useState("");
 
@@ -190,13 +186,12 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         setLocalPreviewScale(value);
         onPreviewZoomChange?.(value);
     };
-    const [previewPos, setPreviewPos] = useState({ x: 0, y: 0 });
-    const previousZoom = useRef(previewScale);
+    const [previewCenter, setPreviewCenter] = useState({ x: .5, y: .5 });
+    const previewPos = previewPositionForCenter(previewCenter, previewScale,
+        previewBounds.width, previewBounds.height, backgroundImageSize.width, backgroundImageSize.height);
     useEffect(() => {
-        const oldScale = previousZoom.current;
-        previousZoom.current = previewScale;
-        if (previewScale !== oldScale) setPreviewPos(previous => zoomAroundCenter(previous, oldScale, previewScale, backgroundImageSize.width, backgroundImageSize.height));
-    }, [previewScale, backgroundImageSize.width, backgroundImageSize.height]);
+        if (previewScale === 1) setPreviewCenter({x: .5, y: .5});
+    }, [previewScale]);
 
     // Toolbar state
     const [isToolbarExpanded, setIsToolbarExpanded] = useState(true);
@@ -409,12 +404,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         setColoredWatermarkUrl(watermarkColor || watermarkUrl);
     }, [watermarkColor, watermarkUrl]);
 
-    // 处理背景图片缩放滑动条变化的函数
-    const handleBackgroundSliderChange = (e) => {
-        const newScale = parseFloat(e.target.value);
-        setBackgroundSliderValue(newScale);
-    };
-
     // 更新参考线的函数
     const updateGuideLines = () => {
         const stage = stageRef.current;
@@ -432,13 +421,12 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         );
     };
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const container = containerRef.current;
         if (!container) return;
-        const observer = new ResizeObserver(entries => {
-            const bounds = entries[0]?.contentRect;
-            if (bounds) setPreviewBounds({width:Math.max(1,bounds.width-32),height:Math.max(1,bounds.height-32)});
-        });
+        const measure = () => setPreviewBounds({width:Math.max(1,container.clientWidth),height:Math.max(1,container.clientHeight)});
+        measure();
+        const observer = new ResizeObserver(measure);
         observer.observe(container);
         return () => observer.disconnect();
     }, []);
@@ -464,6 +452,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 当背景图片预览地址改变时，更新背景图片的 URL
     useEffect(() => {
         setBackgroundImageUrl(backgroundPreviewUrl);
+        setPreviewCenter({x: .5, y: .5});
+        if (previewScale !== 1) setPreviewScale(1);
     }, [backgroundPreviewUrl]);
 
     // 当缩放或图片变化时，刷新用于边界判断的尺寸
@@ -474,14 +464,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     // 当背景图片加载完成时，更新背景图片的尺寸
     useEffect(() => {
         if (backgroundImage && backgroundImageStatus === "loaded") {
-            const scaleWidth =
-                previewBounds.width / backgroundImage.naturalWidth;
-            const windowHeight = previewBounds.height;
-            const scaleHeight = windowHeight / backgroundImage.naturalHeight;
-            const scale = Math.min(scaleWidth, scaleHeight);
-
-            const width = backgroundImage.naturalWidth * scale;
-            const height = backgroundImage.naturalHeight * scale;
+            const {width, height, scale} = fitPreviewImage(backgroundImage.naturalWidth,
+                backgroundImage.naturalHeight, previewBounds.width, previewBounds.height);
             setBackgroundImageSize({ width, height });
             setBackgroundScale(scale);
             updateGuideLines();
@@ -896,29 +880,39 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         <div className="wm-preview-workspace flex min-h-0 min-w-0 flex-1 flex-col relative group">
             <div
                 ref={containerRef}
-                className="relative min-h-0 flex-1 pb-20 rounded-2xl overflow-hidden bg-stone-200/50 dark:bg-slate-900/70 flex items-center justify-center border border-slate-200/50 shadow-inner"
+                className="wm-preview-viewport relative min-h-0 flex-1 rounded-2xl overflow-hidden bg-stone-200/50 dark:bg-slate-900/70 border border-slate-200/50 shadow-inner"
             >
                 <Stage
-                    style={{position: 'relative'}}
-                    width={backgroundImageSize.width}
-                    height={backgroundImageSize.height}
+                    style={{position: 'absolute', inset: 0}}
+                    width={previewBounds.width}
+                    height={previewBounds.height}
                     scale={{ x: previewScale, y: previewScale }}
                     x={previewPos.x}
                     y={previewPos.y}
                     draggable={previewScale > 1}
+                    dragBoundFunc={nextPosition => previewPositionForCenter(
+                        previewCenterForPosition(nextPosition, previewScale, previewBounds.width,
+                            previewBounds.height, backgroundImageSize.width, backgroundImageSize.height),
+                        previewScale, previewBounds.width, previewBounds.height,
+                        backgroundImageSize.width, backgroundImageSize.height)}
                     onDragEnd={(e) => {
                         if (e.target === e.target.getStage()) {
-                            setPreviewPos(e.target.position());
+                            const center = previewCenterForPosition(e.target.position(), previewScale,
+                                previewBounds.width, previewBounds.height, backgroundImageSize.width, backgroundImageSize.height);
+                            e.target.position(previewPositionForCenter(center, previewScale, previewBounds.width,
+                                previewBounds.height, backgroundImageSize.width, backgroundImageSize.height));
+                            setPreviewCenter(center);
                         }
                     }}
                     ref={stageRef}
-                    className={`flex items-center justify-center shadow-2xl ${
+                    className={`${
                         previewScale > 1
                             ? "cursor-grab active:cursor-grabbing"
                             : ""
                     }`}
                 >
-                    <Layer>
+                    <Layer x={(previewBounds.width - backgroundImageSize.width) / 2}
+                        y={(previewBounds.height - backgroundImageSize.height) / 2}>
                         {backgroundImage && (
                             <KonvaImage
                                 image={backgroundImage}
