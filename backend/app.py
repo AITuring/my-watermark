@@ -15,7 +15,6 @@ import math
 import asyncio
 import os
 from dataclasses import asdict
-import rawpy
 
 app = FastAPI()
 
@@ -1474,93 +1473,6 @@ async def museum_events_raw():
         headers={"Cache-Control": "no-cache"},
     )
 
-
-@app.post("/api/raw/decode")
-async def decode_raw(file: UploadFile = File(...)):
-    filename = (file.filename or "").lower()
-    if not filename:
-        raise HTTPException(status_code=400, detail="文件名为空")
-
-    allowed_ext = (
-        ".cr2", ".cr3", ".nef", ".nrw", ".arw", ".sr2", ".srf",
-        ".dng", ".raf", ".orf", ".rw2", ".pef", ".iiq", ".3fr", ".srw"
-    )
-    if not filename.endswith(allowed_ext):
-        raise HTTPException(status_code=400, detail="不支持的RAW格式")
-
-    contents = await file.read()
-    if not contents:
-        raise HTTPException(status_code=400, detail="文件为空")
-
-    camera_model = None
-    try:
-        with rawpy.imread(io.BytesIO(contents)) as raw:
-            camera_model = getattr(raw, "camera_model", None)
-            if isinstance(camera_model, bytes):
-                camera_model = camera_model.decode("utf-8", errors="ignore")
-
-            demosaic_algo = getattr(getattr(rawpy, "DemosaicAlgorithm", object), "AHD", None)
-            highlight_mode = getattr(getattr(rawpy, "HighlightMode", object), "Blend", None)
-            fbdd_mode = getattr(getattr(rawpy, "FBDDNoiseReductionMode", object), "Full", None)
-            if fbdd_mode is None:
-                fbdd_mode = getattr(getattr(rawpy, "FBDDNoiseReductionMode", object), "Light", None)
-            output_color = getattr(getattr(rawpy, "ColorSpace", object), "sRGB", None)
-
-            postprocess_kwargs = {
-                "output_bps": 16,
-                "use_camera_wb": True,
-                "use_auto_wb": False,
-                "no_auto_bright": True,
-                "auto_bright_thr": 0.005,
-                "bright": 1.28,
-                "gamma": (2.222, 4.5),
-                "median_filter_passes": 1,
-                "user_flip": 0,
-            }
-            if demosaic_algo is not None:
-                postprocess_kwargs["demosaic_algorithm"] = demosaic_algo
-            if highlight_mode is not None:
-                postprocess_kwargs["highlight_mode"] = highlight_mode
-            if fbdd_mode is not None:
-                postprocess_kwargs["fbdd_noise_reduction"] = fbdd_mode
-            if output_color is not None:
-                postprocess_kwargs["output_color"] = output_color
-
-            rgb16 = raw.postprocess(**postprocess_kwargs)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"RAW解析失败: {str(e)}")
-
-    if rgb16 is None or rgb16.size == 0:
-        raise HTTPException(status_code=500, detail="RAW解析结果为空")
-
-    if rgb16.dtype != np.uint16:
-        rgb16 = np.clip(rgb16, 0, 65535).astype(np.uint16)
-
-    if len(rgb16.shape) == 2:
-        rgb16 = np.stack([rgb16, rgb16, rgb16], axis=-1)
-
-    if rgb16.shape[2] > 3:
-        rgb16 = rgb16[:, :, :3]
-
-    payload = base64.b64encode(rgb16.tobytes(order="C")).decode("ascii")
-
-    return {
-        "width": int(rgb16.shape[1]),
-        "height": int(rgb16.shape[0]),
-        "channels": int(rgb16.shape[2]),
-        "bps": 16,
-        "pixels": payload,
-        "metadata": {
-            "name": file.filename,
-            "type": file.content_type or "image/x-raw",
-            "size": len(contents),
-            "width": int(rgb16.shape[1]),
-            "height": int(rgb16.shape[0]),
-            "exif": {
-                "model": camera_model,
-            },
-        },
-    }
 
 @app.post("/stitch")
 async def stitch_images(files: List[UploadFile] = File(...)):

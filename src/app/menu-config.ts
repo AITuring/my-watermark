@@ -1,7 +1,6 @@
 import {
     Crop,
     FileArchive,
-    Focus,
     ImagePlus,
     Images,
     Info,
@@ -21,7 +20,6 @@ export const menuItems = [
     { path: "/crop", icon: Crop, label: "图片裁切" },
     { path: "/rename", icon: Pencil, label: "图片重命名" },
     { path: "/photo-exif", icon: Info, label: "照片 EXIF" },
-    { path: "/focus-stack", icon: Focus, label: "焦点合成" },
     { path: "/google-photo", icon: Images, label: "Google 相册" },
     { path: "/compress", icon: FileArchive, label: "图片压缩" },
     { path: "/batch-workbench", icon: SlidersHorizontal, label: "批量工作台" },

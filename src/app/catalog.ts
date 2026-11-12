@@ -10,22 +10,7 @@ export interface AppCatalogItem {
 }
 
 export const appCatalog: AppCatalogItem[] = [
-    {
-        id: "river",
-        label: "水流模拟系统",
-        url: "/river",
-        icon: "material-symbols:water",
-        description: "从小溪、湖泊到大江与巨浪，探索不同尺度的水流、波谱与光影",
-        component: () => import("../pages/river"),
-    },
-    {
-        id: "ancient-waves",
-        label: "古画水纹",
-        url: "/ancient-waves",
-        icon: "material-symbols:water-outline",
-        description: "以 SVG 线条重绘古画中的层叠海浪",
-        component: () => import("../pages/ancient-waves"),
-    },
+
     // {
     //     id: "reading-notes",
     //     label: "读书笔记合集",
@@ -82,14 +67,6 @@ export const appCatalog: AppCatalogItem[] = [
         description: "按相册流式浏览照片，适合沉浸式回看和筛图",
         component: () => import("../pages/google-photo"),
     },
-    {
-        id: "cover-collage",
-        label: "封面拼贴",
-        url: "/cover-collage",
-        icon: "material-symbols:imagesmode-outline-rounded",
-        description: "上传多张图片生成暗色展陈感 cover 图，适合做封面和分享海报",
-        component: () => import("../pages/cover-collage"),
-    },
     // {
     //     id: "frame",
     //     label: "简约相框",
@@ -129,22 +106,6 @@ export const appCatalog: AppCatalogItem[] = [
         icon: "material-symbols:photo-library-outline",
         description: "上传有重叠区域的照片自动合成为一张全景大图",
         component: () => import("../pages/stitch"),
-    },
-    {
-        id: "focus-stack",
-        label: "焦点合成",
-        url: "/focus-stack",
-        icon: "mdi:image-filter-hdr",
-        description: "把不同对焦点的照片融合成一张尽量全清晰的成片",
-        component: () => import("../pages/focus-stack"),
-    },
-    {
-        id: "focus-visualizer",
-        label: "焦点可视化",
-        url: "/focus-visualizer",
-        icon: "mdi:image-search-outline",
-        description: "对比同视角不同对焦点的图片，直观看每张图清晰区域落在哪",
-        component: () => import("../pages/focus-visualizer"),
     },
     {
         id: "artifact-ai",
@@ -204,10 +165,10 @@ export const appCatalog: AppCatalogItem[] = [
     // },
     {
         id: "collage",
-        label: "模板拼贴",
+        label: "图片拼贴",
         url: "/collage",
         icon: "material-symbols:photo-library-outline",
-        description: "按预设模板合成多图海报，适合电商图、封面和分享图",
+        description: "切换菱形、叠扇、花叶与网格模板，将多张图片拼成封面和海报",
         component: () => import("../pages/collage"),
     },
     {
@@ -243,14 +204,6 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("../pages/calendar"),
     },
     {
-        id: "raw-editor",
-        label: "RAW编辑器",
-        url: "/raw-editor",
-        icon: "material-symbols:camera-enhance-outline",
-        description: "面向摄影后期的 RAW 调整工具，精细控制画质",
-        component: () => import("../pages/raw-editor"),
-    },
-    {
         id: "museum",
         label: "博物万象",
         url: "/museum",
@@ -265,5 +218,21 @@ export const appCatalog: AppCatalogItem[] = [
         icon: "material-symbols:event-available-outline",
         description: "追踪近期临展和时间节点，避免错过想看的展",
         component: () => import("../pages/museum-events"),
+    },
+    {
+        id: "river",
+        label: "水流模拟系统",
+        url: "/river",
+        icon: "material-symbols:water",
+        description: "从小溪、湖泊到大江与巨浪，探索不同尺度的水流、波谱与光影",
+        component: () => import("../pages/river"),
+    },
+    {
+        id: "ancient-waves",
+        label: "古画水纹",
+        url: "/ancient-waves",
+        icon: "material-symbols:water-outline",
+        description: "以 SVG 线条重绘古画中的层叠海浪",
+        component: () => import("../pages/ancient-waves"),
     },
 ];

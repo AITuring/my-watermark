@@ -601,7 +601,7 @@ test("non-GET, external URLs, range requests and unversioned code are left to th
     for (const request of [
         { ...asset("/api/upload"), method: "POST" },
         { ...asset("/assets/test-deadbeef.js"), url: "https://other.example/assets/test-deadbeef.js" },
-        asset("/libraw-wasm/worker.js"),
+        asset("/unversioned-worker.js"),
         { ...asset("/assets/test-deadbeef.js"), headers: new Headers({ Range: "bytes=0-10" }) },
     ]) assert.equal(await environment.dispatch("fetch", request), undefined);
     assert.equal(environment.calls.fetch.length, 0);

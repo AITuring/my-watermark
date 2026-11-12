@@ -95,7 +95,7 @@ for (const page of routes) {
             for (const css of chunk.css || []) assert(manifest[page.route].styles.includes(css), `initial CSS omitted: ${css}`);
         }
         for (const [key, chunk] of Object.entries(viteManifest)) {
-            if (/three(?:\.module|\/)|html2canvas|exif-reader|jszip|libraw|mediapipe|wasm-vips|jpeg-vips|song-paintings\/share/.test(key)) {
+            if (/three(?:\.module|\/)|html2canvas|exif-reader|jszip|mediapipe|wasm-vips|jpeg-vips|song-paintings\/share/.test(key)) {
                 assert(!initial.has(chunk.file), `heavy engine was eagerly selected: ${key}`);
             }
             if (chunk.isDynamicEntry && /^src\/pages\/.+\/(?:index|personal)\.tsx$/.test(key) && key !== page.entry) {

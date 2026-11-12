@@ -1,1065 +1,347 @@
-import { useState, useRef, useCallback, useMemo } from 'react'
-import { Button } from '@/components/ui/button.jsx'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Progress } from '@/components/ui/progress.jsx'
-import { Upload, Download, Grid, Image as ImageIcon, Trash2, ArrowUpDown, RotateCcw, X, RefreshCw, Settings, CheckCircle } from 'lucide-react'
-import { Switch } from '@/components/ui/switch.jsx'
-import { Label } from '@/components/ui/label.jsx'
-import { Slider } from '@/components/ui/slider.jsx'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { getLargeImageAsset } from '@/utils/large-image'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ChangeEvent, CSSProperties, DragEvent } from 'react'
+import { ArrowDown, ArrowLeft, ArrowUp, Check, Download, GripVertical, ImagePlus, RotateCcw, Shuffle, Trash2, Upload, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
+import ImageUploader from '@/components/ImageUploader'
+import { getAdaptiveSlots, getArtworkFraction, isGrowingTemplate, MOTIF_COUNTS, COVER_COLLAGE_LIMIT, RATIOS, TEMPLATES, TEMPLATE_GROUPS, type Crop, type TemplateId } from './templates'
+import { hitSlot, loadImage, renderCollage, renderCollageExport, type RenderOptions } from './render'
+import { prepareCollageImage, releaseCollageImage, loadCollageOriginal, type CollageImage } from './assets'
+import './collage.css'
 
-
-// 图片接口定义
-interface UploadedImage {
-  id: string
-  file: File
-  src: string
-  name: string
-}
-
-// 布局接口定义
-interface Layout {
-  id: string
-  name: string
-  description: string
-  imageCount: number
-  gridCols: number
-  gridRows: number
-  aspectRatio: string
-}
-
-// 输出比例选项
-interface AspectRatio {
-  id: string
-  name: string
-  ratio: number // 宽/高
-  description: string
-}
-
-const ASPECT_RATIOS: AspectRatio[] = [
-  { id: '1:1', name: '1:1', ratio: 1, description: '正方形' },
-  { id: '4:3', name: '4:3', ratio: 4/3, description: '传统照片' },
-  { id: '3:4', name: '3:4', ratio: 3/4, description: '竖版照片' },
-  { id: '16:9', name: '16:9', ratio: 16/9, description: '宽屏' },
-  { id: '9:16', name: '9:16', ratio: 9/16, description: '竖屏' },
-  { id: '3:2', name: '3:2', ratio: 3/2, description: '经典比例' },
-  { id: '2:3', name: '2:3', ratio: 2/3, description: '竖版经典' },
-  { id: '21:9', name: '21:9', ratio: 21/9, description: '超宽屏' },
-  { id: '5:4', name: '5:4', ratio: 5/4, description: '中画幅' },
-  { id: '4:5', name: '4:5', ratio: 4/5, description: '竖版中画幅' }
+const DEMO_SOURCES = [
+  '/song-paintings/thumbnails/volume-1/1-1-8-8b504e3fea-preview.webp',
+  '/song-paintings/thumbnails/volume-1/1-1-13-a3d01ff4b2-preview.webp',
+  '/song-paintings/thumbnails/volume-1/1-2-22-45ad9a3fe0-preview.webp',
+  '/song-paintings/thumbnails/volume-1/1-1-2-0e3c6cd69c-preview.webp',
+  '/song-paintings/thumbnails/volume-1/1-1-10-8d319f73d7-preview.webp',
+  '/song-paintings/thumbnails/volume-1/1-1-15-7160c06ead-preview.webp',
+  '/song-paintings/thumbnails/volume-1/1-2-24-7b483b9668-preview.webp',
+  '/song-paintings/thumbnails/volume-1/1-3-35-05ec919553-preview.webp',
+  '/song-paintings/thumbnails/volume-1/1-2-27-fafd07ac4b-preview.webp',
 ]
+const DEFAULT_CROP: Crop = { x: 50, y: 50, zoom: 1 }
+const INITIAL_TITLE = '山水之间'
+const INITIAL_SUBTITLE = '丹青有意 · 拼贴成景'
+const MAX_IMAGES = 30
+const IMAGE_ROW_HEIGHT = 46
+const VISIBLE_IMAGE_ROWS = 14
 
-// 扩展的布局配置，支持2到18张图片
-const LAYOUTS: Layout[] = [
-  // 2张图片
-  {
-    id: 'horizontal-2',
-    name: '水平拼接',
-    description: '2张图片，水平排列',
-    imageCount: 2,
-    gridCols: 2,
-    gridRows: 1,
-    aspectRatio: '2:1'
-  },
-  {
-    id: 'vertical-2',
-    name: '垂直拼接',
-    description: '2张图片，垂直排列',
-    imageCount: 2,
-    gridCols: 1,
-    gridRows: 2,
-    aspectRatio: '1:2'
-  },
-  // 3张图片
-  {
-    id: 'horizontal-3',
-    name: '水平三联',
-    description: '3张图片，水平排列',
-    imageCount: 3,
-    gridCols: 3,
-    gridRows: 1,
-    aspectRatio: '3:1'
-  },
-  {
-    id: 'vertical-3',
-    name: '垂直三联',
-    description: '3张图片，垂直排列',
-    imageCount: 3,
-    gridCols: 1,
-    gridRows: 3,
-    aspectRatio: '1:3'
-  },
-  // 4张图片
-  {
-    id: 'grid-2x2',
-    name: '2x2 网格',
-    description: '4张图片，2行2列',
-    imageCount: 4,
-    gridCols: 2,
-    gridRows: 2,
-    aspectRatio: '1:1'
-  },
-  {
-    id: 'horizontal-4',
-    name: '水平四联',
-    description: '4张图片，水平排列',
-    imageCount: 4,
-    gridCols: 4,
-    gridRows: 1,
-    aspectRatio: '4:1'
-  },
-  {
-    id: 'vertical-4',
-    name: '垂直四联',
-    description: '4张图片，垂直排列',
-    imageCount: 4,
-    gridCols: 1,
-    gridRows: 4,
-    aspectRatio: '1:4'
-  },
-  // 5张图片
-  {
-    id: 'grid-5',
-    name: '5张拼接',
-    description: '5张图片，2行3列布局',
-    imageCount: 5,
-    gridCols: 3,
-    gridRows: 2,
-    aspectRatio: '3:2'
-  },
-  // 6张图片
-  {
-    id: 'grid-2x3',
-    name: '2x3 网格',
-    description: '6张图片，2行3列',
-    imageCount: 6,
-    gridCols: 3,
-    gridRows: 2,
-    aspectRatio: '3:2'
-  },
-  {
-    id: 'grid-3x2',
-    name: '3x2 网格',
-    description: '6张图片，3行2列',
-    imageCount: 6,
-    gridCols: 2,
-    gridRows: 3,
-    aspectRatio: '2:3'
-  },
-  {
-    id: 'horizontal-6',
-    name: '水平六联',
-    description: '6张图片，水平排列',
-    imageCount: 6,
-    gridCols: 6,
-    gridRows: 1,
-    aspectRatio: '6:1'
-  },
-  // 8张图片
-  {
-    id: 'grid-2x4',
-    name: '2x4 网格',
-    description: '8张图片，2行4列',
-    imageCount: 8,
-    gridCols: 4,
-    gridRows: 2,
-    aspectRatio: '2:1'
-  },
-  {
-    id: 'grid-4x2',
-    name: '4x2 网格',
-    description: '8张图片，4行2列',
-    imageCount: 8,
-    gridCols: 2,
-    gridRows: 4,
-    aspectRatio: '1:2'
-  },
-  // 9张图片
-  {
-    id: 'grid-3x3',
-    name: '3x3 网格',
-    description: '9张图片，3行3列',
-    imageCount: 9,
-    gridCols: 3,
-    gridRows: 3,
-    aspectRatio: '1:1'
-  },
-  // 10张图片
-  {
-    id: 'grid-2x5',
-    name: '2x5 网格',
-    description: '10张图片，2行5列',
-    imageCount: 10,
-    gridCols: 5,
-    gridRows: 2,
-    aspectRatio: '5:2'
-  },
-  {
-    id: 'grid-5x2',
-    name: '5x2 网格',
-    description: '10张图片，5行2列',
-    imageCount: 10,
-    gridCols: 2,
-    gridRows: 5,
-    aspectRatio: '2:5'
-  },
-  // 12张图片
-  {
-    id: 'grid-3x4',
-    name: '3x4 网格',
-    description: '12张图片，3行4列',
-    imageCount: 12,
-    gridCols: 4,
-    gridRows: 3,
-    aspectRatio: '4:3'
-  },
-  {
-    id: 'grid-4x3',
-    name: '4x3 网格',
-    description: '12张图片，4行3列',
-    imageCount: 12,
-    gridCols: 3,
-    gridRows: 4,
-    aspectRatio: '3:4'
-  },
-  // 15张图片
-  {
-    id: 'grid-3x5',
-    name: '3x5 网格',
-    description: '15张图片，3行5列',
-    imageCount: 15,
-    gridCols: 5,
-    gridRows: 3,
-    aspectRatio: '5:3'
-  },
-  {
-    id: 'grid-5x3',
-    name: '5x3 网格',
-    description: '15张图片，5行3列',
-    imageCount: 15,
-    gridCols: 3,
-    gridRows: 5,
-    aspectRatio: '3:5'
-  },
-  // 16张图片
-  {
-    id: 'grid-4x4',
-    name: '4x4 网格',
-    description: '16张图片，4行4列',
-    imageCount: 16,
-    gridCols: 4,
-    gridRows: 4,
-    aspectRatio: '1:1'
-  },
-  // 18张图片
-  {
-    id: 'grid-3x6',
-    name: '3x6 网格',
-    description: '18张图片，3行6列',
-    imageCount: 18,
-    gridCols: 6,
-    gridRows: 3,
-    aspectRatio: '2:1'
-  },
-  {
-    id: 'grid-6x3',
-    name: '6x3 网格',
-    description: '18张图片，6行3列',
-    imageCount: 18,
-    gridCols: 3,
-    gridRows: 6,
-    aspectRatio: '1:2'
-  }
-]
+function TemplatePreview({ id, images, count, aspect }: { id: TemplateId; images: HTMLImageElement[]; count: number; aspect: number }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    if (ref.current) renderCollage(ref.current, images, {
+      template: id, columns: 3, rows: 3, gap: 2, background: id === 'wall' ? '#0f0d0b' : '#eee7d8', title: id === 'wall' ? '山水之间' : '', subtitle: '', crops: {}, referenceLayout: true,
+      ...(isGrowingTemplate(id) ? { aspect, slots: getAdaptiveSlots(id, count || 12, aspect) } : {}),
+    })
+  }, [id, images, count, aspect])
+  return <canvas ref={ref} width={Math.round(200 * Math.min(1, aspect))} height={Math.round(200 * Math.min(1, 1 / aspect))} style={{ aspectRatio: aspect }} aria-hidden="true" />
+}
 
-function ImageCollage() {
-   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([])
-  const [selectedLayout, setSelectedLayout] = useState<Layout | null>(null)
-  const [selectedAspectRatio, setSelectedAspectRatio] = useState<AspectRatio>(ASPECT_RATIOS[0]) // 默认1:1
-  const [isGenerating, setIsGenerating] = useState(false)
+export default function ImageCollage() {
+  const [template, setTemplate] = useState<TemplateId>('triangle')
+  const [templateGroup, setTemplateGroup] = useState<(typeof TEMPLATE_GROUPS)[number]['id']>('growing')
+  const [demoImages, setDemoImages] = useState<HTMLImageElement[]>([])
+  const [uploaded, setUploaded] = useState<CollageImage[]>([])
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
-
-  // 间隙控制状态
-  const [hasGap, setHasGap] = useState(false)
-  const [gapSize, setGapSize] = useState([4])
-
+  const [isExporting, setIsExporting] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState({ completed: 0, total: 0 })
+  const [exportProgress, setExportProgress] = useState({ completed: 0, total: 0 })
+  const [imageScrollTop, setImageScrollTop] = useState(0)
+  const [title, setTitle] = useState(INITIAL_TITLE)
+  const [subtitle, setSubtitle] = useState(INITIAL_SUBTITLE)
+  const [textVisibility, setTextVisibility] = useState<Partial<Record<TemplateId, boolean>>>({})
+  const showText = textVisibility[template] ?? template === 'wall'
+  const setShowText = (value: boolean) => setTextVisibility(current => ({ ...current, [template]: value }))
+  const [ratioId, setRatioId] = useState('3:5')
+  const [longEdge, setLongEdge] = useState(2400)
+  const [format, setFormat] = useState('png')
+  const [columns, setColumns] = useState(0)
+  const [rows, setRows] = useState(0)
+  const [gap, setGap] = useState(2)
+  const [backgrounds, setBackgrounds] = useState<Partial<Record<TemplateId, string>>>({})
+  const [cropSets, setCropSets] = useState<Partial<Record<TemplateId, Record<string, Crop>>>>({})
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [replaceId, setReplaceId] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState('')
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const replaceRef = useRef<HTMLInputElement>(null)
+  const assetsRef = useRef<CollageImage[]>([])
+  const operationRef = useRef(0)
+  const uploadLock = useRef(false)
+  const exportControllerRef = useRef<AbortController | null>(null)
 
-  // 根据已上传图片数量获取可用布局
-  const availableLayouts = useMemo(() => {
-    if (uploadedImages.length === 0) return []
-    return LAYOUTS.filter(layout => layout.imageCount === uploadedImages.length)
-  }, [uploadedImages.length])
+  const images = uploaded
+  const fixedCount = MOTIF_COUNTS[template as keyof typeof MOTIF_COUNTS]
+  const templateCapacity = fixedCount ?? (template === 'wall' ? COVER_COLLAGE_LIMIT : MAX_IMAGES)
+  const usedImages = useMemo(() => uploaded.slice(0, templateCapacity), [uploaded, templateCapacity])
+  const background = backgrounds[template] ?? (template === 'wall' ? '#0f0d0b' : '#eee7d8')
+  const decodedImages = useMemo(() => usedImages.map(item => item.image), [usedImages])
+  const imageAspects = useMemo(() => usedImages.map(item => item.aspect), [usedImages])
+  const ratio = RATIOS.find(item => item.id === ratioId) ?? RATIOS[0]
+  const width = Math.round(longEdge * Math.min(1, ratio.w / ratio.h))
+  const height = Math.round(longEdge * Math.min(1, ratio.h / ratio.w))
+  const artworkFraction = getArtworkFraction(ratio.w / ratio.h, showText && Boolean(title || subtitle), template)
+  const artworkAspect = ratio.w / ratio.h / artworkFraction
+  const slots = useMemo(() => getAdaptiveSlots(template, usedImages.length, artworkAspect, columns, rows, imageAspects), [template, usedImages.length, artworkAspect, columns, rows, imageAspects])
+  const crops = useMemo(() => Object.fromEntries(usedImages.map((image, i) => [i, cropSets[template]?.[image.id] ?? DEFAULT_CROP])), [cropSets, template, usedImages])
+  const activeCrop = selectedSlot === null ? DEFAULT_CROP : crops[selectedSlot] ?? DEFAULT_CROP
+  const activeTemplate = TEMPLATES.find(item => item.id === template)!
+  const renderOptions = useMemo<RenderOptions>(() => ({
+    template, columns, rows, gap, background, title: showText ? title : '', subtitle: showText ? subtitle : '', crops, aspect: ratio.w / ratio.h, imageAspects, slots,
+  }), [template, columns, rows, gap, background, title, subtitle, showText, crops, ratio, imageAspects, slots])
+  const visibleStart = Math.min(Math.max(0, images.length - VISIBLE_IMAGE_ROWS), Math.max(0, Math.floor(imageScrollTop / IMAGE_ROW_HEIGHT) - 3))
 
-  // 步骤完成状态
-  const steps = useMemo(() => {
-    return [
-      {
-        id: 'upload',
-        title: '上传图片',
-        description: '选择要拼接的图片',
-        completed: uploadedImages.length > 0,
-        active: uploadedImages.length === 0
-      },
-      {
-        id: 'layout',
-        title: '选择布局',
-        description: '选择图片排列方式',
-        completed: selectedLayout !== null,
-        active: uploadedImages.length > 0 && selectedLayout === null
-      },
-      {
-        id: 'ratio',
-        title: '设置比例',
-        description: '选择输出图片比例',
-        completed: selectedAspectRatio !== null,
-        active: selectedLayout !== null
-      },
-      {
-        id: 'generate',
-        title: '生成下载',
-        description: '生成并下载拼接图',
-        completed: false,
-        active: selectedLayout !== null && selectedAspectRatio !== null
-      }
-    ]
-  }, [uploadedImages.length, selectedLayout, selectedAspectRatio])
-
-  // 处理文件上传
-  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target?.files || [])
-    if (files.length === 0) return
-
-    setIsUploading(true)
-    setUploadProgress(0)
-    setSelectedLayout(null) // 重置布局选择
-
-    try {
-      const imagePromises = files.map(async (file, index) => {
-        const largeAsset = await getLargeImageAsset(file)
-        if (largeAsset) {
-          setUploadProgress(((index + 1) / files.length) * 100)
-          return { id: Math.random().toString(36).substr(2, 9), file,
-            src: largeAsset.previewUrl, name: file.name } satisfies UploadedImage
-        }
-        return new Promise<UploadedImage | null>((resolve) => {
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            // 更新进度
-            const progress = ((index + 1) / files.length) * 100
-            setUploadProgress(progress)
-
-            resolve({
-              id: Math.random().toString(36).substr(2, 9),
-              file,
-              src: e.target?.result as string,
-              name: file.name
-            })
-          }
-          reader.onerror = () => {
-            console.error('读取文件失败:', file.name)
-            resolve(null)
-          }
-          reader.readAsDataURL(file)
-        })
-      })
-
-      const images = await Promise.all(imagePromises)
-      const validImages = images.filter((img): img is UploadedImage => img !== null)
-
-      setUploadedImages(validImages)
-
-    } catch (error) {
-      console.error('上传图片时出错:', error)
-      alert('上传图片时出错，请重试')
-    } finally {
-      setIsUploading(false)
-      setUploadProgress(0)
-      // 清空文件输入框
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    }
-  }, [])
-
-  // 删除图片
-  const removeImage = useCallback((imageId: string) => {
-    setUploadedImages(prev => {
-      const newImages = prev.filter(img => img.id !== imageId)
-      // 如果删除后图片数量变化，重置布局选择
-      if (newImages.length !== prev.length) {
-        setSelectedLayout(null)
-      }
-      return newImages
+  useEffect(() => {
+    let cancelled = false
+    void Promise.all(DEMO_SOURCES.map(loadImage)).then(items => {
+      if (!cancelled) setDemoImages(items)
+    }).catch(() => {
+      if (!cancelled) toast.error('模板缩略图加载失败，可上传图片继续使用')
     })
+    return () => { cancelled = true }
   }, [])
 
-  // 清空所有图片
-  const clearAllImages = useCallback(() => {
-    setUploadedImages([])
-    setSelectedLayout(null)
+  useEffect(() => () => {
+    operationRef.current++
+    exportControllerRef.current?.abort()
+    assetsRef.current.forEach(releaseCollageImage)
   }, [])
 
-  // 替换图片
-  const replaceImage = useCallback(async (index: number) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.onchange = async (e) => {
-      const target = e.target as HTMLInputElement
-      const file = target.files?.[0]
-      if (file) {
-        setIsUploading(true)
-        setUploadProgress(0)
-
-        try {
-          const largeAsset = await getLargeImageAsset(file)
-          if (largeAsset) {
-            setUploadedImages(prev => {
-              const next = [...prev]
-              next[index] = { id: Math.random().toString(36).substr(2, 9), file,
-                src: largeAsset.previewUrl, name: file.name }
-              return next
-            })
-            setIsUploading(false)
-            setUploadProgress(0)
-            return
-          }
-          const reader = new FileReader()
-          reader.onload = (event) => {
-            const newImage: UploadedImage = {
-              id: Math.random().toString(36).substr(2, 9),
-              file,
-              src: event.target?.result as string,
-              name: file.name
-            }
-
-            setUploadedImages(prev => {
-              const newImages = [...prev]
-              newImages[index] = newImage
-              return newImages
-            })
-
-            setUploadProgress(100)
-            setTimeout(() => {
-              setIsUploading(false)
-              setUploadProgress(0)
-            }, 500)
-          }
-          reader.onerror = () => {
-            alert('读取文件失败，请重试')
-            setIsUploading(false)
-            setUploadProgress(0)
-          }
-          reader.readAsDataURL(file)
-        } catch (error) {
-          console.error('替换图片时出错:', error)
-          alert('替换图片时出错，请重试')
-          setIsUploading(false)
-          setUploadProgress(0)
-        }
-      }
-    }
-    input.click()
-  }, [])
-
-  // 拖拽开始
-  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
-    setDraggedIndex(index)
-    e.dataTransfer.effectAllowed = 'move'
-  }, [])
-
-  // 拖拽结束
-  const handleDragEnd = useCallback(() => {
-    setDraggedIndex(null)
-  }, [])
-
-  // 拖拽悬停
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }, [])
-
-  // 拖拽放置
-  const handleDrop = useCallback((e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault()
-    if (draggedIndex === null || draggedIndex === dropIndex) return
-
-    setUploadedImages(prev => {
-      const newImages = [...prev]
-      const draggedImage = newImages[draggedIndex]
-      newImages.splice(draggedIndex, 1)
-      newImages.splice(dropIndex, 0, draggedImage)
-      return newImages
-    })
-    setDraggedIndex(null)
-  }, [draggedIndex])
-
-  // 生成拼接图片
-  const generateCollage = useCallback(async () => {
-    if (!selectedLayout || uploadedImages.length === 0 || !selectedAspectRatio) {
-      alert('请完成所有设置步骤')
-      return
-    }
-
-    if (uploadedImages.length !== selectedLayout.imageCount) {
-      alert(`当前布局需要 ${selectedLayout.imageCount} 张图片，您有 ${uploadedImages.length} 张`)
-      return
-    }
-
-    setIsGenerating(true)
-
+  useEffect(() => {
+    if (!canvasRef.current) return
     try {
-      const canvas = canvasRef.current
-      if (!canvas) return
-
-      const ctx = canvas.getContext('2d')
-      if (!ctx) return
-
-      // 根据选择的比例计算画布尺寸
-      const baseSize = 1200 // 基础尺寸
-      let canvasWidth: number, canvasHeight: number
-
-      if (selectedAspectRatio.ratio >= 1) {
-        // 横向或正方形
-        canvasWidth = baseSize
-        canvasHeight = baseSize / selectedAspectRatio.ratio
+      if (decodedImages.length) {
+        renderCollage(canvasRef.current, decodedImages, renderOptions, selectedSlot ?? undefined)
       } else {
-        // 竖向
-        canvasHeight = baseSize
-        canvasWidth = baseSize * selectedAspectRatio.ratio
+        const canvas = canvasRef.current
+        canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height)
       }
-
-      canvas.width = canvasWidth
-      canvas.height = canvasHeight
-
-      // 计算每个图片单元格的尺寸
-      const gap = hasGap ? gapSize[0] : 0
-      const totalGapWidth = (selectedLayout.gridCols - 1) * gap
-      const totalGapHeight = (selectedLayout.gridRows - 1) * gap
-      const cellWidth = (canvasWidth - totalGapWidth) / selectedLayout.gridCols
-      const cellHeight = (canvasHeight - totalGapHeight) / selectedLayout.gridRows
-
-      // 清空画布
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight)
-
-      // 绘制图片
-      const drawPromises = uploadedImages.slice(0, selectedLayout.imageCount).map((imageData, index) => {
-        return new Promise<void>((resolve) => {
-          const img = new Image()
-          img.onload = () => {
-            const row = Math.floor(index / selectedLayout.gridCols)
-            const col = index % selectedLayout.gridCols
-            const x = col * (cellWidth + gap)
-            const y = row * (cellHeight + gap)
-
-            // 计算图片和单元格的宽高比
-            const imgAspectRatio = img.width / img.height
-            const cellAspectRatio = cellWidth / cellHeight
-
-            let sx: number, sy: number, sWidth: number, sHeight: number
-            let dx: number, dy: number, dWidth: number, dHeight: number
-
-            // 目标绘制区域
-            dx = x
-            dy = y
-            dWidth = cellWidth
-            dHeight = cellHeight
-
-            // 计算源图片裁剪区域，以覆盖目标区域
-            if (imgAspectRatio > cellAspectRatio) {
-              // 图片比单元格宽，按高度缩放，裁剪左右
-              sHeight = img.height
-              sWidth = img.height * cellAspectRatio
-              sx = (img.width - sWidth) / 2
-              sy = 0
-            } else {
-              // 图片比单元格高，按宽度缩放，裁剪上下
-              sWidth = img.width
-              sHeight = img.width / cellAspectRatio
-              sx = 0
-              sy = (img.height - sHeight) / 2
-            }
-
-            ctx.drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight)
-            resolve()
-          }
-          img.onerror = () => {
-            console.error('绘制图片失败:', imageData.file?.name)
-            resolve()
-          }
-          img.src = imageData.src
-        })
-      })
-
-      await Promise.all(drawPromises)
-
-      // 下载图片
-      const link = document.createElement('a')
-      link.download = `collage-${selectedLayout.id}-${selectedAspectRatio.id}-${hasGap ? 'gap' + gapSize[0] : 'nogap'}-${Date.now()}.png`
-      link.href = canvas.toDataURL()
-      link.click()
-
-    } catch (error) {
-      console.error('生成拼接图片失败:', error)
-      alert('生成拼接图片失败，请重试')
-    } finally {
-      setIsGenerating(false)
+      setPreviewError('')
+    } catch {
+      setPreviewError('预览绘制失败，请重新选择图片')
     }
-  }, [uploadedImages, selectedLayout, selectedAspectRatio, hasGap, gapSize])
+  }, [decodedImages, renderOptions, selectedSlot, ratioId])
+
+  const handleUpload = async (files: File[], targetId?: string) => {
+    if (uploadLock.current || isExporting) return
+    const capacity = targetId ? 1 : templateCapacity - assetsRef.current.length
+    if (capacity <= 0) { toast.info(`当前模板最多放入 ${templateCapacity} 张图片，可移除素材或切换模板`); return }
+    if (files.length > capacity) toast.info(`当前模板最多放入 ${templateCapacity} 张图片，本次添加前 ${capacity} 张`)
+    const selected = files.slice(0, capacity)
+    const nextCount = assetsRef.current.length + (targetId ? 0 : selected.length)
+    const previewMaxSide = Math.max(48, Math.min(640, Math.floor(Math.sqrt(24_000_000 / Math.max(1, nextCount)))))
+    const operation = ++operationRef.current
+    uploadLock.current = true
+    setIsUploading(true)
+    setUploadProgress({ completed: 0, total: selected.length })
+    const accepted: CollageImage[] = []
+    let failed = 0
+    for (const file of selected) {
+      try {
+        const item = await prepareCollageImage(file, previewMaxSide)
+        if (operation !== operationRef.current) { releaseCollageImage(item); break }
+        accepted.push(item)
+      } catch {
+        failed++
+      }
+      if (operation === operationRef.current) setUploadProgress({ completed: accepted.length + failed, total: selected.length })
+    }
+    if (operation === operationRef.current) {
+      if (targetId && accepted[0]) {
+        const old = assetsRef.current.find(item => item.id === targetId)
+        assetsRef.current = assetsRef.current.map(item => item.id === targetId ? accepted[0] : item)
+        if (old) releaseCollageImage(old)
+      } else assetsRef.current = [...assetsRef.current, ...accepted]
+      setUploaded([...assetsRef.current])
+      if (accepted.length) toast.success(targetId ? '图片已替换' : `已添加 ${accepted.length} 张图片`)
+      if (failed) toast.error(`${failed} 张图片无法读取，请换用 JPG、PNG 或 WEBP`)
+    } else accepted.forEach(releaseCollageImage)
+    uploadLock.current = false
+    setIsUploading(false)
+  }
+
+  const removeImage = (id: string) => {
+    const image = assetsRef.current.find(item => item.id === id)
+    assetsRef.current = assetsRef.current.filter(item => item.id !== id)
+    setUploaded([...assetsRef.current])
+    setSelectedSlot(null)
+    if (image) releaseCollageImage(image)
+  }
+
+  const reorder = (from: number, to: number) => {
+    if (isUploading || isExporting) return
+    if (to < 0 || to >= images.length || from === to) return
+    const next = [...images]
+    next.splice(to, 0, next.splice(from, 1)[0])
+    assetsRef.current = next
+    setUploaded(next)
+  }
+
+  const shuffle = () => {
+    const next = [...images]
+    for (let i = next.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[next[i], next[j]] = [next[j], next[i]]
+    }
+    assetsRef.current = next
+    setUploaded(next)
+  }
+
+  const reset = () => {
+    operationRef.current++
+    assetsRef.current.forEach(releaseCollageImage)
+    assetsRef.current = []
+    setUploaded([])
+    setTemplate('triangle'); setTemplateGroup('growing'); setTitle(INITIAL_TITLE); setSubtitle(INITIAL_SUBTITLE)
+    setTextVisibility({}); setRatioId('3:5'); setGap(2); setBackgrounds({})
+    setColumns(0); setRows(0); setCropSets({}); setSelectedSlot(null)
+    setLongEdge(2400); setFormat('png')
+  }
+
+  const updateCrop = (key: keyof Crop, value: number) => {
+    if (selectedSlot === null || !images[selectedSlot]) return
+    const id = images[selectedSlot].id
+    setCropSets(current => ({ ...current, [template]: { ...current[template], [id]: { ...activeCrop, [key]: value } } }))
+  }
+
+  const download = async () => {
+    if (!decodedImages.length || exportControllerRef.current) return
+    const controller = new AbortController()
+    exportControllerRef.current = controller
+    const canvas = document.createElement('canvas')
+    setIsExporting(true)
+    setExportProgress({ completed: 0, total: usedImages.length })
+    try {
+      await document.fonts.ready
+      canvas.width = width
+      canvas.height = height
+      await renderCollageExport(canvas, usedImages, renderOptions, loadCollageOriginal, (completed, total) => setExportProgress({ completed, total }), controller.signal)
+      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
+        value => value ? resolve(value) : reject(new Error('生成失败')), `image/${format}`, .95))
+      if (controller.signal.aborted) return
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.download = `${title.trim().replace(/[\\/:*?"<>|]/g, '-').slice(0, 60) || '图片拼贴'}-${activeTemplate.name}-${width}x${height}.${format === 'jpeg' ? 'jpg' : 'png'}`
+      link.href = url
+      link.click()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+      toast.success(`已导出 ${width} × ${height} 图片`)
+    } catch { if (!controller.signal.aborted) toast.error('导出失败，请减小尺寸后重试') }
+    finally { canvas.width = canvas.height = 0; exportControllerRef.current = null; setIsExporting(false) }
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* 标题 */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">图片拼接工具</h1>
-          <p className="text-gray-600">上传图片，选择布局，设置比例，生成拼接图</p>
-          <div className="mt-2">
-            <Badge variant="outline" className="text-sm">
-              支持 2-18 张图片拼接
-            </Badge>
-          </div>
+    <div className="collage-app">
+      <header className="collage-header">
+        <div className="collage-heading">
+          <Link to="/" className="collage-back" aria-label="返回应用库"><ArrowLeft size={20} /></Link>
+          <div><div className="collage-eyebrow">THE COLLAGE STUDIO</div><h1>图片拼贴<span>以图为材，自成一景。</span></h1></div>
         </div>
-
-        {/* 步骤节点 - 只显示未完成的步骤 */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center space-x-4 md:space-x-8">
-            {steps.filter(step => !step.completed).map((step, index, filteredSteps) => (
-              <div key={step.id} className="flex items-center">
-                <div className="flex flex-col items-center">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all ${
-                    step.active
-                      ? 'bg-blue-500 border-blue-500 text-white'
-                      : 'bg-gray-200 border-gray-300 text-gray-500'
-                  }`}>
-                    <span className="text-sm font-bold">{index + 1}</span>
-                  </div>
-                  <div className="mt-2 text-center">
-                    <p className={`text-sm font-medium ${
-                      step.active ? 'text-gray-800' : 'text-gray-500'
-                    }`}>
-                      {step.title}
-                    </p>
-                    <p className="text-xs text-gray-500 max-w-20">
-                      {step.description}
-                    </p>
-                  </div>
-                </div>
-                {index < filteredSteps.length - 1 && (
-                  <div className={`w-8 h-0.5 mx-2 ${
-                    step.active ? 'bg-blue-300' : 'bg-gray-300'
-                  }`} />
-                )}
-              </div>
-            ))}
-          </div>
+        <div className="collage-header-actions">
+          <button className="collage-button collage-reset" onClick={reset} disabled={isUploading || isExporting}><RotateCcw size={15} />重置</button>
+          <button className="collage-button collage-button-primary" onClick={download} disabled={isExporting || isUploading || !images.length || !!previewError} aria-label={isExporting ? `正在导出 ${exportProgress.completed} / ${exportProgress.total} 张图片` : undefined}>
+            <Download size={16} />{isExporting ? `导出 ${Math.round(exportProgress.completed / Math.max(1, exportProgress.total) * 100)}%` : '导出图片'}
+          </button>
         </div>
+      </header>
 
-        {/* 根据当前步骤显示不同内容 */}
-        {uploadedImages.length === 0 ? (
-          /* 步骤1：图片上传 */
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 justify-center">
-                <Upload className="w-5 h-5" />
-                上传图片开始拼接
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div
-                className={`border-2 border-dashed border-gray-300 rounded-lg p-12 text-center cursor-pointer hover:border-gray-400 transition-colors ${
-                  isUploading ? 'pointer-events-none opacity-50' : ''
-                }`}
-                onClick={() => !isUploading && fileInputRef.current?.click()}
-              >
-                <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-lg text-gray-600 mb-2">
-                  {isUploading ? '正在处理图片...' : '点击选择图片或拖拽到此处'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  支持 JPG、PNG 格式，可选择多张图片
-                </p>
-                {isUploading && (
-                  <div className="mt-6">
-                    <Progress value={uploadProgress} className="w-full" />
-                    <p className="text-xs text-gray-500 mt-2">
-                      处理进度: {Math.round(uploadProgress)}%
-                    </p>
-                  </div>
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-                disabled={isUploading}
-                aria-label="选择图片文件"
-              />
-            </CardContent>
-          </Card>
-        ) : selectedLayout === null ? (
-          /* 步骤2：选择布局 */
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 justify-center">
-                  <Grid className="w-5 h-5" />
-                  选择布局方式
-                  <Badge variant="outline">
-                    {uploadedImages.length} 张图片
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {availableLayouts.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {availableLayouts.map((layout) => (
-                      <div
-                        key={layout.id}
-                        className="p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-blue-300 hover:shadow-md"
-                        onClick={() => setSelectedLayout(layout)}
-                      >
-                        <div className="text-center">
-                          <div className="w-16 h-12 mx-auto mb-2 border-2 border-gray-300 rounded grid"
-                            style={{
-                              gridTemplateColumns: `repeat(${layout.gridCols}, 1fr)`,
-                              gridTemplateRows: `repeat(${layout.gridRows}, 1fr)`,
-                              gap: '1px'
-                            }}>
-                            {Array.from({ length: layout.imageCount }).map((_, i) => (
-                              <div key={i} className="bg-gray-200 rounded-sm" />
-                            ))}
-                          </div>
-                          <h3 className="font-medium text-sm">{layout.name}</h3>
-                          <p className="text-xs text-gray-500">{layout.description}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-8">
-                    没有适合 {uploadedImages.length} 张图片的布局
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* 已上传图片预览 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5" />
-                  已上传图片
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearAllImages}
-                    className="text-red-600 hover:text-red-700 ml-auto"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    重新上传
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {uploadedImages.map((image, index) => (
-                    <div
-                      key={image.id}
-                      className="relative group cursor-move"
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, index)}
-                      onDragEnd={handleDragEnd}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, index)}
-                    >
-                      <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 group-hover:border-blue-300 transition-colors">
-                        <img
-                          src={image.src}
-                          alt={image.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          className="w-6 h-6 p-0"
-                          onClick={() => removeImage(image.id)}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="w-6 h-6 p-0"
-                          onClick={() => replaceImage(index)}
-                        >
-                          <RefreshCw className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1 truncate text-center">{index + 1}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          /* 步骤3和4：设置和预览 */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 左侧：设置区域 */}
-            <div className="space-y-6">
-              {/* 布局信息 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    已选择布局
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedLayout(null)}
-                      className="ml-auto"
-                    >
-                      重新选择
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-12 border-2 border-gray-300 rounded grid"
-                      style={{
-                        gridTemplateColumns: `repeat(${selectedLayout.gridCols}, 1fr)`,
-                        gridTemplateRows: `repeat(${selectedLayout.gridRows}, 1fr)`,
-                        gap: '1px'
-                      }}>
-                      {Array.from({ length: selectedLayout.imageCount }).map((_, i) => (
-                        <div key={i} className="bg-blue-200 rounded-sm" />
-                      ))}
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{selectedLayout.name}</h3>
-                      <p className="text-sm text-gray-500">{selectedLayout.description}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* 输出设置 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="w-5 h-5" />
-                    输出设置
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="aspect-ratio" className="text-sm font-medium">
-                      输出比例
-                    </Label>
-                    <Select
-                      value={selectedAspectRatio.id}
-                      onValueChange={(value) => {
-                        const ratio = ASPECT_RATIOS.find(r => r.id === value)
-                        if (ratio) setSelectedAspectRatio(ratio)
-                      }}
-                    >
-                      <SelectTrigger className="w-full mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ASPECT_RATIOS.map((ratio) => (
-                          <SelectItem key={ratio.id} value={ratio.id}>
-                            <div className="flex items-center justify-between w-full">
-                              <span>{ratio.name}</span>
-                              <span className="text-xs text-gray-500 ml-2">{ratio.description}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="gap-toggle"
-                      checked={hasGap}
-                      onCheckedChange={setHasGap}
-                    />
-                    <Label htmlFor="gap-toggle" className="text-sm">
-                      图片间隙
-                    </Label>
-                  </div>
-
-                  {hasGap && (
-                    <div>
-                      <Label className="text-sm text-gray-600">
-                        间隙大小: {gapSize[0]}px
-                      </Label>
-                      <Slider
-                        value={gapSize}
-                        onValueChange={setGapSize}
-                        max={20}
-                        min={1}
-                        step={1}
-                        className="mt-2"
-                      />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* 图片顺序调整 */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ArrowUpDown className="w-5 h-5" />
-                    调整图片顺序
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                    {uploadedImages.map((image, index) => (
-                      <div
-                        key={image.id}
-                        className="relative group cursor-move"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, index)}
-                        onDragEnd={handleDragEnd}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, index)}
-                      >
-                        <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 group-hover:border-blue-300 transition-colors">
-                          <img
-                            src={image.src}
-                            alt={image.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                          {index + 1}
-                        </div>
-                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="w-6 h-6 p-0"
-                            onClick={() => replaceImage(index)}
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2 text-center">
-                    拖拽图片可调整顺序
-                  </p>
-                </CardContent>
-              </Card>
+      <main className="collage-workspace">
+        <aside className="collage-controls" aria-label="拼贴设置">
+          <section className="collage-section">
+            <div className="collage-section-title"><h2><span>01</span>选择模板</h2><span>随时切换</span></div>
+            <div className="collage-template-groups" role="group" aria-label="模板类型">
+              {TEMPLATE_GROUPS.map(group => <button key={group.id} aria-pressed={templateGroup === group.id} onClick={() => {
+                setTemplateGroup(group.id); setTemplate(TEMPLATES.find(item => item.group === group.id)!.id); setSelectedSlot(null)
+              }}>{group.name}</button>)}
             </div>
+            <div className="collage-template-list">
+              {TEMPLATES.filter(item => item.group === templateGroup).map((item, index) => (
+                <button key={item.id} className={`collage-template ${template === item.id ? 'is-active' : ''}`} onClick={() => { setTemplate(item.id); setSelectedSlot(null) }} aria-pressed={template === item.id}>
+                  <div className="collage-template-art"><TemplatePreview id={item.id} images={demoImages} count={usedImages.length} aspect={isGrowingTemplate(item.id) ? artworkAspect : item.id === 'wall' ? 16 / 9 : .6} />{template === item.id && <span className="collage-template-check"><Check size={11} /></span>}</div>
+                  <strong>{item.name}</strong><span>{String(index + 1).padStart(2, '0')}</span>
+                </button>
+              ))}
+            </div>
+            {templateGroup === 'growing' && <p className="collage-template-hint">1–30 张自动满版构图，图形延展到画幅边缘并自然裁切。</p>}
+            {template === 'wall' && <div className="collage-cover-preset"><p className="collage-template-hint">沿用原版 18 位错落布局，少于 18 张时循环铺陈。</p><button className="collage-text-button" onClick={() => { setRatioId('16:9'); setShowText(true); setBackgrounds(current => ({ ...current, wall: '#0f0d0b' })) }}>经典横版封面 · 16:9</button></div>}
+            {template === 'grid' && <div className="collage-pair collage-grid-controls">
+              <label>每行最多<select value={columns} onChange={e => { setColumns(Number(e.target.value)); setRows(0); setSelectedSlot(null) }}><option value={0}>自动排布</option>{Array.from({ length: 12 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n} 张</option>)}</select></label>
+              <label>行数<select value={rows} onChange={e => { setRows(Number(e.target.value)); setColumns(0); setSelectedSlot(null) }}><option value={0}>自动适配</option>{Array.from({ length: 12 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n} 行</option>)}</select></label>
+            </div>}
+          </section>
 
-            {/* 右侧：预览和生成 */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>实时预览</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* 预览区域 */}
-                    <div
-                      className="border-2 border-gray-200 rounded-lg overflow-hidden bg-white"
-                      style={{
-                        aspectRatio: selectedAspectRatio.ratio,
-                        maxHeight: '400px'
-                      }}
-                    >
-                      <div
-                        className="w-full h-full grid"
-                        style={{
-                          gridTemplateColumns: `repeat(${selectedLayout.gridCols}, 1fr)`,
-                          gridTemplateRows: `repeat(${selectedLayout.gridRows}, 1fr)`,
-                          gap: hasGap ? `${gapSize[0]}px` : '0'
-                        }}
-                      >
-                        {Array.from({ length: selectedLayout.imageCount }).map((_, index) => {
-                          const image = uploadedImages[index]
-                          return (
-                            <div key={index} className="bg-gray-100 flex items-center justify-center overflow-hidden relative">
-                              {image ? (
-                                <img
-                                  src={image.src}
-                                  alt={image.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <ImageIcon className="w-8 h-8 text-gray-400" />
-                              )}
-                              <div className="absolute top-1 left-1 bg-black bg-opacity-50 text-white text-xs rounded px-1">
-                                {index + 1}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
+          <section className="collage-section">
+            <div className="collage-section-title"><h2><span>02</span>图片素材</h2><span>{usedImages.length} / {templateCapacity} 张</span></div>
+            <div className={isUploading || isExporting ? 'collage-upload is-busy' : 'collage-upload'} aria-busy={isUploading}>
+              <ImageUploader onUpload={files => void handleUpload(files)}>
+                <div className="collage-upload-content"><Upload size={19} /><strong>{isUploading ? `正在读取 ${uploadProgress.completed} / ${uploadProgress.total} 张…` : '点击上传，或将图片拖到这里'}</strong><span>JPG / PNG / WEBP · 当前模板最多 {templateCapacity} 张</span></div>
+              </ImageUploader>
+            </div>
+            {fixedCount && <p className="collage-template-hint">{template === 'fan' ? `首张铺满底图，其余扇面交错叠加，最多 ${fixedCount} 张。` : `按顺序填入 ${fixedCount} 个固定区域，空余区域保留底色。`}</p>}
+            {images.length > templateCapacity && <p className="collage-template-hint">当前使用前 {templateCapacity} 张，其余 {images.length - templateCapacity} 张保留在素材中，可排序替换。</p>}
+            <div className="collage-image-list" role="list" aria-label="已上传图片" tabIndex={images.length ? 0 : -1} onScroll={e => setImageScrollTop(e.currentTarget.scrollTop)}>
+              <div style={{ height: images.length * IMAGE_ROW_HEIGHT, position: 'relative' }}><div style={{ position: 'absolute', top: visibleStart * IMAGE_ROW_HEIGHT, left: 0, right: 0 }}>
+              {images.slice(visibleStart, visibleStart + VISIBLE_IMAGE_ROWS).map((image, offset) => { const i = visibleStart + offset; return <div key={image.id} className={`collage-image-row ${dragIndex === i ? 'is-dragging' : ''} ${i >= templateCapacity ? 'is-unused' : ''}`} role="listitem" aria-posinset={i + 1} aria-setsize={images.length} draggable={!isUploading && !isExporting}
+                onDragStart={(e: DragEvent) => { setDragIndex(i); e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move' }}
+                onDragEnd={() => setDragIndex(null)} onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); if (dragIndex !== null) reorder(dragIndex, i); setDragIndex(null) }}>
+                <GripVertical size={13} className="collage-grip" /><img src={image.src} alt="" draggable={false} /><span className="collage-image-number">{String(i + 1).padStart(2, '0')}</span><span className="collage-image-name" title={image.name}>{image.name}</span>{i >= templateCapacity && <span className="collage-unused-label">备用</span>}
+                <div className="collage-image-actions">
+                  <button aria-label={`上移第 ${i + 1} 张图片`} disabled={i === 0 || isUploading || isExporting} onClick={() => reorder(i, i - 1)}><ArrowUp size={13} /></button>
+                  <button aria-label={`下移第 ${i + 1} 张图片`} disabled={i === images.length - 1 || isUploading || isExporting} onClick={() => reorder(i, i + 1)}><ArrowDown size={13} /></button>
+                  <button aria-label={`替换第 ${i + 1} 张图片`} disabled={isUploading || isExporting} onClick={() => { setReplaceId(image.id); replaceRef.current?.click() }}><ImagePlus size={13} /></button><button aria-label={`移除第 ${i + 1} 张图片`} disabled={isUploading || isExporting} onClick={() => removeImage(image.id)}><X size={13} /></button>
+                </div>
+              </div> })}</div></div>
+            </div>
+            <input ref={replaceRef} type="file" accept="image/*" hidden onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              if (e.target.files?.[0] && replaceId) void handleUpload([e.target.files[0]], replaceId)
+              e.target.value = ''
+            }} />
+            {uploaded.length > 0 && <div className="collage-material-footer"><span>可拖动排序，也可使用上下箭头</span><button onClick={shuffle} disabled={images.length < 2 || isUploading || isExporting}><Shuffle size={13} />打乱</button>
+              <button disabled={isUploading || isExporting} onClick={() => { assetsRef.current.forEach(releaseCollageImage); assetsRef.current = []; setUploaded([]); setSelectedSlot(null); setCropSets({}) }} aria-label="清空上传图片"><Trash2 size={13} /></button>
+            </div>}
+          </section>
 
-                    <div className="text-center space-y-2">
-                      <p className="text-sm text-gray-600">
-                        输出比例: {selectedAspectRatio.name} ({selectedAspectRatio.description})
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {hasGap ? `间隙: ${gapSize[0]}px` : '无间隙'}
-                      </p>
-                    </div>
+          <section className="collage-section">
+            <div className="collage-section-title"><h2><span>03</span>画面设置</h2></div>
+            <div className="collage-pair"><label>画幅比例<select value={ratioId} onChange={e => setRatioId(e.target.value)}>{RATIOS.map(item => <option key={item.id} value={item.id}>{item.id} · {item.label}</option>)}</select></label><label>底色<input type="color" value={background} onChange={e => setBackgrounds(current => ({ ...current, [template]: e.target.value }))} /></label></div>
+            <label className="collage-range"><span>分隔线<output>{gap}</output></span><input aria-label="分隔线宽度" type="range" min="0" max="20" value={gap} onChange={e => setGap(Number(e.target.value))} /></label>
+            <label className="collage-checkbox"><input type="checkbox" checked={showText} onChange={e => setShowText(e.target.checked)} />添加标题与副标题</label>
+            {showText && <div className="collage-text-fields"><label>标题<input value={title} maxLength={40} placeholder="输入标题，也可留空" onChange={e => setTitle(e.target.value)} /></label><label>副标题<input value={subtitle} maxLength={80} placeholder="为这张拼贴写一句话" onChange={e => setSubtitle(e.target.value)} /></label></div>}
+            <div className="collage-pair collage-export-fields"><label>导出长边<select value={longEdge} onChange={e => setLongEdge(Number(e.target.value))}>{[1600, 2400, 3600, 4800].map(n => <option key={n} value={n}>{n} px</option>)}</select></label><label>文件格式<select value={format} onChange={e => setFormat(e.target.value)}><option value="png">PNG</option><option value="jpeg">JPG</option></select></label></div>
+          </section>
+        </aside>
 
-                    {/* 生成按钮 */}
-                    <Button
-                      onClick={generateCollage}
-                      disabled={isGenerating || uploadedImages.length !== selectedLayout.imageCount}
-                      className="w-full"
-                      size="lg"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                          生成中...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 mr-2" />
-                          生成并下载拼接图
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+        <section className="collage-preview" aria-label="实时预览">
+          <div className="collage-preview-bar"><div><span className="collage-status-dot" />实时预览<span className="collage-preview-separator">/</span><strong>{activeTemplate.name}</strong></div><span>{width} × {height} px</span></div>
+          <div className="collage-stage">
+            <div className="collage-poster-wrap" style={{ '--collage-ratio': ratio.w / ratio.h } as CSSProperties}>
+              <canvas ref={canvasRef} width={Math.round(1000 * Math.min(1, ratio.w / ratio.h))} height={Math.round(1000 * Math.min(1, ratio.h / ratio.w))}
+                aria-label={`${activeTemplate.name}拼贴预览，点击画面选择图片区域`} onClick={e => {
+                  if (!images.length) return
+                  const bounds = e.currentTarget.getBoundingClientRect()
+                  const y = (e.clientY - bounds.top) / bounds.height / artworkFraction
+                  const hit = y > 1 ? null : hitSlot(slots, (e.clientX - bounds.left) / bounds.width * 600, y * 1000, artworkAspect)
+                  const source = hit === null ? null : slots[hit].imageIndex ?? hit
+                  setSelectedSlot(source !== null && source < usedImages.length ? source : null)
+                }} />
+              {!images.length && <div className="collage-preview-empty">上传图片，开始你的拼贴</div>}
+              {previewError && <div className="collage-preview-empty" role="alert">{previewError}</div>}
             </div>
           </div>
-        )}
-
-        {/* 隐藏的画布 */}
-        <canvas ref={canvasRef} className="hidden" />
-      </div>
+          <div className="collage-preview-caption"><span>{activeTemplate.caption}</span><span>{usedImages.length ? fixedCount ? `已放入 ${usedImages.length} / ${fixedCount} 张` : template === 'wall' ? `${usedImages.length} 张素材 · 18 位循环铺陈` : `${usedImages.length} 张图片 · 全部参与排布` : '等待上传'}</span></div>
+          <div className="collage-crop-panel">
+            <div className="collage-crop-heading"><div><h2>调整画面</h2><p>{images.length ? '点击预览，或输入图片序号调整取景。' : '上传图片后可调整各区域取景。'}</p></div><label className="collage-slot-select"><span className="sr-only">选择图片区域</span><input aria-label="选择图片区域" type="number" min={1} max={Math.min(slots.length, usedImages.length) || 1} placeholder="图片序号" disabled={!images.length} value={selectedSlot === null ? '' : selectedSlot + 1} onChange={e => setSelectedSlot(e.target.value === '' ? null : Math.max(0, Math.min(usedImages.length - 1, Number(e.target.value) - 1)))} /></label></div>
+            {images.length > 0 && selectedSlot !== null && <div className="collage-crop-fields">
+              {([{ key: 'zoom', label: '放大', min: 1, max: 3, step: .05 }, { key: 'x', label: '水平取景', min: 0, max: 100, step: 1 }, { key: 'y', label: '垂直取景', min: 0, max: 100, step: 1 }] as const).map(control => <label className="collage-range" key={control.key}><span>{control.label}<output>{control.key === 'zoom' ? `${activeCrop.zoom.toFixed(2)}×` : `${activeCrop[control.key]}%`}</output></span><input aria-label={control.label} type="range" min={control.min} max={control.max} step={control.step} value={activeCrop[control.key]} onChange={e => updateCrop(control.key, Number(e.target.value))} /></label>)}
+              <button className="collage-text-button" onClick={() => setCropSets(current => ({ ...current, [template]: { ...current[template], [images[selectedSlot].id]: DEFAULT_CROP } }))}><RotateCcw size={13} />重置取景</button>
+            </div>}
+          </div>
+          <p className="collage-privacy">图片在本地浏览器中合成 · 导出不包含选区边框</p>
+        </section>
+      </main>
     </div>
   )
 }
-
-
-export default ImageCollage

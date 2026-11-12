@@ -4334,11 +4334,6 @@ levn@^0.4.1:
     prelude-ls "^1.2.1"
     type-check "~0.4.0"
 
-libraw-wasm@^1.1.2:
-  version "1.1.2"
-  resolved "https://registry.npmjs.org/libraw-wasm/-/libraw-wasm-1.1.2.tgz"
-  integrity sha512-lOVdqbzCkvsLtMoTz41Pc3alQptWHCyD71jGBTnQmoNK5CTVayXGqtTSBntLil7YaO3h/yESx7e9jMskMtnOEQ==
-
 lie@^3.0.2, lie@~3.3.0:
   version "3.3.0"
   resolved "https://registry.npmjs.org/lie/-/lie-3.3.0.tgz"
