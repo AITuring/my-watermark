@@ -16,6 +16,7 @@ import {
 const FloatingButtons = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const watermarkWorkspace = location.pathname.replace(/\/+$/, '') === '/watermark';
     const { isDark, toggleTheme } = useContext(ThemeContext);
     const [open, setOpen] = useState(false);
     const [expandUp, setExpandUp] = useState(false);
@@ -26,8 +27,9 @@ const FloatingButtons = () => {
     useEffect(() => {
         const w = window.innerWidth;
         const h = window.innerHeight;
-        setPos({ x: Math.max(8, w - 88), y: Math.max(8, h - 180) });
-    }, []);
+        setPos({ x: Math.max(8, w - 88), y: watermarkWorkspace ? 24 : Math.max(8, h - 180) });
+        setOpen(false);
+    }, [watermarkWorkspace]);
 
     const clamp = (x: number, y: number) => {
         const rect = containerRef.current?.getBoundingClientRect();

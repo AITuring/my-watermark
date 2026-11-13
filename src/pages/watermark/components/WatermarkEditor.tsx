@@ -1,4 +1,5 @@
 import WatermarkBlurPreview from "./WatermarkBlurPreview";
+import PreviewMinimap from './PreviewMinimap';
 import {PreviewZoomControl, WatermarkColorControl} from "./PreviewAppearanceControls";
 import {fitPreviewImage, previewPositionForCenter, previewCenterForPosition} from "../preview-zoom";
 import InlineWatermarkTextEditor, { type InlineWatermarkEditorHandle } from './InlineWatermarkTextEditor';
@@ -895,6 +896,11 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                             previewBounds.height, backgroundImageSize.width, backgroundImageSize.height),
                         previewScale, previewBounds.width, previewBounds.height,
                         backgroundImageSize.width, backgroundImageSize.height)}
+                    onDragMove={event => {
+                        if (event.target === event.target.getStage()) setPreviewCenter(previewCenterForPosition(
+                            event.target.position(), previewScale, previewBounds.width, previewBounds.height,
+                            backgroundImageSize.width, backgroundImageSize.height));
+                    }}
                     onDragEnd={(e) => {
                         if (e.target === e.target.getStage()) {
                             const center = previewCenterForPosition(e.target.position(), previewScale,
@@ -989,6 +995,12 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 <InlineWatermarkTextEditor ref={inlineEditorRef}
                     sessionKey={`${currentWatermarkPosition?.id}:${Boolean(textConfig?.textOnly)}`}
                     config={textConfig} onChange={patch => onTextChange?.(patch)} />
+
+                {previewScale > 1 && backgroundImage && backgroundImageStatus === 'loaded' && (
+                    <PreviewMinimap image={backgroundImage} imageWidth={backgroundImageSize.width} imageHeight={backgroundImageSize.height}
+                        viewportWidth={previewBounds.width} viewportHeight={previewBounds.height} zoom={previewScale}
+                        center={previewCenter} onCenterChange={setPreviewCenter}/>
+                )}
 
                 {/* Floating Toolbar */}
                 <div
