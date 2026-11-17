@@ -1,3 +1,5 @@
+import WatermarkDownloadControl from './WatermarkDownloadControl';
+import type {WatermarkDownloadMode} from '../export-downloads';
 import WatermarkFontPicker from "./WatermarkFontPicker";
 import WatermarkLayoutControl from "./WatermarkLayoutControl";
 import WatermarkBlurPreview from "./WatermarkBlurPreview";
@@ -131,6 +133,8 @@ interface MobileWatermarkEditorProps {
     setWatermarkOpacity: (val: number) => void;
     watermarkBlur: boolean;
     setWatermarkBlur: (val: boolean) => void;
+    downloadMode: WatermarkDownloadMode;
+    setDownloadMode: (value: WatermarkDownloadMode) => void;
     quality: number;
     setQuality: (val: number) => void;
     onAutoColor?: () => void;
@@ -167,6 +171,8 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     setWatermarkBlur,
     quality,
     setQuality,
+    downloadMode,
+    setDownloadMode,
     onAutoColor, onConfigPatch,
     watermarkMode,
     setWatermarkMode,
@@ -1241,6 +1247,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                             <Switch aria-label="辅助线" checked={showGuideLines} onCheckedChange={setShowGuideLines} />
                                         </div>
                                     </div>
+                                    <WatermarkDownloadControl value={downloadMode} onChange={setDownloadMode} disabled={isGenerating}/>
                                 </div>
                             </div>
                         </div>

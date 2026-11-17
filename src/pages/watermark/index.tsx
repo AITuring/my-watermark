@@ -53,6 +53,8 @@ import { importWithRecovery } from "@/utils/import-recovery";
 import { findSmartWatermarkPosition, loadPositionImage } from "./smart-position";
 import { PreviewUrlLease, recoverPreviewUrl } from "@/utils/preview-url-lease";
 
+import type {WatermarkDownloadMode} from './export-downloads';
+
 const WATERMARK_OVERSIZE_THRESHOLD_BYTES = 30 * 1024 * 1024;
 
 type OversizePromptState = {
@@ -139,6 +141,7 @@ const Watermark: React.FC = () => {
     const [uploading, setUploading] = useState(false);
     const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
     const [quality, setQuality] = useState(0.95);
+    const [downloadMode, setDownloadMode] = useState<WatermarkDownloadMode>('zip');
     const [watermarkBlur, setWatermarkBlur] = useState(true);
     const [watermarkOpacity, setWatermarkOpacity] = useState(1);
     const [mobileView, setMobileView] = useState<"editor" | "gallery">(
@@ -166,6 +169,7 @@ const Watermark: React.FC = () => {
         watermarkOpacity,
         watermarkBlur,
         quality,
+        downloadMode,
         resolveWatermark: watermarkMode === "image" ? undefined : async (item) => {
             const image = images.find(candidate => candidate.id === item.id);
             if (!image) throw new Error("图片不存在");
@@ -684,6 +688,8 @@ const Watermark: React.FC = () => {
                             setWatermarkBlur={setWatermarkBlur}
                             quality={quality}
                             setQuality={setQuality}
+                            downloadMode={downloadMode}
+                            setDownloadMode={setDownloadMode}
                             onConfigPatch={patchWatermarkConfig}
                             onAutoColor={() => handleTextColorChange("transparent")}
                             watermarkMode={watermarkMode}
@@ -828,6 +834,8 @@ const Watermark: React.FC = () => {
                     setWatermarkBlur={setWatermarkBlur}
                     quality={quality}
                     setQuality={setQuality}
+                    downloadMode={downloadMode}
+                    setDownloadMode={setDownloadMode}
                     watermarkOpacity={watermarkOpacity}
                     setWatermarkOpacity={setWatermarkOpacity}
                     onGenerate={handleApplyWatermark}

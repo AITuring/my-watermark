@@ -1,4 +1,5 @@
-import { watermarkOutputName, uniqueArchiveName } from "../export-names";
+import { watermarkOutputName } from "../export-names";
+import {downloadWatermarkOutputs, type WatermarkDownloadMode} from '../export-downloads';
 import { useCallback, useState } from "react";
 import pLimit from "p-limit";
 import confetti from "canvas-confetti";
@@ -13,6 +14,7 @@ interface UseWatermarkBatchProcessorOptions {
     watermarkOpacity: number;
     watermarkBlur: boolean;
     quality: number;
+    downloadMode?: WatermarkDownloadMode;
     oversizeThresholdBytes?: number;
     onOversizedFiles?: (files: File[]) => void | Promise<void>;
     confirmOversizedFiles?: (payload: {
@@ -31,6 +33,7 @@ export function useWatermarkBatchProcessor({
     watermarkOpacity,
     watermarkBlur,
     quality,
+    downloadMode = 'zip',
     oversizeThresholdBytes = DEFAULT_OVERSIZE_THRESHOLD_BYTES,
     onOversizedFiles,
     confirmOversizedFiles,
@@ -217,17 +220,8 @@ export function useWatermarkBatchProcessor({
 
                 if (outputFiles.length) {
                     setLoading(true);
-                    if (outputFiles.length === 1) triggerDownload(outputFiles[0]);
-                    else {
-                        const {default:JSZip} = await importWithRecovery(()=>import("jszip"),"watermark:zip");
-                        const archive = new JSZip();
-                        const used = new Set<string>();
-                        outputFiles.sort((a,b)=>a.name.localeCompare(b.name,'zh-CN',{numeric:true}));
-                        outputFiles.forEach(file=>archive.file(uniqueArchiveName(file.name,used),file));
-                        const blob = await archive.generateAsync({type:"blob",compression:"STORE",streamFiles:true},
-                            metadata=>updateProgressSmoothly(90+metadata.percent*0.1));
-                        triggerDownload(new File([blob],`watermarks-${outputFiles.length}.zip`,{type:"application/zip"}));
-                    }
+                    await downloadWatermarkOutputs(outputFiles, downloadMode, triggerDownload,
+                        percent => updateProgressSmoothly(90 + percent * 0.1));
                     updateProgressSmoothly(100);
                 }
 
@@ -263,6 +257,7 @@ export function useWatermarkBatchProcessor({
             }
         },
         [
+            downloadMode,
             quality,
             resetProgress,
             confirmOversizedFiles,

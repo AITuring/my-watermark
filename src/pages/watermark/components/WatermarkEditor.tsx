@@ -16,13 +16,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Icon } from "@iconify/react";
+import { ArrowDown, ArrowDownLeft, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpLeft, ArrowUpRight, ChevronDown, CircleDot, GripVertical, Lightbulb, Move, Sparkles } from "lucide-react";
 
 import Konva from "konva";
 import { Stage, Layer, Image as KonvaImage, Transformer } from "react-konva";
@@ -35,6 +29,18 @@ import {
 } from "@/utils/watermark-editor";
 import ImageWithFixedWidth from "@/pages/watermark/components/ImageWithFixedWidth";
 import "../watermark.css";
+
+const WATERMARK_POSITION_OPTIONS = [
+    {v: "top-left", i: ArrowUpLeft, t: "左上"},
+    {v: "top-mid", i: ArrowUp, t: "上"},
+    {v: "top-right", i: ArrowUpRight, t: "右上"},
+    {v: "mid-left", i: ArrowLeft, t: "左"},
+    {v: "center", i: CircleDot, t: "居中"},
+    {v: "mid-right", i: ArrowRight, t: "右"},
+    {v: "bottom-left", i: ArrowDownLeft, t: "左下"},
+    {v: "bottom-mid", i: ArrowDown, t: "下"},
+    {v: "bottom-right", i: ArrowDownRight, t: "右下"},
+] as const;
 
 const drawGuideLines = (layer, stageWidth, stageHeight) => {
     const lineStroke = "red";
@@ -151,6 +157,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
     // 添加选择位置的状态
     const [selectedPosition, setSelectedPosition] = useState("center");
+    const selectedPlacements = useRef(new Map<string, {value: string; position: WatermarkPosition}>());
     const [isFindingPosition, setIsFindingPosition] = useState(false);
 
     // 水印相关设置
@@ -200,66 +207,32 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         x: number;
         y: number;
     } | null>(null);
-    const [toolbarOrientation, setToolbarOrientation] = useState<
-        "horizontal" | "vertical"
-    >("horizontal");
     const toolbarRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [colorPanelOpen, setColorPanelOpen] = useState(false);
     const colorPanelVisible = colorPanelOpen && !settingsOpen;
     useEffect(() => {if (settingsOpen) setColorPanelOpen(false);}, [settingsOpen]);
     const changeColorPanelOpen = (open: boolean) => {setColorPanelOpen(open); onColorPanelOpenChange?.(open);};
-    const isDraggingRef = useRef(false);
 
-    const isVerticalLayout = toolbarOrientation === "vertical";
-
-    // 当操作栏展开状态变化时，检查并修正位置确保在容器内
-    useEffect(() => {
-        if (
-            isToolbarExpanded &&
-            toolbarRef.current &&
-            containerRef.current &&
-            toolbarPos
-        ) {
-            const toolbarEl = toolbarRef.current;
-            const containerEl = containerRef.current;
-            const toolbarRect = toolbarEl.getBoundingClientRect();
-            const containerWidth = containerEl.clientWidth;
-            const containerHeight = containerEl.clientHeight;
-            const padding = 16;
-
-            let newX = toolbarPos.x;
-            let newY = toolbarPos.y;
-            let needsUpdate = false;
-
-            const minX = padding;
-            const maxX = containerWidth - toolbarRect.width - padding;
-            const minY = padding;
-            const maxY = containerHeight - toolbarRect.height - padding;
-
-            if (newX < minX) {
-                newX = minX;
-                needsUpdate = true;
-            } else if (newX > maxX) {
-                newX = maxX;
-                needsUpdate = true;
-            }
-
-            if (newY < minY) {
-                newY = minY;
-                needsUpdate = true;
-            } else if (newY > maxY) {
-                newY = maxY;
-                needsUpdate = true;
-            }
-
-            if (needsUpdate) {
-                setToolbarPos({ x: newX, y: newY });
-            }
-        }
+    // Keep a moved toolbar inside the preview when it resizes or changes shape.
+    useLayoutEffect(() => {
+        const toolbar = toolbarRef.current, container = containerRef.current;
+        if (!toolbar || !container) return;
+        const clampPosition = () => setToolbarPos(previous => {
+            if (!previous) return previous;
+            const x = Math.max(12, Math.min(previous.x, container.clientWidth - toolbar.offsetWidth - 12));
+            const y = Math.max(12, Math.min(previous.y, container.clientHeight - toolbar.offsetHeight - 12));
+            return x === previous.x && y === previous.y ? previous : {x, y};
+        });
+        const observer = new ResizeObserver(clampPosition);
+        observer.observe(toolbar);
+        observer.observe(container);
+        return () => observer.disconnect();
     }, [isToolbarExpanded]);
 
     const handleToolbarMouseDown = (e: React.MouseEvent) => {
+        // Portaled menu clicks must not begin a toolbar drag.
+        if (!toolbarRef.current?.contains(e.target as Node)) return;
         if (
             (e.target as HTMLElement).closest(
                 'button, input, [role="combobox"], .no-drag'
@@ -285,7 +258,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
         const initialMouseX = e.clientX;
         const initialMouseY = e.clientY;
-        isDraggingRef.current = false;
 
         // Temporarily disable transition for smooth dragging
         toolbarEl.style.transition = "none";
@@ -300,10 +272,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const dx = moveEvent.clientX - initialMouseX;
             const dy = moveEvent.clientY - initialMouseY;
-
-            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-                isDraggingRef.current = true;
-            }
 
             let newLeft = startLeft + dx;
             let newTop = startTop + dy;
@@ -349,33 +317,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 x: finalX,
                 y: finalY,
             });
-
-            // Calculate new orientation based on position relative to container edges
-            if (isDraggingRef.current) {
-                // Use the center of the toolbar for distance calculation
-                const centerX = finalX + toolbarRect.width / 2;
-                const centerY = finalY + toolbarRect.height / 2;
-
-                const distToLeft = centerX;
-                const distToRight = containerWidth - centerX;
-                const distToTop = centerY;
-                const distToBottom = containerHeight - centerY;
-
-                const minSideDist = Math.min(distToLeft, distToRight);
-                const minVerticalDist = Math.min(distToTop, distToBottom);
-
-                // If closer to sides than to top/bottom, switch to vertical
-                if (minSideDist < minVerticalDist) {
-                    setToolbarOrientation("vertical");
-                } else {
-                    setToolbarOrientation("horizontal");
-                }
-            }
-
-            // If not dragging, treat as click
-            if (!isDraggingRef.current && !isToolbarExpanded) {
-                setIsToolbarExpanded(true);
-            }
         };
 
         window.addEventListener("mousemove", handleMouseMove);
@@ -534,7 +475,11 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         if (currentWatermarkPosition) {
             setPosition(currentWatermarkPosition);
             setCurrentScale(currentWatermarkPosition.scaleX);
-            setSelectedPosition("");
+            const selection = selectedPlacements.current.get(currentWatermarkPosition.id);
+            const matches = selection && (["x", "y", "scaleX", "scaleY", "rotation"] as const)
+                .every(key => selection.position[key] === currentWatermarkPosition[key]);
+            setSelectedPosition(matches ? selection.value : "");
+            if (!matches) selectedPlacements.current.delete(currentWatermarkPosition.id);
         }
     }, [currentWatermarkPosition]);
 
@@ -713,7 +658,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     };
 
     // 更新水印位置的辅助函数
-    const updateWatermarkPosition = (percentX, percentY) => {
+    const updateWatermarkPosition = (percentX: number, percentY: number, placement: string) => {
         // 计算水印图片中心的坐标（百分比）
         const centerX = Math.max(0, Math.min(1, percentX));
         const centerY = Math.max(0, Math.min(1, percentY));
@@ -764,6 +709,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
             rotation: position.rotation || 0,
         };
 
+        selectedPlacements.current.set(newPosition.id, {value: placement, position: newPosition});
         setPosition(newPosition);
         if (isBatch) {
             onAllTransform(newPosition);
@@ -792,15 +738,15 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     };
 
     // 按钮回调函数，设置水印位置
-    const onTopLeft = () => updateWatermarkPosition(0, 0);
-    const onTopMid = () => updateWatermarkPosition(0.5, 0);
-    const onTopRight = () => updateWatermarkPosition(1, 0);
-    const onMidLeft = () => updateWatermarkPosition(0, 0.5);
-    const onCenterMid = () => updateWatermarkPosition(0.5, 0.5);
-    const onMidRight = () => updateWatermarkPosition(1, 0.5);
-    const onBottomLeft = () => updateWatermarkPosition(0, 1);
-    const onBottomMid = () => updateWatermarkPosition(0.5, 1);
-    const onBottomRight = () => updateWatermarkPosition(1, 1);
+    const onTopLeft = () => updateWatermarkPosition(0, 0, "top-left");
+    const onTopMid = () => updateWatermarkPosition(0.5, 0, "top-mid");
+    const onTopRight = () => updateWatermarkPosition(1, 0, "top-right");
+    const onMidLeft = () => updateWatermarkPosition(0, 0.5, "mid-left");
+    const onCenterMid = () => updateWatermarkPosition(0.5, 0.5, "center");
+    const onMidRight = () => updateWatermarkPosition(1, 0.5, "mid-right");
+    const onBottomLeft = () => updateWatermarkPosition(0, 1, "bottom-left");
+    const onBottomMid = () => updateWatermarkPosition(0.5, 1, "bottom-mid");
+    const onBottomRight = () => updateWatermarkPosition(1, 1, "bottom-right");
 
     // 统一应用当前位置的辅助函数
     const applySelectedPosition = React.useCallback(
@@ -955,6 +901,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                     })()}
                                     x={position.x * backgroundImageSize.width}
                                     y={position.y * backgroundImageSize.height}
+                                    rotation={position.rotation}
                                     scaleX={1}
                                     scaleY={1}
                                     draggable
@@ -1005,222 +952,67 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                 {/* Floating Toolbar */}
                 <div
                     ref={toolbarRef}
-                    className={`wm-floating-toolbar absolute z-20 transition-all duration-300 ${
-                        !toolbarPos
-                            ? "bottom-6 left-1/2 -translate-x-1/2"
-                            : ""
-                    }`}
+                    className="wm-floating-toolbar"
                     style={
                         toolbarPos
                             ? {
                                   left: toolbarPos.x,
                                   top: toolbarPos.y,
                                   transform: "none",
+                                  bottom: "auto",
                               }
                             : {}
                     }
                     onMouseDown={handleToolbarMouseDown}
                 >
                     {isToolbarExpanded ? (
-                        <div className="relative group">
-                            <div
-                                className={`wm-floating-controls bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl shadow-black/10 border border-slate-200 dark:border-slate-700 rounded-xl p-2 flex ${
-                                    isVerticalLayout ? "flex-col" : "flex-row"
-                                } items-center gap-2 transition-colors cursor-move select-none`}
-                            >
-                                {/* Collapse Button */}
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIsToolbarExpanded(false);
-                                    }}
-                                    className="w-6 h-6 bg-white rounded-full shadow-md flex items-center justify-center text-slate-400 hover:text-slate-600 border border-slate-100 transition-opacity no-drag"
-                                    title="收起"
+                        <div className="wm-floating-controls" role="toolbar" aria-label="水印快捷工具">
+                            <span className="wm-floating-grip" title="拖动工具条" aria-hidden="true"><GripVertical size={14}/></span>
+                            <div className="wm-floating-edit no-drag">
+                                <Select
+                                    value={selectedPosition}
+                                    onValueChange={handlePositionChange}
                                 >
-                                    <Icon
-                                        icon={
-                                            isVerticalLayout
-                                                ? "mdi:chevron-up"
-                                                : "mdi:chevron-left"
-                                        }
-                                        className="w-4 h-4"
-                                    />
-                                </button>
-
-                                {/* Position Group */}
-                                <div
-                                    className={`flex ${
-                                        isVerticalLayout
-                                            ? "flex-col"
-                                            : "flex-row"
-                                    } items-center gap-2`}
-                                >
-                            {/* <div className="p-1.5 bg-slate-100 text-slate-500 rounded-full">
-                                <Icon
-                                    icon="mdi:move-resize"
-                                    className="w-3.5 h-3.5"
-                                />
-                            </div> */}
-                                        <Select
-                                            value={selectedPosition}
-                                            onValueChange={handlePositionChange}
-                                        >
-                                            <SelectTrigger aria-label="水印位置"
-                                                className={`h-8 text-xs bg-slate-100 dark:bg-slate-800 border-0 focus:ring-2 focus:ring-blue-500/40 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors font-medium text-slate-700 dark:text-slate-200 [&>span]:flex [&>span]:items-center no-drag ${
-                                                    isVerticalLayout
-                                                        ? "w-8 justify-center px-0 [&>svg]:hidden"
-                                                        : "w-[88px] px-2 justify-between"
-                                                }`}
-                                            >
-                                                <SelectValue
-                                                    placeholder={
-                                                        isVerticalLayout
-                                                            ? ""
-                                                            : "位置"
-                                                    }
-                                                />
-                                                {isVerticalLayout &&
-                                                    !selectedPosition && (
-                                                        <Icon
-                                                            icon="mdi:move-resize"
-                                                            className="w-4 h-4 text-slate-500"
-                                                        />
-                                                    )}
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl border-slate-200 bg-white p-1 text-slate-700 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                                                <SelectGroup>
-                                                    <SelectItem value="smart" disabled={isFindingPosition} className="text-xs cursor-pointer">
-                                                        {isFindingPosition ? "正在分析图片…" : "智能位置 · 避开复杂区域"}
+                                    <SelectTrigger aria-label="水印位置" className="wm-floating-position">
+                                        <Move size={14} aria-hidden="true"/>
+                                        <SelectValue placeholder="位置">{WATERMARK_POSITION_OPTIONS.find(item => item.v === selectedPosition)?.t}</SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent className="wm-position-menu" sideOffset={4}>
+                                        <SelectGroup>
+                                            <SelectItem value="smart" disabled={isFindingPosition} className="wm-position-smart" title="智能位置 · 避开复杂区域"><Sparkles size={12}/>{isFindingPosition ? "正在分析…" : "智能位置"}</SelectItem>
+                                            <SelectLabel className="sr-only">快速定位</SelectLabel>
+                                            <div className="wm-position-menu-grid">
+                                                {WATERMARK_POSITION_OPTIONS.map(({v, i: PositionIcon, t}) => (
+                                                    <SelectItem key={v} value={v} textValue={t} className="wm-position-option" title={t}>
+                                                        <PositionIcon size={12} aria-hidden="true"/>{t}
                                                     </SelectItem>
-                                                    <SelectLabel className="text-xs text-slate-500 font-normal px-2 py-1.5">
-                                                        快速定位
-                                                    </SelectLabel>
-                                                    <div className="grid grid-cols-3 gap-1 p-1">
-                                                        {[
-                                                            {
-                                                                v: "top-left",
-                                                                i: "mdi:arrow-top-left",
-                                                                t: "左上",
-                                                            },
-                                                            {
-                                                                v: "top-mid",
-                                                                i: "mdi:arrow-up",
-                                                                t: "上",
-                                                            },
-                                                            {
-                                                                v: "top-right",
-                                                                i: "mdi:arrow-top-right",
-                                                                t: "右上",
-                                                            },
-                                                            {
-                                                                v: "mid-left",
-                                                                i: "mdi:arrow-left",
-                                                                t: "左",
-                                                            },
-                                                            {
-                                                                v: "center",
-                                                                i: "mdi:bullseye",
-                                                                t: "居中",
-                                                            },
-                                                            {
-                                                                v: "mid-right",
-                                                                i: "mdi:arrow-right",
-                                                                t: "右",
-                                                            },
-                                                            {
-                                                                v: "bottom-left",
-                                                                i: "mdi:arrow-bottom-left",
-                                                                t: "左下",
-                                                            },
-                                                            {
-                                                                v: "bottom-mid",
-                                                                i: "mdi:arrow-down",
-                                                                t: "下",
-                                                            },
-                                                            {
-                                                                v: "bottom-right",
-                                                                i: "mdi:arrow-bottom-right",
-                                                                t: "右下",
-                                                            },
-                                                        ].map((item) => (
-                                                            <SelectItem
-                                                                key={item.v}
-                                                                value={item.v}
-                                                                className="justify-center text-center text-sm py-2.5 cursor-pointer focus:bg-blue-50 focus:text-blue-600 dark:focus:bg-slate-700 dark:focus:text-blue-300 rounded-md pr-2 [&>span.absolute]:hidden data-[state=checked]:bg-blue-100 data-[state=checked]:text-blue-600 dark:data-[state=checked]:bg-slate-700 dark:data-[state=checked]:text-blue-300"
-                                                                title={item.t}
-                                                            >
-                                                                <Icon
-                                                                    icon={
-                                                                        item.i
-                                                                    }
-                                                                    className="inline-block w-4 h-4 mr-1.5"
-                                                                />
-                                                                {item.t}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </div>
-                                                </SelectGroup>
-                                            </SelectContent>
-                                        </Select>
+                                                ))}
+                                            </div>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
 
-                            <div
-                                className={
-                                    isVerticalLayout
-                                        ? "w-full h-px bg-slate-200"
-                                        : "h-4 w-px bg-slate-200"
-                                }
-                            ></div>
+                                <label className="wm-floating-scope" title={isBatch ? "修改应用于全部图片" : "修改仅应用于当前图片"}>
+                                    <Switch checked={isBatch} onCheckedChange={setIsBatch} aria-label="批量编辑"/>
+                                    <span>{isBatch ? "批量" : "单独"}</span>
+                                </label>
+                            </div>
 
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <div
-                                            className={`flex ${
-                                                isVerticalLayout
-                                                    ? "flex-col gap-1"
-                                                    : "flex-row gap-2"
-                                            } items-center cursor-pointer group/batch select-none no-drag`}
-                                        >
-                                            <Switch
-                                                checked={isBatch}
-                                                onCheckedChange={setIsBatch}
-                                                aria-label="批量编辑"
-                                            />
-                                            <button type="button" onClick={() => setIsBatch(!isBatch)}
-                                                className={`text-xs font-medium transition-colors ${
-                                                    isBatch
-                                                        ? "text-blue-600"
-                                                        : "text-slate-400 group-hover/batch:text-slate-600"
-                                                } w-[24px]`}
-                                            >
-                                                {isBatch ? "批量" : "单独"}
-                                            </button>
-                                        </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        {isBatch ? "批量操作" : "操作本图"}
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </div>
-
-                        <span className="wm-canvas-divider" aria-hidden="true"/>
-                        <div className="wm-canvas-appearance no-drag">
-                            <WatermarkColorControl open={colorPanelVisible} onOpenChange={changeColorPanelOpen} color={selectedColor ?? textConfig?.color ?? localColor}
-                                opacity={watermarkOpacity} onOpacityChange={onWatermarkOpacityChange}
-                                automatic={automaticColor ?? !(selectedColor || localColor)} textMode={Boolean(textConfig)}
-                                suggestions={dominantColors.map(item => '#' + [item.r, item.g, item.b].map(channel => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0')).join(''))} onChange={color => void applyWatermarkColor(color)}/>
                             <span className="wm-canvas-divider" aria-hidden="true"/>
-                            <PreviewZoomControl value={previewScale} onChange={setPreviewScale}/>
-                        </div>
-
-
-                    </div>
+                            <div className="wm-canvas-appearance no-drag">
+                                <WatermarkColorControl open={colorPanelVisible} onOpenChange={changeColorPanelOpen} color={selectedColor ?? textConfig?.color ?? localColor}
+                                    opacity={watermarkOpacity} onOpacityChange={onWatermarkOpacityChange}
+                                    automatic={automaticColor ?? !(selectedColor || localColor)} textMode={Boolean(textConfig)}
+                                    suggestions={dominantColors.map(item => '#' + [item.r, item.g, item.b].map(channel => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0')).join(''))} onChange={color => void applyWatermarkColor(color)}/>
+                                <span className="wm-canvas-divider" aria-hidden="true"/>
+                                <PreviewZoomControl value={previewScale} onChange={setPreviewScale}/>
+                            </div>
+                            <button type="button" className="wm-floating-collapse" aria-label="收起水印工具条" title="收起工具条"
+                                onClick={() => setIsToolbarExpanded(false)}><ChevronDown size={16}/></button>
                         </div>
                     ) : (
-                        <div className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-xl shadow-xl border border-white/60 flex items-center justify-center text-slate-600 hover:scale-110 hover:text-blue-600 transition-all cursor-pointer">
-                            <Icon icon="ri:lightbulb-flash-line" className="w-5 h-5" />
-                        </div>
+                        <button type="button" className="wm-floating-expand" aria-label="展开水印工具条" title="展开水印工具条"
+                            onClick={() => setIsToolbarExpanded(true)}><Lightbulb size={20}/></button>
                     )}
                 </div>
             </div>
