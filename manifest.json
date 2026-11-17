@@ -82,31 +82,6 @@
       "_ui-primitives-92a2c2bf.js"
     ]
   },
-  "_index-144b1406.js": {
-    "css": [
-      "assets/index-44ae465b.css"
-    ],
-    "dynamicImports": [
-      "src/utils/index.ts",
-      "_jszip.min-0177f257.js",
-      "src/utils/watermark-processing.ts",
-      "src/utils/watermark-processing.ts",
-      "src/utils/watermark-processing.ts",
-      "src/utils/image-loading.ts",
-      "src/utils/watermark-processing.ts"
-    ],
-    "file": "assets/index-144b1406.js",
-    "imports": [
-      "_app-runtime-98ef8efd.js",
-      "_ui-primitives-92a2c2bf.js",
-      "_ui-controls-c3713b1d.js",
-      "_index-2cc8da82.js",
-      "_ImageUploader-50d55e8e.js",
-      "_image-tool-common-253512f9.js",
-      "_iconify-5553e249.js"
-    ],
-    "isDynamicEntry": true
-  },
   "_index-25699f56.js": {
     "file": "assets/index-25699f56.js",
     "imports": [
@@ -124,6 +99,31 @@
     "imports": [
       "_app-runtime-98ef8efd.js"
     ]
+  },
+  "_index-86b89582.js": {
+    "css": [
+      "assets/index-44ae465b.css"
+    ],
+    "dynamicImports": [
+      "src/utils/index.ts",
+      "_jszip.min-0177f257.js",
+      "src/utils/watermark-processing.ts",
+      "src/utils/watermark-processing.ts",
+      "src/utils/watermark-processing.ts",
+      "src/utils/image-loading.ts",
+      "src/utils/watermark-processing.ts"
+    ],
+    "file": "assets/index-86b89582.js",
+    "imports": [
+      "_app-runtime-98ef8efd.js",
+      "_ui-primitives-92a2c2bf.js",
+      "_ui-controls-c3713b1d.js",
+      "_index-2cc8da82.js",
+      "_ImageUploader-50d55e8e.js",
+      "_image-tool-common-253512f9.js",
+      "_iconify-5553e249.js"
+    ],
+    "isDynamicEntry": true
   },
   "_index-b4a65466.js": {
     "assets": [
@@ -172,8 +172,8 @@
     ],
     "isDynamicEntry": true
   },
-  "_large-image-51afc59c.js": {
-    "file": "assets/large-image-51afc59c.js",
+  "_large-image-fcb33c41.js": {
+    "file": "assets/large-image-fcb33c41.js",
     "imports": [
       "index.html"
     ]
@@ -190,11 +190,11 @@
       "_app-runtime-98ef8efd.js"
     ]
   },
-  "_services-58e52fca.js": {
-    "file": "assets/services-58e52fca.js",
+  "_services-71a7d52a.js": {
+    "file": "assets/services-71a7d52a.js",
     "imports": [
       "_image-tool-common-253512f9.js",
-      "_large-image-51afc59c.js"
+      "_large-image-fcb33c41.js"
     ]
   },
   "_three.module-70baf2b9.js": {
@@ -229,7 +229,7 @@
       "assets/index-4c50deeb.css"
     ],
     "dynamicImports": [
-      "_index-144b1406.js",
+      "_index-86b89582.js",
       "src/pages/mosaic/index.tsx",
       "src/pages/puzzle/index.tsx",
       "src/pages/compress/index.tsx",
@@ -253,7 +253,7 @@
       "src/pages/ancient-waves/index.tsx",
       "src/pages/landing/index.tsx"
     ],
-    "file": "assets/index-e0b17664.js",
+    "file": "assets/index-99268d3c.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-92a2c2bf.js"
@@ -557,7 +557,7 @@
     "dynamicImports": [
       "src/pages/artifact-ai/MarkdownRenderer.tsx"
     ],
-    "file": "assets/index-6fdf12e4.js",
+    "file": "assets/index-811e6b33.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-92a2c2bf.js",
@@ -569,7 +569,7 @@
     "src": "src/pages/artifact-ai/index.tsx"
   },
   "src/pages/batch-workbench/index.tsx": {
-    "file": "assets/index-163176bf.js",
+    "file": "assets/index-0453e0d5.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-ff92500e.js",
@@ -577,9 +577,9 @@
       "_ui-primitives-92a2c2bf.js",
       "_ui-controls-c3713b1d.js",
       "_types-723ed6fd.js",
-      "_services-58e52fca.js",
+      "_services-71a7d52a.js",
       "_image-tool-common-253512f9.js",
-      "_large-image-51afc59c.js"
+      "_large-image-fcb33c41.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/batch-workbench/index.tsx"
@@ -602,12 +602,12 @@
     "css": [
       "assets/index-08382298.css"
     ],
-    "file": "assets/index-91c2907d.js",
+    "file": "assets/index-4e62ff63.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "index.html",
       "_ImageUploader-50d55e8e.js",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "_ui-primitives-92a2c2bf.js",
       "_index-ff92500e.js"
     ],
@@ -615,23 +615,23 @@
     "src": "src/pages/collage/index.tsx"
   },
   "src/pages/compress/index.tsx": {
-    "file": "assets/index-8f06e4b1.js",
+    "file": "assets/index-c4ed7d07.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_GenerativeBackground-6da2d4b6.js",
       "_ui-primitives-92a2c2bf.js",
       "_ui-controls-c3713b1d.js",
-      "_services-58e52fca.js",
+      "_services-71a7d52a.js",
       "_index-ff92500e.js",
       "_image-tool-common-253512f9.js",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "index.html"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/compress/index.tsx"
   },
   "src/pages/crop/index.tsx": {
-    "file": "assets/index-8f5f1344.js",
+    "file": "assets/index-5de36cf5.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "index.html",
@@ -640,13 +640,13 @@
       "_PanelCard-6b4a7541.js",
       "_ui-controls-c3713b1d.js",
       "_image-tool-common-253512f9.js",
-      "_large-image-51afc59c.js"
+      "_large-image-fcb33c41.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/crop/index.tsx"
   },
   "src/pages/gallery/index.tsx": {
-    "file": "assets/index-a21c6833.js",
+    "file": "assets/index-89f44e53.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-ff92500e.js",
@@ -654,7 +654,7 @@
       "_iconify-5553e249.js",
       "_SliderNumberField-2db8f8f5.js",
       "_image-tool-common-253512f9.js",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "_PanelCard-6b4a7541.js",
       "_ui-primitives-92a2c2bf.js",
       "_ui-controls-c3713b1d.js",
@@ -671,13 +671,13 @@
     "css": [
       "assets/index-cfdacb57.css"
     ],
-    "file": "assets/index-e48c39b0.js",
+    "file": "assets/index-e0583b1b.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_iconify-5553e249.js",
       "_rows-951e9fda.js",
       "_image-tool-common-253512f9.js",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "_ui-controls-c3713b1d.js",
       "_ui-primitives-92a2c2bf.js",
       "index.html"
@@ -713,7 +713,7 @@
     "css": [
       "assets/index-72ade40d.css"
     ],
-    "file": "assets/index-96f50f72.js",
+    "file": "assets/index-cca1efb1.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-25699f56.js",
@@ -724,13 +724,13 @@
     "src": "src/pages/landing/index.tsx"
   },
   "src/pages/mosaic/index.tsx": {
-    "file": "assets/index-03c894d2.js",
+    "file": "assets/index-d33f0717.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-ff92500e.js",
       "index.html",
       "_ui-primitives-92a2c2bf.js",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "_ui-controls-c3713b1d.js",
       "_image-tool-common-253512f9.js"
     ],
@@ -751,7 +751,7 @@
     "src": "src/pages/museum-events/index.tsx"
   },
   "src/pages/museum/index.tsx": {
-    "file": "assets/index-e5fc45bb.js",
+    "file": "assets/index-33031620.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-92a2c2bf.js",
@@ -762,14 +762,14 @@
     "src": "src/pages/museum/index.tsx"
   },
   "src/pages/photo-exif/index.tsx": {
-    "file": "assets/index-1aa9be3a.js",
+    "file": "assets/index-40e958af.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-controls-c3713b1d.js",
       "_ui-primitives-92a2c2bf.js",
       "src/utils/image-loading.ts",
       "_image-tool-common-253512f9.js",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "_PanelCard-6b4a7541.js",
       "_index-25699f56.js",
       "index.html",
@@ -779,7 +779,7 @@
     "src": "src/pages/photo-exif/index.tsx"
   },
   "src/pages/puzzle/index.tsx": {
-    "file": "assets/index-339d3f7b.js",
+    "file": "assets/index-0b7d184b.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-ff92500e.js",
@@ -790,14 +790,14 @@
       "_ui-primitives-92a2c2bf.js",
       "_PanelCard-6b4a7541.js",
       "_ui-controls-c3713b1d.js",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "_rows-951e9fda.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/puzzle/index.tsx"
   },
   "src/pages/rename/index.tsx": {
-    "file": "assets/index-d89d9c2c.js",
+    "file": "assets/index-b8e0e808.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-92a2c2bf.js",
@@ -866,12 +866,12 @@
     "src": "src/pages/split/index.tsx"
   },
   "src/pages/stitch/index.tsx": {
-    "file": "assets/index-811e82a4.js",
+    "file": "assets/index-68e7fdd1.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
       "_index-ff92500e.js",
       "_ui-controls-c3713b1d.js",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "_ui-primitives-92a2c2bf.js",
       "index.html"
     ],
@@ -960,10 +960,10 @@
     "dynamicImports": [
       "_UTIF-edf21535.js"
     ],
-    "file": "assets/image-loading-caa8ff35.js",
+    "file": "assets/image-loading-be8dd4fe.js",
     "imports": [
       "_app-runtime-98ef8efd.js",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "index.html",
       "_ui-primitives-92a2c2bf.js"
     ],
@@ -971,12 +971,12 @@
     "src": "src/utils/image-loading.ts"
   },
   "src/utils/index.ts": {
-    "file": "assets/index-ac4d1f58.js",
+    "file": "assets/index-a7db7ee7.js",
     "imports": [
       "src/utils/image-loading.ts",
-      "_index-144b1406.js",
+      "_index-86b89582.js",
       "_app-runtime-98ef8efd.js",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "index.html",
       "_ui-primitives-92a2c2bf.js",
       "_ui-controls-c3713b1d.js",
@@ -990,11 +990,11 @@
     "src": "src/utils/index.ts"
   },
   "src/utils/watermark-processing.ts": {
-    "file": "assets/watermark-processing-ff8baeb9.js",
+    "file": "assets/watermark-processing-af6736a3.js",
     "imports": [
-      "_index-144b1406.js",
+      "_index-86b89582.js",
       "src/utils/image-loading.ts",
-      "_large-image-51afc59c.js",
+      "_large-image-fcb33c41.js",
       "_app-runtime-98ef8efd.js",
       "_ui-primitives-92a2c2bf.js",
       "_ui-controls-c3713b1d.js",
