@@ -1,6 +1,11 @@
 export interface LayoutShape {width:number;height:number}
 export interface LayoutItem {role:'text'|'icon';x:number;y:number;width:number;height:number;index?:number}
 
+/** Keep digits upright; turn horizontal connecting strokes into vertical ones. */
+export function getWatermarkGlyphRotation(character:string,vertical:boolean){
+    return vertical&&'《》〈〉-－—–−~～'.includes(character)?Math.PI/2:0;
+}
+
 /** Positions use visible ink bounds. Preview and export use this one geometry. */
 export function arrangeWatermark(shapes:LayoutShape[],vertical:boolean,centered:boolean,fontSize:number,lineGap:number,iconRatio?:number){
     const items:LayoutItem[]=[],gap=fontSize*.8;

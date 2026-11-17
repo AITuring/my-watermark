@@ -7,11 +7,21 @@ import {createTextWatermark} from '/src/utils/text-watermark';
 import {extractWatermarkCaption} from '/src/pages/watermark/filename-watermark';
 import type {MixedWatermarkConfig, WatermarkPosition} from '/src/types';
 import '/src/index.css';
+import folderCases from './watermark-filenames.json';
 
 const filenames = [
     '唐-韩休墓北壁《山水图》-2013年西安少陵原唐韩休墓出土-陕西历史博物馆藏-未标题-215.jpg',
     '北宋-祁序《江山放牧图卷》-故宫博物院藏-合成图层清晰度差一些-tm_20261112_001.jpg',
     '南宋-马远梅石溪凫图-故宫博物院藏-尺寸小颜色好-DSC_0123.jpg',
+    '17—19世纪-供盘-大都会艺术博物馆藏-xxx.jpg',
+    '战国-赵国-供盘-大都会艺术博物馆藏-xxx.jpg',
+    '五代-后唐-供盘-大都会艺术博物馆藏-xxx.jpg',
+    '公元前221年-供盘-大都会艺术博物馆藏-xxx.jpg',
+    '公元1223年-供盘-大都会艺术博物馆藏-xxx.jpg',
+    '唐-后唐-供盘-大都会艺术博物馆藏-xxx.jpg',
+    '12-13世纪-供盘-大都会艺术博物馆藏-xxx.jpg',
+    '1945-1949年-供盘-大都会艺术博物馆藏-xxx.jpg',
+    ...folderCases.filter(item => item.title !== null).map(item => item.filename),
 ];
 const caption = extractWatermarkCaption(filenames[0])!;
 const initial: MixedWatermarkConfig = {enabled:true, icon:'/watermark-symbol.png', textOnly:true, ...caption,

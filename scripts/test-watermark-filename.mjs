@@ -7,6 +7,151 @@ const source = await readFile(new URL('../src/pages/watermark/filename-watermark
 const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
 const { extractWatermarkCaption: extract } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
+// Expected captions were reviewed against every filename in Photos-1-001;
+// keep them portable so regressions run without that local folder present.
+const folderCases = JSON.parse(await readFile(new URL('./fixtures/watermark-filenames.json', import.meta.url), 'utf8'));
+for (const {filename, title, details} of folderCases) {
+    test(`Photos-1-001: ${filename}`, () => {
+        assert.deepEqual(extract(filename), title === null ? null : {
+            textLine1: title, textLine2: `${details} / 笑谈间气吐霓虹摄`,
+        });
+    });
+}
+
+test('combined date/culture fields keep ranges across different separators', () => {
+    for (const era of ['3—6世纪秘鲁莫切文化', '19世纪印度', '约2—3世纪罗马帝国', '莫卧儿时期印度']) {
+        for (const separator of ['-', '－', '—', '–', '_']) {
+            assert.deepEqual(extract(`${era}${separator}串珠${separator}大都会艺术博物馆藏${separator}DSC01364_1.jpg`), {
+                textLine1: '串珠', textLine2: `${era}·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄`,
+            });
+        }
+        assert.equal(extract(`${era}-大都会艺术博物馆藏-DSC01364_1.jpg`), null);
+    }
+});
+
+test('region and culture suffix recognition does not consume an artwork name', () => {
+    for (const title of ['19世纪印度风格匕首', '17世纪风格供盘', '罗马帝国风格护身符', '《莫切文化-串珠图》']) {
+        assert.deepEqual(extract(`${title}-大都会艺术博物馆藏.jpg`), {
+            textLine1: title, textLine2: '大都会艺术博物馆藏 / 笑谈间气吐霓虹摄',
+        });
+    }
+});
+
+test('date context is preserved without a geography dictionary or culture suffix requirement', () => {
+    for (const context of ['坦桑尼亚', '巴布亚新几内亚', 'Tanzania', '未收录地点'.repeat(8),
+        '未知考古传统', '某地区（高地-沿海）', '某地区《未收录文化名》']) {
+        for (const separator of ['-', '－', '—', '–', '_']) {
+            const era = `12—13世纪${context}`;
+            assert.deepEqual(extract(`${era}${separator}串珠${separator}大都会艺术博物馆藏${separator}DSC01364_1.jpg`), {
+                textLine1: '串珠', textLine2: `${era}·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄`,
+            }, era);
+        }
+    }
+});
+
+test('named periods use the artwork/collection structure with unrestricted trailing context', () => {
+    for (const era of ['莫卧儿时期坦桑尼亚', '某个未收录王朝巴布亚新几内亚',
+        '某个未收录文明Tanzania', `${'很长的名称'.repeat(8)}时期某个地点`]) {
+        assert.deepEqual(extract(`${era}-作者：陈某某-《山水图》-大都会艺术博物馆藏.jpg`), {
+            textLine1: '《山水图》', textLine2: `${era}·陈某某·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄`,
+        });
+    }
+});
+
+test('missing artwork cannot be supplied by notes, camera IDs or fields beyond collection', () => {
+    for (const era of ['12—13世纪坦桑尼亚', '12—13世纪Tanzania', '某未知时期某地']) {
+        for (const remainder of ['DSC01364_1', '未标题-215', '作者：陈某某', '局部']) {
+            assert.equal(extract(`${era}-${remainder}-大都会艺术博物馆藏-串珠-照片.jpg`), null);
+        }
+    }
+    for (const title of ['12世纪坦桑尼亚风格供盘', '某文明风格串珠', '《某个未知文明-串珠图》']) {
+        assert.deepEqual(extract(`${title}-大都会艺术博物馆藏-备注.jpg`), {
+            textLine1: title, textLine2: '大都会艺术博物馆藏 / 笑谈间气吐霓虹摄',
+        });
+    }
+});
+
+test('Chinese dynasties, state subdivisions and dynasty ranges form a single era', () => {
+    for (const era of ['唐', '宋', '战国-赵国', '五代-后唐', '唐-后唐', '唐-宋', '北宋-南宋',
+        '战国—赵国', '五代－后梁', '五代_后晋', '五代-后汉', '五代十国-后周',
+        '十国-南唐', '南北朝-北魏', '三国-吴国', '春秋时期-楚国', '唐至宋', '唐 — 后唐']) {
+        assert.deepEqual(extract(`${era}-供盘-大都会艺术博物馆藏-备注-xxx.jpg`), {
+            textLine1: '供盘', textLine2: `${era}·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄`,
+        }, era);
+        assert.deepEqual(extract(`${era}-供盘.jpg`), {
+            textLine1: '供盘', textLine2: `${era} / 笑谈间气吐霓虹摄`,
+        }, era);
+    }
+});
+
+test('BC, AD and calendar ranges match the user filename conventions', () => {
+    for (const era of ['公元前221年', '公元1223年', '公元后1223年', '1223年',
+        '12-13世纪', '1945-1949年', '公元前221年-公元220年', '公元前221-公元220年']) {
+        assert.deepEqual(extract(`${era}-供盘-大都会艺术博物馆藏-xxx.jpg`), {
+            textLine1: '供盘', textLine2: `${era}·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄`,
+        }, era);
+    }
+});
+
+test('Chinese era matching stops before authors, titles, collections and notes', () => {
+    for (const [prefix, title] of [
+        ['战国', '赵国铜镜'], ['唐', '宋式供盘'], ['五代', '后唐风格供盘'],
+        ['唐-后唐', '《唐-宋器物图》'], ['战国-赵国', '赵国铜镜'],
+    ]) {
+        assert.deepEqual(extract(`${prefix}-${title}-大都会艺术博物馆藏-明-清-xxx.jpg`), {
+            textLine1: title, textLine2: `${prefix}·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄`,
+        });
+    }
+    assert.deepEqual(extract('唐-后唐-李唐《山水图》-故宫博物院藏.jpg'), {
+        textLine1: '《山水图》', textLine2: '唐-后唐·李唐·故宫博物院藏 / 笑谈间气吐霓虹摄',
+    });
+    assert.deepEqual(extract('后唐风格供盘-大都会艺术博物馆藏.jpg'), {
+        textLine1: '后唐风格供盘', textLine2: '大都会艺术博物馆藏 / 笑谈间气吐霓虹摄',
+    });
+    for (const era of ['战国-赵国', '五代-后唐', '唐-后唐']) {
+        assert.equal(extract(`${era}-故宫博物院藏-备注-xxx.jpg`), null);
+    }
+});
+
+test('century ranges are one era, not filename field separators', () => {
+    for (const era of ['17—19世纪', '17-19世纪', '17－19世纪', '17–19世纪', '17——19世纪',
+        '17～19世纪', '17至19世纪', '十七至十九世纪', '第十七至第十九世纪',
+        '１７—１９世纪', '17世纪末—19世纪初', '公元前5—前3世纪', '约17—19世纪', '17 — 19世纪']) {
+        for (const separator of ['-', '－', '—', '–', '_']) {
+            assert.deepEqual(extract(`${era}${separator}供盘${separator}大都会艺术博物馆藏${separator}xxx.jpg`), {
+                textLine1: '供盘',
+                textLine2: `${era}·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄`,
+            }, `${era} with ${separator}`);
+        }
+    }
+});
+
+test('single dates and year ranges also stay in the description', () => {
+    for (const era of ['19世纪', '19世纪末', '1700—1800年', '1700年—1800年', '公元前500—300年',
+        '约1700年', '20世纪中期', '十八世纪', '二十世纪初', '1920年代', '1920—1930年代']) {
+        assert.deepEqual(extract(`${era}-供盘-大都会艺术博物馆藏-备注-IMG_001.jpg`), {
+            textLine1: '供盘', textLine2: `${era}·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄`,
+        }, era);
+    }
+    assert.deepEqual(extract('17—19世纪-供盘.jpg'), {
+        textLine1: '供盘', textLine2: '17—19世纪 / 笑谈间气吐霓虹摄',
+    });
+    assert.deepEqual(extract('19世纪-作者：陈某某-《山水图》-大都会艺术博物馆藏.jpg'), {
+        textLine1: '《山水图》', textLine2: '19世纪·陈某某·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄',
+    });
+});
+
+test('date recognition respects field boundaries and does not consume title text', () => {
+    assert.deepEqual(extract('17世纪风格供盘-大都会艺术博物馆藏.jpg'), {
+        textLine1: '17世纪风格供盘', textLine2: '大都会艺术博物馆藏 / 笑谈间气吐霓虹摄',
+    });
+    assert.deepEqual(extract('《17—19世纪-供盘研究》-大都会艺术博物馆藏.jpg'), {
+        textLine1: '《17—19世纪-供盘研究》', textLine2: '大都会艺术博物馆藏 / 笑谈间气吐霓虹摄',
+    });
+    assert.equal(extract('17—19世纪-大都会艺术博物馆藏-备注-xxx.jpg'), null);
+    assert.equal(extract('1700-1800-001.jpg'), null);
+});
+
 test('韩休墓 filename keeps only the artwork name and formats the requested caption', () => {
     assert.deepEqual(extract('唐-韩休墓北壁《山水图》-2013年西安少陵原唐韩休墓出土-陕西历史博物馆藏-未标题-215.jpg'), {
         textLine1: '韩休墓北壁《山水图》',

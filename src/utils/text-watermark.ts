@@ -1,7 +1,7 @@
 import {ensureWatermarkFont} from '@/pages/watermark/fonts/registry';
 import {getWatermarkPreset} from '@/pages/watermark/layout-presets';
 import {getImageOpaqueBounds} from '@/utils/watermark-editor';
-import {arrangeWatermark} from './text-watermark-layout';
+import {arrangeWatermark,getWatermarkGlyphRotation} from './text-watermark-layout';
 import type {MixedWatermarkConfig} from '@/types';
 
 type Field='textLine1'|'textLine2';
@@ -20,7 +20,7 @@ function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Fiel
         if(text===' '){cursor+=vertical?size*.65:m.width+spacing;continue;}
         let x=cursor,y=0,angle=0,ink:Rect;
         if(vertical){
-            angle=text==='《'||text==='》'?Math.PI/2:0;
+            angle=getWatermarkGlyphRotation(text,vertical);
             const b=angle?{left:-box.bottom,right:-box.top,top:box.left,bottom:box.right}:box;
             const w=b.right-b.left,h=b.bottom-b.top;
             x=-w/2-b.left;y=cursor+(size-h)/2-b.top;
@@ -41,7 +41,7 @@ export async function createTextWatermark(config:MixedWatermarkConfig,onLayout?:
     const size=Math.max(24,config.fontSize*4),spacing=size*(config.letterSpacing??.1),vertical=config.layout==='vertical';
     await document.fonts.load(`${size}px ${family}`,runs.map(run=>run.text).join('')||'秋');ctx.font=`${size}px ${family}`;
     const preset=getWatermarkPreset(config),single=preset==='single'||runs.length<2;
-    const joined=runs.flatMap((run,index)=>index?[{text:' · '},run]:[run]);
+    const joined=runs.flatMap((run,index)=>index?[{text:vertical?'·':' · '},run]:[run]);
     const shapes=single&&runs.length?[measureShape(ctx,joined,vertical,size,spacing)]:runs.map(run=>measureShape(ctx,[run],vertical,size,spacing));
     let icon:HTMLImageElement|undefined;
     if(!config.textOnly&&config.icon)icon=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(Error('水印图标加载失败'));image.src=config.icon;});

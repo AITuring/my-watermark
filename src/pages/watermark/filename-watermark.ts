@@ -1,5 +1,27 @@
 const DEFAULT_PHOTOGRAPHER = '笑谈间气吐霓虹摄';
-const ERA = /^(?:旧石器时代|新石器时代|夏|商|商周|西周|东周|春秋|战国|春秋战国|秦|秦汉|汉|西汉|东汉|三国|魏|晋|西晋|东晋|南北朝|北朝|南朝|隋|隋唐|唐|五代|五代十国|宋|北宋|南宋|辽|金|元|明|清|明清|民国|近现代|现代|当代)(?:代|时期)?$/;
+// Recognize the complete leading era BEFORE splitting filename separators.
+// Both numeric ranges and compound Chinese eras may contain those separators.
+const DATE_NUMBER = '[0-9０-９一二三四五六七八九十百千万〇零]{1,6}';
+const DATE_POINT = `(?:公元前|公元后|公元|距今|前)?\\s*(?:第\\s*)?${DATE_NUMBER}`;
+const DATE_QUALIFIER = '(?:早期|中期|晚期|前期|后期|初期|末期|初|中|末)?';
+const DATE_RANGE = '\\s*[-－—–−~～至到]{1,2}\\s*';
+const DATE_EXPRESSION = ['世纪', '年代', '年'].map(unit =>
+    `${DATE_POINT}(?:${unit}${DATE_QUALIFIER})?${DATE_RANGE}${DATE_POINT}${unit}${DATE_QUALIFIER}|${DATE_POINT}${unit}${DATE_QUALIFIER}`
+).join('|');
+const FIELD_BOUNDARY = '(?=\\s*(?:[-_－—–]|$))';
+// Only recognize date syntax here. Region/culture text is opaque metadata;
+// its role is established by the following artwork field, not a place list.
+const LEADING_DATE = new RegExp(`^(?:约|大约)?\\s*(?:${DATE_EXPRESSION})`);
+const NAMED_PERIOD = /^[^《〈「『]*?(?:时期|时代|文化|文明|帝国|王国|王朝)/;
+const CHINESE_ERAS = `旧石器时代 新石器时代 夏 商 商周 西周 东周 春秋 战国 春秋战国 秦 秦汉 汉 西汉 东汉 三国 曹魏 蜀汉 孙吴 魏 晋 西晋 东晋 十六国 南北朝 北朝 南朝 北魏 东魏 西魏 北齐 北周 刘宋 南齐 萧梁 南陈 隋 隋唐 唐 唐宋 五代 五代十国 后梁 后唐 后晋 后汉 后周 十国 杨吴 南唐 吴越 前蜀 后蜀 南汉 北汉 南平 马楚 闽 宋 北宋 南宋 宋元 辽 金 西夏 元 元明 明 清 明清 民国 近代 近现代 现代 当代`
+    .split(' ').sort((a, b) => b.length - a.length).join('|');
+const ERA_JOIN = '\\s*[-_－—–−~～至到]{1,2}\\s*';
+// State names are subdivisions only after a matching historical period, so
+// e.g. 赵国铜镜 remains an artwork name rather than being partly consumed.
+const STATE_ERA = `(?:春秋战国|战国|春秋|东周)(?:时期)?${ERA_JOIN}(?:齐国|楚国|燕国|韩国|赵国|魏国|秦国|鲁国|郑国|晋国|吴国|越国|宋国|卫国)`;
+const THREE_KINGDOMS_ERA = `三国(?:时期)?${ERA_JOIN}(?:魏国|蜀国|吴国)`;
+const CHINESE_ERA_POINT = `(?:${STATE_ERA}|${THREE_KINGDOMS_ERA}|(?:${CHINESE_ERAS})(?:代|时期)?)`;
+const LEADING_CHINESE_ERA = new RegExp(`^${CHINESE_ERA_POINT}(?:${ERA_JOIN}${CHINESE_ERA_POINT})*${FIELD_BOUNDARY}`);
 const COLLECTION = /(?:博物馆|博物院|美术馆|艺术馆|纪念馆|图书馆|藏)$/;
 const PLACEHOLDER = /^(?:未标题|未命名|无标题|副本|拷贝)(?:\s*\d+)?$/;
 const PROVENANCE = /(?:出土|出水|发掘|发现|采集|征集|捐赠)(?:[（(].*[）)])?$/;
@@ -44,13 +66,14 @@ function isNonTitle(value: string) {
 }
 
 /** Split filename fields while preserving punctuation inside artwork titles. */
-function splitFields(stem: string) {
+function splitFields(stem: string, protectedPrefixLength = 0) {
     const fields: string[] = [];
     let field = '';
     let depth = 0;
-    for (const character of stem) {
+    for (let index = 0; index < stem.length; index++) {
+        const character = stem[index];
         if ('《〈（(【['.includes(character)) depth++;
-        if (/[-_－—–]/.test(character) && depth === 0) {
+        if (/[-_－—–]/.test(character) && depth === 0 && index >= protectedPrefixLength) {
             if (field.trim()) fields.push(field.trim());
             field = '';
         } else {
@@ -66,10 +89,26 @@ function splitFields(stem: string) {
 export function extractWatermarkCaption(filename: string) {
     const stem = filename.replace(/\.[^.]+$/, '').trim();
     if (CAMERA_NAME.test(stem) || /^[0-9_ -]+$/.test(stem)) return null;
-    const parts = splitFields(stem);
-    if (parts.length < 2 || !/[\u3400-\u9fff]/.test(stem)) return null;
-
-    const era = ERA.test(parts[0]) ? parts.shift()! : '';
+    const datePrefix = stem.match(LEADING_DATE)?.[0] || '';
+    const chinesePrefix = stem.match(LEADING_CHINESE_ERA)?.[0] || '';
+    const parts = splitFields(stem, Math.max(datePrefix.length, chinesePrefix.length));
+    let era = '';
+    const first = parts[0] || '';
+    if (first && (first === datePrefix.trim() || first === chinesePrefix.trim())) {
+        era = parts.shift()!;
+    } else if (datePrefix || NAMED_PERIOD.test(first)) {
+        const boundary = parts.findIndex(part => COLLECTION.test(part));
+        const following = parts.slice(1, boundary < 0 ? undefined : boundary);
+        const hasArtwork = following.some(part => !isNonTitle(part)
+            && !/^(?:局部|细节|正面|背面|侧面|底部|备注)$/.test(part)
+            && !/^(?:作者|绘者|画家|摄影|拍摄)[：:\s]+|(?:摄影|拍摄|摄)$/.test(part));
+        // Schema: [date + unrestricted context] → artwork → collection.
+        // Without an artwork field, don't turn uncertain context into a name.
+        // An explicit title or style-based artwork name remains intact.
+        if (hasArtwork) era = parts.shift()!;
+        else if (!/《|〈|风格/.test(first)) return null;
+    }
+    if ((!era && parts.length < 2) || !parts.length || !/[\u3400-\u9fff]/.test(stem)) return null;
     const collectionIndex = parts.findIndex(part => COLLECTION.test(part));
     const collection = collectionIndex < 0 ? '' : parts[collectionIndex];
     // The collection is a boundary, not just another removable token. Nothing

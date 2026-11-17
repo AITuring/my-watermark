@@ -69,6 +69,26 @@ test('directions retain independent choices and vertical never exposes a three-c
     assert.equal(presetApi.VERTICAL_PRESETS.length,2);
 });
 
+test('short artifact names and long descriptions always form one line or column',()=>{
+    for(const layout of ['horizontal','vertical'])for(const preset of ['paired','centered','single']){
+        const config={layout,textLine1:'供盘',textLine2:'17—19世纪·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄',horizontalPreset:preset,verticalPreset:preset};
+        assert.equal(presetApi.getWatermarkPreset(config),'single');
+        assert.equal(presetApi.getWatermarkPreset({...config,textLine1:'青铜供盘'}),'single');
+        assert.equal(presetApi.getWatermarkPreset({...config,textLine1:'《江山放牧图卷》'}),preset);
+        assert.equal(presetApi.getWatermarkPreset({...config,textLine2:'宋·故宫藏'}),preset);
+        assert.equal(presetApi.getWatermarkPreset({...config,textLine1:''}),preset);
+        assert.equal(presetApi.getWatermarkPreset({...config,textLine2:''}),preset);
+    }
+});
+
+test('vertical date connectors rotate while numbers and horizontal captions stay upright',()=>{
+    for(const character of '-－—–−~～《》〈〉'){
+        assert.equal(arrangement.getWatermarkGlyphRotation(character,true),Math.PI/2,character);
+        assert.equal(arrangement.getWatermarkGlyphRotation(character,false),0,character);
+    }
+    for(const character of '1719世纪供盘·至到')assert.equal(arrangement.getWatermarkGlyphRotation(character,true),0,character);
+});
+
 test('approved arrangements enforce visible-ink alignment and never enlarge a vertical stamp',()=>{
     const a={width:300,height:80,x:999,y:999},b={width:410,height:88};
     const single=arrangement.arrangeWatermark([a],false,false,100,40,.6);
