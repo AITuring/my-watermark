@@ -1,6 +1,6 @@
 import type { MixedWatermarkConfig } from '@/types';
 
-export type CaptionCorrection = Partial<Pick<MixedWatermarkConfig, 'textLine1' | 'textLine2'>>;
+export type CaptionCorrection = Partial<Pick<MixedWatermarkConfig, 'textLine1' | 'textLine2'>> & {time?:string;place?:string;collection?:string};
 export type CaptionCorrectionMap = Record<string, CaptionCorrection>;
 
 const STORAGE_KEY = 'my-watermark-caption-corrections-v1';

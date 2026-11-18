@@ -54,6 +54,7 @@ import {
     getAdaptiveWatermarkBaseScale,
     getAdaptiveWatermarkRenderMetrics,
 } from "@/utils/watermark-editor";
+import { TRANSPARENT_WATERMARK_CONTRAST_OPACITY } from "@/utils/transparent-watermark";
 
 // 绘制辅助线函数
 const drawGuideLines = (layer: Konva.Layer, width: number, height: number) => {
@@ -134,6 +135,7 @@ interface MobileWatermarkEditorProps {
     transparentWatermarkEnabled: boolean;
     setTransparentWatermarkEnabled: (val: boolean) => void;
     transparentWatermarkUrl: string;
+    transparentWatermarkBaseUrl: string;
     transparentWatermarkOpacity: number;
     setTransparentWatermarkOpacity: (val: number) => void;
     transparentWatermarkScale: number;
@@ -179,6 +181,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     transparentWatermarkEnabled,
     setTransparentWatermarkEnabled,
     transparentWatermarkUrl,
+    transparentWatermarkBaseUrl,
     transparentWatermarkOpacity,
     setTransparentWatermarkOpacity,
     transparentWatermarkScale,
@@ -1182,16 +1185,29 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                             );
                             const protectionWidth = protectionMetrics.width * backgroundScale;
                             const protectionHeight = protectionMetrics.height * backgroundScale;
-                            return <ImageWithFixedWidth
-                                src={transparentWatermarkUrl}
-                                fixedWidth={protectionWidth}
-                                x={backgroundImageSize.width / 2}
-                                y={backgroundImageSize.height / 2}
-                                offsetX={protectionWidth / 2}
-                                offsetY={protectionHeight / 2}
-                                listening={false}
-                                opacity={transparentWatermarkOpacity}
-                            />;
+                            return <>
+                                <ImageWithFixedWidth
+                                    src={transparentWatermarkBaseUrl}
+                                    fixedWidth={protectionWidth}
+                                    x={backgroundImageSize.width / 2}
+                                    y={backgroundImageSize.height / 2}
+                                    offsetX={protectionWidth / 2}
+                                    offsetY={protectionHeight / 2}
+                                    listening={false}
+                                    opacity={TRANSPARENT_WATERMARK_CONTRAST_OPACITY}
+                                    globalCompositeOperation="difference"
+                                />
+                                <ImageWithFixedWidth
+                                    src={transparentWatermarkUrl}
+                                    fixedWidth={protectionWidth}
+                                    x={backgroundImageSize.width / 2}
+                                    y={backgroundImageSize.height / 2}
+                                    offsetX={protectionWidth / 2}
+                                    offsetY={protectionHeight / 2}
+                                    listening={false}
+                                    opacity={transparentWatermarkOpacity}
+                                />
+                            </>;
                         })()}
                         <Transformer
                             ref={transformerRef}

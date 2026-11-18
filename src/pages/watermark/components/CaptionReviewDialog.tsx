@@ -9,10 +9,13 @@ export type CaptionReviewItem = {
     analysis: WatermarkCaptionAnalysis;
     textLine1: string;
     textLine2: string;
+    time: string;
+    place: string;
+    collection: string;
     corrected: boolean;
 };
 
-type CaptionPatch = {textLine1: string; textLine2: string};
+type CaptionPatch = {textLine1: string; textLine2: string; time: string; place: string; collection: string};
 
 type Props = {
     currentFilename: string;
@@ -40,7 +43,7 @@ export default function CaptionReviewDialog({currentFilename, currentAnalysis, p
 
     useEffect(() => {
         if (!open) return;
-        setDraft(Object.fromEntries(reviewItems.map(item => [item.id, {textLine1: item.textLine1, textLine2: item.textLine2}])));
+        setDraft(Object.fromEntries(reviewItems.map(item => [item.id, {textLine1: item.textLine1, textLine2: item.textLine2, time:item.time, place:item.place, collection:item.collection}])));
     }, [open, reviewItems]);
 
     const update = (id: string, field: keyof CaptionPatch, value: string) => {
@@ -63,12 +66,13 @@ export default function CaptionReviewDialog({currentFilename, currentAnalysis, p
                     <div className="wm-caption-review-summary"><span>{pendingCount ? `有 ${pendingCount} 张图片需要确认` : '当前没有待确认项'}</span><span>当前：{currentFilename || '未选择图片'}</span></div>
                     <div className="wm-caption-review-list">
                         {reviewItems.length ? reviewItems.map(item => {
-                            const value = draft[item.id] || {textLine1:item.textLine1,textLine2:item.textLine2};
+                            const value = draft[item.id] || {textLine1:item.textLine1,textLine2:item.textLine2,time:item.time,place:item.place,collection:item.collection};
                             const needsReview = item.analysis.confidence !== 'high' && !item.corrected;
                             return <article key={item.id} className={`wm-caption-review-row ${needsReview ? 'needs-review' : ''}`}>
                                 <div className="wm-caption-review-row-heading"><span className="wm-caption-review-file" title={item.filename}>{item.filename}</span><span className={`wm-caption-review-badge ${needsReview ? 'is-review' : ''}`}>{statusLabel(item.analysis.confidence,item.corrected)}</span></div>
                                 {item.analysis.issues.length > 0 && <p className="wm-caption-review-issues">{item.analysis.issues.join(' · ')}</p>}
-                                <div className="wm-caption-review-fields"><label><span>主标题</span><input aria-label={`${item.filename} 主标题`} value={value.textLine1} onChange={event => update(item.id,'textLine1',event.target.value)} placeholder="作品名称"/></label><label><span>说明文字</span><input aria-label={`${item.filename} 说明文字`} value={value.textLine2} onChange={event => update(item.id,'textLine2',event.target.value)} placeholder="年代 · 馆藏 · 摄影者"/></label></div>
+                                <div className="wm-caption-review-meta-fields"><label><span>时间</span><input aria-label={`${item.filename} 时间`} value={value.time} onChange={event => update(item.id,'time',event.target.value)} placeholder="如 明代、18世纪"/></label><label><span>地点 / 文化</span><input aria-label={`${item.filename} 地点`} value={value.place} onChange={event => update(item.id,'place',event.target.value)} placeholder="如 英国、莫切文化"/></label><label><span>馆藏</span><input aria-label={`${item.filename} 馆藏`} value={value.collection} onChange={event => update(item.id,'collection',event.target.value)} placeholder="如 南京博物院藏"/></label></div>
+                                <div className="wm-caption-review-fields"><label><span>主标题</span><input aria-label={`${item.filename} 主标题`} value={value.textLine1} onChange={event => update(item.id,'textLine1',event.target.value)} placeholder="作品名称"/></label><label><span>说明文字</span><input aria-label={`${item.filename} 说明文字`} value={value.textLine2} onChange={event => update(item.id,'textLine2',event.target.value)} placeholder="确认后自动生成，也可直接改"/></label></div>
                             </article>;
                         }) : <div className="wm-caption-review-empty"><Check size={18}/>目前所有文件名都已通过规则解析。</div>}
                     </div>

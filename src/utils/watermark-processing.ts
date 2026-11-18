@@ -13,7 +13,7 @@ import {
     getImageOpaqueBounds,
 } from "@/utils/watermark-editor";
 import { compositeLargeImage, getLargeImageAsset } from '@/utils/large-image';
-import { TRANSPARENT_WATERMARK_OPACITY, TRANSPARENT_WATERMARK_SCALE } from '@/utils/transparent-watermark';
+import { TRANSPARENT_WATERMARK_CONTRAST_OPACITY, TRANSPARENT_WATERMARK_OPACITY, TRANSPARENT_WATERMARK_SCALE } from '@/utils/transparent-watermark';
 
 class CanvasPool {
     private static instance: CanvasPool;
@@ -340,6 +340,41 @@ function getTransparentWatermarkPlacement(
     };
 }
 
+function createWatermarkContrastMask(
+    image: HTMLImageElement,
+    crop: {x: number; y: number; width: number; height: number},
+    width: number,
+    height: number
+) {
+    const mask = document.createElement('canvas');
+    mask.width = Math.max(1, Math.ceil(width));
+    mask.height = Math.max(1, Math.ceil(height));
+    const ctx = mask.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, mask.width, mask.height);
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, mask.width, mask.height);
+    return mask;
+}
+
+function drawWatermarkContrastMask(
+    ctx: CanvasRenderingContext2D,
+    mask: HTMLCanvasElement | null,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    opacity: number
+) {
+    if (!mask || opacity <= 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'difference';
+    ctx.globalAlpha = Math.min(TRANSPARENT_WATERMARK_CONTRAST_OPACITY, Math.max(0, opacity * 0.65));
+    ctx.drawImage(mask, x, y, width, height);
+    ctx.restore();
+}
+
 export async function processImage(
     file: File,
     watermarkImage: HTMLImageElement,
@@ -394,6 +429,14 @@ export async function processImage(
             -placement.width / 2, -placement.height / 2, placement.width, placement.height);
         if (protectionPlacement) {
             ctx.setTransform(1, 0, 0, 1, 0, 0);
+            const contrastMask = createWatermarkContrastMask(
+                transparentWatermark.image,
+                protectionPlacement.crop,
+                protectionPlacement.width,
+                protectionPlacement.height
+            );
+            drawWatermarkContrastMask(ctx, contrastMask, protectionPlacement.x - overlayLeft, protectionPlacement.y - overlayTop,
+                protectionPlacement.width, protectionPlacement.height, protectionPlacement.opacity);
             ctx.globalAlpha = protectionPlacement.opacity;
             ctx.drawImage(transparentWatermark.image,
                 protectionPlacement.crop.x,
@@ -484,6 +527,14 @@ export async function processImage(
                 ctx.restore();
                 if (transparentWatermark) {
                     const protectionPlacement = getTransparentWatermarkPlacement(imageWidth, imageHeight, transparentWatermark);
+                    const contrastMask = createWatermarkContrastMask(
+                        transparentWatermark.image,
+                        protectionPlacement.crop,
+                        protectionPlacement.width,
+                        protectionPlacement.height
+                    );
+                    drawWatermarkContrastMask(ctx, contrastMask, protectionPlacement.x, protectionPlacement.y,
+                        protectionPlacement.width, protectionPlacement.height, protectionPlacement.opacity);
                     ctx.save();
                     ctx.globalAlpha = protectionPlacement.opacity;
                     ctx.drawImage(

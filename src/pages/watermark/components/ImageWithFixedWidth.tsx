@@ -27,6 +27,7 @@ interface ImageWithFixedWidthProps {
     offsetX?: number;
     offsetY?: number;
     listening?: boolean;
+    globalCompositeOperation?: 'source-over' | 'difference';
 }
 
 const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(

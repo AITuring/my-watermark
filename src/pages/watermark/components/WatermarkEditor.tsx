@@ -27,7 +27,7 @@ import {
     applyColorToWatermark,
     getAdaptiveWatermarkRenderMetrics,
 } from "@/utils/watermark-editor";
-import { TRANSPARENT_WATERMARK_OPACITY, TRANSPARENT_WATERMARK_SCALE } from "@/utils/transparent-watermark";
+import { TRANSPARENT_WATERMARK_CONTRAST_OPACITY, TRANSPARENT_WATERMARK_OPACITY, TRANSPARENT_WATERMARK_SCALE } from "@/utils/transparent-watermark";
 import ImageWithFixedWidth from "@/pages/watermark/components/ImageWithFixedWidth";
 import "../watermark.css";
 
@@ -117,6 +117,7 @@ interface WatermarkEditorProps {
     onWatermarkOpacityChange?: (value: number) => void;
     transparentWatermarkEnabled?: boolean;
     transparentWatermarkUrl?: string;
+    transparentWatermarkBaseUrl?: string;
     transparentWatermarkOpacity?: number;
     transparentWatermarkScale?: number;
 }
@@ -139,6 +140,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     onWatermarkOpacityChange,
     transparentWatermarkEnabled = false,
     transparentWatermarkUrl = "",
+    transparentWatermarkBaseUrl = transparentWatermarkUrl,
     transparentWatermarkOpacity = TRANSPARENT_WATERMARK_OPACITY,
     transparentWatermarkScale = TRANSPARENT_WATERMARK_SCALE,
 }) => {
@@ -957,16 +959,29 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                 );
                                 const protectionWidth = protectionMetrics.width * backgroundScale;
                                 const protectionHeight = protectionMetrics.height * backgroundScale;
-                                return <ImageWithFixedWidth
-                                    src={transparentWatermarkUrl}
-                                    fixedWidth={protectionWidth}
-                                    x={backgroundImageSize.width / 2}
-                                    y={backgroundImageSize.height / 2}
-                                    offsetX={protectionWidth / 2}
-                                    offsetY={protectionHeight / 2}
-                                    listening={false}
-                                    opacity={transparentWatermarkOpacity}
-                                />;
+                                return <>
+                                    <ImageWithFixedWidth
+                                        src={transparentWatermarkBaseUrl}
+                                        fixedWidth={protectionWidth}
+                                        x={backgroundImageSize.width / 2}
+                                        y={backgroundImageSize.height / 2}
+                                        offsetX={protectionWidth / 2}
+                                        offsetY={protectionHeight / 2}
+                                        listening={false}
+                                        opacity={TRANSPARENT_WATERMARK_CONTRAST_OPACITY}
+                                        globalCompositeOperation="difference"
+                                    />
+                                    <ImageWithFixedWidth
+                                        src={transparentWatermarkUrl}
+                                        fixedWidth={protectionWidth}
+                                        x={backgroundImageSize.width / 2}
+                                        y={backgroundImageSize.height / 2}
+                                        offsetX={protectionWidth / 2}
+                                        offsetY={protectionHeight / 2}
+                                        listening={false}
+                                        opacity={transparentWatermarkOpacity}
+                                    />
+                                </>;
                             })()
                         )}
                     </Layer>

@@ -151,6 +151,7 @@ export type WatermarkCaptionAnalysis = {
     confidence: CaptionConfidence;
     issues: string[];
     fields: string[];
+    metadata: {time:string;place:string;collection:string};
 };
 
 /** Explain why a filename was accepted so the UI can surface only ambiguous cases. */
@@ -179,5 +180,9 @@ export function analyzeWatermarkCaption(filename: string): WatermarkCaptionAnaly
         if (titleFields.length > 1) issues.push('年代与名称之间存在多个候选字段');
         if (caption.textLine1.length <= 1) issues.push('作品名称过短，请确认是否为完整名称');
     }
-    return {caption, confidence: !caption ? 'none' : issues.length ? 'review' : 'high', issues, fields};
+    const firstMetadata = firstField.match(/^(.{1,24}?(?:世纪|年代|年|时期|时代))/)?.[1] || '';
+    const place = firstMetadata ? firstField.slice(firstMetadata.length) : '';
+    const collection = collectionIndex >= 0 ? fields[collectionIndex] : '';
+    return {caption, confidence: !caption ? 'none' : issues.length ? 'review' : 'high', issues, fields,
+        metadata:{time:firstMetadata,place,collection}};
 }

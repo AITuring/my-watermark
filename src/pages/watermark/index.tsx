@@ -249,22 +249,38 @@ const Watermark: React.FC = () => {
             analysis,
             textLine1: config.textLine1 || '',
             textLine2: config.textLine2 || '',
+            time: analysis.metadata.time,
+            place: analysis.metadata.place,
+            collection: analysis.metadata.collection,
             corrected: Boolean(correction),
         };
     }), [images, captionCorrections, manualConfigs]);
     const captionPendingCount = captionReviewItems.filter(item => !item.corrected && item.analysis.confidence !== 'high').length;
     const currentCaptionAnalysis = currentImg ? captionReviewItems.find(item => item.id === currentImg.id)?.analysis : undefined;
-    const saveCaptionReview = (changes: Record<string, {textLine1:string;textLine2:string}>) => {
+    const saveCaptionReview = (changes: Record<string, {textLine1:string;textLine2:string;time:string;place:string;collection:string}>) => {
         setManualConfigs(previous => {
             const next = {...previous};
-            for (const [id, values] of Object.entries(changes)) next[id] = {...next[id], ...values};
+            for (const [id, values] of Object.entries(changes)) {
+                const item = captionReviewItems.find(candidate => candidate.id === id);
+                const photographer = item?.textLine2.split(' / ').slice(1).join(' / ') || '';
+                const structuredChanged = item && (values.time!==item.time || values.place!==item.place || values.collection!==item.collection);
+                const details = [values.time,values.place,values.collection].filter(Boolean).join('·');
+                const textLine2 = structuredChanged ? [details,photographer].filter(Boolean).join(' / ') : values.textLine2;
+                next[id] = {...next[id], textLine1:values.textLine1, textLine2};
+            }
             return next;
         });
         setCaptionCorrections(previous => {
             let next = previous;
             for (const item of captionReviewItems) {
                 const values = changes[item.id];
-                if (values) next = setCaptionCorrection(next, item.filename, values);
+                if (values) {
+                    const photographer = item.textLine2.split(' / ').slice(1).join(' / ');
+                    const structuredChanged = values.time!==item.time || values.place!==item.place || values.collection!==item.collection;
+                    const details = [values.time,values.place,values.collection].filter(Boolean).join('·');
+                    const textLine2 = structuredChanged ? [details,photographer].filter(Boolean).join(' / ') : values.textLine2;
+                    next = setCaptionCorrection(next, item.filename, {...values,textLine2});
+                }
             }
             saveCaptionCorrections(next);
             return next;
@@ -803,6 +819,7 @@ const Watermark: React.FC = () => {
                             transparentWatermarkEnabled={transparentWatermarkEnabled}
                             setTransparentWatermarkEnabled={setTransparentWatermarkEnabled}
                             transparentWatermarkUrl={transparentWatermarkColorUrl}
+                            transparentWatermarkBaseUrl={transparentWatermarkUrl}
                             transparentWatermarkOpacity={transparentWatermarkOpacity}
                             transparentWatermarkScale={transparentWatermarkScale}
                             setTransparentWatermarkOpacity={setTransparentWatermarkOpacity}
@@ -914,6 +931,7 @@ const Watermark: React.FC = () => {
                             onWatermarkOpacityChange={setWatermarkOpacity}
                             transparentWatermarkEnabled={transparentWatermarkEnabled}
                             transparentWatermarkUrl={transparentWatermarkColorUrl}
+                            transparentWatermarkBaseUrl={transparentWatermarkUrl}
                             transparentWatermarkOpacity={transparentWatermarkOpacity}
                             transparentWatermarkScale={transparentWatermarkScale}
                         />

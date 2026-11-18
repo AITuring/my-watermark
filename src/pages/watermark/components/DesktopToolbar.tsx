@@ -63,7 +63,7 @@ interface DesktopToolbarProps {
     captionReviewItems: CaptionReviewItem[];
     captionPendingCount: number;
     currentCaptionAnalysis?: WatermarkCaptionAnalysis;
-    onSaveCaptionReview: (changes: Record<string, {textLine1:string;textLine2:string}>) => void;
+    onSaveCaptionReview: (changes: Record<string, {textLine1:string;textLine2:string;time:string;place:string;collection:string}>) => void;
     onClearCaptionReview: (ids: string[]) => void;
 }
 
