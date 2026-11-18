@@ -1293,8 +1293,8 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                                 <SelectValue placeholder="范围" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="batch">批量应用</SelectItem>
-                                                <SelectItem value="single">单张应用</SelectItem>
+                                                <SelectItem value="batch">全部</SelectItem>
+                                                <SelectItem value="single">当前</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

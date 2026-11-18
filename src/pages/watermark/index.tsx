@@ -272,7 +272,6 @@ const Watermark: React.FC = () => {
         };
     }), [images, captionCorrections, manualConfigs]);
     const captionPendingCount = captionReviewItems.filter(item => !item.corrected && item.analysis.confidence !== 'high').length;
-    const currentCaptionAnalysis = currentImg ? captionReviewItems.find(item => item.id === currentImg.id)?.analysis : undefined;
     const saveCaptionReview = (changes: Record<string, {textLine1:string;textLine2:string;time:string;place:string;collection:string}>) => {
         setManualConfigs(previous => {
             const next = {...previous};
@@ -825,7 +824,7 @@ const Watermark: React.FC = () => {
                 <div className="flex-1 overflow-hidden relative">
                     {mobileView === "editor" && currentImg ? (
                         <div className="flex min-h-0 flex-1 flex-col">
-                        {watermarkMode !== "image" && <div className="px-2 pt-1"><CaptionReviewDialog currentFilename={currentImg.file.name} currentAnalysis={currentCaptionAnalysis} pendingCount={captionPendingCount} items={captionReviewItems} onSave={saveCaptionReview} onClear={clearCaptionReview}/></div>}
+                        {watermarkMode !== "image" && <div className="px-2 pt-1"><CaptionReviewDialog currentFilename={currentImg.file.name} pendingCount={captionPendingCount} items={captionReviewItems} onSave={saveCaptionReview} onClear={clearCaptionReview}/></div>}
                         {watermarkMode !== "image" && <label className="flex items-center gap-2 p-2 text-sm">
                             <input type="checkbox" checked={smartEnabled} onChange={event => setSmartEnabled(event.target.checked)} />智能适配大小、颜色和排版
                         </label>}
@@ -1049,7 +1048,6 @@ const Watermark: React.FC = () => {
                     progress={smoothProgress}
                     captionReviewItems={captionReviewItems}
                     captionPendingCount={captionPendingCount}
-                    currentCaptionAnalysis={currentCaptionAnalysis}
                     onSaveCaptionReview={saveCaptionReview}
                     onClearCaptionReview={clearCaptionReview}
                 />

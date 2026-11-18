@@ -13,7 +13,6 @@ import WatermarkFontPicker from "./WatermarkFontPicker";
 import WatermarkLayoutControl from "./WatermarkLayoutControl";
 import WatermarkDirectionSwitch from "./WatermarkDirectionSwitch";
 import CaptionReviewDialog, {type CaptionReviewItem} from './CaptionReviewDialog';
-import type {WatermarkCaptionAnalysis} from '../filename-watermark';
 
 interface DesktopToolbarProps {
     imageTint: string;
@@ -64,7 +63,6 @@ interface DesktopToolbarProps {
     progress: number;
     captionReviewItems: CaptionReviewItem[];
     captionPendingCount: number;
-    currentCaptionAnalysis?: WatermarkCaptionAnalysis;
     onSaveCaptionReview: (changes: Record<string, {textLine1:string;textLine2:string;time:string;place:string;collection:string}>) => void;
     onClearCaptionReview: (ids: string[]) => void;
 }
@@ -96,11 +94,10 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
                 <label className="wm-bottom-title"><span className="wm-label">主标题</span><WatermarkTextInput className="wm-text-input" aria-label="主标题" maxLength={120} value={config.textLine1} placeholder="作品名称或署名" onValueChange={textLine1=>update({textLine1})}/></label>
                 <label className="wm-bottom-caption"><span className="wm-label">说明文字 · 可选</span><WatermarkTextInput className="wm-text-input" aria-label="说明文字（可选）" maxLength={120} value={config.textLine2} placeholder="年代 · 馆藏 · 摄影者" onValueChange={textLine2=>update({textLine2})}/></label>
             </div>:<div className="wm-bottom-image-note">拖动水印可调整位置</div>}
-            {textMode && <CaptionReviewDialog currentFilename={props.currentFilename} currentAnalysis={props.currentCaptionAnalysis} pendingCount={props.captionPendingCount} items={props.captionReviewItems} onSave={props.onSaveCaptionReview} onClear={props.onClearCaptionReview}/>}
+            {textMode && <div className="wm-bottom-review"><span className="wm-label" aria-hidden="true">&nbsp;</span><CaptionReviewDialog currentFilename={props.currentFilename} pendingCount={props.captionPendingCount} items={props.captionReviewItems} onSave={props.onSaveCaptionReview} onClear={props.onClearCaptionReview}/></div>}
             {textMode && <div className="wm-bottom-layout"><span className="wm-label">排版</span><WatermarkDirectionSwitch value={config.layout} onChange={layout=>update({layout})}/></div>}
             <div className="wm-bottom-protection"><div className="wm-bottom-blur"><label className="wm-label" htmlFor="wm-bottom-blur">背景模糊</label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-blur" checked={props.watermarkBlur} onCheckedChange={props.setWatermarkBlur}/><span aria-hidden="true">{props.watermarkBlur?'开':'关'}</span></div></div><div className="wm-bottom-blur" title="居中叠加独立图片水印，可在设置中调节透明度"><label className="wm-label" htmlFor="wm-bottom-transparent">独立透明水印</label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-transparent" checked={props.transparentWatermarkEnabled} onCheckedChange={props.setTransparentWatermarkEnabled}/><span aria-hidden="true">{props.transparentWatermarkEnabled?'开':'关'}</span></div></div></div>
             <div className="wm-bottom-actions"><div className="wm-action-field"><span className="wm-label">调整</span><button type="button" title={status} className="wm-unified-settings" aria-label="水印设置" aria-expanded={drawerOpen} onClick={()=>setDrawerOpen(!drawerOpen)}><SlidersHorizontal size={16}/><span>设置</span></button></div>
-            <div className="wm-action-field"><span className="wm-label">编辑范围</span><div role="group" aria-label="编辑范围" className="wm-segmented wm-scope-selector"><button type="button" aria-pressed={props.editScope==='current'} onClick={()=>props.setEditScope('current')}>当前</button><button type="button" aria-pressed={props.editScope==='all'} onClick={()=>props.setEditScope('all')}>全部</button></div></div>
             <div className="wm-action-field wm-export-field"><span className="wm-label">导出图片</span><ProgressButton loading={props.loading} progress={props.progress} onClick={props.onGenerate}
                 disabled={props.smartPending || Boolean(props.smartError) || !props.imageCount || mode==='text' && !config.textLine1.trim() && !config.textLine2.trim()}
                 className="wm-export-button"><Download size={15} />导出 {props.imageCount} 张</ProgressButton></div></div>

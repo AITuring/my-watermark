@@ -19,7 +19,6 @@ type CaptionPatch = {textLine1: string; textLine2: string; time: string; place: 
 
 type Props = {
     currentFilename: string;
-    currentAnalysis?: WatermarkCaptionAnalysis;
     pendingCount: number;
     items: CaptionReviewItem[];
     onSave: (changes: Record<string, CaptionPatch>) => void;
@@ -27,13 +26,13 @@ type Props = {
 };
 
 function statusLabel(confidence: CaptionConfidence, corrected: boolean) {
-    if (corrected) return '已记住修正';
+    if (corrected) return '已校对';
     if (confidence === 'review') return '需要确认';
     if (confidence === 'none') return '未识别';
     return '自动解析';
 }
 
-export default function CaptionReviewDialog({currentFilename, currentAnalysis, pendingCount, items, onSave, onClear}: Props) {
+export default function CaptionReviewDialog({currentFilename, pendingCount, items, onSave, onClear}: Props) {
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState<Record<string, CaptionPatch>>({});
     const reviewItems = useMemo(() => [...items].sort((a, b) => {
@@ -49,18 +48,16 @@ export default function CaptionReviewDialog({currentFilename, currentAnalysis, p
     const update = (id: string, field: keyof CaptionPatch, value: string) => {
         setDraft(previous => ({...previous, [id]: {...previous[id], [field]: value}}));
     };
-    const currentStatus = currentAnalysis ? statusLabel(currentAnalysis.confidence, items.find(item => item.filename === currentFilename)?.corrected ?? false) : '等待图片';
-
     return <>
-        <button type="button" className="wm-caption-review-trigger" aria-label="打开文件名提取校对" onClick={() => setOpen(true)}>
-            <ClipboardCheck size={14}/><span>{pendingCount ? `待确认 ${pendingCount}` : '提取校对'}</span><small>{currentStatus}</small>
+        <button type="button" className="wm-caption-review-trigger" aria-label="打开水印校对" onClick={() => setOpen(true)}>
+            <ClipboardCheck size={14}/><span>{pendingCount ? `待确认 ${pendingCount}` : '水印校对'}</span>
         </button>
         <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Portal>
                 <Dialog.Overlay className="wm-caption-review-overlay"/>
                 <Dialog.Content className="wm-caption-review-dialog" aria-describedby="wm-caption-review-description">
                     <header className="wm-caption-review-heading">
-                        <div><Dialog.Title>文件名提取校对</Dialog.Title><Dialog.Description id="wm-caption-review-description">可填写时间、地点/文化和馆藏，也可直接修改标题与说明；确认后会记住这类文件名的修正。</Dialog.Description></div>
+                        <div><Dialog.Title>水印校对</Dialog.Title><Dialog.Description id="wm-caption-review-description">可填写时间、地点/文化和馆藏，也可直接修改标题与说明；确认后会保留这类文件名的修正。</Dialog.Description></div>
                         <Dialog.Close className="wm-drawer-close" aria-label="关闭校对"><X size={18}/></Dialog.Close>
                     </header>
                     <div className="wm-caption-review-summary"><span>{pendingCount ? `有 ${pendingCount} 张图片需要确认` : '当前没有待确认项'}</span><span>当前：{currentFilename || '未选择图片'}</span></div>
@@ -76,7 +73,7 @@ export default function CaptionReviewDialog({currentFilename, currentAnalysis, p
                             </article>;
                         }) : <div className="wm-caption-review-empty"><Check size={18}/>目前所有文件名都已通过规则解析。</div>}
                     </div>
-                    <footer className="wm-caption-review-footer"><button type="button" className="wm-text-button" onClick={() => onClear(reviewItems.filter(item => item.corrected).map(item => item.id))}><RotateCcw size={13}/>恢复已记住的自动结果</button><div><Dialog.Close className="wm-caption-review-cancel">取消</Dialog.Close><button type="button" className="wm-caption-review-save" onClick={() => {onSave(draft);setOpen(false);}}><Check size={14}/>确认并记住</button></div></footer>
+                    <footer className="wm-caption-review-footer"><button type="button" className="wm-text-button" onClick={() => onClear(reviewItems.filter(item => item.corrected).map(item => item.id))}><RotateCcw size={13}/>恢复已校对的自动结果</button><div><Dialog.Close className="wm-caption-review-cancel">取消</Dialog.Close><button type="button" className="wm-caption-review-save" onClick={() => {onSave(draft);setOpen(false);}}><Check size={14}/>确认并保存</button></div></footer>
                 </Dialog.Content>
             </Dialog.Portal>
         </Dialog.Root>
