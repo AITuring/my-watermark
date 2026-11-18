@@ -5,7 +5,21 @@ import ts from 'typescript';
 
 const source = await readFile(new URL('../src/pages/watermark/filename-watermark.ts', import.meta.url), 'utf8');
 const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
-const { extractWatermarkCaption: extract } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+const { extractWatermarkCaption: extract, analyzeWatermarkCaption: analyze } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+
+test('analysis reports high confidence for the reviewed cultural filename', () => {
+    const result = analyze('3—6世纪秘鲁莫切文化-串珠-大都会艺术博物馆藏-DSC01364_1.jpg');
+    assert.equal(result.confidence, 'high');
+    assert.deepEqual(result.caption, {textLine1:'串珠',textLine2:'3—6世纪秘鲁莫切文化·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄'});
+    assert.deepEqual(result.issues, []);
+});
+
+test('analysis marks ambiguous or incomplete names for review instead of hiding uncertainty', () => {
+    assert.equal(analyze('唐-壁画.jpg').confidence, 'review');
+    assert.ok(analyze('唐-壁画.jpg').issues.includes('没有找到明确的馆藏字段'));
+    assert.equal(analyze('DSC01364_1.jpg').confidence, 'none');
+    assert.equal(analyze('唐-作者甲-作者乙-供盘-大都会艺术博物馆藏.jpg').confidence, 'review');
+});
 
 // Expected captions were reviewed against every filename in Photos-1-001;
 // keep them portable so regressions run without that local folder present.

@@ -1,9 +1,8 @@
 import WatermarkDownloadControl from './WatermarkDownloadControl';
 import type {WatermarkDownloadMode} from '../export-downloads';
-import {PreviewZoomControl} from './PreviewAppearanceControls';
 import * as SettingsDialog from "@radix-ui/react-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, SlidersHorizontal, Sparkles, RotateCcw, X, ChevronDown } from "lucide-react";
+import { Download, SlidersHorizontal, RotateCcw, X, ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import ImageUploader from "@/components/ImageUploader";
 import type { MixedWatermarkConfig } from "@/types";
@@ -13,14 +12,13 @@ import WatermarkColorControl from "./WatermarkColorControl";
 import WatermarkFontPicker from "./WatermarkFontPicker";
 import WatermarkLayoutControl from "./WatermarkLayoutControl";
 import WatermarkDirectionSwitch from "./WatermarkDirectionSwitch";
+import CaptionReviewDialog, {type CaptionReviewItem} from './CaptionReviewDialog';
+import type {WatermarkCaptionAnalysis} from '../filename-watermark';
 
 interface DesktopToolbarProps {
-    previewZoom: number;
-    onPreviewZoomChange: (value:number) => void;
     imageTint: string;
     suggestedColors: string[];
     onImageTintChange: (color:string) => void;
-    onSmartPosition: () => void;
     settingsOpen: boolean;
     onSettingsOpenChange: (open:boolean) => void;
     editScope: "current" | "all";
@@ -30,7 +28,6 @@ interface DesktopToolbarProps {
     maxScale: number;
     scale: number;
     onScaleChange: (scale:number) => void;
-    onPositionChange: (position:string) => void;
     onAutoColor: () => void;
     fontNotice: string;
     smartPending: boolean;
@@ -52,9 +49,22 @@ interface DesktopToolbarProps {
     setQuality: (value: number) => void;
     watermarkOpacity: number;
     setWatermarkOpacity: (value: number) => void;
+    transparentWatermarkEnabled: boolean;
+    setTransparentWatermarkEnabled: (value: boolean) => void;
+    transparentWatermarkOpacity: number;
+    setTransparentWatermarkOpacity: (value: number) => void;
+    transparentWatermarkScale: number;
+    setTransparentWatermarkScale: (value: number) => void;
+    transparentWatermarkColor: string;
+    onTransparentWatermarkColorChange: (color: string) => void;
     onGenerate: () => void;
     loading: boolean;
     progress: number;
+    captionReviewItems: CaptionReviewItem[];
+    captionPendingCount: number;
+    currentCaptionAnalysis?: WatermarkCaptionAnalysis;
+    onSaveCaptionReview: (changes: Record<string, {textLine1:string;textLine2:string}>) => void;
+    onClearCaptionReview: (ids: string[]) => void;
 }
 
 export function WatermarkRange({label,value,min,max,step=0.01,onChange,display}: {
@@ -84,8 +94,9 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
                 <label className="wm-bottom-title"><span className="wm-label">主标题</span><WatermarkTextInput className="wm-text-input" aria-label="主标题" maxLength={120} value={config.textLine1} placeholder="作品名称或署名" onValueChange={textLine1=>update({textLine1})}/></label>
                 <label className="wm-bottom-caption"><span className="wm-label">说明文字 · 可选</span><WatermarkTextInput className="wm-text-input" aria-label="说明文字（可选）" maxLength={120} value={config.textLine2} placeholder="年代 · 馆藏 · 摄影者" onValueChange={textLine2=>update({textLine2})}/></label>
             </div>:<div className="wm-bottom-image-note">拖动水印可调整位置</div>}
+            {textMode && <CaptionReviewDialog currentFilename={props.currentFilename} currentAnalysis={props.currentCaptionAnalysis} pendingCount={props.captionPendingCount} items={props.captionReviewItems} onSave={props.onSaveCaptionReview} onClear={props.onClearCaptionReview}/>}
             {textMode && <div className="wm-bottom-layout"><span className="wm-label">排版</span><WatermarkDirectionSwitch value={config.layout} onChange={layout=>update({layout})}/></div>}
-            <div className="wm-bottom-blur"><label className="wm-label" htmlFor="wm-bottom-blur">背景模糊</label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-blur" checked={props.watermarkBlur} onCheckedChange={props.setWatermarkBlur}/><span aria-hidden="true">{props.watermarkBlur?'开':'关'}</span></div></div>
+            <div className="wm-bottom-protection"><div className="wm-bottom-blur"><label className="wm-label" htmlFor="wm-bottom-blur">背景模糊</label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-blur" checked={props.watermarkBlur} onCheckedChange={props.setWatermarkBlur}/><span aria-hidden="true">{props.watermarkBlur?'开':'关'}</span></div></div><div className="wm-bottom-blur" title="居中叠加独立图片水印，可在设置中调节透明度"><label className="wm-label" htmlFor="wm-bottom-transparent">独立透明水印</label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-transparent" checked={props.transparentWatermarkEnabled} onCheckedChange={props.setTransparentWatermarkEnabled}/><span aria-hidden="true">{props.transparentWatermarkEnabled?'开':'关'}</span></div></div></div>
             <div className="wm-bottom-actions"><div className="wm-action-field"><span className="wm-label">调整</span><button type="button" title={status} className="wm-unified-settings" aria-label="水印设置" aria-expanded={drawerOpen} onClick={()=>setDrawerOpen(!drawerOpen)}><SlidersHorizontal size={16}/><span>设置</span></button></div>
             <div className="wm-action-field"><span className="wm-label">编辑范围</span><div role="group" aria-label="编辑范围" className="wm-segmented wm-scope-selector"><button type="button" aria-pressed={props.editScope==='current'} onClick={()=>props.setEditScope('current')}>当前</button><button type="button" aria-pressed={props.editScope==='all'} onClick={()=>props.setEditScope('all')}>全部</button></div></div>
             <div className="wm-action-field wm-export-field"><span className="wm-label">导出图片</span><ProgressButton loading={props.loading} progress={props.progress} onClick={props.onGenerate}
@@ -106,10 +117,9 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
             </section>}
             <section className="wm-settings-section" aria-label="外观与位置"><h3 className="wm-settings-section-title">外观与位置</h3><div className="wm-style-grid">
                 {textMode?<WatermarkColorControl suggestions={props.suggestedColors} value={config.color} onAuto={props.onAutoColor} onChange={color=>update({color})}/>:<WatermarkColorControl label="图片水印颜色" autoLabel="原色" suggestions={props.suggestedColors} value={props.imageTint} onChange={props.onImageTintChange} onAuto={()=>props.onImageTintChange("transparent")}/>}
-                <div className="wm-control-stack"><WatermarkRange label="水印大小" value={props.scale} min={0.01} max={Math.max(0.01,props.maxScale)} step={0.01} display={`${Math.round(props.scale*100)}%`} onChange={props.onScaleChange}/><WatermarkRange label="透明度" value={props.watermarkOpacity} min={0} max={1} display={`${Math.round(props.watermarkOpacity*100)}%`} onChange={props.setWatermarkOpacity}/></div>
-                <div className="wm-position-control"><div className="wm-position-heading"><span className="wm-label">水印位置</span><button type="button" className="wm-text-button" onClick={props.onSmartPosition}><Sparkles size={12}/>智能位置</button></div><div className="wm-position-grid" role="group" aria-label="快速位置">{[['top-left','左上','↖'],['top-mid','上中','↑'],['top-right','右上','↗'],['mid-left','左中','←'],['center','居中','◎'],['mid-right','右中','→'],['bottom-left','左下','↙'],['bottom-mid','下中','↓'],['bottom-right','右下','↘']].map(([id,label,icon])=><button key={id} type="button" onClick={()=>props.onPositionChange(id)} aria-label={`水印放在${label}`} title={label}><span aria-hidden="true">{icon}</span></button>)}</div></div>
-            </div>
-            <div className="wm-preview-settings"><span className="wm-label">预览缩放</span><PreviewZoomControl value={props.previewZoom} onChange={props.onPreviewZoomChange}/></div></section>
+                <WatermarkColorControl label="独立水印颜色" autoLabel="原色" value={props.transparentWatermarkColor || '#ffffff'} onAuto={() => props.onTransparentWatermarkColorChange('transparent')} onChange={props.onTransparentWatermarkColorChange}/>
+                <div className="wm-control-stack"><WatermarkRange label="独立水印大小" value={props.transparentWatermarkScale} min={2} max={8} step={0.01} display={`${Math.round(props.transparentWatermarkScale*100)}%`} onChange={props.setTransparentWatermarkScale}/><WatermarkRange label="独立水印透明度" value={props.transparentWatermarkOpacity} min={0} max={1} step={0.01} display={`${Math.round(props.transparentWatermarkOpacity*100)}%`} onChange={props.setTransparentWatermarkOpacity}/></div>
+            </div></section>
             <section className="wm-settings-section wm-export-grid" aria-label="导出参数">
                 <div className="wm-settings-section-heading"><h3>导出</h3><span className="wm-help" title="保留原图尺寸和文件类型，文件名添加 -mark">原图尺寸</span></div>
                 <WatermarkDownloadControl value={props.downloadMode} onChange={props.setDownloadMode} disabled={props.loading}/>

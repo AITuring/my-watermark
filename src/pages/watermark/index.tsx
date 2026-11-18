@@ -1,7 +1,9 @@
 import { DEFAULT_FONT_ID, missingFontCharacters } from "./fonts/registry";
 import { applyColorToWatermark, extractDominantColors, getAdaptiveWatermarkRenderMetrics, getWatermarkMaximumScale, fitWatermarkPosition } from "@/utils/watermark-editor";
-import { extractWatermarkCaption } from "./filename-watermark";
+import { analyzeWatermarkCaption, extractWatermarkCaption } from "./filename-watermark";
+import { clearCaptionCorrection, getCaptionCorrection, loadCaptionCorrections, saveCaptionCorrections, setCaptionCorrection, type CaptionCorrectionMap } from "./caption-corrections";
 import { resolveWatermarkTypography } from './font-selection';
+import { getWatermarkLayoutMetrics } from './layout-metrics';
 import { createSmartWatermark } from "./smart-watermark";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -28,9 +30,11 @@ import VerticalCarousel from "@/pages/watermark/components/VerticalCarousel";
 import MobileImageGallery from "@/pages/watermark/components/MobileImageGallery";
 import WatermarkUploadHero from "@/pages/watermark/components/WatermarkUploadHero";
 import DesktopToolbar from "@/pages/watermark/components/DesktopToolbar";
+import CaptionReviewDialog, { type CaptionReviewItem } from "@/pages/watermark/components/CaptionReviewDialog";
 import {
     DEFAULT_MIXED_WATERMARK_CONFIG,
     DEFAULT_WATERMARK_URL,
+    DEFAULT_TRANSPARENT_WATERMARK_URL,
     applyWatermarkConfigPatch,
     unifyWatermarkFontPatch,
     buildImagesWithPositions,
@@ -54,6 +58,7 @@ import { findSmartWatermarkPosition, loadPositionImage } from "./smart-position"
 import { PreviewUrlLease, recoverPreviewUrl } from "@/utils/preview-url-lease";
 
 import type {WatermarkDownloadMode} from './export-downloads';
+import { TRANSPARENT_WATERMARK_OPACITY, TRANSPARENT_WATERMARK_SCALE } from '@/utils/transparent-watermark';
 
 const WATERMARK_OVERSIZE_THRESHOLD_BYTES = 30 * 1024 * 1024;
 
@@ -96,14 +101,26 @@ const Watermark: React.FC = () => {
     const [watermarkMaxScale,setWatermarkMaxScale] = useState(12);
     const [smartPending, setSmartPending] = useState(false);
     const [manualConfigs, setManualConfigs] = useState<Record<string, Partial<MixedWatermarkConfig>>>({});
+    const [captionCorrections, setCaptionCorrections] = useState<CaptionCorrectionMap>({});
+    const [batchReferenceTextHeight, setBatchReferenceTextHeight] = useState<number | undefined>();
     const [automaticStyle, setAutomaticStyle] = useState<Partial<MixedWatermarkConfig>>({});
     const manualPositions = useRef(new Set<string>());
+    useEffect(() => { setCaptionCorrections(loadCaptionCorrections()); }, []);
+
+    const getCaptionForImage = (image: ImageType | null) => {
+        if (!image) return {};
+        const extracted = extractWatermarkCaption(image.file.name);
+        return extracted
+            ? {...extracted, singleLineOrder:'era-first' as const, ...getCaptionCorrection(captionCorrections, image.file.name)}
+            : {};
+    };
     const desiredConfig = useMemo(() => ({
         ...baseWatermarkConfig,
-        ...(currentImg ? extractWatermarkCaption(currentImg.file.name) : null),
+        ...getCaptionForImage(currentImg),
+        ...(editScope === 'all' && batchReferenceTextHeight ? {referenceTextHeight:batchReferenceTextHeight} : {}),
         ...(currentImg ? manualConfigs[currentImg.id] : null),
         ...resolveWatermarkTypography(currentImg?.file.name||'',baseWatermarkConfig,currentImg?manualConfigs[currentImg.id]:{},smartEnabled),
-    }), [baseWatermarkConfig, currentImg, manualConfigs, smartEnabled]);
+    }), [baseWatermarkConfig, currentImg, manualConfigs, smartEnabled, captionCorrections, editScope, batchReferenceTextHeight]);
     const mixedWatermarkConfig = {...desiredConfig, ...automaticStyle,
         ...(currentImg ? manualConfigs[currentImg.id] : null),
         ...resolveWatermarkTypography(currentImg?.file.name||'',baseWatermarkConfig,currentImg?manualConfigs[currentImg.id]:{},smartEnabled)};
@@ -114,6 +131,15 @@ const Watermark: React.FC = () => {
         if (!currentImg) {setBaseWatermarkConfig(prev=>({...prev,...patch}));return;}
         const targets = editScope === "all" ? images : [currentImg];
         setManualConfigs(prev => applyWatermarkConfigPatch(prev, targets.map(image=>image.id), patch));
+        const captionPatch = Object.fromEntries(Object.entries(patch).filter(([key]) => key === 'textLine1' || key === 'textLine2')) as Partial<MixedWatermarkConfig>;
+        if (Object.keys(captionPatch).length) {
+            setCaptionCorrections(previous => {
+                let next = previous;
+                for (const image of targets) next = setCaptionCorrection(next, image.file.name, captionPatch);
+                saveCaptionCorrections(next);
+                return next;
+            });
+        }
     };
     const setMixedWatermarkConfig: React.Dispatch<React.SetStateAction<MixedWatermarkConfig>> = (action) => {
         const next = typeof action === "function" ? action(configRef.current) : action;
@@ -124,12 +150,7 @@ const Watermark: React.FC = () => {
         }
         Object.assign(changes,unifyWatermarkFontPatch(changes));
         if (Object.keys(changes).length) {
-            setManualConfigs(prev => {
-                const result = {...prev};
-                const targets = editScope === "all" ? images : [currentImg];
-                targets.forEach(image => {result[image.id] = {...prev[image.id],...changes};});
-                return result;
-            });
+            patchWatermarkConfig(changes);
         }
     };
     const [watermarkPositions, setWatermarkPositions] = useState<
@@ -144,6 +165,12 @@ const Watermark: React.FC = () => {
     const [downloadMode, setDownloadMode] = useState<WatermarkDownloadMode>('zip');
     const [watermarkBlur, setWatermarkBlur] = useState(true);
     const [watermarkOpacity, setWatermarkOpacity] = useState(1);
+    const [transparentWatermarkEnabled, setTransparentWatermarkEnabled] = useState(false);
+    const [transparentWatermarkOpacity, setTransparentWatermarkOpacity] = useState(TRANSPARENT_WATERMARK_OPACITY);
+    const [transparentWatermarkScale, setTransparentWatermarkScale] = useState(TRANSPARENT_WATERMARK_SCALE);
+    const [transparentWatermarkUrl] = useState(DEFAULT_TRANSPARENT_WATERMARK_URL);
+    const [transparentWatermarkColor, setTransparentWatermarkColor] = useState('');
+    const [transparentWatermarkColorUrl, setTransparentWatermarkColorUrl] = useState(DEFAULT_TRANSPARENT_WATERMARK_URL);
     const [mobileView, setMobileView] = useState<"editor" | "gallery">(
         "editor"
     );
@@ -168,12 +195,17 @@ const Watermark: React.FC = () => {
         watermarkColorUrls,
         watermarkOpacity,
         watermarkBlur,
+        transparentWatermarkEnabled,
+        transparentWatermarkUrl: transparentWatermarkColorUrl,
+        transparentWatermarkOpacity,
+        transparentWatermarkScale,
         quality,
         downloadMode,
         resolveWatermark: watermarkMode === "image" ? undefined : async (item) => {
             const image = images.find(candidate => candidate.id === item.id);
             if (!image) throw new Error("图片不存在");
-            const config = {...baseWatermarkConfig, ...extractWatermarkCaption(image.file.name),
+            const config = {...baseWatermarkConfig, ...getCaptionForImage(image),
+                ...(editScope === 'all' && batchReferenceTextHeight ? {referenceTextHeight:batchReferenceTextHeight} : {}),
                 ...manualConfigs[image.id], ...resolveWatermarkTypography(image.file.name,baseWatermarkConfig,manualConfigs[image.id],smartEnabled),textOnly: watermarkMode === "text"};
             if (smartEnabled) {
                 const result = await createSmartWatermark(image, config, manualConfigs[image.id]);
@@ -206,6 +238,57 @@ const Watermark: React.FC = () => {
     const currentImageIndex = currentImg
         ? images.findIndex((img) => img.id === currentImg.id)
         : -1;
+
+    const captionReviewItems = useMemo<CaptionReviewItem[]>(() => images.map(image => {
+        const analysis = analyzeWatermarkCaption(image.file.name);
+        const correction = getCaptionCorrection(captionCorrections, image.file.name);
+        const config = {...getCaptionForImage(image), ...manualConfigs[image.id]};
+        return {
+            id: image.id,
+            filename: image.file.name,
+            analysis,
+            textLine1: config.textLine1 || '',
+            textLine2: config.textLine2 || '',
+            corrected: Boolean(correction),
+        };
+    }), [images, captionCorrections, manualConfigs]);
+    const captionPendingCount = captionReviewItems.filter(item => !item.corrected && item.analysis.confidence !== 'high').length;
+    const currentCaptionAnalysis = currentImg ? captionReviewItems.find(item => item.id === currentImg.id)?.analysis : undefined;
+    const saveCaptionReview = (changes: Record<string, {textLine1:string;textLine2:string}>) => {
+        setManualConfigs(previous => {
+            const next = {...previous};
+            for (const [id, values] of Object.entries(changes)) next[id] = {...next[id], ...values};
+            return next;
+        });
+        setCaptionCorrections(previous => {
+            let next = previous;
+            for (const item of captionReviewItems) {
+                const values = changes[item.id];
+                if (values) next = setCaptionCorrection(next, item.filename, values);
+            }
+            saveCaptionCorrections(next);
+            return next;
+        });
+    };
+    const clearCaptionReview = (ids: string[]) => {
+        const selected = new Set(ids);
+        setCaptionCorrections(previous => {
+            let next = previous;
+            for (const item of captionReviewItems) if (selected.has(item.id)) next = clearCaptionCorrection(next, item.filename);
+            saveCaptionCorrections(next);
+            return next;
+        });
+        setManualConfigs(previous => {
+            const next = {...previous};
+            for (const item of captionReviewItems) if (selected.has(item.id)) {
+                const entry = {...(next[item.id] || {})};
+                delete entry.textLine1;
+                delete entry.textLine2;
+                next[item.id] = entry;
+            }
+            return next;
+        });
+    };
 
     useEffect(() => {setWatermarkColorUrls({}); setImageTints({}); colorRequest.current++;}, [watermarkMode,storedImageWatermarkUrl]);
     useEffect(() => { setAutomaticStyle({}); }, [watermarkMode,currentImg?.id]);
@@ -414,6 +497,22 @@ const Watermark: React.FC = () => {
         });
     };
 
+    const handleTransparentWatermarkColorChange = async (color: string) => {
+        if (color === 'transparent') {
+            setTransparentWatermarkColor('');
+            setTransparentWatermarkColorUrl(transparentWatermarkUrl);
+            return;
+        }
+        try {
+            const url = await applyColorToWatermark(transparentWatermarkUrl, color);
+            setTransparentWatermarkColor(color);
+            setTransparentWatermarkColorUrl(url);
+        } catch {
+            setSmartError('独立水印颜色更新失败，请重试');
+        }
+    };
+
+
     const handleWatermarkColorChange = (
         imageId: string,
         newWatermarkUrl: string,
@@ -530,6 +629,24 @@ const Watermark: React.FC = () => {
             }));
         } catch(error) { setSmartError(error instanceof Error ? error.message : "位置设置失败"); }
     }, [currentImg,watermarkUrl,smartPending,editScope,images]);
+
+    const handleWatermarkScaleChange = (scale:number) => {
+        if (watermarkMode !== 'image') {
+            patchWatermarkConfig({textScale:Math.max(.1,Math.min(3,scale))});
+            return;
+        }
+        void handlePlacementChange(undefined,scale);
+    };
+
+    const handleEditScopeChange = (scope:'current'|'all') => {
+        setEditScope(scope);
+        if (scope === 'all' && images.length) {
+            const heights = images.map(image => getWatermarkLayoutMetrics(image.width,image.height).title).sort((a,b)=>a-b);
+            setBatchReferenceTextHeight(heights[Math.floor(heights.length/2)]);
+        } else {
+            setBatchReferenceTextHeight(undefined);
+        }
+    };
 
     useEffect(() => {
         if (smartPending || !queuedPlacement.current) return;
@@ -653,6 +770,7 @@ const Watermark: React.FC = () => {
                 <div className="flex-1 overflow-hidden relative">
                     {mobileView === "editor" && currentImg ? (
                         <div className="flex min-h-0 flex-1 flex-col">
+                        {watermarkMode !== "image" && <div className="px-2 pt-1"><CaptionReviewDialog currentFilename={currentImg.file.name} currentAnalysis={currentCaptionAnalysis} pendingCount={captionPendingCount} items={captionReviewItems} onSave={saveCaptionReview} onClear={clearCaptionReview}/></div>}
                         {watermarkMode !== "image" && <label className="flex items-center gap-2 p-2 text-sm">
                             <input type="checkbox" checked={smartEnabled} onChange={event => setSmartEnabled(event.target.checked)} />智能适配大小、颜色和排版
                         </label>}
@@ -682,8 +800,17 @@ const Watermark: React.FC = () => {
                             }}
                             watermarkOpacity={watermarkOpacity}
                             setWatermarkOpacity={setWatermarkOpacity}
+                            transparentWatermarkEnabled={transparentWatermarkEnabled}
+                            setTransparentWatermarkEnabled={setTransparentWatermarkEnabled}
+                            transparentWatermarkUrl={transparentWatermarkColorUrl}
+                            transparentWatermarkOpacity={transparentWatermarkOpacity}
+                            transparentWatermarkScale={transparentWatermarkScale}
+                            setTransparentWatermarkOpacity={setTransparentWatermarkOpacity}
+                            setTransparentWatermarkScale={setTransparentWatermarkScale}
+                            transparentWatermarkColor={transparentWatermarkColor}
+                            onTransparentWatermarkColorChange={color => void handleTransparentWatermarkColorChange(color)}
                             batchEditing={editScope === "all"}
-                            onBatchEditingChange={batch => setEditScope(batch ? "all" : "current")}
+                            onBatchEditingChange={batch => handleEditScopeChange(batch ? "all" : "current")}
                             watermarkBlur={watermarkBlur}
                             setWatermarkBlur={setWatermarkBlur}
                             quality={quality}
@@ -785,27 +912,27 @@ const Watermark: React.FC = () => {
                             watermarkBlur={watermarkBlur}
                             watermarkOpacity={watermarkOpacity}
                             onWatermarkOpacityChange={setWatermarkOpacity}
+                            transparentWatermarkEnabled={transparentWatermarkEnabled}
+                            transparentWatermarkUrl={transparentWatermarkColorUrl}
+                            transparentWatermarkOpacity={transparentWatermarkOpacity}
+                            transparentWatermarkScale={transparentWatermarkScale}
                         />
                     )}
                 </div>
 
                 <DesktopToolbar
-                    previewZoom={previewZoom}
-                    onPreviewZoomChange={setPreviewZoom}
                     imageTint={imageTint}
                     suggestedColors={suggestedColors}
                     onImageTintChange={color=>void changeImageTint(color)}
-                    onSmartPosition={() => {if(currentImg) void handleSmartWatermarkPosition(currentImg.id,editScope==='all',currentWatermarkPosition?.scaleX || 1);}}
                     settingsOpen={settingsPanelOpen}
                     onSettingsOpenChange={setSettingsPanelOpen}
                     editScope={editScope}
-                    setEditScope={setEditScope}
+                    setEditScope={handleEditScopeChange}
                     imageCount={images.length}
                     currentFilename={currentImg?.file.name || ""}
-                    maxScale={watermarkMaxScale}
-                    scale={currentWatermarkPosition?.scaleX || 1}
-                    onScaleChange={scale => void handlePlacementChange(undefined,scale)}
-                    onPositionChange={placement => void handlePlacementChange(placement)}
+                    maxScale={watermarkMode === 'image' ? watermarkMaxScale : 3}
+                    scale={watermarkMode === 'image' ? (currentWatermarkPosition?.scaleX || 1) : (mixedWatermarkConfig.textScale || 1)}
+                    onScaleChange={handleWatermarkScaleChange}
                     onAutoColor={() => handleTextColorChange("transparent")}
                     fontNotice={fontNotice}
                     smartPending={smartPending}
@@ -821,6 +948,12 @@ const Watermark: React.FC = () => {
                                 targets.forEach(image => {next[image.id] = prev[image.id]?.icon ? {icon:prev[image.id].icon} : {};});
                                 return next;
                             });
+                            setCaptionCorrections(previous => {
+                let next = previous;
+                for (const image of targets) next = clearCaptionCorrection(next, image.file.name);
+                saveCaptionCorrections(next);
+                return next;
+            });
                         }
                         setSmartEnabled(true);
                     }}
@@ -838,9 +971,22 @@ const Watermark: React.FC = () => {
                     setDownloadMode={setDownloadMode}
                     watermarkOpacity={watermarkOpacity}
                     setWatermarkOpacity={setWatermarkOpacity}
+                    transparentWatermarkEnabled={transparentWatermarkEnabled}
+                    setTransparentWatermarkEnabled={setTransparentWatermarkEnabled}
+                    transparentWatermarkOpacity={transparentWatermarkOpacity}
+                    setTransparentWatermarkOpacity={setTransparentWatermarkOpacity}
+                    transparentWatermarkScale={transparentWatermarkScale}
+                    setTransparentWatermarkScale={setTransparentWatermarkScale}
+                    transparentWatermarkColor={transparentWatermarkColor}
+                    onTransparentWatermarkColorChange={color => void handleTransparentWatermarkColorChange(color)}
                     onGenerate={handleApplyWatermark}
                     loading={loading}
                     progress={smoothProgress}
+                    captionReviewItems={captionReviewItems}
+                    captionPendingCount={captionPendingCount}
+                    currentCaptionAnalysis={currentCaptionAnalysis}
+                    onSaveCaptionReview={saveCaptionReview}
+                    onClearCaptionReview={clearCaptionReview}
                 />
             </div>
         );

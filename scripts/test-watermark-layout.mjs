@@ -14,7 +14,7 @@ test('panorama and portrait use different ORIGINAL-pixel font sizes',()=>{
     assert.ok(long.title<portrait.title);
     assert.equal(long.basis,'image-estimate');
     assert.equal(portrait.basis,'image-estimate');
-    assert.ok(long.title<100&&portrait.title<110);
+    assert.ok(long.title<130&&portrait.title<180);
 });
 
 test('measured original inscription height overrides image-size estimates',()=>{
@@ -33,13 +33,14 @@ test('invalid dimensions fail; invalid and unreasonable text references remain b
     for(const [w,h] of [[0,20],[-1,5],[Infinity,10]])assert.throws(()=>metrics(w,h));
     for(const ref of [undefined,0,-1,NaN,Infinity])assert.equal(metrics(5000,8000,ref).basis,'image-estimate');
     assert.equal(metrics(5000,8000,100000).title,225);
-    assert.equal(metrics(5000,8000,1).title,30);
+    assert.equal(metrics(5000,8000,1).title,40);
 });
 
 test('image mode and mixed mode keep separate default logo assets',async()=>{
     const helperCode=ts.transpileModule(await readFile(new URL('../src/pages/watermark/helpers.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
     const helpers={};vm.runInNewContext(helperCode,{exports:helpers});
     assert.equal(helpers.DEFAULT_WATERMARK_URL,'/logo.png');
+    assert.equal(helpers.DEFAULT_TRANSPARENT_WATERMARK_URL,'/logo.png');
     assert.equal(helpers.DEFAULT_MIXED_WATERMARK_CONFIG.icon,'/watermark-symbol.png');
     const {default:sharp}=await import('sharp');
     const symbol=await sharp(new URL('../public/watermark-symbol.png',import.meta.url).pathname).metadata();
@@ -64,9 +65,9 @@ const arrangement={};vm.runInNewContext(arrangementCode,{exports:arrangement});
 test('directions retain independent choices and vertical never exposes a three-column variant',()=>{
     const config={layout:'horizontal',horizontalPreset:'centered',verticalPreset:'paired'};
     assert.equal(presetApi.getWatermarkPreset(config),'centered');
-    assert.equal(presetApi.getWatermarkPreset({...config,layout:'vertical'}),'paired');
+    assert.equal(presetApi.getWatermarkPreset({...config,layout:'vertical'}),'single');
     assert.equal(presetApi.getWatermarkPreset({...config,layout:'horizontal'}),'centered');
-    assert.equal(presetApi.VERTICAL_PRESETS.length,2);
+    assert.equal(presetApi.VERTICAL_PRESETS.length,1);
 });
 
 test('short artifact names and long descriptions always form one line or column',()=>{
@@ -74,10 +75,11 @@ test('short artifact names and long descriptions always form one line or column'
         const config={layout,textLine1:'供盘',textLine2:'17—19世纪·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄',horizontalPreset:preset,verticalPreset:preset};
         assert.equal(presetApi.getWatermarkPreset(config),'single');
         assert.equal(presetApi.getWatermarkPreset({...config,textLine1:'青铜供盘'}),'single');
-        assert.equal(presetApi.getWatermarkPreset({...config,textLine1:'《江山放牧图卷》'}),preset);
-        assert.equal(presetApi.getWatermarkPreset({...config,textLine2:'宋·故宫藏'}),preset);
-        assert.equal(presetApi.getWatermarkPreset({...config,textLine1:''}),preset);
-        assert.equal(presetApi.getWatermarkPreset({...config,textLine2:''}),preset);
+        const expected=layout==='vertical'?'single':preset;
+        assert.equal(presetApi.getWatermarkPreset({...config,textLine1:'《江山放牧图卷》'}),expected);
+        assert.equal(presetApi.getWatermarkPreset({...config,textLine2:'宋·故宫藏'}),expected);
+        assert.equal(presetApi.getWatermarkPreset({...config,textLine1:''}),expected);
+        assert.equal(presetApi.getWatermarkPreset({...config,textLine2:''}),expected);
     }
 });
 
@@ -87,6 +89,20 @@ test('vertical date connectors rotate while numbers and horizontal captions stay
         assert.equal(arrangement.getWatermarkGlyphRotation(character,false),0,character);
     }
     for(const character of '1719世纪供盘·至到')assert.equal(arrangement.getWatermarkGlyphRotation(character,true),0,character);
+});
+
+test('single-line captions place era before title and keep collection/photographer after it',()=>{
+    const eraFirst=arrangement.buildSingleLineCaptionRuns('朱漆戗金莲托八吉祥纹护经板','明永乐时期·南京博物院藏 / 笑谈间气吐霓虹摄','era-first');
+    assert.equal(JSON.stringify(eraFirst.map(run=>run.text)),JSON.stringify(['明永乐时期',' · ','朱漆戗金莲托八吉祥纹护经板',' · ','南京博物院藏 / 笑谈间气吐霓虹摄']));
+    assert.equal(eraFirst[0].field,'textLine2');assert.equal(eraFirst[2].field,'textLine1');assert.equal(eraFirst[4].field,'textLine2');
+    assert.equal(JSON.stringify(arrangement.buildSingleLineCaptionRuns('供盘','17—19世纪·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄','title-first').map(run=>run.text)),JSON.stringify(['供盘',' · ','17—19世纪·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄']));
+    assert.equal(JSON.stringify(arrangement.buildSingleLineCaptionRuns('供盘','', 'era-first').map(run=>run.text)),JSON.stringify(['供盘']));
+});
+
+test('vertical text scaling enlarges glyphs without changing character pitch',()=>{
+    const base=.1,scale=2,spacing=arrangement.getFittedVerticalLetterSpacing(base,scale);
+    assert.ok(Math.abs((1+base)-scale*(1+spacing))<1e-8);
+    assert.ok(spacing<0);
 });
 
 test('approved arrangements enforce visible-ink alignment and never enlarge a vertical stamp',()=>{
@@ -100,7 +116,7 @@ test('approved arrangements enforce visible-ink alignment and never enlarge a ve
     const vertical=arrangement.arrangeWatermark([{width:95,height:800},{width:90,height:1100}],true,false,100,55,.6);
     const seal=vertical.items.find(i=>i.role==='icon'),texts=vertical.items.filter(i=>i.role==='text');
     assert.ok(seal.height<=150);assert.ok(seal.y+seal.height<Math.min(...texts.map(t=>t.y)));
-    assert.equal(texts[0].y,texts[1].y);assert.ok(texts[0].x>texts[1].x);
+    assert.ok(texts[0].y<texts[1].y);assert.ok(Math.abs((texts[0].x+texts[0].width/2)-(texts[1].x+texts[1].width/2))<1e-8);
     assert.ok(Math.abs(seal.x+seal.width/2-vertical.width/2)<1e-8);
 });
 

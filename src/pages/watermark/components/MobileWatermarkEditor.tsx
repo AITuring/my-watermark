@@ -131,6 +131,15 @@ interface MobileWatermarkEditorProps {
     // New Props for enhanced functionality
     watermarkOpacity: number;
     setWatermarkOpacity: (val: number) => void;
+    transparentWatermarkEnabled: boolean;
+    setTransparentWatermarkEnabled: (val: boolean) => void;
+    transparentWatermarkUrl: string;
+    transparentWatermarkOpacity: number;
+    setTransparentWatermarkOpacity: (val: number) => void;
+    transparentWatermarkScale: number;
+    setTransparentWatermarkScale: (val: number) => void;
+    transparentWatermarkColor: string;
+    onTransparentWatermarkColorChange: (color: string) => void;
     watermarkBlur: boolean;
     setWatermarkBlur: (val: boolean) => void;
     downloadMode: WatermarkDownloadMode;
@@ -167,6 +176,15 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     watermarkOpacity,
     setWatermarkOpacity,
+    transparentWatermarkEnabled,
+    setTransparentWatermarkEnabled,
+    transparentWatermarkUrl,
+    transparentWatermarkOpacity,
+    setTransparentWatermarkOpacity,
+    transparentWatermarkScale,
+    setTransparentWatermarkScale,
+    transparentWatermarkColor,
+    onTransparentWatermarkColorChange,
     watermarkBlur,
     setWatermarkBlur,
     quality,
@@ -196,6 +214,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     // 水印相关设置
     const watermarkImage = useStableWatermarkImage(watermarkUrl);
+    const transparentWatermarkImage = useStableWatermarkImage(transparentWatermarkUrl);
     const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 });
     const [position, setPosition] = useState<WatermarkPosition>(() => {
         if (currentWatermarkPosition) {
@@ -1154,6 +1173,26 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 rotation={position.rotation} // 确保旋转属性被传递
                             />
                         )}
+                        {transparentWatermarkEnabled && transparentWatermarkImage && backgroundImage && (() => {
+                            const protectionMetrics = getAdaptiveWatermarkRenderMetrics(
+                                backgroundImage.naturalWidth,
+                                backgroundImage.naturalHeight,
+                                transparentWatermarkImage,
+                                transparentWatermarkScale
+                            );
+                            const protectionWidth = protectionMetrics.width * backgroundScale;
+                            const protectionHeight = protectionMetrics.height * backgroundScale;
+                            return <ImageWithFixedWidth
+                                src={transparentWatermarkUrl}
+                                fixedWidth={protectionWidth}
+                                x={backgroundImageSize.width / 2}
+                                y={backgroundImageSize.height / 2}
+                                offsetX={protectionWidth / 2}
+                                offsetY={protectionHeight / 2}
+                                listening={false}
+                                opacity={transparentWatermarkOpacity}
+                            />;
+                        })()}
                         <Transformer
                             ref={transformerRef}
                             boundBoxFunc={(oldBox, newBox) => {
@@ -1236,6 +1275,11 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         {/* <div className="w-px h-3 bg-gray-200 dark:bg-slate-700 mx-1"></div> */}
 
                                     </div>
+                                    {transparentWatermarkEnabled && <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">透明水印</span>
+                                        <Slider aria-label="透明水印透明度" value={[transparentWatermarkOpacity]} max={1} step={0.01} onValueChange={(v) => setTransparentWatermarkOpacity(v[0])} className="w-24 flex-shrink-0" />
+                                        <span className="text-xs font-mono text-gray-500 w-7 text-right">{Math.round(transparentWatermarkOpacity * 100)}%</span>
+                                    </div>}
 
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">导出质量</span>
@@ -1314,6 +1358,15 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                     <WatermarkLayoutControl config={{...mixedWatermarkConfig,textOnly:watermarkMode==='text'}} onChange={updateConfig}/>
                                 </div>
                             )}
+                            {transparentWatermarkEnabled && <div className="space-y-3 rounded-xl bg-gray-50 p-3 dark:bg-slate-800/50">
+                                <Label>独立透明水印</Label>
+                                <WatermarkColorControl label="独立水印颜色" autoLabel="原色" value={transparentWatermarkColor || '#ffffff'} onAuto={() => onTransparentWatermarkColorChange('transparent')} onChange={onTransparentWatermarkColorChange} />
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">独立水印大小</span>
+                                    <Slider aria-label="独立水印大小" value={[transparentWatermarkScale]} min={2} max={8} step={0.01} onValueChange={(v) => setTransparentWatermarkScale(v[0])} className="w-24 flex-shrink-0" />
+                                    <span className="text-xs font-mono text-gray-500 w-10 text-right">{Math.round(transparentWatermarkScale * 100)}%</span>
+                                </div>
+                            </div>}
                         </div>
                     )}
 
@@ -1346,9 +1399,10 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                         <Images className="h-3.5 w-3.5" />
                         <span className="text-xs font-medium">水印</span>
                     </Button>
-                    <label htmlFor="wm-mobile-blur" className="flex items-center gap-2 pl-2 text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                        背景模糊<Switch id="wm-mobile-blur" checked={watermarkBlur} onCheckedChange={setWatermarkBlur}/>
-                    </label>
+                    <div className="flex items-center gap-3 pl-2 text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                        <label htmlFor="wm-mobile-blur" className="flex items-center gap-1.5">背景模糊<Switch id="wm-mobile-blur" checked={watermarkBlur} onCheckedChange={setWatermarkBlur}/></label>
+                        <label htmlFor="wm-mobile-transparent" className="flex items-center gap-1.5">透明水印<Switch id="wm-mobile-transparent" checked={transparentWatermarkEnabled} onCheckedChange={setTransparentWatermarkEnabled}/></label>
+                    </div>
                 </div>
             </div>
 

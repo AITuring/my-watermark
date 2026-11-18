@@ -33,16 +33,38 @@ export async function createSmartWatermark(
         const candidateConfig = {...config, layout, color: '#ffffff'};
         const draft = await createTextWatermark(candidateConfig);
         if (!draft) return {url: '', config: candidateConfig, position: {id:image.id,x:0.04,y:0.04,scaleX:1,scaleY:1,rotation:0}};
-        const logo = await loadPositionImage(draft);
-        const bounds = getImageOpaqueBounds(logo);
+        let logo = await loadPositionImage(draft);
+        let bounds = getImageOpaqueBounds(logo);
         // Resolve ORIGINAL-pixel typography first, then fit the complete block.
         const titleSize = Math.max(24, config.fontSize * 4);
         const metrics=getWatermarkLayoutMetrics(image.width,image.height,config.referenceTextHeight);
-        const renderFactor = Math.min(metrics.title / titleSize,
-            image.width * 0.65 / bounds.width, image.height * 0.65 / bounds.height);
+        const singleLine = layout==='horizontal' && candidateConfig.horizontalPreset==='single';
+        const singleLineBoost = singleLine ? 1.65 : 1;
+        const textScale = Math.max(.1,candidateConfig.textScale??1);
+        const targetRenderFactor = metrics.title * singleLineBoost * textScale / titleSize;
+        // Preserve glyph proportions. Long captions are reduced uniformly to
+        // fit a generous 95% width; never squash the glyphs horizontally.
+        const horizontalScale = 1;
+        const renderConfig = {...candidateConfig, textHorizontalScale:horizontalScale};
+        if (horizontalScale < .999) {
+            const compressedDraft = await createTextWatermark(renderConfig);
+            logo = await loadPositionImage(compressedDraft);
+            bounds = getImageOpaqueBounds(logo);
+        }
+        const renderFactor = Math.min(targetRenderFactor,
+            singleLine ? image.width * .95 / bounds.width : image.width * .65 / bounds.width,
+            image.height * .65 / bounds.height);
         const baseWidth = getAdaptiveWatermarkRenderMetrics(image.width, image.height, logo).width;
         const scale = bounds.width * renderFactor / baseWidth;
-        const position = findSmartWatermarkPosition(photo, logo, image.id, scale, image.width, image.height, !overrides.color);
+        let position = findSmartWatermarkPosition(photo, logo, image.id, scale, image.width, image.height, !overrides.color);
+        // A clean upper margin benefits from a centered editorial caption. Keep
+        // smart placement for busy/central areas so the watermark never covers
+        // the subject just to satisfy visual symmetry.
+        if (singleLine && (position.y < .28 || position.y > .68)) {
+            const watermarkWidth = bounds.width * renderFactor;
+            const maxX = Math.max(0, 1 - watermarkWidth / image.width);
+            position = {...position, x:Math.max(0,Math.min(maxX,.5 - watermarkWidth / image.width / 2))};
+        }
         const x = Math.min(sample.width - 1, Math.floor(position.x * sample.width));
         const y = Math.min(sample.height - 1, Math.floor(position.y * sample.height));
         const width = Math.max(1, Math.min(sample.width - x, Math.ceil(bounds.width * renderFactor * sample.width / image.width)));
@@ -63,7 +85,7 @@ export async function createSmartWatermark(
         const centerPenalty = Math.max(0,1-Math.hypot(position.x+width/sample.width/2-0.5,position.y+height/sample.height/2-0.5)*1.4);
         const score = detail / values.length + centerPenalty * 0.06 + (overrides.color ? 0 : (1-colorAnalysis.coverage)*0.5);
         if (!best || score < best.score) {
-            const finalConfig = {...candidateConfig,color};
+            const finalConfig = {...renderConfig,color};
             best = {url:await createTextWatermark(finalConfig),config:finalConfig,position,score};
         }
     }

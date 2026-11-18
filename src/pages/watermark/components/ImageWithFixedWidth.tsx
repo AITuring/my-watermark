@@ -24,6 +24,9 @@ interface ImageWithFixedWidthProps {
     onTouchEnd?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
     opacity?: number;
     rotation?: number;
+    offsetX?: number;
+    offsetY?: number;
+    listening?: boolean;
 }
 
 const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
@@ -43,6 +46,9 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
             onDragEnd,
             onTransformEnd,
             opacity = 1,
+            offsetX,
+            offsetY,
+            listening,
             ...otherProps
         },
         ref
@@ -81,6 +87,9 @@ const ImageWithFixedWidth = forwardRef<Konva.Image, ImageWithFixedWidthProps>(
                 onDragEnd={onDragEnd}
                 onTransformEnd={onTransformEnd}
                 opacity={opacity}
+                offsetX={offsetX}
+                offsetY={offsetY}
+                listening={listening}
                 {...otherProps}
                 width={size.width}
                 height={size.height}

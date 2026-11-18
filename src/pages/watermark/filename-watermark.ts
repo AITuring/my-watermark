@@ -144,3 +144,40 @@ export function extractWatermarkCaption(filename: string) {
         textLine2: [details, photographer].filter(Boolean).join(' / '),
     };
 }
+
+export type CaptionConfidence = 'high' | 'review' | 'none';
+export type WatermarkCaptionAnalysis = {
+    caption: ReturnType<typeof extractWatermarkCaption>;
+    confidence: CaptionConfidence;
+    issues: string[];
+    fields: string[];
+};
+
+/** Explain why a filename was accepted so the UI can surface only ambiguous cases. */
+export function analyzeWatermarkCaption(filename: string): WatermarkCaptionAnalysis {
+    const stem = filename.replace(/\.[^.]+$/, '').trim();
+    const datePrefix = stem.match(LEADING_DATE)?.[0] || '';
+    const chinesePrefix = stem.match(LEADING_CHINESE_ERA)?.[0] || '';
+    const protectedLength = Math.max(datePrefix.length, chinesePrefix.length);
+    const fields = splitFields(stem, protectedLength);
+    const caption = extractWatermarkCaption(filename);
+    const issues: string[] = [];
+    const collectionIndex = fields.findIndex(field => COLLECTION.test(field));
+    const firstField = fields[0] || '';
+    const titleFields = fields
+        .slice((datePrefix || chinesePrefix || NAMED_PERIOD.test(firstField)) ? 1 : 0,
+            collectionIndex < 0 ? undefined : collectionIndex)
+        .filter(field => !isNonTitle(field)
+            && !/^(?:作者|绘者|画家)[：:\s]+/.test(field)
+            && !/^(?:局部|细节|正面|背面|侧面|底部|备注)$/.test(field));
+
+    if (!caption) {
+        issues.push('没有识别出可靠的作品名称');
+    } else {
+        if (collectionIndex < 0) issues.push('没有找到明确的馆藏字段');
+        if (!datePrefix && !chinesePrefix && !NAMED_PERIOD.test(firstField)) issues.push('年代字段未明确识别');
+        if (titleFields.length > 1) issues.push('年代与名称之间存在多个候选字段');
+        if (caption.textLine1.length <= 1) issues.push('作品名称过短，请确认是否为完整名称');
+    }
+    return {caption, confidence: !caption ? 'none' : issues.length ? 'review' : 'high', issues, fields};
+}

@@ -13,6 +13,7 @@ import {
     getImageOpaqueBounds,
 } from "@/utils/watermark-editor";
 import { compositeLargeImage, getLargeImageAsset } from '@/utils/large-image';
+import { TRANSPARENT_WATERMARK_OPACITY, TRANSPARENT_WATERMARK_SCALE } from '@/utils/transparent-watermark';
 
 class CanvasPool {
     private static instance: CanvasPool;
@@ -272,6 +273,12 @@ export async function createMixedWatermark(
     return createTextWatermark(config);
 }
 
+export interface TransparentWatermarkOptions {
+    image: HTMLImageElement;
+    opacity?: number;
+    scale?: number;
+}
+
 function calculateWatermarkPosition(
     watermarkImage: HTMLImageElement,
     imageWidth: number,
@@ -311,6 +318,28 @@ function calculateWatermarkPosition(
     };
 }
 
+function getTransparentWatermarkPlacement(
+    imageWidth: number,
+    imageHeight: number,
+    options: TransparentWatermarkOptions
+) {
+    const crop = getImageOpaqueBounds(options.image);
+    const metrics = getAdaptiveWatermarkRenderMetrics(
+        imageWidth,
+        imageHeight,
+        options.image,
+        options.scale ?? TRANSPARENT_WATERMARK_SCALE
+    );
+    return {
+        x: Math.max(0, Math.round((imageWidth - metrics.width) / 2)),
+        y: Math.max(0, Math.round((imageHeight - metrics.height) / 2)),
+        width: metrics.width,
+        height: metrics.height,
+        crop,
+        opacity: Math.max(0, Math.min(1, options.opacity ?? TRANSPARENT_WATERMARK_OPACITY)),
+    };
+}
+
 export async function processImage(
     file: File,
     watermarkImage: HTMLImageElement,
@@ -318,6 +347,7 @@ export async function processImage(
     watermarkBlur: boolean,
     quality: number,
     watermarkOpacity = 1,
+    transparentWatermark?: TransparentWatermarkOptions,
     onProgress?: (progress: number) => void
 ): Promise<{ blob: Blob; name: string; mimeType: string }> {
     const largeAsset = await getLargeImageAsset(file);
@@ -331,13 +361,30 @@ export async function processImage(
             Math.abs(placement.height * Math.sin(radians))));
         const overlayHeight = Math.max(1, Math.ceil(Math.abs(placement.width * Math.sin(radians)) +
             Math.abs(placement.height * Math.cos(radians))));
+        const protectionPlacement = transparentWatermark
+            ? getTransparentWatermarkPlacement(largeAsset.width, largeAsset.height, transparentWatermark)
+            : null;
+        const protectionLeft = protectionPlacement ? protectionPlacement.x : null;
+        const protectionTop = protectionPlacement ? protectionPlacement.y : null;
+        const primaryLeft = Math.max(0, Math.min(largeAsset.width - overlayWidth,
+            Math.round(placement.x + (placement.width - overlayWidth) / 2)));
+        const primaryTop = Math.max(0, Math.min(largeAsset.height - overlayHeight,
+            Math.round(placement.y + (placement.height - overlayHeight) / 2)));
+        const overlayLeft = protectionLeft !== null ? Math.min(primaryLeft, protectionLeft) : primaryLeft;
+        const overlayTop = protectionTop !== null ? Math.min(primaryTop, protectionTop) : primaryTop;
+        const overlayRight = protectionLeft !== null && protectionPlacement
+            ? Math.max(primaryLeft + overlayWidth, protectionLeft + protectionPlacement.width)
+            : primaryLeft + overlayWidth;
+        const overlayBottom = protectionTop !== null && protectionPlacement
+            ? Math.max(primaryTop + overlayHeight, protectionTop + protectionPlacement.height)
+            : primaryTop + overlayHeight;
         const canvas = document.createElement('canvas');
-        canvas.width = overlayWidth;
-        canvas.height = overlayHeight;
+        canvas.width = Math.max(1, overlayRight - overlayLeft);
+        canvas.height = Math.max(1, overlayBottom - overlayTop);
         const ctx = canvas.getContext('2d');
         if (!ctx) throw new Error('无法绘制大图水印');
         ctx.globalAlpha = watermarkOpacity;
-        ctx.translate(overlayWidth / 2, overlayHeight / 2);
+        ctx.translate(primaryLeft - overlayLeft + overlayWidth / 2, primaryTop - overlayTop + overlayHeight / 2);
         ctx.rotate(radians);
         ctx.drawImage(watermarkImage,
             placement.crop.x,
@@ -345,16 +392,25 @@ export async function processImage(
             placement.crop.width,
             placement.crop.height,
             -placement.width / 2, -placement.height / 2, placement.width, placement.height);
+        if (protectionPlacement) {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.globalAlpha = protectionPlacement.opacity;
+            ctx.drawImage(transparentWatermark.image,
+                protectionPlacement.crop.x,
+                protectionPlacement.crop.y,
+                protectionPlacement.crop.width,
+                protectionPlacement.crop.height,
+                protectionPlacement.x - overlayLeft,
+                protectionPlacement.y - overlayTop,
+                protectionPlacement.width,
+                protectionPlacement.height);
+        }
         const overlay = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
             (blob) => blob ? resolve(blob) : reject(new Error('大图水印图层生成失败')), 'image/png'
         ));
-        const left = Math.max(0, Math.min(largeAsset.width - overlayWidth,
-            Math.round(placement.x + (placement.width - overlayWidth) / 2)));
-        const top = Math.max(0, Math.min(largeAsset.height - overlayHeight,
-            Math.round(placement.y + (placement.height - overlayHeight) / 2)));
         onProgress?.(55);
         const blob = await compositeLargeImage(file, overlay, {
-            x: left, y: top, quality: Math.round(Math.max(0.01, Math.min(1, quality)) * 100),
+            x: overlayLeft, y: overlayTop, quality: Math.round(Math.max(0.01, Math.min(1, quality)) * 100),
             blur: watermarkBlur,
         });
         if (!blob) throw new Error('大图水印服务不可用');
@@ -426,6 +482,23 @@ export async function processImage(
                 );
 
                 ctx.restore();
+                if (transparentWatermark) {
+                    const protectionPlacement = getTransparentWatermarkPlacement(imageWidth, imageHeight, transparentWatermark);
+                    ctx.save();
+                    ctx.globalAlpha = protectionPlacement.opacity;
+                    ctx.drawImage(
+                        transparentWatermark.image,
+                        protectionPlacement.crop.x,
+                        protectionPlacement.crop.y,
+                        protectionPlacement.crop.width,
+                        protectionPlacement.crop.height,
+                        protectionPlacement.x,
+                        protectionPlacement.y,
+                        protectionPlacement.width,
+                        protectionPlacement.height
+                    );
+                    ctx.restore();
+                }
                 exportStarted = true;
                 void exportCanvasWithSizeBudget(canvas, file, quality)
                     .then(({ blob, mimeType }) => {

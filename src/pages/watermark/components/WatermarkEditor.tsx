@@ -27,6 +27,7 @@ import {
     applyColorToWatermark,
     getAdaptiveWatermarkRenderMetrics,
 } from "@/utils/watermark-editor";
+import { TRANSPARENT_WATERMARK_OPACITY, TRANSPARENT_WATERMARK_SCALE } from "@/utils/transparent-watermark";
 import ImageWithFixedWidth from "@/pages/watermark/components/ImageWithFixedWidth";
 import "../watermark.css";
 
@@ -114,6 +115,10 @@ interface WatermarkEditorProps {
     watermarkBlur?: boolean;
     watermarkOpacity?: number; // 新增透明度属性
     onWatermarkOpacityChange?: (value: number) => void;
+    transparentWatermarkEnabled?: boolean;
+    transparentWatermarkUrl?: string;
+    transparentWatermarkOpacity?: number;
+    transparentWatermarkScale?: number;
 }
 
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
@@ -132,6 +137,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     watermarkBlur = false,
     watermarkOpacity = 1, // 默认不透明
     onWatermarkOpacityChange,
+    transparentWatermarkEnabled = false,
+    transparentWatermarkUrl = "",
+    transparentWatermarkOpacity = TRANSPARENT_WATERMARK_OPACITY,
+    transparentWatermarkScale = TRANSPARENT_WATERMARK_SCALE,
 }) => {
     // 背景图片相关设置
     const [previewBounds,setPreviewBounds] = useState({width:600,height:400});
@@ -167,6 +176,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         useState(watermarkUrl);
     const colorRequest = useRef(0);
     const watermarkImage = useStableWatermarkImage(coloredWatermarkUrl);
+    const transparentWatermarkImage = useStableWatermarkImage(transparentWatermarkUrl);
     const [watermarkSize, setWatermarkSize] = useState({ width: 0, height: 0 });
     const [position, setPosition] = useState<WatermarkPosition>(
         currentWatermarkPosition || {
@@ -936,6 +946,28 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                     }}
                                 />
                             </>
+                        )}
+                        {transparentWatermarkEnabled && transparentWatermarkImage && backgroundImage && (
+                            (() => {
+                                const protectionMetrics = getAdaptiveWatermarkRenderMetrics(
+                                    backgroundImage.naturalWidth,
+                                    backgroundImage.naturalHeight,
+                                    transparentWatermarkImage,
+                                    transparentWatermarkScale
+                                );
+                                const protectionWidth = protectionMetrics.width * backgroundScale;
+                                const protectionHeight = protectionMetrics.height * backgroundScale;
+                                return <ImageWithFixedWidth
+                                    src={transparentWatermarkUrl}
+                                    fixedWidth={protectionWidth}
+                                    x={backgroundImageSize.width / 2}
+                                    y={backgroundImageSize.height / 2}
+                                    offsetX={protectionWidth / 2}
+                                    offsetY={protectionHeight / 2}
+                                    listening={false}
+                                    opacity={transparentWatermarkOpacity}
+                                />;
+                            })()
                         )}
                     </Layer>
                 </Stage>

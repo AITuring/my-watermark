@@ -16,8 +16,11 @@ export function getWatermarkLayoutMetrics(width: number, height: number, referen
     const hasReference = Number.isFinite(referenceTextHeight) && referenceTextHeight! > 0;
     // Panoramas use their visible picture height as the limiting dimension.
     // Matching a measured inscription takes precedence over geometric guesses.
-    const estimate = short * (aspect >= 3 ? .015 : aspect >= 2 ? .017 : .019);
-    const title = Math.max(short * .006, Math.min(short * .045, hasReference ? referenceTextHeight! : estimate));
+    // The previous 1.9% default made ordinary portrait previews unreadably
+    // small (a 1020px short edge produced only ~19px glyphs). Use a stronger
+    // editorial caption scale while keeping panoramas restrained.
+    const estimate = short * (aspect >= 3 ? .021 : aspect >= 2 ? .026 : .03);
+    const title = Math.max(short * .008, Math.min(short * .045, hasReference ? referenceTextHeight! : estimate));
     return {title, caption: title * .58, signature: title * .66, gap: title * .22,
         basis: hasReference ? 'reference-text' : 'image-estimate'};
 }

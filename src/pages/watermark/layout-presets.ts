@@ -10,7 +10,7 @@ export function shouldJoinWatermarkLines(config:Partial<MixedWatermarkConfig>,di
 }
 export function getWatermarkPreset(config:Partial<MixedWatermarkConfig>, direction=config.layout||'horizontal'):WatermarkPreset {
     if(shouldJoinWatermarkLines(config,direction))return 'single';
-    return direction==='vertical'?config.verticalPreset||'paired':config.horizontalPreset||'paired';
+    return direction==='vertical'?'single':config.horizontalPreset||'paired';
 }
 export const HORIZONTAL_PRESETS = [
     {value:'single',label:'单行横署',hint:'图案与单行文字齐平'},
@@ -19,5 +19,4 @@ export const HORIZONTAL_PRESETS = [
 ] as const;
 export const VERTICAL_PRESETS = [
     {value:'single',label:'单列',hint:'图案与文字列共轴'},
-    {value:'paired',label:'双列',hint:'双列顶端对齐'},
 ] as const;

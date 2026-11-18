@@ -13,6 +13,10 @@ interface UseWatermarkBatchProcessorOptions {
     watermarkColorUrls: Record<string, string>;
     watermarkOpacity: number;
     watermarkBlur: boolean;
+    transparentWatermarkEnabled: boolean;
+    transparentWatermarkUrl: string;
+    transparentWatermarkOpacity: number;
+    transparentWatermarkScale: number;
     quality: number;
     downloadMode?: WatermarkDownloadMode;
     oversizeThresholdBytes?: number;
@@ -32,6 +36,10 @@ export function useWatermarkBatchProcessor({
     watermarkColorUrls,
     watermarkOpacity,
     watermarkBlur,
+    transparentWatermarkEnabled,
+    transparentWatermarkUrl,
+    transparentWatermarkOpacity,
+    transparentWatermarkScale,
     quality,
     downloadMode = 'zip',
     oversizeThresholdBytes = DEFAULT_OVERSIZE_THRESHOLD_BYTES,
@@ -151,6 +159,10 @@ export function useWatermarkBatchProcessor({
                                 throw new Error(`图片 ${img.id} 的水印加载失败`);
                             }
 
+                            const transparentImg = transparentWatermarkEnabled && transparentWatermarkUrl
+                                ? await getWatermarkImage(transparentWatermarkUrl)
+                                : undefined;
+
                             console.log("调用 processImage，参数：", {
                                 fileName: file.name,
                                 position,
@@ -166,6 +178,7 @@ export function useWatermarkBatchProcessor({
                                 watermarkBlur,
                                 quality,
                                 watermarkOpacity,
+                                transparentImg ? {image: transparentImg, opacity: transparentWatermarkOpacity, scale: transparentWatermarkScale} : undefined,
                                 (progress) => {
                                     console.log(
                                         `图片 ${img.id} 处理进度: ${progress}%`
@@ -265,6 +278,10 @@ export function useWatermarkBatchProcessor({
             oversizeThresholdBytes,
             updateProgressSmoothly,
             watermarkBlur,
+            transparentWatermarkEnabled,
+            transparentWatermarkUrl,
+            transparentWatermarkOpacity,
+            transparentWatermarkScale,
             watermarkColorUrls,
             watermarkOpacity,
             watermarkUrl,

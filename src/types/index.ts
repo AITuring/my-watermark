@@ -40,6 +40,9 @@ interface MixedWatermarkConfig {
     layout?: 'horizontal' | 'vertical';
     horizontalPreset?: 'single' | 'paired' | 'centered';
     verticalPreset?: 'single' | 'paired';
+    singleLineOrder?: 'title-first' | 'era-first';
+    textScale?: number;
+    textHorizontalScale?: number;
 }
 
 interface TextWatermarkConfig {
