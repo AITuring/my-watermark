@@ -24,6 +24,15 @@ test('analysis exposes compound Chinese eras and leaves title-like date text alo
     });
 });
 
+test('Chinese reign-year dates stay with the time field', () => {
+    const result = analyze('明崇祯十六年-荡寇将军印银印-南京博物院藏-DSC00071.jpg');
+    assert.deepEqual(result.caption, {
+        textLine1:'荡寇将军印银印',
+        textLine2:'明崇祯十六年·南京博物院藏 / 笑谈间气吐霓虹摄',
+    });
+    assert.deepEqual(result.metadata, {time:'明崇祯十六年', place:'', collection:'南京博物院藏'});
+});
+
 test('analysis marks ambiguous or incomplete names for review instead of hiding uncertainty', () => {
     assert.equal(analyze('唐-壁画.jpg').confidence, 'review');
     assert.ok(analyze('唐-壁画.jpg').issues.includes('没有找到明确的馆藏字段'));

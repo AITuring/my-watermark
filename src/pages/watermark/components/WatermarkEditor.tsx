@@ -118,6 +118,8 @@ interface WatermarkEditorProps {
     transparentWatermarkEnabled?: boolean;
     transparentWatermarkUrl?: string;
     transparentWatermarkBaseUrl?: string;
+    transparentWatermarkPosition?: {x: number; y: number};
+    onTransparentWatermarkTransform?: (position: {x: number; y: number}) => void;
     transparentWatermarkOpacity?: number;
     transparentWatermarkScale?: number;
 }
@@ -141,6 +143,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     transparentWatermarkEnabled = false,
     transparentWatermarkUrl = "",
     transparentWatermarkBaseUrl = transparentWatermarkUrl,
+    transparentWatermarkPosition = {x: 0.5, y: 0.5},
+    onTransparentWatermarkTransform,
     transparentWatermarkOpacity = TRANSPARENT_WATERMARK_OPACITY,
     transparentWatermarkScale = TRANSPARENT_WATERMARK_SCALE,
 }) => {
@@ -959,14 +963,16 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                 );
                                 const protectionWidth = protectionMetrics.width * backgroundScale;
                                 const protectionHeight = protectionMetrics.height * backgroundScale;
+                                const maxX = Math.max(0, backgroundImageSize.width - protectionWidth);
+                                const maxY = Math.max(0, backgroundImageSize.height - protectionHeight);
+                                const protectionX = transparentWatermarkPosition.x * maxX;
+                                const protectionY = transparentWatermarkPosition.y * maxY;
                                 return <>
                                     <ImageWithFixedWidth
                                         src={transparentWatermarkBaseUrl}
                                         fixedWidth={protectionWidth}
-                                        x={backgroundImageSize.width / 2}
-                                        y={backgroundImageSize.height / 2}
-                                        offsetX={protectionWidth / 2}
-                                        offsetY={protectionHeight / 2}
+                                        x={protectionX}
+                                        y={protectionY}
                                         listening={false}
                                         opacity={TRANSPARENT_WATERMARK_CONTRAST_OPACITY}
                                         globalCompositeOperation="difference"
@@ -974,11 +980,19 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                     <ImageWithFixedWidth
                                         src={transparentWatermarkUrl}
                                         fixedWidth={protectionWidth}
-                                        x={backgroundImageSize.width / 2}
-                                        y={backgroundImageSize.height / 2}
-                                        offsetX={protectionWidth / 2}
-                                        offsetY={protectionHeight / 2}
-                                        listening={false}
+                                        x={protectionX}
+                                        y={protectionY}
+                                        draggable={Boolean(onTransparentWatermarkTransform)}
+                                        onDragEnd={event => {
+                                            const node = event.target;
+                                            const nextX = Math.max(0, Math.min(maxX, node.x()));
+                                            const nextY = Math.max(0, Math.min(maxY, node.y()));
+                                            node.position({x: nextX, y: nextY});
+                                            onTransparentWatermarkTransform?.({
+                                                x: maxX ? nextX / maxX : 0.5,
+                                                y: maxY ? nextY / maxY : 0.5,
+                                            });
+                                        }}
                                         opacity={transparentWatermarkOpacity}
                                     />
                                 </>;

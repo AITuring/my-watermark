@@ -5,9 +5,12 @@ const DATE_NUMBER = '[0-9０-９一二三四五六七八九十百千万〇零]{1
 const DATE_POINT = `(?:公元前|公元后|公元|距今|前)?\\s*(?:第\\s*)?${DATE_NUMBER}`;
 const DATE_QUALIFIER = '(?:早期|中期|晚期|前期|后期|初期|末期|初|中|末)?';
 const DATE_RANGE = '\\s*[-－—–−~～至到]{1,2}\\s*';
+// Chinese reign-year dates such as 明崇祯十六年, 清乾隆三十年 and 民国二十年
+// are metadata even though they do not contain the explicit 年代/世纪 prefix.
+const CHINESE_REIGN_DATE = '(?:明|清|元|宋|唐|汉|秦|隋|辽|金|晋|周|民国)[\\u3400-\\u9fff]{1,6}' + DATE_NUMBER + '年';
 const DATE_EXPRESSION = ['世纪', '年代', '年'].map(unit =>
     `${DATE_POINT}(?:${unit}${DATE_QUALIFIER})?${DATE_RANGE}${DATE_POINT}${unit}${DATE_QUALIFIER}|${DATE_POINT}${unit}${DATE_QUALIFIER}`
-).join('|');
+).join('|') + `|${CHINESE_REIGN_DATE}`;
 const FIELD_BOUNDARY = '(?=\\s*(?:[-_－—–]|$))';
 // Only recognize date syntax here. Region/culture text is opaque metadata;
 // its role is established by the following artwork field, not a place list.

@@ -35,6 +35,7 @@ import {
     DEFAULT_MIXED_WATERMARK_CONFIG,
     DEFAULT_WATERMARK_URL,
     DEFAULT_TRANSPARENT_WATERMARK_URL,
+    DEFAULT_COPYRIGHT_STATEMENT,
     applyWatermarkConfigPatch,
     unifyWatermarkFontPatch,
     buildImagesWithPositions,
@@ -81,6 +82,7 @@ const Watermark: React.FC = () => {
     const [watermarkMode, setWatermarkMode] = useState<"image" | "mixed" | "text">(
         "image"
     );
+    const watermarkModeManuallySelected = useRef(false);
     const [storedImageWatermarkUrl, setStoredImageWatermarkUrl] =
         useState<string>(DEFAULT_WATERMARK_URL);
     const [baseWatermarkConfig, setBaseWatermarkConfig] =
@@ -106,6 +108,16 @@ const Watermark: React.FC = () => {
     const [automaticStyle, setAutomaticStyle] = useState<Partial<MixedWatermarkConfig>>({});
     const manualPositions = useRef(new Set<string>());
     useEffect(() => { setCaptionCorrections(loadCaptionCorrections()); }, []);
+
+    const handleWatermarkModeChange = (mode: "image" | "mixed" | "text") => {
+        watermarkModeManuallySelected.current = true;
+        setWatermarkMode(mode);
+    };
+
+    useEffect(() => {
+        if (!currentImg || watermarkModeManuallySelected.current) return;
+        setWatermarkMode(extractWatermarkCaption(currentImg.file.name) ? "text" : "image");
+    }, [currentImg?.id]);
 
     const getCaptionForImage = (image: ImageType | null) => {
         if (!image) return {};
@@ -166,11 +178,13 @@ const Watermark: React.FC = () => {
     const [watermarkBlur, setWatermarkBlur] = useState(true);
     const [watermarkOpacity, setWatermarkOpacity] = useState(1);
     const [transparentWatermarkEnabled, setTransparentWatermarkEnabled] = useState(false);
-    const [transparentWatermarkOpacity, setTransparentWatermarkOpacity] = useState(TRANSPARENT_WATERMARK_OPACITY);
-    const [transparentWatermarkScale, setTransparentWatermarkScale] = useState(TRANSPARENT_WATERMARK_SCALE);
+    const [transparentWatermarkOpacities, setTransparentWatermarkOpacities] = useState<Record<string, number>>({});
+    const [transparentWatermarkScales, setTransparentWatermarkScales] = useState<Record<string, number>>({});
+    const [transparentWatermarkPositions, setTransparentWatermarkPositions] = useState<Record<string, {x: number; y: number}>>({});
     const [transparentWatermarkUrl] = useState(DEFAULT_TRANSPARENT_WATERMARK_URL);
     const [transparentWatermarkColor, setTransparentWatermarkColor] = useState('');
     const [transparentWatermarkColorUrl, setTransparentWatermarkColorUrl] = useState(DEFAULT_TRANSPARENT_WATERMARK_URL);
+    const [copyrightStatement, setCopyrightStatement] = useState(DEFAULT_COPYRIGHT_STATEMENT);
     const [mobileView, setMobileView] = useState<"editor" | "gallery">(
         "editor"
     );
@@ -197,8 +211,10 @@ const Watermark: React.FC = () => {
         watermarkBlur,
         transparentWatermarkEnabled,
         transparentWatermarkUrl: transparentWatermarkColorUrl,
-        transparentWatermarkOpacity,
-        transparentWatermarkScale,
+        transparentWatermarkOpacities,
+        transparentWatermarkScales,
+        transparentWatermarkPositions,
+        copyrightStatement,
         quality,
         downloadMode,
         resolveWatermark: watermarkMode === "image" ? undefined : async (item) => {
@@ -528,6 +544,29 @@ const Watermark: React.FC = () => {
         }
     };
 
+    const currentTransparentWatermarkPosition = currentImg
+        ? transparentWatermarkPositions[currentImg.id] || {x: 0.5, y: 0.5}
+        : {x: 0.5, y: 0.5};
+    const currentTransparentWatermarkOpacity = currentImg
+        ? transparentWatermarkOpacities[currentImg.id] ?? TRANSPARENT_WATERMARK_OPACITY
+        : TRANSPARENT_WATERMARK_OPACITY;
+    const currentTransparentWatermarkScale = currentImg
+        ? transparentWatermarkScales[currentImg.id] ?? TRANSPARENT_WATERMARK_SCALE
+        : TRANSPARENT_WATERMARK_SCALE;
+    const setCurrentTransparentWatermarkOpacity = (value: number) => {
+        if (!currentImg) return;
+        setTransparentWatermarkOpacities(previous => ({...previous, [currentImg.id]: value}));
+    };
+    const setCurrentTransparentWatermarkScale = (value: number) => {
+        if (!currentImg) return;
+        setTransparentWatermarkScales(previous => ({...previous, [currentImg.id]: value}));
+    };
+
+    const handleTransparentWatermarkTransform = (position: {x: number; y: number}) => {
+        if (!currentImg) return;
+        setTransparentWatermarkPositions(previous => ({...previous, [currentImg.id]: position}));
+    };
+
 
     const handleWatermarkColorChange = (
         imageId: string,
@@ -820,12 +859,16 @@ const Watermark: React.FC = () => {
                             setTransparentWatermarkEnabled={setTransparentWatermarkEnabled}
                             transparentWatermarkUrl={transparentWatermarkColorUrl}
                             transparentWatermarkBaseUrl={transparentWatermarkUrl}
-                            transparentWatermarkOpacity={transparentWatermarkOpacity}
-                            transparentWatermarkScale={transparentWatermarkScale}
-                            setTransparentWatermarkOpacity={setTransparentWatermarkOpacity}
-                            setTransparentWatermarkScale={setTransparentWatermarkScale}
+                            transparentWatermarkOpacity={currentTransparentWatermarkOpacity}
+                            transparentWatermarkScale={currentTransparentWatermarkScale}
+                            transparentWatermarkPosition={currentTransparentWatermarkPosition}
+                            onTransparentWatermarkTransform={handleTransparentWatermarkTransform}
+                            setTransparentWatermarkOpacity={setCurrentTransparentWatermarkOpacity}
+                            setTransparentWatermarkScale={setCurrentTransparentWatermarkScale}
                             transparentWatermarkColor={transparentWatermarkColor}
                             onTransparentWatermarkColorChange={color => void handleTransparentWatermarkColorChange(color)}
+                            copyrightStatement={copyrightStatement}
+                            setCopyrightStatement={setCopyrightStatement}
                             batchEditing={editScope === "all"}
                             onBatchEditingChange={batch => handleEditScopeChange(batch ? "all" : "current")}
                             watermarkBlur={watermarkBlur}
@@ -837,7 +880,7 @@ const Watermark: React.FC = () => {
                             onConfigPatch={patchWatermarkConfig}
                             onAutoColor={() => handleTextColorChange("transparent")}
                             watermarkMode={watermarkMode}
-                            setWatermarkMode={setWatermarkMode}
+                            setWatermarkMode={handleWatermarkModeChange}
                             mixedWatermarkConfig={mixedWatermarkConfig}
                             setMixedWatermarkConfig={setMixedWatermarkConfig}
                             onWatermarkUpload={handleWatermarkUpload}
@@ -932,8 +975,10 @@ const Watermark: React.FC = () => {
                             transparentWatermarkEnabled={transparentWatermarkEnabled}
                             transparentWatermarkUrl={transparentWatermarkColorUrl}
                             transparentWatermarkBaseUrl={transparentWatermarkUrl}
-                            transparentWatermarkOpacity={transparentWatermarkOpacity}
-                            transparentWatermarkScale={transparentWatermarkScale}
+                            transparentWatermarkOpacity={currentTransparentWatermarkOpacity}
+                            transparentWatermarkScale={currentTransparentWatermarkScale}
+                            transparentWatermarkPosition={currentTransparentWatermarkPosition}
+                            onTransparentWatermarkTransform={handleTransparentWatermarkTransform}
                         />
                     )}
                 </div>
@@ -976,7 +1021,7 @@ const Watermark: React.FC = () => {
                         setSmartEnabled(true);
                     }}
                     watermarkMode={watermarkMode}
-                    setWatermarkMode={setWatermarkMode}
+                    setWatermarkMode={handleWatermarkModeChange}
                     storedImageWatermarkUrl={storedImageWatermarkUrl}
                     mixedWatermarkConfig={mixedWatermarkConfig}
                     onConfigPatch={patchWatermarkConfig}
@@ -991,12 +1036,14 @@ const Watermark: React.FC = () => {
                     setWatermarkOpacity={setWatermarkOpacity}
                     transparentWatermarkEnabled={transparentWatermarkEnabled}
                     setTransparentWatermarkEnabled={setTransparentWatermarkEnabled}
-                    transparentWatermarkOpacity={transparentWatermarkOpacity}
-                    setTransparentWatermarkOpacity={setTransparentWatermarkOpacity}
-                    transparentWatermarkScale={transparentWatermarkScale}
-                    setTransparentWatermarkScale={setTransparentWatermarkScale}
+                    transparentWatermarkOpacity={currentTransparentWatermarkOpacity}
+                    setTransparentWatermarkOpacity={setCurrentTransparentWatermarkOpacity}
+                    transparentWatermarkScale={currentTransparentWatermarkScale}
+                    setTransparentWatermarkScale={setCurrentTransparentWatermarkScale}
                     transparentWatermarkColor={transparentWatermarkColor}
                     onTransparentWatermarkColorChange={color => void handleTransparentWatermarkColorChange(color)}
+                    copyrightStatement={copyrightStatement}
+                    setCopyrightStatement={setCopyrightStatement}
                     onGenerate={handleApplyWatermark}
                     loading={loading}
                     progress={smoothProgress}

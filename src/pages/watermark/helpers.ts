@@ -10,6 +10,7 @@ export const DEFAULT_SYMBOL_URL = "/watermark-symbol.png";
 // The anti-theft layer uses the full image watermark (symbol plus caption),
 // while keeping its own opacity, size and color controls.
 export const DEFAULT_TRANSPARENT_WATERMARK_URL = DEFAULT_WATERMARK_URL;
+export const DEFAULT_COPYRIGHT_STATEMENT = "笑谈间气吐霓虹";
 
 export const DEFAULT_MIXED_WATERMARK_CONFIG: MixedWatermarkConfig = {
     enabled: true,

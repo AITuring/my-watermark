@@ -57,6 +57,8 @@ interface DesktopToolbarProps {
     setTransparentWatermarkScale: (value: number) => void;
     transparentWatermarkColor: string;
     onTransparentWatermarkColorChange: (color: string) => void;
+    copyrightStatement: string;
+    setCopyrightStatement: (value: string) => void;
     onGenerate: () => void;
     loading: boolean;
     progress: number;
@@ -124,6 +126,7 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
                 <div className="wm-settings-section-heading"><h3>导出</h3><span className="wm-help" title="保留原图尺寸和文件类型，文件名添加 -mark">原图尺寸</span></div>
                 <WatermarkDownloadControl value={props.downloadMode} onChange={props.setDownloadMode} disabled={props.loading}/>
                 <WatermarkRange label="导出质量" value={props.quality} min={0.1} max={1} display={`${Math.round(props.quality*100)}%`} onChange={props.setQuality}/>
+                <label className="wm-copyright-field"><span className="wm-label">版权声明 · EXIF</span><input className="wm-text-input" value={props.copyrightStatement} maxLength={120} onChange={event=>props.setCopyrightStatement(event.target.value)} placeholder="作者或版权信息" /></label>
             </section>
                     </div>
                     <footer className="wm-drawer-footer"><span className={props.smartError?'wm-error':'wm-help'} role="status">{status}</span><span className="wm-help" title={props.currentFilename}>{props.currentFilename}</span></footer>

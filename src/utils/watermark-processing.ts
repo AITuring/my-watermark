@@ -160,10 +160,41 @@ function canvasToBlob(
     });
 }
 
+async function applyCopyrightToJpeg(blob: Blob, copyright: string): Promise<Blob> {
+    const value = copyright.trim();
+    if (!value || blob.type !== 'image/jpeg') return blob;
+    const source = new Uint8Array(await blob.arrayBuffer());
+    if (source.length < 2 || source[0] !== 0xff || source[1] !== 0xd8) return blob;
+    const text = new TextEncoder().encode(value);
+    const count = text.length + 1;
+    const tiffLength = 26 + count;
+    const exifPayload = new Uint8Array(6 + tiffLength);
+    exifPayload.set([0x45, 0x78, 0x69, 0x66, 0x00, 0x00], 0);
+    const view = new DataView(exifPayload.buffer);
+    const tiff = 6;
+    exifPayload.set([0x49, 0x49], tiff);
+    view.setUint16(tiff + 2, 42, true);
+    view.setUint32(tiff + 4, 8, true);
+    view.setUint16(tiff + 8, 1, true);
+    view.setUint16(tiff + 10, 0x8298, true);
+    view.setUint16(tiff + 12, 2, true);
+    view.setUint32(tiff + 14, count, true);
+    view.setUint32(tiff + 18, 26, true);
+    view.setUint32(tiff + 22, 0, true);
+    exifPayload.set(text, tiff + 26);
+    const segmentLength = exifPayload.length + 2;
+    if (segmentLength > 0xffff) return blob;
+    const app1 = new Uint8Array(4 + exifPayload.length);
+    app1.set([0xff, 0xe1, segmentLength >> 8, segmentLength & 0xff], 0);
+    app1.set(exifPayload, 4);
+    return new Blob([source.slice(0, 2), app1, source.slice(2)], {type: 'image/jpeg'});
+}
+
 async function exportCanvasWithSizeBudget(
     canvas: HTMLCanvasElement,
     file: File,
-    quality: number
+    quality: number,
+    copyright = ''
 ): Promise<{ blob: Blob; mimeType: string }> {
     const exportType = getExportMimeType(file);
     const requestedQuality = clampExportQuality(quality);
@@ -183,6 +214,7 @@ async function exportCanvasWithSizeBudget(
 
     let currentQuality = requestedQuality;
     let blob = await canvasToBlob(canvas, exportType, currentQuality);
+    blob = await applyCopyrightToJpeg(blob, copyright);
     let bestBlob = blob;
 
     if (blob.size <= softSizeLimit) {
@@ -198,6 +230,7 @@ async function exportCanvasWithSizeBudget(
             Number((currentQuality - EXPORT_QUALITY_STEP).toFixed(2))
         );
         blob = await canvasToBlob(canvas, exportType, currentQuality);
+        blob = await applyCopyrightToJpeg(blob, copyright);
         if (blob.size < bestBlob.size) {
             bestBlob = blob;
         }
@@ -277,6 +310,7 @@ export interface TransparentWatermarkOptions {
     image: HTMLImageElement;
     opacity?: number;
     scale?: number;
+    position?: {x: number; y: number};
 }
 
 function calculateWatermarkPosition(
@@ -330,9 +364,11 @@ function getTransparentWatermarkPlacement(
         options.image,
         options.scale ?? TRANSPARENT_WATERMARK_SCALE
     );
+    const maxX = Math.max(0, imageWidth - metrics.width);
+    const maxY = Math.max(0, imageHeight - metrics.height);
     return {
-        x: Math.max(0, Math.round((imageWidth - metrics.width) / 2)),
-        y: Math.max(0, Math.round((imageHeight - metrics.height) / 2)),
+        x: Math.max(0, Math.round(Math.max(0, Math.min(1, options.position?.x ?? 0.5)) * maxX)),
+        y: Math.max(0, Math.round(Math.max(0, Math.min(1, options.position?.y ?? 0.5)) * maxY)),
         width: metrics.width,
         height: metrics.height,
         crop,
@@ -383,6 +419,7 @@ export async function processImage(
     quality: number,
     watermarkOpacity = 1,
     transparentWatermark?: TransparentWatermarkOptions,
+    copyrightStatement = '',
     onProgress?: (progress: number) => void
 ): Promise<{ blob: Blob; name: string; mimeType: string }> {
     const largeAsset = await getLargeImageAsset(file);
@@ -452,11 +489,12 @@ export async function processImage(
             (blob) => blob ? resolve(blob) : reject(new Error('大图水印图层生成失败')), 'image/png'
         ));
         onProgress?.(55);
-        const blob = await compositeLargeImage(file, overlay, {
+        const composited = await compositeLargeImage(file, overlay, {
             x: overlayLeft, y: overlayTop, quality: Math.round(Math.max(0.01, Math.min(1, quality)) * 100),
             blur: watermarkBlur,
         });
-        if (!blob) throw new Error('大图水印服务不可用');
+        if (!composited) throw new Error('大图水印服务不可用');
+        const blob = await applyCopyrightToJpeg(composited, copyrightStatement);
         onProgress?.(100);
         return { blob, name: file.name, mimeType: 'image/jpeg' };
     }
@@ -551,7 +589,7 @@ export async function processImage(
                     ctx.restore();
                 }
                 exportStarted = true;
-                void exportCanvasWithSizeBudget(canvas, file, quality)
+                void exportCanvasWithSizeBudget(canvas, file, quality, copyrightStatement)
                     .then(({ blob, mimeType }) => {
                         try {
                             onProgress?.(100);

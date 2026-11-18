@@ -136,12 +136,16 @@ interface MobileWatermarkEditorProps {
     setTransparentWatermarkEnabled: (val: boolean) => void;
     transparentWatermarkUrl: string;
     transparentWatermarkBaseUrl: string;
+    transparentWatermarkPosition: {x: number; y: number};
+    onTransparentWatermarkTransform: (position: {x: number; y: number}) => void;
     transparentWatermarkOpacity: number;
     setTransparentWatermarkOpacity: (val: number) => void;
     transparentWatermarkScale: number;
     setTransparentWatermarkScale: (val: number) => void;
     transparentWatermarkColor: string;
     onTransparentWatermarkColorChange: (color: string) => void;
+    copyrightStatement: string;
+    setCopyrightStatement: (value: string) => void;
     watermarkBlur: boolean;
     setWatermarkBlur: (val: boolean) => void;
     downloadMode: WatermarkDownloadMode;
@@ -182,12 +186,16 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     setTransparentWatermarkEnabled,
     transparentWatermarkUrl,
     transparentWatermarkBaseUrl,
+    transparentWatermarkPosition,
+    onTransparentWatermarkTransform,
     transparentWatermarkOpacity,
     setTransparentWatermarkOpacity,
     transparentWatermarkScale,
     setTransparentWatermarkScale,
     transparentWatermarkColor,
     onTransparentWatermarkColorChange,
+    copyrightStatement,
+    setCopyrightStatement,
     watermarkBlur,
     setWatermarkBlur,
     quality,
@@ -1185,14 +1193,16 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                             );
                             const protectionWidth = protectionMetrics.width * backgroundScale;
                             const protectionHeight = protectionMetrics.height * backgroundScale;
+                            const maxX = Math.max(0, backgroundImageSize.width - protectionWidth);
+                            const maxY = Math.max(0, backgroundImageSize.height - protectionHeight);
+                            const protectionX = transparentWatermarkPosition.x * maxX;
+                            const protectionY = transparentWatermarkPosition.y * maxY;
                             return <>
                                 <ImageWithFixedWidth
                                     src={transparentWatermarkBaseUrl}
                                     fixedWidth={protectionWidth}
-                                    x={backgroundImageSize.width / 2}
-                                    y={backgroundImageSize.height / 2}
-                                    offsetX={protectionWidth / 2}
-                                    offsetY={protectionHeight / 2}
+                                    x={protectionX}
+                                    y={protectionY}
                                     listening={false}
                                     opacity={TRANSPARENT_WATERMARK_CONTRAST_OPACITY}
                                     globalCompositeOperation="difference"
@@ -1200,11 +1210,19 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 <ImageWithFixedWidth
                                     src={transparentWatermarkUrl}
                                     fixedWidth={protectionWidth}
-                                    x={backgroundImageSize.width / 2}
-                                    y={backgroundImageSize.height / 2}
-                                    offsetX={protectionWidth / 2}
-                                    offsetY={protectionHeight / 2}
-                                    listening={false}
+                                    x={protectionX}
+                                    y={protectionY}
+                                    draggable
+                                    onDragEnd={event => {
+                                        const node = event.target;
+                                        const nextX = Math.max(0, Math.min(maxX, node.x()));
+                                        const nextY = Math.max(0, Math.min(maxY, node.y()));
+                                        node.position({x: nextX, y: nextY});
+                                        onTransparentWatermarkTransform({
+                                            x: maxX ? nextX / maxX : 0.5,
+                                            y: maxY ? nextY / maxY : 0.5,
+                                        });
+                                    }}
                                     opacity={transparentWatermarkOpacity}
                                 />
                             </>;
@@ -1308,6 +1326,10 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         </div>
                                     </div>
                                     <WatermarkDownloadControl value={downloadMode} onChange={setDownloadMode} disabled={isGenerating}/>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="wm-mobile-copyright">版权声明 · EXIF</Label>
+                                        <input id="wm-mobile-copyright" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={copyrightStatement} maxLength={120} onChange={event => setCopyrightStatement(event.target.value)} placeholder="作者或版权信息" />
+                                    </div>
                                 </div>
                             </div>
                         </div>

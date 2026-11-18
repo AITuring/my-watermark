@@ -279,6 +279,7 @@
 .wm-direction-label[aria-pressed=true]{color:var(--wm-text,#282c31);font-weight:600}
 .wm-direction-label:focus-visible{outline:2px solid var(--wm-accent,#8d632c);outline-offset:2px;border-radius:3px}
 .wm-bottom-blur{min-width:58px}.wm-bottom-switch-row{display:flex;align-items:center;gap:7px;height:36px}
+.wm-copyright-field{display:flex;flex-direction:column;gap:8px}
 .wm-bottom-switch-row>span{font-size:11px;color:var(--wm-muted,#7b7d81)}
 
 @media(min-width:768px) and (max-width:950px){

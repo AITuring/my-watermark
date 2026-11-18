@@ -6,6 +6,7 @@ import confetti from "canvas-confetti";
 import { ImgWithPosition, WatermarkPosition } from "@/types";
 import { useSmoothProgress } from "@/pages/watermark/hooks/useSmoothProgress";
 import { importWithRecovery } from "@/utils/import-recovery";
+import { TRANSPARENT_WATERMARK_OPACITY, TRANSPARENT_WATERMARK_SCALE } from "@/utils/transparent-watermark";
 
 interface UseWatermarkBatchProcessorOptions {
     resolveWatermark?: (image: ImgWithPosition) => Promise<{url: string; position: WatermarkPosition}>;
@@ -15,8 +16,10 @@ interface UseWatermarkBatchProcessorOptions {
     watermarkBlur: boolean;
     transparentWatermarkEnabled: boolean;
     transparentWatermarkUrl: string;
-    transparentWatermarkOpacity: number;
-    transparentWatermarkScale: number;
+    transparentWatermarkOpacities: Record<string, number>;
+    transparentWatermarkScales: Record<string, number>;
+    transparentWatermarkPositions: Record<string, {x: number; y: number}>;
+    copyrightStatement: string;
     quality: number;
     downloadMode?: WatermarkDownloadMode;
     oversizeThresholdBytes?: number;
@@ -38,8 +41,10 @@ export function useWatermarkBatchProcessor({
     watermarkBlur,
     transparentWatermarkEnabled,
     transparentWatermarkUrl,
-    transparentWatermarkOpacity,
-    transparentWatermarkScale,
+    transparentWatermarkOpacities,
+    transparentWatermarkScales,
+    transparentWatermarkPositions,
+    copyrightStatement,
     quality,
     downloadMode = 'zip',
     oversizeThresholdBytes = DEFAULT_OVERSIZE_THRESHOLD_BYTES,
@@ -178,7 +183,8 @@ export function useWatermarkBatchProcessor({
                                 watermarkBlur,
                                 quality,
                                 watermarkOpacity,
-                                transparentImg ? {image: transparentImg, opacity: transparentWatermarkOpacity, scale: transparentWatermarkScale} : undefined,
+                                transparentImg ? {image: transparentImg, opacity: transparentWatermarkOpacities[img.id] ?? TRANSPARENT_WATERMARK_OPACITY, scale: transparentWatermarkScales[img.id] ?? TRANSPARENT_WATERMARK_SCALE, position: transparentWatermarkPositions[img.id] || {x: 0.5, y: 0.5}} : undefined,
+                                copyrightStatement,
                                 (progress) => {
                                     console.log(
                                         `图片 ${img.id} 处理进度: ${progress}%`
@@ -280,8 +286,10 @@ export function useWatermarkBatchProcessor({
             watermarkBlur,
             transparentWatermarkEnabled,
             transparentWatermarkUrl,
-            transparentWatermarkOpacity,
-            transparentWatermarkScale,
+            transparentWatermarkOpacities,
+            transparentWatermarkScales,
+            transparentWatermarkPositions,
+            copyrightStatement,
             watermarkColorUrls,
             watermarkOpacity,
             watermarkUrl,
