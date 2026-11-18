@@ -16,8 +16,8 @@ test('correction lookup supports exact and normalized photo suffixes', () => {
 
 test('corrections merge fields and can be cleared for reset-to-automatic', () => {
     const file='唐-凤凰头饰-大都会艺术博物馆藏-DSC01631.jpg';
-    let map=api.setCaptionCorrection({},file,{textLine1:'凤凰头饰'});
+    let map=api.setCaptionCorrection({},file,{textLine1:'凤凰头饰',time:'唐',place:'扬州',collection:'大都会艺术博物馆藏'});
     map=api.setCaptionCorrection(map,file,{textLine2:'唐·大都会艺术博物馆藏'});
-    assert.deepEqual(api.getCaptionCorrection(map,file),{textLine1:'凤凰头饰',textLine2:'唐·大都会艺术博物馆藏'});
+    assert.deepEqual(api.getCaptionCorrection(map,file),{textLine1:'凤凰头饰',textLine2:'唐·大都会艺术博物馆藏',time:'唐',place:'扬州',collection:'大都会艺术博物馆藏'});
     assert.deepEqual(api.getCaptionCorrection(api.clearCaptionCorrection(map,file),file),undefined);
 });

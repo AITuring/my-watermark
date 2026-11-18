@@ -180,8 +180,19 @@ export function analyzeWatermarkCaption(filename: string): WatermarkCaptionAnaly
         if (titleFields.length > 1) issues.push('年代与名称之间存在多个候选字段');
         if (caption.textLine1.length <= 1) issues.push('作品名称过短，请确认是否为完整名称');
     }
-    const firstMetadata = firstField.match(/^(.{1,24}?(?:世纪|年代|年|时期|时代))/)?.[1] || '';
-    const place = firstMetadata ? firstField.slice(firstMetadata.length) : '';
+    // Keep the first metadata block split into the fields the user can correct:
+    // a date/era (including compound eras such as 五代-后唐), followed by an
+    // optional place or culture.  The parser intentionally does not maintain a
+    // place dictionary, so an unfamiliar place remains editable text instead
+    // of being rejected or silently dropped.
+    const details = caption?.textLine2.split(' / ')[0].trim() || '';
+    const firstFieldIsMetadata = Boolean(firstField && (details === firstField || details.startsWith(`${firstField}·`)));
+    const firstMetadata = firstFieldIsMetadata
+        ? datePrefix.trim() || chinesePrefix.trim()
+            || firstField.match(/^.{1,24}?(?:世纪|年代|年|时期|时代|文化|文明|帝国|王国|王朝)/)?.[0]
+            || ''
+        : '';
+    const place = firstMetadata ? firstField.slice(firstMetadata.length).replace(/^[-_－—–]+/, '').trim() : '';
     const collection = collectionIndex >= 0 ? fields[collectionIndex] : '';
     return {caption, confidence: !caption ? 'none' : issues.length ? 'review' : 'high', issues, fields,
         metadata:{time:firstMetadata,place,collection}};

@@ -249,9 +249,9 @@ const Watermark: React.FC = () => {
             analysis,
             textLine1: config.textLine1 || '',
             textLine2: config.textLine2 || '',
-            time: analysis.metadata.time,
-            place: analysis.metadata.place,
-            collection: analysis.metadata.collection,
+            time: correction?.time ?? analysis.metadata.time,
+            place: correction?.place ?? analysis.metadata.place,
+            collection: correction?.collection ?? analysis.metadata.collection,
             corrected: Boolean(correction),
         };
     }), [images, captionCorrections, manualConfigs]);

@@ -11,7 +11,17 @@ test('analysis reports high confidence for the reviewed cultural filename', () =
     const result = analyze('3—6世纪秘鲁莫切文化-串珠-大都会艺术博物馆藏-DSC01364_1.jpg');
     assert.equal(result.confidence, 'high');
     assert.deepEqual(result.caption, {textLine1:'串珠',textLine2:'3—6世纪秘鲁莫切文化·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄'});
+    assert.deepEqual(result.metadata, {time:'3—6世纪', place:'秘鲁莫切文化', collection:'大都会艺术博物馆藏'});
     assert.deepEqual(result.issues, []);
+});
+
+test('analysis exposes compound Chinese eras and leaves title-like date text alone', () => {
+    assert.deepEqual(analyze('五代-后唐-供盘-大都会艺术博物馆藏-xxx.jpg').metadata, {
+        time:'五代-后唐', place:'', collection:'大都会艺术博物馆藏',
+    });
+    assert.deepEqual(analyze('17世纪风格供盘-大都会艺术博物馆藏-xxx.jpg').metadata, {
+        time:'', place:'', collection:'大都会艺术博物馆藏',
+    });
 });
 
 test('analysis marks ambiguous or incomplete names for review instead of hiding uncertainty', () => {

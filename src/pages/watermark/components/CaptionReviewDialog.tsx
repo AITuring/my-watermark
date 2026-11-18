@@ -60,7 +60,7 @@ export default function CaptionReviewDialog({currentFilename, currentAnalysis, p
                 <Dialog.Overlay className="wm-caption-review-overlay"/>
                 <Dialog.Content className="wm-caption-review-dialog" aria-describedby="wm-caption-review-description">
                     <header className="wm-caption-review-heading">
-                        <div><Dialog.Title>文件名提取校对</Dialog.Title><Dialog.Description id="wm-caption-review-description">只修改主标题和说明文字，确认后会记住这类文件名的修正。</Dialog.Description></div>
+                        <div><Dialog.Title>文件名提取校对</Dialog.Title><Dialog.Description id="wm-caption-review-description">可填写时间、地点/文化和馆藏，也可直接修改标题与说明；确认后会记住这类文件名的修正。</Dialog.Description></div>
                         <Dialog.Close className="wm-drawer-close" aria-label="关闭校对"><X size={18}/></Dialog.Close>
                     </header>
                     <div className="wm-caption-review-summary"><span>{pendingCount ? `有 ${pendingCount} 张图片需要确认` : '当前没有待确认项'}</span><span>当前：{currentFilename || '未选择图片'}</span></div>
