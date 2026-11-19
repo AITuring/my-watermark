@@ -132,9 +132,9 @@
       "_app-runtime-ee4f2b0d.js"
     ]
   },
-  "_index-b7212a34.js": {
+  "_index-9522aa07.js": {
     "css": [
-      "assets/index-902e723a.css"
+      "assets/index-5709136b.css"
     ],
     "dynamicImports": [
       "src/utils/index.ts",
@@ -145,7 +145,7 @@
       "src/utils/image-loading.ts",
       "src/utils/watermark-processing.ts"
     ],
-    "file": "assets/index-b7212a34.js",
+    "file": "assets/index-9522aa07.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_ui-primitives-2bcfaaec.js",
@@ -172,8 +172,8 @@
     ],
     "isDynamicEntry": true
   },
-  "_large-image-16e0041c.js": {
-    "file": "assets/large-image-16e0041c.js",
+  "_large-image-bbcf5d71.js": {
+    "file": "assets/large-image-bbcf5d71.js",
     "imports": [
       "index.html"
     ]
@@ -190,11 +190,11 @@
       "_app-runtime-ee4f2b0d.js"
     ]
   },
-  "_services-c6a1f6b4.js": {
-    "file": "assets/services-c6a1f6b4.js",
+  "_services-c75d86f5.js": {
+    "file": "assets/services-c75d86f5.js",
     "imports": [
       "_image-tool-common-798066af.js",
-      "_large-image-16e0041c.js"
+      "_large-image-bbcf5d71.js"
     ]
   },
   "_three.module-70baf2b9.js": {
@@ -229,7 +229,7 @@
       "assets/index-53837da9.css"
     ],
     "dynamicImports": [
-      "_index-b7212a34.js",
+      "_index-9522aa07.js",
       "src/pages/mosaic/index.tsx",
       "src/pages/puzzle/index.tsx",
       "src/pages/compress/index.tsx",
@@ -253,7 +253,7 @@
       "src/pages/ancient-waves/index.tsx",
       "src/pages/landing/index.tsx"
     ],
-    "file": "assets/index-e00a0136.js",
+    "file": "assets/index-49cdad94.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_ui-primitives-2bcfaaec.js"
@@ -557,7 +557,7 @@
     "dynamicImports": [
       "src/pages/artifact-ai/MarkdownRenderer.tsx"
     ],
-    "file": "assets/index-b6465791.js",
+    "file": "assets/index-96c71e31.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_ui-primitives-2bcfaaec.js",
@@ -569,7 +569,7 @@
     "src": "src/pages/artifact-ai/index.tsx"
   },
   "src/pages/batch-workbench/index.tsx": {
-    "file": "assets/index-b72d1ec6.js",
+    "file": "assets/index-6cbca797.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_index-dc714799.js",
@@ -577,9 +577,9 @@
       "_ui-primitives-2bcfaaec.js",
       "_ui-controls-6615730d.js",
       "_types-723ed6fd.js",
-      "_services-c6a1f6b4.js",
+      "_services-c75d86f5.js",
       "_image-tool-common-798066af.js",
-      "_large-image-16e0041c.js"
+      "_large-image-bbcf5d71.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/batch-workbench/index.tsx"
@@ -602,12 +602,12 @@
     "css": [
       "assets/index-08382298.css"
     ],
-    "file": "assets/index-6947f721.js",
+    "file": "assets/index-ce05ee3c.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "index.html",
       "_ImageUploader-297d93cc.js",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "_ui-primitives-2bcfaaec.js",
       "_index-dc714799.js"
     ],
@@ -615,23 +615,23 @@
     "src": "src/pages/collage/index.tsx"
   },
   "src/pages/compress/index.tsx": {
-    "file": "assets/index-24393445.js",
+    "file": "assets/index-51829a94.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_GenerativeBackground-ce92799b.js",
       "_ui-primitives-2bcfaaec.js",
       "_ui-controls-6615730d.js",
-      "_services-c6a1f6b4.js",
+      "_services-c75d86f5.js",
       "_index-dc714799.js",
       "_image-tool-common-798066af.js",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "index.html"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/compress/index.tsx"
   },
   "src/pages/crop/index.tsx": {
-    "file": "assets/index-d4da6cd2.js",
+    "file": "assets/index-ba1bffae.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "index.html",
@@ -640,13 +640,13 @@
       "_PanelCard-c78392fc.js",
       "_ui-controls-6615730d.js",
       "_image-tool-common-798066af.js",
-      "_large-image-16e0041c.js"
+      "_large-image-bbcf5d71.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/crop/index.tsx"
   },
   "src/pages/gallery/index.tsx": {
-    "file": "assets/index-c882fb22.js",
+    "file": "assets/index-d8e5ad0b.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_index-dc714799.js",
@@ -654,7 +654,7 @@
       "_iconify-1b7af413.js",
       "_SliderNumberField-4b5771af.js",
       "_image-tool-common-798066af.js",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "_PanelCard-c78392fc.js",
       "_ui-primitives-2bcfaaec.js",
       "_ui-controls-6615730d.js",
@@ -671,13 +671,13 @@
     "css": [
       "assets/index-cfdacb57.css"
     ],
-    "file": "assets/index-ff95c8de.js",
+    "file": "assets/index-d47a40bf.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_iconify-1b7af413.js",
       "_rows-b4d5b150.js",
       "_image-tool-common-798066af.js",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "_ui-controls-6615730d.js",
       "_ui-primitives-2bcfaaec.js",
       "index.html"
@@ -713,7 +713,7 @@
     "css": [
       "assets/index-72ade40d.css"
     ],
-    "file": "assets/index-2bc7aed2.js",
+    "file": "assets/index-363fa8b4.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_index-87af2329.js",
@@ -724,13 +724,13 @@
     "src": "src/pages/landing/index.tsx"
   },
   "src/pages/mosaic/index.tsx": {
-    "file": "assets/index-7cfd0f96.js",
+    "file": "assets/index-cca7f840.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_index-dc714799.js",
       "index.html",
       "_ui-primitives-2bcfaaec.js",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "_ui-controls-6615730d.js",
       "_image-tool-common-798066af.js"
     ],
@@ -751,7 +751,7 @@
     "src": "src/pages/museum-events/index.tsx"
   },
   "src/pages/museum/index.tsx": {
-    "file": "assets/index-ab42d437.js",
+    "file": "assets/index-5b2e242a.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_ui-primitives-2bcfaaec.js",
@@ -762,14 +762,14 @@
     "src": "src/pages/museum/index.tsx"
   },
   "src/pages/photo-exif/index.tsx": {
-    "file": "assets/index-3f621e88.js",
+    "file": "assets/index-e1f9fbdd.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_ui-controls-6615730d.js",
       "_ui-primitives-2bcfaaec.js",
       "src/utils/image-loading.ts",
       "_image-tool-common-798066af.js",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "_PanelCard-c78392fc.js",
       "_index-87af2329.js",
       "index.html",
@@ -779,7 +779,7 @@
     "src": "src/pages/photo-exif/index.tsx"
   },
   "src/pages/puzzle/index.tsx": {
-    "file": "assets/index-93302872.js",
+    "file": "assets/index-81c6c5d7.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_index-dc714799.js",
@@ -790,14 +790,14 @@
       "_ui-primitives-2bcfaaec.js",
       "_PanelCard-c78392fc.js",
       "_ui-controls-6615730d.js",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "_rows-b4d5b150.js"
     ],
     "isDynamicEntry": true,
     "src": "src/pages/puzzle/index.tsx"
   },
   "src/pages/rename/index.tsx": {
-    "file": "assets/index-f0ae52be.js",
+    "file": "assets/index-59987bf5.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_ui-primitives-2bcfaaec.js",
@@ -866,12 +866,12 @@
     "src": "src/pages/split/index.tsx"
   },
   "src/pages/stitch/index.tsx": {
-    "file": "assets/index-ffc16d3c.js",
+    "file": "assets/index-46e4433e.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
       "_index-dc714799.js",
       "_ui-controls-6615730d.js",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "_ui-primitives-2bcfaaec.js",
       "index.html"
     ],
@@ -960,10 +960,10 @@
     "dynamicImports": [
       "_UTIF-77fb36a4.js"
     ],
-    "file": "assets/image-loading-4bdc1a1e.js",
+    "file": "assets/image-loading-ed43adf2.js",
     "imports": [
       "_app-runtime-ee4f2b0d.js",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "index.html",
       "_ui-primitives-2bcfaaec.js"
     ],
@@ -971,12 +971,12 @@
     "src": "src/utils/image-loading.ts"
   },
   "src/utils/index.ts": {
-    "file": "assets/index-f501a5bf.js",
+    "file": "assets/index-972f327d.js",
     "imports": [
       "src/utils/image-loading.ts",
-      "_index-b7212a34.js",
+      "_index-9522aa07.js",
       "_app-runtime-ee4f2b0d.js",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "index.html",
       "_ui-primitives-2bcfaaec.js",
       "_ui-controls-6615730d.js",
@@ -990,11 +990,11 @@
     "src": "src/utils/index.ts"
   },
   "src/utils/watermark-processing.ts": {
-    "file": "assets/watermark-processing-3104b5c6.js",
+    "file": "assets/watermark-processing-5cd62a2a.js",
     "imports": [
-      "_index-b7212a34.js",
+      "_index-9522aa07.js",
       "src/utils/image-loading.ts",
-      "_large-image-16e0041c.js",
+      "_large-image-bbcf5d71.js",
       "_app-runtime-ee4f2b0d.js",
       "_ui-primitives-2bcfaaec.js",
       "_ui-controls-6615730d.js",
