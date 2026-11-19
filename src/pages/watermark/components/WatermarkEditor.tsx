@@ -2,7 +2,6 @@ import WatermarkBlurPreview from "./WatermarkBlurPreview";
 import PreviewMinimap from './PreviewMinimap';
 import {PreviewZoomControl, WatermarkColorControl} from "./PreviewAppearanceControls";
 import {fitPreviewImage, previewPositionForCenter, previewCenterForPosition} from "../preview-zoom";
-import InlineWatermarkTextEditor, { type InlineWatermarkEditorHandle } from './InlineWatermarkTextEditor';
 import { useStableWatermarkImage } from "../hooks/useStableWatermarkImage";
 /* eslint-disable react/display-name */
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
@@ -126,7 +125,7 @@ interface WatermarkEditorProps {
 
 const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     watermarkUrl, settingsOpen = false, onColorPanelOpenChange,
-    textConfig, onTextChange,
+    textConfig,
     batchEditing, onBatchEditingChange, previewZoom, onPreviewZoomChange,
     backgroundPreviewUrl,
     backgroundOriginalWidth,
@@ -196,7 +195,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     );
 
     const watermarkRef = useRef<Konva.Image>(null);
-    const inlineEditorRef = useRef<InlineWatermarkEditorHandle>(null);
     const transformerRef = useRef<Konva.Transformer>(null);
     const stageRef = useRef<Konva.Stage>(null);
 
@@ -509,12 +507,11 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         }
     }, [currentWatermarkPosition]);
 
-    const onWatermarkClick = (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    const onWatermarkSelect = () => {
         if (watermarkRef.current && transformerRef.current) {
             transformerRef.current.nodes([watermarkRef.current]);
             transformerRef.current.getLayer().batchDraw();
         }
-        inlineEditorRef.current?.edit(event);
     };
 
     useEffect(() => {
@@ -932,8 +929,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                     scaleY={1}
                                     draggable
                                     ref={watermarkRef}
-                                    onClick={onWatermarkClick}
-                                    onTap={onWatermarkClick}
+                                    onClick={onWatermarkSelect}
+                                    onTap={onWatermarkSelect}
                                     onDragMove={event => setPosition(prev => ({...prev,
                                     x: event.target.x() / backgroundImageSize.width,
                                     y: event.target.y() / backgroundImageSize.height}))}
@@ -1010,10 +1007,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                         )}
                     </Layer>
                 </Stage>
-                <InlineWatermarkTextEditor ref={inlineEditorRef}
-                    sessionKey={`${currentWatermarkPosition?.id}:${Boolean(textConfig?.textOnly)}`}
-                    config={textConfig} onChange={patch => onTextChange?.(patch)} />
-
                 {previewScale > 1 && backgroundImage && backgroundImageStatus === 'loaded' && (
                     <PreviewMinimap image={backgroundImage} imageWidth={backgroundImageSize.width} imageHeight={backgroundImageSize.height}
                         viewportWidth={previewBounds.width} viewportHeight={previewBounds.height} zoom={previewScale}
