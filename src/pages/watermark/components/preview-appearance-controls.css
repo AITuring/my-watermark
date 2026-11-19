@@ -11,6 +11,7 @@
 .wm-floating-scope>span{min-width:24px}
 .wm-floating-collapse,.wm-floating-expand{display:grid;place-items:center;flex-shrink:0;color:#81796c;border-radius:6px;cursor:pointer}
 .wm-floating-collapse{width:20px;height:30px}
+.wm-floating-controls.is-vertical{flex-direction:column;width:96px;gap:4px}.wm-floating-controls.is-vertical .wm-floating-collapse{align-self:flex-start;order:-2}.wm-floating-controls.is-vertical .wm-floating-grip{width:100%;height:10px;align-self:stretch}.wm-floating-controls.is-vertical .wm-floating-edit{flex-direction:column;width:100%;gap:4px}.wm-floating-controls.is-vertical .wm-floating-position{width:76px}.wm-floating-controls.is-vertical .wm-floating-scope{justify-content:center;width:100%}.wm-floating-controls.is-vertical>.wm-canvas-divider{width:24px;height:1px}.wm-floating-controls.is-vertical .wm-canvas-appearance{flex-direction:column;width:100%;gap:4px}.wm-floating-controls.is-vertical .wm-canvas-appearance>.wm-canvas-divider{width:24px;height:1px}.wm-floating-controls.is-vertical .wm-canvas-zoom-inline{width:100%;justify-content:center}
 .wm-floating-expand{width:32px;height:32px;border:1px solid #ffffff99;border-radius:50%;background:#ffffffe6;backdrop-filter:blur(24px);color:#475569;box-shadow:0 20px 25px -5px #0000001a,0 8px 10px -6px #0000001a;transition:transform 150ms,color 150ms;cursor:grab;user-select:none;touch-action:none}.wm-floating-expand:active{cursor:grabbing}
 .wm-floating-expand:hover{transform:scale(1.1);color:#2563eb}
 @media(prefers-reduced-motion:reduce){.wm-floating-expand{transition:none}}

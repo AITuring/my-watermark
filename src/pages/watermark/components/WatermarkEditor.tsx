@@ -211,6 +211,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
     const [previewCenter, setPreviewCenter] = useState({ x: .5, y: .5 });
     const previewPos = previewPositionForCenter(previewCenter, previewScale,
         previewBounds.width, previewBounds.height, backgroundImageSize.width, backgroundImageSize.height);
+    const verticalToolbar = previewBounds.height > previewBounds.width * 1.25 && previewBounds.width < 900;
     useEffect(() => {
         if (previewScale === 1) setPreviewCenter({x: .5, y: .5});
     }, [previewScale]);
@@ -1030,7 +1031,9 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                     onMouseDown={handleToolbarMouseDown}
                 >
                     {isToolbarExpanded ? (
-                        <div className="wm-floating-controls" role="toolbar" aria-label="水印快捷工具">
+                        <div className={`wm-floating-controls ${verticalToolbar ? 'is-vertical' : ''}`} role="toolbar" aria-label="水印快捷工具">
+                            <button type="button" className="wm-floating-collapse" aria-label="收起水印工具条" title="收起工具条"
+                                onClick={() => setIsToolbarExpanded(false)}><ChevronDown size={16}/></button>
                             <span className="wm-floating-grip" title="拖动工具条" aria-hidden="true"><GripVertical size={14}/></span>
                             <div className="wm-floating-edit no-drag">
                                 <Select
@@ -1071,8 +1074,6 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                 <span className="wm-canvas-divider" aria-hidden="true"/>
                                 <PreviewZoomControl value={previewScale} onChange={setPreviewScale}/>
                             </div>
-                            <button type="button" className="wm-floating-collapse" aria-label="收起水印工具条" title="收起工具条"
-                                onClick={() => setIsToolbarExpanded(false)}><ChevronDown size={16}/></button>
                         </div>
                     ) : (
                         <button type="button" className="wm-floating-expand" aria-label="展开水印工具条" title="拖动或点击展开工具条"
