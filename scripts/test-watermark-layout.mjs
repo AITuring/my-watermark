@@ -67,6 +67,16 @@ test('compact mode keeps only the era and places it before the title',()=>{
     assert.equal(JSON.stringify(arrangement.buildSingleLineCaptionRuns('玉壶春瓶','明洪武时期','era-first').map(run=>run.text)),JSON.stringify(['明洪武时期',' · ','玉壶春瓶']));
 });
 
+test('long multi-line captions promote the era and enlarge the first line slightly',()=>{
+    const plan=arrangement.splitLongCaptionForMultiple('羊形金饰件','东晋·南京中央门外郭家山温氏家族墓m9温峤墓出土·南京市博物馆藏 / 笑谈间气吐霓虹摄',true);
+    assert.equal(plan.promoted,true);
+    assert.equal(plan.firstText,'东晋 · 羊形金饰件');
+    assert.equal(plan.secondText,'南京中央门外郭家山温氏家族墓m9温峤墓出土·南京市博物馆藏 / 笑谈间气吐霓虹摄');
+    assert.equal(plan.first[0].fontScale,1.14);
+    assert.equal(arrangement.splitLongCaptionForMultiple('羊形金饰件','明·南京博物院藏',true).promoted,false);
+    assert.equal(arrangement.splitLongCaptionForMultiple('羊形金饰件','东晋·南京中央门外郭家山温氏家族墓m9温峤墓出土·南京市博物馆藏 / 笑谈间气吐霓虹摄',false).promoted,false);
+});
+
 test('directions retain independent choices and vertical never exposes a three-column variant',()=>{
     const config={layout:'horizontal',horizontalPreset:'centered',verticalPreset:'paired'};
     assert.equal(presetApi.getWatermarkPreset(config),'centered');

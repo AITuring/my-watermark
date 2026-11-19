@@ -134,7 +134,7 @@ const InlineWatermarkTextEditor = forwardRef<InlineWatermarkEditorHandle, Props>
     const height = vertical ? Math.max(region.height,
         characters.length * fontSize * (region.lineHeight?1:1.2) + Math.max(0, characters.length - 1) * region.letterSpacing) : region.height;
     return createPortal(<textarea ref={input} className="wm-inline-text-editor"
-        aria-label={region.field === 'textLine1' ? '原位编辑主标题' : '原位编辑说明文字'}
+        aria-label={region.field === 'textLine1' ? '原位编辑第一行' : '原位编辑第二行'}
         title="Enter 确认 · Esc 取消 · 点击外部保存"
         defaultValue={session.value} maxLength={120} rows={1} spellCheck={false}
         style={{left: 0, top: 0, width: width + (vertical ? 0 : extra), height: height + (vertical ? extra : 0),

@@ -1,7 +1,58 @@
 export interface LayoutShape {width:number;height:number}
 export interface LayoutItem {role:'text'|'icon';x:number;y:number;width:number;height:number;index?:number}
 
-export type CaptionRun = {text:string;field?:'textLine1'|'textLine2'};
+export type CaptionRun = {text:string;field?:'textLine1'|'textLine2';fontScale?:number};
+
+export type MultipleCaptionLinePlan = {
+    first: CaptionRun[];
+    second: CaptionRun[];
+    promoted: boolean;
+    firstText: string;
+    secondText: string;
+};
+
+const ERA_NAMES = [
+    '旧石器时代','新石器时代','春秋战国','三国','东晋','西晋','十六国','南北朝','北魏','东魏','西魏','北齐','北周',
+    '五代十国','后梁','后唐','后晋','后汉','后周','南唐','北宋','南宋','宋元','明清','民国','近现代',
+    '前秦','后秦','西汉','东汉','隋唐','唐宋','辽金','西夏','秦汉','唐','宋','元','明','清','汉','晋','秦','隋','辽','金','周','民国'
+].sort((a,b)=>b.length-a.length);
+const ERA_NUMBER = /^(?:约|大约)?\s*[0-9０-９一二三四五六七八九十百千万〇零]{1,6}\s*(?:[-－—–−~～至到]\s*[0-9０-９一二三四五六七八九十百千万〇零]{1,6}\s*)?(?:世纪|年代|年)/;
+const ERA_MARKER = /(?:世纪|年代|时期|时代|文化|文明|帝国|王朝|年|代)$/;
+
+function visualLength(value:string){
+    return Array.from(value.trim()).reduce((total,character)=>total+(character.charCodeAt(0)<=127?.55:1),0);
+}
+
+function isEraToken(value:string){
+    const token=value.trim();
+    if(!token)return false;
+    if(ERA_NUMBER.test(token)||ERA_MARKER.test(token))return true;
+    return ERA_NAMES.some(name=>token===name || (token.startsWith(name) && ERA_MARKER.test(token.slice(name.length))));
+}
+
+/** Move a long caption's era into the larger first line for paired layouts. */
+export function splitLongCaptionForMultiple(title:string,caption:string,enabled=true):MultipleCaptionLinePlan{
+    const baseFirst=title.trim(),baseSecond=caption.trim();
+    const unchanged={first:[{text:baseFirst,field:'textLine1' as const}],second:[{text:baseSecond,field:'textLine2' as const}],promoted:false,firstText:baseFirst,secondText:baseSecond};
+    if(!enabled||!baseFirst||!baseSecond||visualLength(baseSecond)<24)return unchanged;
+    const [metadata,...credits]=baseSecond.split(' / ');
+    const parts=metadata.split('·').map(value=>value.trim()).filter(Boolean);
+    if(parts.length<2||!isEraToken(parts[0]))return unchanged;
+    const era=parts[0],restMetadata=parts.slice(1).join('·');
+    const rest=[restMetadata,credits.join(' / ')].filter(Boolean).join(' / ');
+    if(visualLength(rest)<14)return unchanged;
+    const firstText=`${era} · ${baseFirst}`;
+    return {
+        // The promoted era is derived from textLine2 but is intentionally not
+        // an editable region of its own; editing the full caption remains tied
+        // to the second line below and avoids a duplicate textLine2 editor.
+        first:[{text:era,fontScale:1.14},{text:' · ',fontScale:1.14},{text:baseFirst,field:'textLine1',fontScale:1.14}],
+        second:[{text:rest,field:'textLine2'}],
+        promoted:true,
+        firstText,
+        secondText:rest,
+    };
+}
 
 /** Keep only the first era segment for compact watermark output. */
 export function getCompactWatermarkCaption(caption:string){

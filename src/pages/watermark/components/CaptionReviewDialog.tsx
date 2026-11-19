@@ -2,6 +2,7 @@ import {useEffect, useMemo, useState} from 'react';
 import {Check, ClipboardCheck, RotateCcw, X} from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import type {CaptionConfidence, WatermarkCaptionAnalysis} from '../filename-watermark';
+import {splitLongCaptionForMultiple} from '@/utils/text-watermark-layout';
 
 export type CaptionReviewItem = {
     id: string;
@@ -13,6 +14,7 @@ export type CaptionReviewItem = {
     place: string;
     collection: string;
     displayMode: 'single' | 'multiple';
+    displayLines?: 1 | 2 | 3;
     corrected: boolean;
 };
 
@@ -33,16 +35,22 @@ function statusLabel(confidence: CaptionConfidence, corrected: boolean) {
 }
 
 function previewCaption(value: CaptionPatch) {
+    if (!value.time && !value.place && !value.collection) return value.textLine2;
     const photographer = value.textLine2.split(' / ').slice(1).join(' / ').trim();
-    const details = [value.time, value.place, value.collection].filter(Boolean).join('·');
+    const sourceDetails = value.textLine2.split(' / ')[0].split('·').map(part => part.trim()).filter(Boolean);
+    const extras = sourceDetails.length > 1 ? sourceDetails.slice(1, -1) : [];
+    const detectedEra = splitLongCaptionForMultiple(value.textLine1, value.textLine2).promoted ? sourceDetails[0] : '';
+    const details = [value.time || detectedEra, value.place, ...extras, value.collection].filter(Boolean).join('·');
     return [details, photographer].filter(Boolean).join(' / ') || value.textLine2;
 }
 
 function previewSingleLine(value: CaptionPatch) {
-    const photographer = value.textLine2.split(' / ').slice(1).join(' / ').trim();
-    const details = [value.place, value.collection].filter(Boolean).join('·');
-    const main = [value.time, value.textLine1, details].filter(Boolean).join(' · ');
-    return [main, photographer].filter(Boolean).join(' / ');
+    const caption = previewCaption(value);
+    const [metadata, ...credits] = caption.split(' / ');
+    const parts = metadata.split('·').map(part => part.trim()).filter(Boolean);
+    const era = value.time || parts.shift() || '';
+    const main = [era, value.textLine1, parts.join('·')].filter(Boolean).join(' · ');
+    return [main, credits.join(' / ')].filter(Boolean).join(' / ');
 }
 
 export default function CaptionReviewDialog({pendingCount, items, onSave, onClear}: Props) {
@@ -68,7 +76,7 @@ export default function CaptionReviewDialog({pendingCount, items, onSave, onClea
         <Dialog.Root open={open} onOpenChange={setOpen}>
             <Dialog.Portal>
                 <Dialog.Overlay className="wm-caption-review-overlay"/>
-                <Dialog.Content className="wm-caption-review-dialog">
+                <Dialog.Content className="wm-caption-review-dialog" aria-describedby={undefined}>
                     <header className="wm-caption-review-heading">
                         <Dialog.Title>水印校对</Dialog.Title>
                         <Dialog.Close className="wm-drawer-close" aria-label="关闭校对"><X size={18}/></Dialog.Close>
@@ -79,17 +87,24 @@ export default function CaptionReviewDialog({pendingCount, items, onSave, onClea
                             const value = draft[item.id] || {textLine1:item.textLine1,textLine2:item.textLine2,time:item.time,place:item.place,collection:item.collection};
                             const needsReview = item.analysis.confidence !== 'high' && !item.corrected;
                             const caption = previewCaption(value);
+                            const linePlan = splitLongCaptionForMultiple(value.textLine1, caption);
                             return <article key={item.id} className={`wm-caption-review-row ${needsReview ? 'needs-review' : ''}`}>
                                 <div className="wm-caption-review-row-heading"><span className="wm-caption-review-file" title={item.filename}>{item.filename}</span><span className={`wm-caption-review-badge ${needsReview ? 'is-review' : ''}`}>{statusLabel(item.analysis.confidence,item.corrected)}</span></div>
                                 {item.analysis.issues.length > 0 && <p className="wm-caption-review-issues">{item.analysis.issues.join(' · ')}</p>}
                                 <div className={'wm-caption-review-preview is-' + item.displayMode}>
                                     <span className="wm-caption-review-preview-mode">{item.displayMode === 'single' ? '单行' : '多行'} · 实际排版</span>
                                     <div className="wm-caption-review-preview-content">
-                                        <span className="wm-caption-review-preview-mark" aria-hidden="true">印</span>
+                                        {item.displayLines !== 3 && <span className="wm-caption-review-preview-mark" aria-hidden="true">印</span>}
                                         {item.displayMode === 'single' ? (
-                                            <span>{previewSingleLine(value) || '暂无文字内容'}</span>
+                                            <span className="wm-caption-review-lines">
+                                                <span className="wm-caption-review-line"><small className="wm-caption-review-line-label">第一行</small><span>{previewSingleLine(value) || '暂无文字内容'}</span></span>
+                                            </span>
                                         ) : (
-                                            <span><strong>{value.textLine1 || '暂无内容'}</strong>{caption && <small>{caption}</small>}</span>
+                                            <span className="wm-caption-review-lines">
+                                                {item.displayLines === 3 && <span className="wm-caption-review-line wm-caption-review-line-icon"><small className="wm-caption-review-line-label">第一行</small><span>印</span></span>}
+                                                <span className="wm-caption-review-line wm-caption-review-line-primary"><small className="wm-caption-review-line-label">{item.displayLines === 3 ? '第二行' : '第一行'}</small><strong>{linePlan.firstText || '暂无内容'}</strong></span>
+                                                {linePlan.secondText && <span className="wm-caption-review-line"><small className="wm-caption-review-line-label">{item.displayLines === 3 ? '第三行' : '第二行'}</small><small>{linePlan.secondText}</small></span>}
+                                            </span>
                                         )}
                                     </div>
                                 </div>

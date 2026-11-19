@@ -1,7 +1,7 @@
 import {ensureWatermarkFont} from '@/pages/watermark/fonts/registry';
 import {getWatermarkPreset} from '@/pages/watermark/layout-presets';
 import {getImageOpaqueBounds} from '@/utils/watermark-editor';
-import {arrangeWatermark,buildSingleLineCaptionRuns,getCompactWatermarkCaption,getFittedVerticalLetterSpacing,getWatermarkGlyphRotation} from './text-watermark-layout';
+import {arrangeWatermark,buildSingleLineCaptionRuns,getCompactWatermarkCaption,getFittedVerticalLetterSpacing,getWatermarkGlyphRotation,splitLongCaptionForMultiple} from './text-watermark-layout';
 import type {MixedWatermarkConfig} from '@/types';
 
 type Field='textLine1'|'textLine2';
@@ -10,23 +10,27 @@ export interface WatermarkTextRegion extends Rect{
     field:Field;fontSize:number;fontFamily:string;letterSpacing:number;
     inputOffsetX?:number;inputOffsetY?:number;lineHeight?:number;
 }
-type Glyph={text:string;x:number;y:number;angle:number;field?:Field;ink:Rect};
+type Glyph={text:string;x:number;y:number;angle:number;field?:Field;fontSize:number;ink:Rect};
 type TextShape=Rect&{glyphs:Glyph[]};
 
-function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Field}[],vertical:boolean,size:number,spacing:number):TextShape{
+function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Field;fontScale?:number}[],vertical:boolean,size:number,spacing:number,family:string):TextShape{
     const glyphs:Glyph[]=[];let cursor=0,left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
-    for(const run of runs)for(const text of Array.from(run.text)){
-        const m=ctx.measureText(text),box={left:-(m.actualBoundingBoxLeft??0),right:m.actualBoundingBoxRight??m.width,top:-(m.actualBoundingBoxAscent??size*.85),bottom:m.actualBoundingBoxDescent??size*.15};
-        if(text===' '){cursor+=vertical?size*.65:m.width+spacing;continue;}
-        let x=cursor,y=0,angle=0,ink:Rect;
-        if(vertical){
-            angle=getWatermarkGlyphRotation(text,vertical);
-            const b=angle?{left:-box.bottom,right:-box.top,top:box.left,bottom:box.right}:box;
-            const w=b.right-b.left,h=b.bottom-b.top;
-            x=-w/2-b.left;y=cursor+(size-h)/2-b.top;
-            ink={x:-w/2,y:cursor+(size-h)/2,width:w,height:h};cursor+=size+spacing;
-        }else{ink={x:cursor+box.left,y:box.top,width:box.right-box.left,height:box.bottom-box.top};cursor+=m.width+spacing;}
-        glyphs.push({text,x,y,angle,field:run.field,ink});left=Math.min(left,ink.x);top=Math.min(top,ink.y);right=Math.max(right,ink.x+ink.width);bottom=Math.max(bottom,ink.y+ink.height);
+    for(const run of runs){
+        const fontSize=size*Math.max(.1,run.fontScale??1);
+        ctx.font=`${fontSize}px ${family}`;
+        for(const text of Array.from(run.text)){
+            const m=ctx.measureText(text),box={left:-(m.actualBoundingBoxLeft??0),right:m.actualBoundingBoxRight??m.width,top:-(m.actualBoundingBoxAscent??fontSize*.85),bottom:m.actualBoundingBoxDescent??fontSize*.15};
+            if(text===' '){cursor+=vertical?fontSize*.65:m.width+spacing;continue;}
+            let x=cursor,y=0,angle=0,ink:Rect;
+            if(vertical){
+                angle=getWatermarkGlyphRotation(text,vertical);
+                const b=angle?{left:-box.bottom,right:-box.top,top:box.left,bottom:box.right}:box;
+                const w=b.right-b.left,h=b.bottom-b.top;
+                x=-w/2-b.left;y=cursor+(fontSize-h)/2-b.top;
+                ink={x:-w/2,y:cursor+(fontSize-h)/2,width:w,height:h};cursor+=fontSize+spacing;
+            }else{ink={x:cursor+box.left,y:box.top,width:box.right-box.left,height:box.bottom-box.top};cursor+=m.width+spacing;}
+            glyphs.push({text,x,y,angle,field:run.field,fontSize,ink});left=Math.min(left,ink.x);top=Math.min(top,ink.y);right=Math.max(right,ink.x+ink.width);bottom=Math.max(bottom,ink.y+ink.height);
+        }
     }
     if(!glyphs.length)return{x:0,y:0,width:0,height:0,glyphs:[]};
     return{x:0,y:0,width:right-left,height:bottom-top,glyphs:glyphs.map(g=>({...g,x:g.x-left,y:g.y-top,ink:{...g.ink,x:g.ink.x-left,y:g.ink.y-top}}))};
@@ -46,7 +50,14 @@ export async function createTextWatermark(config:MixedWatermarkConfig,onLayout?:
     await document.fonts.load(`${size}px ${family}`,runs.map(run=>run.text).join('')||'秋');ctx.font=`${size}px ${family}`;
     const preset=getWatermarkPreset(config),single=preset==='single'||runs.length<2;
     const joined=buildSingleLineCaptionRuns(runs[0]?.text||'',runs[1]?.text||'',config.compactMode?'era-first':config.singleLineOrder,vertical);
-    const shapes=single&&runs.length?[measureShape(ctx,joined,vertical,size,spacing)]:runs.map(run=>measureShape(ctx,[run],vertical,size,spacing));
+    const multiplePlan=!single&&!vertical
+        ? splitLongCaptionForMultiple(runs[0]?.text||'',runs[1]?.text||'')
+        : undefined;
+    const shapes=single&&runs.length
+        ? [measureShape(ctx,joined,vertical,size,spacing,family)]
+        : multiplePlan
+            ? [measureShape(ctx,multiplePlan.first,vertical,size,spacing,family),measureShape(ctx,multiplePlan.second,vertical,size,spacing,family)]
+            : runs.map(run=>measureShape(ctx,[run],vertical,size,spacing,family));
     let icon:HTMLImageElement|undefined;
     if(!config.textOnly&&config.icon)icon=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(Error('水印图标加载失败'));image.src=config.icon;});
     const iconBounds=icon?getImageOpaqueBounds(icon):undefined;
@@ -66,15 +77,15 @@ export async function createTextWatermark(config:MixedWatermarkConfig,onLayout?:
             c.drawImage(icon,iconBounds.x,iconBounds.y,iconBounds.width,iconBounds.height,0,0,tint.width,tint.height);c.globalCompositeOperation='source-in';c.fillStyle=config.color;c.fillRect(0,0,tint.width,tint.height);ctx.drawImage(tint,x,y,item.width,item.height);continue;
         }
         const shape=shapes[item.index!];
-        for(const glyph of shape.glyphs){ctx.save();ctx.translate(x+glyph.x,y+glyph.y);if(glyph.angle)ctx.rotate(glyph.angle);ctx.fillText(glyph.text,0,0);ctx.restore();}
+        for(const glyph of shape.glyphs){ctx.save();ctx.font=`${glyph.fontSize}px ${family}`;ctx.translate(x+glyph.x,y+glyph.y);if(glyph.angle)ctx.rotate(glyph.angle);ctx.fillText(glyph.text,0,0);ctx.restore();}
         for(const field of ['textLine1','textLine2'] as const){
             const glyphs=shape.glyphs.filter(g=>g.field===field);if(!glyphs.length)continue;
             const left=Math.min(...glyphs.map(g=>g.ink.x)),top=Math.min(...glyphs.map(g=>g.ink.y)),right=Math.max(...glyphs.map(g=>g.ink.x+g.ink.width)),bottom=Math.max(...glyphs.map(g=>g.ink.y+g.ink.height));
-            const first=glyphs[0],metrics=ctx.measureText(first.text),asc=metrics.fontBoundingBoxAscent??size*.85,desc=metrics.fontBoundingBoxDescent??size*.15;
-            const inputX=vertical?left+(right-left-size)/2:first.x;
-            const inputY=vertical?first.ink.y+(first.ink.height-size)/2:first.y-(asc+(size-asc-desc)/2);
+            const first=glyphs[0];ctx.font=`${first.fontSize}px ${family}`;const metrics=ctx.measureText(first.text),asc=metrics.fontBoundingBoxAscent??first.fontSize*.85,desc=metrics.fontBoundingBoxDescent??first.fontSize*.15;
+            const inputX=vertical?left+(right-left-first.fontSize)/2:first.x;
+            const inputY=vertical?first.ink.y+(first.ink.height-first.fontSize)/2:first.y-(asc+(first.fontSize-asc-desc)/2);
             const bleed=1;
-            regions.push({field,x:(x+left-bleed)*xScale,y:(y+top-bleed)*scale,width:(right-left+bleed*2)*xScale,height:(bottom-top+bleed*2)*scale,fontSize:size*scale,fontFamily:family,letterSpacing:spacing*xScale,
+            regions.push({field,x:(x+left-bleed)*xScale,y:(y+top-bleed)*scale,width:(right-left+bleed*2)*xScale,height:(bottom-top+bleed*2)*scale,fontSize:first.fontSize*scale,fontFamily:family,letterSpacing:spacing*xScale,
                 inputOffsetX:(inputX-left+bleed)*xScale,inputOffsetY:(inputY-top+bleed)*scale,lineHeight:1});
         }
     }

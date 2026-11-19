@@ -27,7 +27,7 @@ const CHINESE_ERA_POINT = `(?:${STATE_ERA}|${THREE_KINGDOMS_ERA}|(?:${CHINESE_ER
 const LEADING_CHINESE_ERA = new RegExp(`^${CHINESE_ERA_POINT}(?:${ERA_JOIN}${CHINESE_ERA_POINT})*${FIELD_BOUNDARY}`);
 const COLLECTION = /(?:博物馆|博物院|美术馆|艺术馆|纪念馆|图书馆|藏)$/;
 const PLACEHOLDER = /^(?:未标题|未命名|无标题|副本|拷贝)(?:\s*\d+)?$/;
-const PROVENANCE = /(?:出土|出水|发掘|发现|采集|征集|捐赠)(?:[（(].*[）)])?$/;
+const PROVENANCE = /(?:出土(?:地)?|出水(?:地)?|发掘|发现|采集|征集|捐赠)(?:[：:][^_-]*)?(?:[（(].*[）)])?$/;
 const CAMERA_NAME = /^(?:DSC[FN]?|IMG|PXL|_?MG|RIMG|DCIM|DJI)[_ -]?\d/i;
 const TITLE_CONTEXT = /墓|壁|窟|殿|寺|塔|图|卷|册|页|轴|屏|器|俑|瓷|瓶|盘|像|局部|残片|拓本|摹本/;
 // Prefix matching is only a fallback for unquoted names such as 马远梅石溪凫图.
@@ -141,7 +141,10 @@ export function extractWatermarkCaption(filename: string) {
     author ||= artwork.author;
     const title = artwork.title;
     if (!title || ARTIST_PREFIXES.includes(title.replace(/[（(](?:传|款|旧传.*?)[）)]$/, '').trim())) return null;
-    const details = [era, author, collection].filter(Boolean).join('·');
+    const provenance = parts
+        .filter((part, index) => index !== collectionIndex && PROVENANCE.test(part))
+        .filter((part, index, values) => values.indexOf(part) === index);
+    const details = [era, author, ...provenance, collection].filter(Boolean).join('·');
     return {
         textLine1: title,
         textLine2: [details, photographer].filter(Boolean).join(' / '),

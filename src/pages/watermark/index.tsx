@@ -69,6 +69,7 @@ type OversizePromptState = {
     thresholdBytes: number;
     largestFileSizeBytes: number;
 } | null;
+type WatermarkMode = "image" | "mixed" | "text";
 
 const Watermark: React.FC = () => {
     const navigate = useNavigate();
@@ -80,10 +81,10 @@ const Watermark: React.FC = () => {
     const [currentImg, setCurrentImg] = useState<ImageType | null>(null);
     const [watermarkUrl, setWatermarkUrl] =
         useState<string>(DEFAULT_WATERMARK_URL);
-    const [watermarkMode, setWatermarkMode] = useState<"image" | "mixed" | "text">(
+    const [watermarkMode, setWatermarkMode] = useState<WatermarkMode>(
         "image"
     );
-    const watermarkModeManuallySelected = useRef(false);
+    const [watermarkModes, setWatermarkModes] = useState<Record<string, WatermarkMode>>({});
     const [storedImageWatermarkUrl, setStoredImageWatermarkUrl] =
         useState<string>(DEFAULT_WATERMARK_URL);
     const [baseWatermarkConfig, setBaseWatermarkConfig] =
@@ -114,15 +115,20 @@ const Watermark: React.FC = () => {
     const smartLayouts = useRef<Record<string, MixedWatermarkConfig['layout'] | undefined>>({});
     useEffect(() => { setCaptionCorrections(loadCaptionCorrections()); }, []);
 
-    const handleWatermarkModeChange = (mode: "image" | "mixed" | "text") => {
-        watermarkModeManuallySelected.current = true;
+    const handleWatermarkModeChange = (mode: WatermarkMode) => {
+        if (currentImg) {
+            setWatermarkModes(previous => ({...previous, [currentImg.id]: mode}));
+        }
         setWatermarkMode(mode);
     };
 
     useEffect(() => {
-        if (!currentImg || watermarkModeManuallySelected.current) return;
-        setWatermarkMode(extractWatermarkCaption(currentImg.file.name) ? "mixed" : "image");
-    }, [currentImg?.id]);
+        if (!currentImg) return;
+        setWatermarkMode(
+            watermarkModes[currentImg.id]
+                ?? (extractWatermarkCaption(currentImg.file.name) ? "mixed" : "image")
+        );
+    }, [currentImg?.id, currentImg?.file.name, watermarkModes]);
 
     const getCaptionForImage = (image: ImageType | null) => {
         if (!image) return {};
@@ -223,13 +229,12 @@ const Watermark: React.FC = () => {
         resolveWatermark: async (item) => {
             const image = images.find(candidate => candidate.id === item.id);
             if (!image) throw new Error("图片不存在");
-            const effectiveMode = watermarkModeManuallySelected.current
-                ? watermarkMode
-                : (extractWatermarkCaption(image.file.name) ? "mixed" : "image");
+            const effectiveMode = watermarkModes[image.id]
+                ?? (extractWatermarkCaption(image.file.name) ? "mixed" : "image");
             if (effectiveMode === "image") {
                 const imageWatermarkUrl = watermarkColorUrls[image.id] || storedImageWatermarkUrl;
                 const imageWatermark = await loadPositionImage(imageWatermarkUrl);
-                const sourcePosition = !watermarkModeManuallySelected.current && !manualPositions.current.has(image.id)
+                const sourcePosition = !watermarkModes[image.id] && !manualPositions.current.has(image.id)
                     ? {...item.position, scaleX: 1, scaleY: 1}
                     : item.position;
                 return {
@@ -278,6 +283,10 @@ const Watermark: React.FC = () => {
         const config = {...baseWatermarkConfig, ...getCaptionForImage(image), ...manualConfigs[image.id]};
         const direction = config.layout || baseWatermarkConfig.layout || 'horizontal';
         const preset = getWatermarkPreset(config, direction);
+        const hasBothLines = Boolean(config.textLine1?.trim() && config.textLine2?.trim());
+        const displayMode = direction === 'vertical'
+            ? (hasBothLines ? 'multiple' : 'single')
+            : (shouldJoinWatermarkLines(config, direction) || preset === 'single' ? 'single' : 'multiple');
         return {
             id: image.id,
             filename: image.file.name,
@@ -287,9 +296,8 @@ const Watermark: React.FC = () => {
             time: correction?.time ?? analysis.metadata.time,
             place: correction?.place ?? analysis.metadata.place,
             collection: correction?.collection ?? analysis.metadata.collection,
-            displayMode: direction === 'vertical'
-                ? (config.textLine1 && config.textLine2 ? 'multiple' : 'single')
-                : (shouldJoinWatermarkLines(config, direction) || preset === 'single' ? 'single' : 'multiple'),
+            displayMode,
+            displayLines: displayMode === 'single' ? 1 : (direction === 'horizontal' && preset === 'centered' && hasBothLines ? 3 : 2),
             corrected: Boolean(correction),
         };
     }), [images, captionCorrections, manualConfigs, baseWatermarkConfig]);
@@ -343,7 +351,7 @@ const Watermark: React.FC = () => {
         });
     };
 
-    useEffect(() => {setWatermarkColorUrls({}); setImageTints({}); colorRequest.current++;}, [watermarkMode,storedImageWatermarkUrl]);
+    useEffect(() => {setWatermarkColorUrls({}); setImageTints({}); colorRequest.current++;}, [storedImageWatermarkUrl]);
     useEffect(() => { setAutomaticStyle({}); }, [watermarkMode,currentImg?.id]);
 
     useEffect(() => {

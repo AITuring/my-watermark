@@ -1366,12 +1366,12 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                     </div>}
 
                                     <div className="space-y-2">
-                                        <Label>主标题</Label>
-                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第一行文字" aria-label="第一行文字" maxLength={120} placeholder="请输入主标题" value={mixedWatermarkConfig.textLine1} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine1: value }))} />
+                                        <Label>第一行</Label>
+                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第一行文字" aria-label="第一行" maxLength={120} placeholder="请输入第一行文字" value={mixedWatermarkConfig.textLine1} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine1: value }))} />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>说明文字（可选）</Label>
-                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第二行文字" aria-label="第二行文字" maxLength={120} placeholder="说明文字（可选）" value={mixedWatermarkConfig.textLine2} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: value }))} />
+                                        <Label>第二行</Label>
+                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第二行文字" aria-label="第二行" maxLength={120} placeholder="请输入第二行文字" value={mixedWatermarkConfig.textLine2} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: value }))} />
                                     </div>
                                     <WatermarkColorControl value={mixedWatermarkConfig.color} onAuto={onAutoColor}
                                         onChange={color => updateConfig({color})} />

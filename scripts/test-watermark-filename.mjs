@@ -188,7 +188,7 @@ test('date recognition respects field boundaries and does not consume title text
 test('韩休墓 filename keeps only the artwork name and formats the requested caption', () => {
     assert.deepEqual(extract('唐-韩休墓北壁《山水图》-2013年西安少陵原唐韩休墓出土-陕西历史博物馆藏-未标题-215.jpg'), {
         textLine1: '韩休墓北壁《山水图》',
-        textLine2: '唐·陕西历史博物馆藏 / 笑谈间气吐霓虹摄',
+        textLine2: '唐·2013年西安少陵原唐韩休墓出土·陕西历史博物馆藏 / 笑谈间气吐霓虹摄',
     });
 });
 
@@ -197,7 +197,7 @@ test('separator variants and export suffixes keep the same caption', () => {
         for (const suffix of ['未标题-215', '未命名 215', '无标题', '215', '215logo-split-3', 'DSC_0215']) {
             assert.deepEqual(extract(['唐', '韩休墓北壁《山水图》', '2013年西安少陵原唐韩休墓出土', '陕西历史博物馆藏', suffix].join(separator) + '.JPG'), {
                 textLine1: '韩休墓北壁《山水图》',
-                textLine2: '唐·陕西历史博物馆藏 / 笑谈间气吐霓虹摄',
+                textLine2: '唐·2013年西安少陵原唐韩休墓出土·陕西历史博物馆藏 / 笑谈间气吐霓虹摄',
             });
         }
     }
@@ -206,7 +206,7 @@ test('separator variants and export suffixes keep the same caption', () => {
 test('provenance and placeholders do not leak into a title on either side of the collection', () => {
     assert.deepEqual(extract('汉-陶俑-未标题-215-陕西历史博物馆藏-出土地：西安-1956年发掘.jpg'), {
         textLine1: '陶俑',
-        textLine2: '汉·陕西历史博物馆藏 / 笑谈间气吐霓虹摄',
+        textLine2: '汉·出土地：西安·1956年发掘·陕西历史博物馆藏 / 笑谈间气吐霓虹摄',
     });
 });
 
