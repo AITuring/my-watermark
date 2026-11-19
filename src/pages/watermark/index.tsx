@@ -120,7 +120,7 @@ const Watermark: React.FC = () => {
 
     useEffect(() => {
         if (!currentImg || watermarkModeManuallySelected.current) return;
-        setWatermarkMode(extractWatermarkCaption(currentImg.file.name) ? "text" : "image");
+        setWatermarkMode(extractWatermarkCaption(currentImg.file.name) ? "mixed" : "image");
     }, [currentImg?.id]);
 
     const getCaptionForImage = (image: ImageType | null) => {
@@ -219,12 +219,26 @@ const Watermark: React.FC = () => {
         transparentWatermarkPositions,
         copyrightStatement,
         quality,
-        resolveWatermark: watermarkMode === "image" ? undefined : async (item) => {
+        resolveWatermark: async (item) => {
             const image = images.find(candidate => candidate.id === item.id);
             if (!image) throw new Error("图片不存在");
+            const effectiveMode = watermarkModeManuallySelected.current
+                ? watermarkMode
+                : (extractWatermarkCaption(image.file.name) ? "mixed" : "image");
+            if (effectiveMode === "image") {
+                const imageWatermarkUrl = watermarkColorUrls[image.id] || storedImageWatermarkUrl;
+                const imageWatermark = await loadPositionImage(imageWatermarkUrl);
+                const sourcePosition = !watermarkModeManuallySelected.current && !manualPositions.current.has(image.id)
+                    ? {...item.position, scaleX: 1, scaleY: 1}
+                    : item.position;
+                return {
+                    url: imageWatermarkUrl,
+                    position: fitWatermarkPosition(image.width, image.height, imageWatermark, sourcePosition),
+                };
+            }
             const config = {...baseWatermarkConfig, ...getCaptionForImage(image),
                 ...(editScope === 'all' && batchReferenceTextHeight ? {referenceTextHeight:batchReferenceTextHeight} : {}),
-                ...manualConfigs[image.id], ...resolveWatermarkTypography(image.file.name,baseWatermarkConfig,manualConfigs[image.id],smartEnabled),textOnly: watermarkMode === "text"};
+                ...manualConfigs[image.id], ...resolveWatermarkTypography(image.file.name,baseWatermarkConfig,manualConfigs[image.id],smartEnabled),textOnly: effectiveMode === "text"};
             if (smartEnabled) {
                 const result = await createSmartWatermark(image, config, manualConfigs[image.id]);
                 return {url: result.url, position: manualPositions.current.has(image.id) ? item.position : result.position};
@@ -335,8 +349,13 @@ const Watermark: React.FC = () => {
             if (currentImg) void loadPositionImage(storedImageWatermarkUrl).then(logo=>{
                 if(cancelled) return;
                 setWatermarkMaxScale(getWatermarkMaximumScale(currentImg.width,currentImg.height,logo));
-                setWatermarkPositions(prev=>prev.map(position=>position.id===currentImg.id
-                    ? fitWatermarkPosition(currentImg.width,currentImg.height,logo,position):position));
+                setWatermarkPositions(prev=>prev.map(position=>{
+                    if (position.id !== currentImg.id) return position;
+                    const next = manualPositions.current.has(currentImg.id)
+                        ? position
+                        : {...position, scaleX: 1, scaleY: 1};
+                    return fitWatermarkPosition(currentImg.width,currentImg.height,logo,next);
+                }));
             }).catch(error=>{if(!cancelled)setSmartError(error instanceof Error?error.message:"水印加载失败");});
             return () => {cancelled=true;};
         }

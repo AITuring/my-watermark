@@ -144,7 +144,7 @@ export function useWatermarkBatchProcessor({
                             const { file } = img;
                             const resolved = await resolveWatermark?.(img);
                             const position = resolved?.position || img.position;
-                            const watermarkSrc = watermarkColorUrls[img.id] || resolved?.url || watermarkUrl;
+                            const watermarkSrc = resolved?.url || watermarkColorUrls[img.id] || watermarkUrl;
                             if (!watermarkSrc || (resolved && !resolved.url)) throw new Error(`${file.name} 缺少水印文字`);
 
                             let watermarkImg: HTMLImageElement;

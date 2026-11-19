@@ -31,17 +31,23 @@ export async function createSmartWatermark(
     const layouts = chosenDirection ? [chosenDirection] : ['horizontal', 'vertical'] as const;
     for (const layout of layouts) {
         const candidateConfig = {...config, layout, color: '#ffffff'};
-        const draft = await createTextWatermark(candidateConfig);
+        let generatedTextSize = Math.max(24, config.fontSize * 4);
+        const draft = await createTextWatermark(candidateConfig, regions => {
+            const textRegion = regions.find(region => region.field === 'textLine1' || region.field === 'textLine2');
+            if (textRegion?.fontSize && Number.isFinite(textRegion.fontSize)) generatedTextSize = textRegion.fontSize;
+        });
         if (!draft) return {url: '', config: candidateConfig, position: {id:image.id,x:0.04,y:0.04,scaleX:1,scaleY:1,rotation:0}};
         let logo = await loadPositionImage(draft);
         let bounds = getImageOpaqueBounds(logo);
         // Resolve ORIGINAL-pixel typography first, then fit the complete block.
-        const titleSize = Math.max(24, config.fontSize * 4);
         const metrics=getWatermarkLayoutMetrics(image.width,image.height,config.referenceTextHeight);
         const singleLine = layout==='horizontal' && candidateConfig.horizontalPreset==='single';
         const singleLineBoost = singleLine ? 1.65 : 1;
         const textScale = Math.max(.1,candidateConfig.textScale??1);
-        const targetRenderFactor = metrics.title * singleLineBoost * textScale / titleSize;
+        // The generated canvas can downscale long blocks to stay within its
+        // pixel limit. Use the measured glyph size so both directions retain
+        // the same visible character height.
+        const targetRenderFactor = metrics.title * singleLineBoost * textScale / generatedTextSize;
         // Preserve glyph proportions. Long captions are reduced uniformly to
         // fit a generous 95% width; never squash the glyphs horizontally.
         const horizontalScale = 1;
