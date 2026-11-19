@@ -11,7 +11,7 @@
 .wm-floating-scope>span{min-width:24px}
 .wm-floating-collapse,.wm-floating-expand{display:grid;place-items:center;flex-shrink:0;color:#81796c;border-radius:6px;cursor:pointer}
 .wm-floating-collapse{width:20px;height:30px}
-.wm-floating-expand{width:32px;height:32px;border:1px solid #ffffff99;border-radius:50%;background:#ffffffe6;backdrop-filter:blur(24px);color:#475569;box-shadow:0 20px 25px -5px #0000001a,0 8px 10px -6px #0000001a;transition:transform 150ms,color 150ms}
+.wm-floating-expand{width:32px;height:32px;border:1px solid #ffffff99;border-radius:50%;background:#ffffffe6;backdrop-filter:blur(24px);color:#475569;box-shadow:0 20px 25px -5px #0000001a,0 8px 10px -6px #0000001a;transition:transform 150ms,color 150ms;cursor:grab;user-select:none;touch-action:none}.wm-floating-expand:active{cursor:grabbing}
 .wm-floating-expand:hover{transform:scale(1.1);color:#2563eb}
 @media(prefers-reduced-motion:reduce){.wm-floating-expand{transition:none}}
 .wm-floating-toolbar .wm-canvas-appearance{flex-wrap:nowrap;gap:6px}

@@ -223,6 +223,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         x: number;
         y: number;
     } | null>(null);
+    const suppressCollapsedExpandClick = useRef(false);
     const toolbarRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [colorPanelOpen, setColorPanelOpen] = useState(false);
@@ -246,18 +247,19 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         return () => observer.disconnect();
     }, [isToolbarExpanded]);
 
-    const handleToolbarMouseDown = (e: React.MouseEvent) => {
+    const handleToolbarMouseDown = (e: React.MouseEvent, allowCollapsedButton = false) => {
         // Portaled menu clicks must not begin a toolbar drag.
         if (!toolbarRef.current?.contains(e.target as Node)) return;
         if (
             (e.target as HTMLElement).closest(
                 'button, input, [role="combobox"], .no-drag'
-            )
+            ) && !allowCollapsedButton
         ) {
             return;
         }
+        if (allowCollapsedButton && !(e.target as HTMLElement).closest('.wm-floating-expand')) return;
 
-        e.preventDefault();
+        if (!allowCollapsedButton) e.preventDefault();
 
         const toolbarEl = toolbarRef.current;
         const containerEl = containerRef.current;
@@ -274,6 +276,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
         const initialMouseX = e.clientX;
         const initialMouseY = e.clientY;
+        let moved = false;
 
         // Temporarily disable transition for smooth dragging
         toolbarEl.style.transition = "none";
@@ -288,6 +291,11 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const dx = moveEvent.clientX - initialMouseX;
             const dy = moveEvent.clientY - initialMouseY;
+            if (allowCollapsedButton && !moved && Math.hypot(dx, dy) < 3) return;
+            if (allowCollapsedButton && !moved) {
+                moved = true;
+                moveEvent.preventDefault();
+            }
 
             let newLeft = startLeft + dx;
             let newTop = startTop + dy;
@@ -328,6 +336,8 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
 
             finalX = Math.max(padding, Math.min(finalX, maxLeft));
             finalY = Math.max(padding, Math.min(finalY, maxTop));
+
+            if (allowCollapsedButton) suppressCollapsedExpandClick.current = moved;
 
             setToolbarPos({
                 x: finalX,
@@ -1072,8 +1082,15 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                 onClick={() => setIsToolbarExpanded(false)}><ChevronDown size={16}/></button>
                         </div>
                     ) : (
-                        <button type="button" className="wm-floating-expand" aria-label="展开水印工具条" title="展开水印工具条"
-                            onClick={() => setIsToolbarExpanded(true)}><Lightbulb size={20}/></button>
+                        <button type="button" className="wm-floating-expand" aria-label="展开水印工具条" title="拖动或点击展开工具条"
+                            onMouseDown={event => handleToolbarMouseDown(event, true)}
+                            onClick={() => {
+                                if (suppressCollapsedExpandClick.current) {
+                                    suppressCollapsedExpandClick.current = false;
+                                    return;
+                                }
+                                setIsToolbarExpanded(true);
+                            }}><Lightbulb size={20}/></button>
                     )}
                 </div>
             </div>
