@@ -1,18 +1,16 @@
-import WatermarkDownloadControl from './WatermarkDownloadControl';
-import type {WatermarkDownloadMode} from '../export-downloads';
 import * as SettingsDialog from "@radix-ui/react-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, SlidersHorizontal, RotateCcw, X, ChevronDown } from "lucide-react";
+import { SlidersHorizontal, RotateCcw, X, ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import ImageUploader from "@/components/ImageUploader";
 import type { MixedWatermarkConfig } from "@/types";
-import ProgressButton from "./ProgressButton";
 import WatermarkTextInput from "./WatermarkTextInput";
 import WatermarkColorControl from "./WatermarkColorControl";
 import WatermarkFontPicker from "./WatermarkFontPicker";
 import WatermarkLayoutControl from "./WatermarkLayoutControl";
 import WatermarkDirectionSwitch from "./WatermarkDirectionSwitch";
 import CaptionReviewDialog, {type CaptionReviewItem} from './CaptionReviewDialog';
+import WatermarkExportMenu from './WatermarkExportMenu';
 
 interface DesktopToolbarProps {
     imageTint: string;
@@ -42,8 +40,6 @@ interface DesktopToolbarProps {
     onWatermarkUpload: (files: File[]) => void;
     watermarkBlur: boolean;
     setWatermarkBlur: (value: boolean) => void;
-    downloadMode: WatermarkDownloadMode;
-    setDownloadMode: (value: WatermarkDownloadMode) => void;
     quality: number;
     setQuality: (value: number) => void;
     watermarkOpacity: number;
@@ -59,6 +55,8 @@ interface DesktopToolbarProps {
     copyrightStatement: string;
     setCopyrightStatement: (value: string) => void;
     onGenerate: () => void;
+    onGenerateCurrent: () => void;
+    onGenerateZip: () => void;
     loading: boolean;
     progress: number;
     captionReviewItems: CaptionReviewItem[];
@@ -98,9 +96,18 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
             {textMode && <div className="wm-bottom-layout"><span className="wm-label">排版</span><WatermarkDirectionSwitch value={config.layout} onChange={layout=>update({layout})}/></div>}
             <div className="wm-bottom-protection"><div className="wm-bottom-blur"><label className="wm-label" htmlFor="wm-bottom-blur">背景模糊</label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-blur" checked={props.watermarkBlur} onCheckedChange={props.setWatermarkBlur}/><span aria-hidden="true">{props.watermarkBlur?'开':'关'}</span></div></div><div className="wm-bottom-blur" title="居中叠加独立图片水印，可在设置中调节透明度"><label className="wm-label" htmlFor="wm-bottom-transparent">独立透明水印</label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-transparent" checked={props.transparentWatermarkEnabled} onCheckedChange={props.setTransparentWatermarkEnabled}/><span aria-hidden="true">{props.transparentWatermarkEnabled?'开':'关'}</span></div></div></div>
             <div className="wm-bottom-actions"><div className="wm-action-field"><span className="wm-label">调整</span><button type="button" title={status} className="wm-unified-settings" aria-label="水印设置" aria-expanded={drawerOpen} onClick={()=>setDrawerOpen(!drawerOpen)}><SlidersHorizontal size={16}/><span>设置</span></button></div>
-            <div className="wm-action-field wm-export-field"><span className="wm-label">导出图片</span><ProgressButton loading={props.loading} progress={props.progress} onClick={props.onGenerate}
-                disabled={props.smartPending || Boolean(props.smartError) || !props.imageCount || mode==='text' && !config.textLine1.trim() && !config.textLine2.trim()}
-                className="wm-export-button"><Download size={15} />导出 {props.imageCount} 张</ProgressButton></div></div>
+            <div className="wm-action-field wm-export-field"><span className="wm-label">导出图片</span>
+                <WatermarkExportMenu
+                    onExportCurrent={props.onGenerateCurrent}
+                    onExportAll={props.onGenerate}
+                    onExportZip={props.onGenerateZip}
+                    loading={props.loading}
+                    progress={props.progress}
+                    imageCount={props.imageCount}
+                    currentDisabled={!props.currentFilename}
+                    disabled={props.smartPending || Boolean(props.smartError) || mode==='text' && !config.textLine1.trim() && !config.textLine2.trim()}
+                />
+            </div></div>
         </section>
         <SettingsDialog.Root modal={false} open={drawerOpen} onOpenChange={setDrawerOpen}>
             <SettingsDialog.Portal>
@@ -121,7 +128,6 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
             </div></section>
             <section className="wm-settings-section wm-export-grid" aria-label="导出参数">
                 <div className="wm-settings-section-heading"><h3>导出</h3><span className="wm-help" title="保留原图尺寸和文件类型，文件名添加 -mark">原图尺寸</span></div>
-                <WatermarkDownloadControl value={props.downloadMode} onChange={props.setDownloadMode} disabled={props.loading}/>
                 <WatermarkRange label="导出质量" value={props.quality} min={0.1} max={1} display={`${Math.round(props.quality*100)}%`} onChange={props.setQuality}/>
                 <label className="wm-copyright-field"><span className="wm-label">版权声明 · EXIF</span><input className="wm-text-input" value={props.copyrightStatement} maxLength={120} onChange={event=>props.setCopyrightStatement(event.target.value)} placeholder="作者或版权信息" /></label>
             </section>

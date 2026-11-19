@@ -107,6 +107,10 @@ const Watermark: React.FC = () => {
     const [batchReferenceTextHeight, setBatchReferenceTextHeight] = useState<number | undefined>();
     const [automaticStyle, setAutomaticStyle] = useState<Partial<MixedWatermarkConfig>>({});
     const manualPositions = useRef(new Set<string>());
+    // A direction change changes the generated image's aspect ratio. Keep a
+    // manually chosen position, but adopt the new smart scale so horizontal
+    // text does not inherit the narrow vertical column's scale.
+    const smartLayouts = useRef<Record<string, MixedWatermarkConfig['layout'] | undefined>>({});
     useEffect(() => { setCaptionCorrections(loadCaptionCorrections()); }, []);
 
     const handleWatermarkModeChange = (mode: "image" | "mixed" | "text") => {
@@ -174,7 +178,6 @@ const Watermark: React.FC = () => {
     const [uploading, setUploading] = useState(false);
     const [imageUploaderVisible, setImageUploaderVisible] = useState(true);
     const [quality, setQuality] = useState(0.95);
-    const [downloadMode, setDownloadMode] = useState<WatermarkDownloadMode>('zip');
     const [watermarkBlur, setWatermarkBlur] = useState(true);
     const [watermarkOpacity, setWatermarkOpacity] = useState(1);
     const [transparentWatermarkEnabled, setTransparentWatermarkEnabled] = useState(false);
@@ -216,7 +219,6 @@ const Watermark: React.FC = () => {
         transparentWatermarkPositions,
         copyrightStatement,
         quality,
-        downloadMode,
         resolveWatermark: watermarkMode === "image" ? undefined : async (item) => {
             const image = images.find(candidate => candidate.id === item.id);
             if (!image) throw new Error("图片不存在");
@@ -358,10 +360,15 @@ const Watermark: React.FC = () => {
                     setFontNotice(missing ? `所选字体缺少「${[...new Set(Array.from(missing))].join("")}」，这些字使用系统宋体补齐。` : "");
                     setAutomaticStyle(result ? {color:result.config.color, layout:result.config.layout} : {});
                     if (logo && currentImg) {
+                        const previousLayout = smartLayouts.current[currentImg.id];
+                        const layoutChanged = Boolean(result && previousLayout && previousLayout !== result.config.layout);
+                        if (result) smartLayouts.current[currentImg.id] = result.config.layout;
                         setWatermarkMaxScale(getWatermarkMaximumScale(currentImg.width,currentImg.height,logo));
                         setWatermarkPositions(prev => prev.map(position => position.id === currentImg.id
                             ? fitWatermarkPosition(currentImg.width,currentImg.height,logo,
-                                result && !manualPositions.current.has(currentImg.id) ? result.position : position)
+                                result && (!manualPositions.current.has(currentImg.id) || layoutChanged)
+                                    ? (layoutChanged ? {...position,scaleX:result.position.scaleX,scaleY:result.position.scaleY} : result.position)
+                                    : position)
                             : position));
                     }
                 }
@@ -739,22 +746,33 @@ const Watermark: React.FC = () => {
         }
     };
 
-    const handleApplyWatermark = async () => {
+    const handleApplyWatermark = async (
+        scope: "all" | "current" = "all",
+        exportMode: WatermarkDownloadMode = "zip",
+    ) => {
         if (exportInFlight.current || smartPending) return;
         if (!watermarkUrl) {
             alert(watermarkMode === "image" ? "请上传水印图片！" : "请输入水印文字，并等待预览生成。");
             return;
         }
 
+        const targetImages = scope === "current"
+            ? (currentImg ? [currentImg] : [])
+            : images;
+        if (!targetImages.length) {
+            alert(scope === "current" ? "请先选择要导出的图片。" : "请先上传图片。");
+            return;
+        }
+
         const { batchSize, globalConcurrency } =
-            adjustBatchSizeAndConcurrency(images);
+            adjustBatchSizeAndConcurrency(targetImages);
 
         exportInFlight.current = true;
         try {
             console.log("水印下载开始！");
 
             const allImageData = buildImagesWithPositions(
-                images,
+                targetImages,
                 watermarkPositions
             ).map((img) => {
                 const found = watermarkPositions.some(
@@ -772,13 +790,18 @@ const Watermark: React.FC = () => {
             await downloadImagesWithWatermarkBatch(
                 allImageData,
                 batchSize,
-                globalConcurrency
+                globalConcurrency,
+                exportMode
             );
         } catch (error) {
             console.error("处理水印失败:", error);
             alert(error instanceof Error ? error.message : "处理水印失败，请重试。");
         } finally { exportInFlight.current = false; }
     };
+
+    const handleApplyCurrentWatermark = () => handleApplyWatermark("current", "files");
+    const handleApplyAllWatermarks = () => handleApplyWatermark("all", "files");
+    const handleApplyZipWatermark = () => handleApplyWatermark("all", "zip");
 
     const resolveOversizeDecision = (decision: "download" | "compress") => {
         oversizeDecisionResolverRef.current?.(decision);
@@ -874,8 +897,6 @@ const Watermark: React.FC = () => {
                             setWatermarkBlur={setWatermarkBlur}
                             quality={quality}
                             setQuality={setQuality}
-                            downloadMode={downloadMode}
-                            setDownloadMode={setDownloadMode}
                             onConfigPatch={patchWatermarkConfig}
                             onAutoColor={() => handleTextColorChange("transparent")}
                             watermarkMode={watermarkMode}
@@ -885,7 +906,9 @@ const Watermark: React.FC = () => {
                             onWatermarkUpload={handleWatermarkUpload}
                             onBack={() => setMobileView("gallery")}
                             stackPreviews={stackPreviews}
-                            onGenerate={handleApplyWatermark}
+                            onGenerate={handleApplyAllWatermarks}
+                            onGenerateCurrent={handleApplyCurrentWatermark}
+                            onGenerateZip={handleApplyZipWatermark}
                             isGenerating={loading}
                             generateProgress={smoothProgress}
                         />
@@ -1029,8 +1052,6 @@ const Watermark: React.FC = () => {
                     setWatermarkBlur={setWatermarkBlur}
                     quality={quality}
                     setQuality={setQuality}
-                    downloadMode={downloadMode}
-                    setDownloadMode={setDownloadMode}
                     watermarkOpacity={watermarkOpacity}
                     setWatermarkOpacity={setWatermarkOpacity}
                     transparentWatermarkEnabled={transparentWatermarkEnabled}
@@ -1043,7 +1064,9 @@ const Watermark: React.FC = () => {
                     onTransparentWatermarkColorChange={color => void handleTransparentWatermarkColorChange(color)}
                     copyrightStatement={copyrightStatement}
                     setCopyrightStatement={setCopyrightStatement}
-                    onGenerate={handleApplyWatermark}
+                    onGenerate={handleApplyAllWatermarks}
+                    onGenerateCurrent={handleApplyCurrentWatermark}
+                    onGenerateZip={handleApplyZipWatermark}
                     loading={loading}
                     progress={smoothProgress}
                     captionReviewItems={captionReviewItems}

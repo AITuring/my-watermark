@@ -1,5 +1,4 @@
-import WatermarkDownloadControl from './WatermarkDownloadControl';
-import type {WatermarkDownloadMode} from '../export-downloads';
+import WatermarkExportMenu from './WatermarkExportMenu';
 import WatermarkFontPicker from "./WatermarkFontPicker";
 import WatermarkLayoutControl from "./WatermarkLayoutControl";
 import WatermarkBlurPreview from "./WatermarkBlurPreview";
@@ -126,6 +125,8 @@ interface MobileWatermarkEditorProps {
     // Navigation and Action Props
     onBack: () => void;
     onGenerate: () => void;
+    onGenerateCurrent: () => void;
+    onGenerateZip: () => void;
     isGenerating: boolean;
     generateProgress: number;
 
@@ -148,8 +149,6 @@ interface MobileWatermarkEditorProps {
     setCopyrightStatement: (value: string) => void;
     watermarkBlur: boolean;
     setWatermarkBlur: (val: boolean) => void;
-    downloadMode: WatermarkDownloadMode;
-    setDownloadMode: (value: WatermarkDownloadMode) => void;
     quality: number;
     setQuality: (val: number) => void;
     onAutoColor?: () => void;
@@ -177,6 +176,8 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
 
     onBack,
     onGenerate,
+    onGenerateCurrent,
+    onGenerateZip,
     isGenerating,
     generateProgress,
 
@@ -200,8 +201,6 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     setWatermarkBlur,
     quality,
     setQuality,
-    downloadMode,
-    setDownloadMode,
     onAutoColor, onConfigPatch,
     watermarkMode,
     setWatermarkMode,
@@ -1061,21 +1060,17 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                 <div className="font-medium text-lg dark:text-slate-200">
                     {totalImages > 0 ? `第${currentIndex + 1} / ${totalImages}张` : "编辑水印"}
                 </div>
-                <Button
-                    onClick={onGenerate}
-                    disabled={isGenerating}
-                    size="sm"
-                    className="bg-blue-600 text-white hover:bg-blue-700 rounded-full px-6"
-                >
-                    {isGenerating ? (
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            <span>{Math.round(generateProgress)}%</span>
-                        </div>
-                    ) : (
-                        "保存"
-                    )}
-                </Button>
+                <WatermarkExportMenu
+                    placement="bottom"
+                    className="wm-export-menu--mobile"
+                    onExportCurrent={onGenerateCurrent}
+                    onExportAll={onGenerate}
+                    onExportZip={onGenerateZip}
+                    loading={isGenerating}
+                    progress={generateProgress}
+                    imageCount={totalImages}
+                    currentDisabled={totalImages <= 0}
+                />
             </header>
 
             {isLoading && (
@@ -1325,7 +1320,6 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                             <Switch aria-label="辅助线" checked={showGuideLines} onCheckedChange={setShowGuideLines} />
                                         </div>
                                     </div>
-                                    <WatermarkDownloadControl value={downloadMode} onChange={setDownloadMode} disabled={isGenerating}/>
                                     <div className="space-y-2">
                                         <Label htmlFor="wm-mobile-copyright">版权声明 · EXIF</Label>
                                         <input id="wm-mobile-copyright" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={copyrightStatement} maxLength={120} onChange={event => setCopyrightStatement(event.target.value)} placeholder="作者或版权信息" />

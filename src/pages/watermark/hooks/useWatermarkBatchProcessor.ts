@@ -60,7 +60,8 @@ export function useWatermarkBatchProcessor({
         async (
             imgPositionList: ImgWithPosition[],
             batchSize = 5,
-            globalConcurrency = 10
+            globalConcurrency = 10,
+            requestedDownloadMode?: WatermarkDownloadMode
         ) => {
             const limit = pLimit(globalConcurrency);
             const downloadLink = document.createElement("a");
@@ -239,7 +240,7 @@ export function useWatermarkBatchProcessor({
 
                 if (outputFiles.length) {
                     setLoading(true);
-                    await downloadWatermarkOutputs(outputFiles, downloadMode, triggerDownload,
+                    await downloadWatermarkOutputs(outputFiles, requestedDownloadMode ?? downloadMode, triggerDownload,
                         percent => updateProgressSmoothly(90 + percent * 0.1));
                     updateProgressSmoothly(100);
                 }
