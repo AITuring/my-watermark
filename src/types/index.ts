@@ -43,6 +43,7 @@ interface MixedWatermarkConfig {
     singleLineOrder?: 'title-first' | 'era-first';
     textScale?: number;
     textHorizontalScale?: number;
+    compactMode?: boolean;
 }
 
 interface TextWatermarkConfig {

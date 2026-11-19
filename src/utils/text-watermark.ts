@@ -1,7 +1,7 @@
 import {ensureWatermarkFont} from '@/pages/watermark/fonts/registry';
 import {getWatermarkPreset} from '@/pages/watermark/layout-presets';
 import {getImageOpaqueBounds} from '@/utils/watermark-editor';
-import {arrangeWatermark,buildSingleLineCaptionRuns,getFittedVerticalLetterSpacing,getWatermarkGlyphRotation} from './text-watermark-layout';
+import {arrangeWatermark,buildSingleLineCaptionRuns,getCompactWatermarkCaption,getFittedVerticalLetterSpacing,getWatermarkGlyphRotation} from './text-watermark-layout';
 import type {MixedWatermarkConfig} from '@/types';
 
 type Field='textLine1'|'textLine2';
@@ -34,7 +34,8 @@ function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Fiel
 
 /** Original pixels are preserved by the caller; the same PNG is used for preview and export. */
 export async function createTextWatermark(config:MixedWatermarkConfig,onLayout?:(regions:WatermarkTextRegion[])=>void):Promise<string>{
-    const runs=([['textLine1',config.textLine1],['textLine2',config.textLine2]] as const).map(([field,text])=>({field,text:text.trim()})).filter(run=>run.text);
+    const compactCaption=config.compactMode?getCompactWatermarkCaption(config.textLine2):config.textLine2;
+    const runs=([['textLine1',config.textLine1],['textLine2',compactCaption]] as const).map(([field,text])=>({field,text:text.trim()})).filter(run=>run.text);
     if(!runs.length&&(config.textOnly||!config.icon)){onLayout?.([]);return '';}
     const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)throw Error('无法创建文字水印');
     const family=await ensureWatermarkFont(config.fontId||config.captionFontId,runs.map(run=>run.text).join('·'));
@@ -44,7 +45,7 @@ export async function createTextWatermark(config:MixedWatermarkConfig,onLayout?:
     const spacing=size*letterSpacing;
     await document.fonts.load(`${size}px ${family}`,runs.map(run=>run.text).join('')||'秋');ctx.font=`${size}px ${family}`;
     const preset=getWatermarkPreset(config),single=preset==='single'||runs.length<2;
-    const joined=buildSingleLineCaptionRuns(runs[0]?.text||'',runs[1]?.text||'',config.singleLineOrder,vertical);
+    const joined=buildSingleLineCaptionRuns(runs[0]?.text||'',runs[1]?.text||'',config.compactMode?'era-first':config.singleLineOrder,vertical);
     const shapes=single&&runs.length?[measureShape(ctx,joined,vertical,size,spacing)]:runs.map(run=>measureShape(ctx,[run],vertical,size,spacing));
     let icon:HTMLImageElement|undefined;
     if(!config.textOnly&&config.icon)icon=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(Error('水印图标加载失败'));image.src=config.icon;});

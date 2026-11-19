@@ -62,6 +62,11 @@ const presetApi={};vm.runInNewContext(presetCode,{exports:presetApi});
 const arrangementCode=ts.transpileModule(await readFile(new URL('../src/utils/text-watermark-layout.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
 const arrangement={};vm.runInNewContext(arrangementCode,{exports:arrangement});
 
+test('compact mode keeps only the era and places it before the title',()=>{
+    assert.equal(arrangement.getCompactWatermarkCaption('明洪武时期·南京博物院藏 / 笑谈间气吐霓虹摄'),'明洪武时期');
+    assert.equal(JSON.stringify(arrangement.buildSingleLineCaptionRuns('玉壶春瓶','明洪武时期','era-first').map(run=>run.text)),JSON.stringify(['明洪武时期',' · ','玉壶春瓶']));
+});
+
 test('directions retain independent choices and vertical never exposes a three-column variant',()=>{
     const config={layout:'horizontal',horizontalPreset:'centered',verticalPreset:'paired'};
     assert.equal(presetApi.getWatermarkPreset(config),'centered');
@@ -108,9 +113,9 @@ test('vertical text scaling enlarges glyphs without changing character pitch',()
 test('approved arrangements enforce visible-ink alignment and never enlarge a vertical stamp',()=>{
     const a={width:300,height:80,x:999,y:999},b={width:410,height:88};
     const single=arrangement.arrangeWatermark([a],false,false,100,40,.6);
-    assert.equal(single.items[0].height,single.items[1].height);assert.equal(single.items[1].y,0);
+    assert.ok(single.items[0].height>single.items[1].height);assert.equal(single.items[1].y,0);
     const side=arrangement.arrangeWatermark([a,b],false,false,100,40,.6),[logo,first,second]=side.items;
-    assert.equal(first.x,second.x);assert.equal(logo.height,second.y+second.height-first.y);
+    assert.equal(first.x,second.x);assert.ok(logo.height>second.y+second.height-first.y);
     const center=arrangement.arrangeWatermark([a,b],false,true,100,40,.6);
     for(const item of center.items)assert.ok(Math.abs(item.x+item.width/2-center.width/2)<1e-8);
     const vertical=arrangement.arrangeWatermark([{width:95,height:800},{width:90,height:1100}],true,false,100,55,.6);

@@ -25,6 +25,7 @@ export const DEFAULT_MIXED_WATERMARK_CONFIG: MixedWatermarkConfig = {
     verticalPreset: "single",
     letterSpacing: 0.1,
     lineGap: 0.55,
+    compactMode: false,
 };
 
 export const createDefaultWatermarkPosition = (

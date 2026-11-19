@@ -1387,6 +1387,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         onChange={color => updateConfig({color})} />
                                     <WatermarkFontPicker label="统一字体" value={mixedWatermarkConfig.fontId} text={[mixedWatermarkConfig.textLine1,mixedWatermarkConfig.textLine2].filter(Boolean).join(' · ')}
                                         onChange={fontId => updateConfig({fontId,captionFontId:fontId})} />
+                                    <label className="flex items-center justify-between rounded-lg border border-input px-3 py-2 text-sm" title="只显示图案、时代和名称"><span>精简模式</span><Switch aria-label="精简模式" checked={Boolean(mixedWatermarkConfig.compactMode)} onCheckedChange={compactMode=>updateConfig({compactMode})}/></label>
                                     <WatermarkLayoutControl config={{...mixedWatermarkConfig,textOnly:watermarkMode==='text'}} onChange={updateConfig}/>
                                 </div>
                             )}

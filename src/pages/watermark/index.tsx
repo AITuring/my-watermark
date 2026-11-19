@@ -4,6 +4,7 @@ import { analyzeWatermarkCaption, extractWatermarkCaption } from "./filename-wat
 import { clearCaptionCorrection, getCaptionCorrection, loadCaptionCorrections, saveCaptionCorrections, setCaptionCorrection, type CaptionCorrectionMap } from "./caption-corrections";
 import { resolveWatermarkTypography } from './font-selection';
 import { getWatermarkLayoutMetrics } from './layout-metrics';
+import { getWatermarkPreset, shouldJoinWatermarkLines } from './layout-presets';
 import { createSmartWatermark } from "./smart-watermark";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -274,7 +275,9 @@ const Watermark: React.FC = () => {
     const captionReviewItems = useMemo<CaptionReviewItem[]>(() => images.map(image => {
         const analysis = analyzeWatermarkCaption(image.file.name);
         const correction = getCaptionCorrection(captionCorrections, image.file.name);
-        const config = {...getCaptionForImage(image), ...manualConfigs[image.id]};
+        const config = {...baseWatermarkConfig, ...getCaptionForImage(image), ...manualConfigs[image.id]};
+        const direction = config.layout || baseWatermarkConfig.layout || 'horizontal';
+        const preset = getWatermarkPreset(config, direction);
         return {
             id: image.id,
             filename: image.file.name,
@@ -284,9 +287,12 @@ const Watermark: React.FC = () => {
             time: correction?.time ?? analysis.metadata.time,
             place: correction?.place ?? analysis.metadata.place,
             collection: correction?.collection ?? analysis.metadata.collection,
+            displayMode: direction === 'vertical'
+                ? (config.textLine1 && config.textLine2 ? 'multiple' : 'single')
+                : (shouldJoinWatermarkLines(config, direction) || preset === 'single' ? 'single' : 'multiple'),
             corrected: Boolean(correction),
         };
-    }), [images, captionCorrections, manualConfigs]);
+    }), [images, captionCorrections, manualConfigs, baseWatermarkConfig]);
     const captionPendingCount = captionReviewItems.filter(item => !item.corrected && item.analysis.confidence !== 'high').length;
     const saveCaptionReview = (changes: Record<string, {textLine1:string;textLine2:string;time:string;place:string;collection:string}>) => {
         setManualConfigs(previous => {
@@ -866,7 +872,7 @@ const Watermark: React.FC = () => {
                 <div className="flex-1 overflow-hidden relative">
                     {mobileView === "editor" && currentImg ? (
                         <div className="flex min-h-0 flex-1 flex-col">
-                        {watermarkMode !== "image" && <div className="px-2 pt-1"><CaptionReviewDialog currentFilename={currentImg.file.name} pendingCount={captionPendingCount} items={captionReviewItems} onSave={saveCaptionReview} onClear={clearCaptionReview}/></div>}
+                        {watermarkMode !== "image" && <div className="px-2 pt-1"><CaptionReviewDialog pendingCount={captionPendingCount} items={captionReviewItems} onSave={saveCaptionReview} onClear={clearCaptionReview}/></div>}
                         {watermarkMode !== "image" && <label className="flex items-center gap-2 p-2 text-sm">
                             <input type="checkbox" checked={smartEnabled} onChange={event => setSmartEnabled(event.target.checked)} />智能适配大小、颜色和排版
                         </label>}

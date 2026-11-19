@@ -9,6 +9,7 @@ export function shouldJoinWatermarkLines(config:Partial<MixedWatermarkConfig>,di
     return title>0&&title<=4&&caption>=10&&caption>=title*3;
 }
 export function getWatermarkPreset(config:Partial<MixedWatermarkConfig>, direction=config.layout||'horizontal'):WatermarkPreset {
+    if (config.compactMode) return 'single';
     if(shouldJoinWatermarkLines(config,direction))return 'single';
     return direction==='vertical'?'single':config.horizontalPreset||'paired';
 }
