@@ -124,6 +124,9 @@ export default function ImageAssetPicker({
                         {images.map((image, index) => (
                             <div
                                 key={image.id}
+                                style={layout === "list" && image.width > 0 && image.height > 0
+                                    ? {aspectRatio: `${image.width} / ${image.height}`}
+                                    : undefined}
                                 className={cn(
                                     "relative cursor-pointer overflow-hidden rounded-md transition-all duration-200",
                                     selectedId === image.id
