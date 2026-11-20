@@ -57,3 +57,10 @@
     .song-stat-row { padding: 11px 0; }
     .song-stat-row-count > span { margin-left: 9px; }
 }
+
+.song-size-research { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 24px; padding: 18px 20px; border: 1px solid currentColor; border-color: color-mix(in srgb, currentColor 16%, transparent); border-radius: 12px; }
+.song-size-research p { margin: 6px 0 0; font-size: 13px; line-height: 1.6; opacity: .72; }
+.song-size-research a { flex-shrink: 0; display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-underline-offset: 4px; }
+.song-size-research a:focus-visible { outline: 2px solid currentColor; outline-offset: 5px; border-radius: 3px; }
+.song-size-research-new-tab { font-size: 12px; }
+@media (max-width: 640px) { .song-size-research { align-items: flex-start; flex-direction: column; gap: 8px; padding: 16px; } }
