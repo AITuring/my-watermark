@@ -296,3 +296,17 @@ test('adaptive color matrix covers flat, saturated, patterned and mixed backgrou
  const checker=exports.analyzeWatermarkColor(casePixels(colorCases.find(item=>item.name==='黑白棋盘')));
  assert.ok(checker.coverage>=.95,'middle tone should cover both light and dark squares');
 });
+
+test('compact name and author render in independently selected fonts at equal size',async()=>{
+    for(const layout of ['horizontal','vertical']){
+        const r=renderer();
+        await r.render({...baseConfig,layout,compactMode:true,compactAuthor:'笑谈',fontId:'name-font',authorFontId:'author-font'});
+        const calls=r.canvases[0].calls;
+        assert.ok(calls.filter(call=>'秋声赋元'.includes(call.text)).every(call=>call.font.includes('"name-font"')));
+        const signature=calls.filter(call=>'笑谈'.includes(call.text));
+        assert.equal(signature.length,2);
+        assert.ok(signature.every(call=>call.font.includes('"author-font"')));
+        assert.equal(new Set(calls.map(call=>call.font.split('px')[0])).size,1);
+        assert.ok(r.requested.some(request=>request.id==='author-font'&&request.text==='笑谈'));
+    }
+});

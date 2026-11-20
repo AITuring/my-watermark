@@ -5,7 +5,7 @@ import { clearCaptionCorrection, getCaptionCorrection, loadCaptionCorrections, s
 import { resolveWatermarkTypography } from './font-selection';
 import { getWatermarkLayoutMetrics } from './layout-metrics';
 import { getWatermarkPreset, shouldJoinWatermarkLines } from './layout-presets';
-import { createSmartWatermark } from "./smart-watermark";
+import { createSmartWatermark, createSizedTextWatermark } from "./smart-watermark";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -109,10 +109,6 @@ const Watermark: React.FC = () => {
     const [batchReferenceTextHeight, setBatchReferenceTextHeight] = useState<number | undefined>();
     const [automaticStyle, setAutomaticStyle] = useState<Partial<MixedWatermarkConfig>>({});
     const manualPositions = useRef(new Set<string>());
-    // A direction change changes the generated image's aspect ratio. Keep a
-    // manually chosen position, but adopt the new smart scale so horizontal
-    // text does not inherit the narrow vertical column's scale.
-    const smartLayouts = useRef<Record<string, MixedWatermarkConfig['layout'] | undefined>>({});
     useEffect(() => { setCaptionCorrections(loadCaptionCorrections()); }, []);
 
     const handleWatermarkModeChange = (mode: WatermarkMode) => {
@@ -247,10 +243,10 @@ const Watermark: React.FC = () => {
                 ...manualConfigs[image.id], ...resolveWatermarkTypography(image.file.name,baseWatermarkConfig,manualConfigs[image.id],smartEnabled),textOnly: effectiveMode === "text"};
             if (smartEnabled) {
                 const result = await createSmartWatermark(image, config, manualConfigs[image.id]);
-                return {url: result.url, position: manualPositions.current.has(image.id) ? item.position : result.position};
+                return {url: result.url, position: result.url && manualPositions.current.has(image.id) ? fitWatermarkPosition(image.width,image.height,await loadPositionImage(result.url),{...item.position,scaleX:result.position.scaleX,scaleY:result.position.scaleY}) : result.position};
             }
-            const {createMixedWatermark} = await import("@/utils/watermark-processing");
-            return {url: await createMixedWatermark(config), position:item.position};
+            const result=await createSizedTextWatermark(image,config);
+            return {url:result.url,position:result.url?fitWatermarkPosition(image.width,image.height,await loadPositionImage(result.url),{...item.position,scaleX:result.scale,scaleY:result.scale}):item.position};
         },
         oversizeThresholdBytes: WATERMARK_OVERSIZE_THRESHOLD_BYTES,
         onOversizedFiles: async (files) => {
@@ -383,7 +379,8 @@ const Watermark: React.FC = () => {
                 const config = {...desiredConfig, textOnly: watermarkMode === "text"};
                 const result = smartEnabled && currentImg
                     ? await createSmartWatermark(currentImg, config, manualConfigs[currentImg.id]) : null;
-                const url = result ? result.url : await createMixedWatermark(config);
+                const sized = !result&&currentImg?await createSizedTextWatermark(currentImg,config):null;
+                const url = result ? result.url : sized?sized.url:await createMixedWatermark(config);
                 const logo = url ? await loadPositionImage(url) : null;
                 if (!cancelled) {
                     setWatermarkColorUrls({});
@@ -393,15 +390,12 @@ const Watermark: React.FC = () => {
                     setFontNotice(missing ? `所选字体缺少「${[...new Set(Array.from(missing))].join("")}」，这些字使用系统宋体补齐。` : "");
                     setAutomaticStyle(result ? {color:result.config.color, layout:result.config.layout} : {});
                     if (logo && currentImg) {
-                        const previousLayout = smartLayouts.current[currentImg.id];
-                        const layoutChanged = Boolean(result && previousLayout && previousLayout !== result.config.layout);
-                        if (result) smartLayouts.current[currentImg.id] = result.config.layout;
                         setWatermarkMaxScale(getWatermarkMaximumScale(currentImg.width,currentImg.height,logo));
                         setWatermarkPositions(prev => prev.map(position => position.id === currentImg.id
                             ? fitWatermarkPosition(currentImg.width,currentImg.height,logo,
-                                result && (!manualPositions.current.has(currentImg.id) || layoutChanged)
-                                    ? (layoutChanged ? {...position,scaleX:result.position.scaleX,scaleY:result.position.scaleY} : result.position)
-                                    : position)
+                                result && !manualPositions.current.has(currentImg.id)
+                                    ? result.position
+                                    : {...position,scaleX:result?.position.scaleX??sized?.scale??position.scaleX,scaleY:result?.position.scaleY??sized?.scale??position.scaleY})
                             : position));
                     }
                 }

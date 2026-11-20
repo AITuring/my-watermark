@@ -22,6 +22,6 @@ export function suggestWatermarkFont(filename:string):string {
 }
 
 export function resolveWatermarkTypography(filename:string,base:Partial<MixedWatermarkConfig>,manual:Partial<MixedWatermarkConfig>={},automatic=true) {
-    const fontId=manual.fontId||manual.captionFontId||(automatic?suggestWatermarkFont(filename):base.fontId||base.captionFontId)||DEFAULT_FONT_ID;
+    const fontId=manual.fontId||manual.captionFontId||((manual.compactMode??base.compactMode)?DEFAULT_FONT_ID:automatic?suggestWatermarkFont(filename):base.fontId||base.captionFontId)||DEFAULT_FONT_ID;
     return {fontId,captionFontId:fontId};
 }

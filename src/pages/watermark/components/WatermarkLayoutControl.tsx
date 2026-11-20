@@ -3,8 +3,8 @@ import {getWatermarkPreset,shouldJoinWatermarkLines,HORIZONTAL_PRESETS,VERTICAL_
 import WatermarkDirectionSwitch from './WatermarkDirectionSwitch';
 
 export default function WatermarkLayoutControl({config,onChange}:{config:MixedWatermarkConfig;onChange:(patch:Partial<MixedWatermarkConfig>)=>void}){
-    const direction=config.layout||'horizontal',preset=getWatermarkPreset(config),options=direction==='vertical'?VERTICAL_PRESETS:HORIZONTAL_PRESETS;
-    const joined=shouldJoinWatermarkLines(config,direction);
+    const direction=config.layout||'horizontal',preset=getWatermarkPreset(config),options=config.compactMode?(direction==='vertical'?[{value:'single' as const,label:'单列',hint:'图案在最上方，作者与名称同字号并接在名称下方'},{value:'paired' as const,label:'双列',hint:'作者在名称旁侧，与名称底部对齐'}]:[{value:'single' as const,label:'单行',hint:'名称与作者依次排列'},{value:'paired' as const,label:'双行',hint:'作者位于名称下一行'}]):direction==='vertical'?VERTICAL_PRESETS:HORIZONTAL_PRESETS;
+    const joined=!config.compactMode&&shouldJoinWatermarkLines(config,direction);
     return <div className="wm-layout-control">
         <span className="wm-label">排版方向</span>
         <WatermarkDirectionSwitch value={direction} onChange={layout=>onChange({layout})}/>
