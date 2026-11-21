@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, Files, MapPin, PencilLine, Save } from "lucide-react";
 
 interface StatsOverviewProps {
@@ -27,24 +26,8 @@ const StatsOverview = ({
     const values = { dirtyCount, gpsCount, inplaceCount, itemCount, writableCount };
 
     return (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            {statCards.map((card) => {
-                const Icon = card.icon;
-
-                return (
-                    <Card key={card.key} className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                        <CardContent className="flex items-center gap-3 p-4">
-                            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.iconClass}`}>
-                                <Icon className="w-4 h-4" />
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">{card.label}</p>
-                                <p className="text-xl font-semibold">{values[card.key]}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                );
-            })}
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500" aria-label="照片统计">
+            {statCards.map((card) => <span key={card.key}>{card.label} <strong className="font-medium text-foreground">{values[card.key]}</strong></span>)}
         </div>
     );
 };

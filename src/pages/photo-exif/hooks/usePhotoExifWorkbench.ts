@@ -15,6 +15,7 @@ import {
     editableGpsToPoint,
     formatGpsValue,
     isDirty,
+    isPhotoExifImageName,
     readStoredCopyrightPreset,
     readStoredCopyrightPresetEnabled,
 } from "@/pages/photo-exif/utils";
@@ -28,6 +29,14 @@ export const usePhotoExifWorkbench = () => {
     const [isExportingSingle, setIsExportingSingle] = useState(false);
     const [isSearchingLocation, setIsSearchingLocation] = useState(false);
     const itemsRef = useRef<PhotoExifItem[]>([]);
+
+    useEffect(() => {
+        const sidecars = items.filter((item) => !isPhotoExifImageName(item.file.name));
+        if (!sidecars.length) return;
+        sidecars.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+        setItems((previous) => previous.filter((item) => isPhotoExifImageName(item.file.name)));
+        toast.info(`已从工作台移除 ${sidecars.length} 个非照片伴随文件，磁盘文件未改动`);
+    }, [items]);
 
     useEffect(() => {
         itemsRef.current = items;

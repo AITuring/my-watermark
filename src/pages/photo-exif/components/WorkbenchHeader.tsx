@@ -13,11 +13,11 @@ const WorkbenchHeader = ({
     dangerSubtleButtonClass,
     onClearAll,
 }: WorkbenchHeaderProps) => (
-    <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <header className={`flex gap-3 ${hasItems ? "flex-col md:flex-row md:items-center md:justify-between" : "items-center justify-between"}`}>
         <div>
-            <h1 className="text-2xl font-bold tracking-tight lg:text-[28px]">照片 EXIF 查看与修改</h1>
+            <h1 className="text-2xl font-bold tracking-tight lg:text-[28px]">照片 EXIF</h1>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-400 sm:text-sm">
-                支持单图详情查看、GPS 地图预览、批量概览与统一修改；JPEG / PNG 支持授权后原地改写，TIF 适合读取后导出。
+                补齐照片信息，保留已有 EXIF。
             </p>
         </div>
         <div className="flex items-center gap-3">

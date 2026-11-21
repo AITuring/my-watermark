@@ -180,6 +180,7 @@ export const refreshItemFromHandle = async (
 export const overwriteItemsInPlace = async (
     targetItems: PhotoExifItem[],
     options: OverwriteItemsInPlaceOptions,
+    onItemWritten?: (item: PhotoExifItem) => void,
 ): Promise<Map<string, PhotoExifItem>> => {
     if (options.directoryHandle) {
         const hasDirectoryPermission = await verifyPermission(options.directoryHandle, true);
@@ -232,6 +233,7 @@ export const overwriteItemsInPlace = async (
             options,
         );
         refreshedItems.set(item.id, refreshed);
+        onItemWritten?.(refreshed);
     }
 
     return refreshedItems;

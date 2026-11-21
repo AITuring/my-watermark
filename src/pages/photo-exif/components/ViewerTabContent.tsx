@@ -11,7 +11,6 @@ import {
     Trash2,
     Upload,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -82,7 +81,6 @@ const ViewerTabContent = ({
     isSearchingLocation,
     secondaryButtonClass,
     primaryButtonClass,
-    dangerButtonClass,
     dangerSubtleButtonClass,
     importSourceInputRef,
     mapContainerRef,
@@ -105,74 +103,26 @@ const ViewerTabContent = ({
     <TabsContent value="viewer" className="space-y-4">
         {selectedItem ? (
             <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-                <CardContent className="space-y-5 p-5">
-                    <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-                        <div className="min-w-0">
-                            <p className="text-xs text-slate-500 dark:text-slate-400">当前图片</p>
-                            <h2 className="mt-1 text-lg font-semibold break-all">
-                                {getEffectiveFileName(selectedItem)}
-                            </h2>
-                            {getEffectiveFileName(selectedItem) !== selectedItem.originalFileName && (
-                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 break-all">
-                                    原名: {selectedItem.originalFileName}
-                                </p>
-                            )}
+                <CardContent className="space-y-3 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-3">
+                        <div className="min-w-0 flex-1">
+                            <h2 className="break-all text-sm font-semibold">{getEffectiveFileName(selectedItem)}</h2>
+                            <p className="mt-1 text-xs text-slate-500" role="status">{isDirty(selectedItem) ? "有修改 · 尚未写回" : "无待保存修改"}{selectedGpsPoint ? " · 含 GPS" : ""}</p>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                            {selectedGpsPoint && <Badge variant="outline">含 GPS</Badge>}
+                        <div className="flex shrink-0 gap-2">
+                            <Button size="sm" variant="outline" className={secondaryButtonClass} onClick={onExportSelected} disabled={!selectedItem.canWriteExif || isExportingSingle || isOverwritingSelected}>
+                                <Download className="mr-2 h-4 w-4" />{isExportingSingle ? "导出中…" : "导出副本"}
+                            </Button>
+                            <Button size="sm" className={primaryButtonClass} onClick={onOverwriteSelectedInPlace} disabled={!selectedItem.canOverwriteInPlace || !selectedItem.fileHandle || !isDirty(selectedItem) || isOverwritingSelected}>
+                                <Save className="mr-2 h-4 w-4" />{isOverwritingSelected ? "写回中…" : "写回原文件"}
+                            </Button>
                         </div>
+                        {(!selectedItem.canWriteExif || (isDirty(selectedItem) && !selectedItem.fileHandle)) && <p className="w-full text-xs text-amber-700 dark:text-amber-300">{!selectedItem.canWriteExif ? "此格式不支持保存 EXIF 修改" : "尚未授权原文件，请在顶部授权文件夹，或导出副本。"}</p>}
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div>
-                                <h3 className="text-lg font-semibold">保存当前修改</h3>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    GPS、版权或导入的整套信息修改后，可导出新图或直接写回原文件；开启默认版权后会在保存时自动补齐
-                                </p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Button
-                                    variant="outline"
-                                    className={secondaryButtonClass}
-                                    onClick={onExportSelected}
-                                    disabled={!selectedItem.canWriteExif || isExportingSingle}
-                                >
-                                    <Download className="w-4 h-4 mr-2" />
-                                    {isExportingSingle ? "导出中..." : "导出修改后图片"}
-                                </Button>
-                                <Button
-                                    className={dangerButtonClass}
-                                    onClick={onOverwriteSelectedInPlace}
-                                    disabled={!selectedItem.canOverwriteInPlace || !selectedItem.fileHandle || !isDirty(selectedItem) || isOverwritingSelected}
-                                >
-                                    <Save className="w-4 h-4 mr-2" />
-                                    {isOverwritingSelected ? "写回中..." : "写回原文件"}
-                                </Button>
-                            </div>
-                        </div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                            {!selectedItem.canWriteExif
-                                ? "当前图片格式暂不支持导出元数据修改。"
-                                : !selectedItem.canOverwriteInPlace
-                                  ? "当前图片可导出修改后的 JPEG；原地写回仅支持 JPEG / PNG。"
-                                  : !selectedItem.fileHandle
-                                    ? "当前 JPEG / PNG 还没授权原文件，可先导出修改后图片；如需直接写回，请先点击“授权原文件”。"
-                                    : !isDirty(selectedItem)
-                                      ? "当前图片还没有待保存的修改。"
-                                      : "已授权原文件，可直接原地写回。"}
-                        </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
-                        <div>
-                            <h3 className="text-lg font-semibold">文件名与时间</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                可直接修改导出/写回后的文件名，以及拍摄时间和数字化时间
-                            </p>
-                        </div>
-                        <div className="grid gap-4 xl:grid-cols-2">
-                            <div className="space-y-2">
+                    <details className="border-b py-3"><summary className="cursor-pointer text-sm font-medium">文件名与时间</summary><div className="pt-3">                    <div className="space-y-3">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-2 sm:col-span-2">
                                 <Label htmlFor="selected-file-name">文件名</Label>
                                 <div className="flex items-center gap-2">
                                     <Input
@@ -188,9 +138,7 @@ const ViewerTabContent = ({
                                         </div>
                                     )}
                                 </div>
-                                <p className={`text-xs ${selectedFileNameError ? "text-rose-500" : "text-slate-500 dark:text-slate-400"}`}>
-                                    {selectedFileNameError || `留空或非法名称会在保存时拦截，原始文件名：${selectedItem.originalFileName}`}
-                                </p>
+                                {selectedFileNameError && <p className="text-xs text-rose-500" role="alert">{selectedFileNameError}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="selected-date-time-original">拍摄时间</Label>
@@ -202,9 +150,7 @@ const ViewerTabContent = ({
                                     disabled={!selectedItem.canWriteExif}
                                     onChange={(event) => onSelectedDateTimeFieldChange("dateTimeOriginal", event.target.value)}
                                 />
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    会写回 `DateTimeOriginal`，格式自动转换为 EXIF 时间
-                                </p>
+
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="selected-date-time-digitized">数字化时间</Label>
@@ -216,14 +162,12 @@ const ViewerTabContent = ({
                                     disabled={!selectedItem.canWriteExif}
                                     onChange={(event) => onSelectedDateTimeFieldChange("dateTimeDigitized", event.target.value)}
                                 />
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    可选；会写回 `DateTimeDigitized`
-                                </p>
+
                             </div>
                         </div>
-                    </div>
+                    </div></div></details>
 
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                    <details className="border-b py-3"><summary className="cursor-pointer text-sm font-medium">从其他照片导入信息</summary><div className="pt-3">                    <div className="space-y-3">
                         <input
                             ref={importSourceInputRef}
                             type="file"
@@ -234,28 +178,7 @@ const ViewerTabContent = ({
                             className="hidden"
                             onChange={onImportSourceFileChange}
                         />
-                        <div>
-                            <h3 className="text-lg font-semibold">整套信息导入</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                适合 A 图信息被清空、但 B 图与它是同一张照片的情况，可直接把 B 的可写 EXIF 字段和 GPS 整体导入到当前图片
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 p-3 dark:border-slate-800">
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                {singleImportSourceOptions.length
-                                    ? "如果来源图还没在列表里，可继续上传；新上传的图片会自动设为当前来源图。"
-                                    : "当前还没有可选来源图，可继续上传一张同场景照片作为来源图。"}
-                            </p>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className={secondaryButtonClass}
-                                onClick={() => importSourceInputRef.current?.click()}
-                            >
-                                <Upload className="w-4 h-4 mr-2" />
-                                继续上传来源图
-                            </Button>
-                        </div>
+                        <Button type="button" variant="outline" size="sm" className={secondaryButtonClass} onClick={() => importSourceInputRef.current?.click()}><Upload className="mr-2 h-4 w-4" />添加来源照片</Button>
                         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                             <div className="space-y-2">
                                 <Label htmlFor="selected-import-source">来源图片</Label>
@@ -286,19 +209,17 @@ const ViewerTabContent = ({
                                 </Button>
                             </div>
                         </div>
-                    </div>
+                    </div></div></details>
 
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                    <div className="border-t pt-4 space-y-3">
                         <div>
-                            <h3 className="flex items-center gap-2 text-lg font-semibold">
+                            <h3 className="flex items-center gap-2 text-base font-semibold">
                                 <Camera className="w-5 h-5" />
                                 核心信息
                             </h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                汇总展示当前图片的主要 EXIF 信息，便于快速核对机身、镜头、时间和 GPS。
-                            </p>
+
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
                             {[
                                 { label: "品牌", value: selectedItem.summary.make || "-" },
                                 { label: "机型", value: selectedItem.summary.model || "-" },
@@ -311,7 +232,7 @@ const ViewerTabContent = ({
                                 { label: "软件", value: selectedItem.summary.software || "-" },
                                 { label: "GPS", value: selectedItem.summary.gps || "-" },
                             ].map((entry) => (
-                                <div key={entry.label} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                <div key={entry.label} className="border-b border-slate-100 py-2 dark:border-slate-800">
                                     <p className="text-xs text-slate-500 dark:text-slate-400">{entry.label}</p>
                                     <p className="mt-1 text-sm font-medium break-words">{entry.value}</p>
                                 </div>
@@ -320,10 +241,10 @@ const ViewerTabContent = ({
                     </div>
 
                     {(selectedGpsPoint || selectedItem.canWriteExif) && (
-                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                        <div className="border-t pt-4 space-y-3">
                             <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                                 <div>
-                                    <h3 className="flex items-center gap-2 text-lg font-semibold">
+                                    <h3 className="flex items-center gap-2 text-base font-semibold">
                                         <LocateFixed className="w-5 h-5" />
                                         GPS 编辑
                                     </h3>
@@ -409,11 +330,11 @@ const ViewerTabContent = ({
                         </div>
                     )}
 
-                    <div className="space-y-4">
-                        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                    <details className="border-b py-3"><summary className="cursor-pointer text-sm font-medium">版权与默认预设</summary><div className="pt-3">                    <div className="space-y-4">
+                        <div className="border-t pt-4 space-y-3">
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                 <div>
-                                    <h3 className="text-lg font-semibold">版权</h3>
+                                    <h3 className="text-base font-semibold">版权</h3>
                                     <p className="text-sm text-slate-500 dark:text-slate-400">
                                         当前图片版权仅展示；默认预设会在保存时自动补齐缺失的作者与版权
                                     </p>
@@ -497,7 +418,7 @@ const ViewerTabContent = ({
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div></div></details>
                 </CardContent>
             </Card>
         ) : (

@@ -21,11 +21,14 @@ export const applyCopyrightPresetToItems = (
     let affected = 0;
     const nextItems = items.map((item) => {
         if (!item.canWriteExif) return item;
+        const artist = item.editableCurrent.artist.trim() ? item.editableCurrent.artist : copyrightPreset.artist;
+        const copyright = item.editableCurrent.copyright.trim() ? item.editableCurrent.copyright : copyrightPreset.copyright;
+        if (artist === item.editableCurrent.artist && copyright === item.editableCurrent.copyright) return item;
         affected += 1;
         return applyEditableStateToItem(item, {
             ...item.editableCurrent,
-            artist: copyrightPreset.artist,
-            copyright: copyrightPreset.copyright,
+            artist: item.editableCurrent.artist.trim() ? item.editableCurrent.artist : copyrightPreset.artist,
+            copyright: item.editableCurrent.copyright.trim() ? item.editableCurrent.copyright : copyrightPreset.copyright,
         });
     });
 
@@ -38,14 +41,15 @@ export const applyBatchChangesToItems = (
     batchGps: EditableGps,
     batchOverwriteEmpty: boolean,
     sourceGps: EditableGps | null,
+    onlyMissing = true,
 ): { nextItems: PhotoExifItem[]; affected: number; hasGpsValidationError: boolean; hasNoChanges: boolean } => {
-    const activeFields = EDITABLE_FIELDS.filter(({ key }) => batchOverwriteEmpty || batchEditable[key].trim());
+    const activeFields = EDITABLE_FIELDS.filter(({ key }) => (!onlyMissing && batchOverwriteEmpty) || batchEditable[key].trim());
     const manualGpsInputted = Boolean(batchGps.lat.trim() || batchGps.lng.trim() || batchGps.locationName.trim() || batchGps.enabled);
     const manualGpsPoint = editableGpsToPoint({
         ...batchGps,
         enabled: true,
     });
-    const shouldClearGps = batchOverwriteEmpty && !sourceGps && !manualGpsInputted;
+    const shouldClearGps = !onlyMissing && batchOverwriteEmpty && !sourceGps && !manualGpsInputted;
     const shouldApplyGps = Boolean(sourceGps) || manualGpsInputted || shouldClearGps;
 
     if (manualGpsInputted && !sourceGps && !manualGpsPoint) {
@@ -69,13 +73,16 @@ export const applyBatchChangesToItems = (
     let affected = 0;
     const nextItems = items.map((item) => {
         if (!item.canWriteExif) return item;
-        affected += 1;
         const nextEditable = { ...item.editableCurrent };
         activeFields.forEach(({ key }) => {
-            nextEditable[key] = batchEditable[key];
+            if (!onlyMissing || !nextEditable[key].trim()) nextEditable[key] = batchEditable[key];
         });
+        const applyGps = shouldApplyGps && (!onlyMissing || !editableGpsToPoint(item.gpsCurrent));
+        const fieldsChanged = activeFields.some(({ key }) => nextEditable[key] !== item.editableCurrent[key]);
+        if (!fieldsChanged && !applyGps) return item;
+        affected += 1;
         const nextItem = applyEditableStateToItem(item, nextEditable);
-        if (!shouldApplyGps) return nextItem;
+        if (!applyGps) return nextItem;
 
         if (sourceGps) {
             return applyGpsStateToItem(nextItem, cloneEditableGps(sourceGps));

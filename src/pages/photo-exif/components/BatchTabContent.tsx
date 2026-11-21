@@ -63,6 +63,8 @@ interface BatchTabContentProps {
     batchImportTargetItems: PhotoExifItem[];
     batchImportWritableTargetItems: PhotoExifItem[];
     batchImportSourceItem: PhotoExifItem | null;
+    batchOnlyMissing: boolean;
+    onBatchOnlyMissingChange: (value: boolean) => void;
     batchOverwriteEmpty: boolean;
     batchEditable: EditableExif;
     batchGps: EditableGps;
@@ -83,6 +85,7 @@ interface BatchTabContentProps {
     onBatchImportScopeSelectionChange: (selection: ImportScopeSelection) => void;
     onBatchImportSourceIdChange: (value: string) => void;
     onApplyBatchSourceImport: () => void;
+    onApplyBatchSourceImportAndWrite: () => void;
     onRenameRuleInputChange: (type: RenameRuleType, value: string) => void;
     onSubmitRenameRule: (type: RenameRuleType) => void;
     onRemoveRenameRule: (ruleId: string) => void;
@@ -248,6 +251,8 @@ const BatchTabContent = ({
     batchImportTargetItems,
     batchImportWritableTargetItems,
     batchImportSourceItem,
+    batchOnlyMissing,
+    onBatchOnlyMissingChange,
     batchOverwriteEmpty,
     batchEditable,
     batchGps,
@@ -268,6 +273,7 @@ const BatchTabContent = ({
     onBatchImportScopeSelectionChange,
     onBatchImportSourceIdChange,
     onApplyBatchSourceImport,
+    onApplyBatchSourceImportAndWrite,
     onRenameRuleInputChange,
     onSubmitRenameRule,
     onRemoveRenameRule,
@@ -298,10 +304,365 @@ const BatchTabContent = ({
         }
     }, [items.length]);
 
+    const pendingCount = items.filter(isDirty).length;
+    const pendingWritableCount = items.filter((item) => isDirty(item) && item.canOverwriteInPlace && item.fileHandle).length;
     return (
-        <TabsContent value="batch" className="space-y-6">
+        <TabsContent value="batch" className="space-y-4">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border p-4">
+            <div>
+                <Label htmlFor="batch-only-missing">只补充缺失信息</Label>
+                <p className="text-sm text-slate-500">保留已有字段和 GPS，左侧默认仅显示缺相机、拍摄时间或 GPS 的照片；可在左侧切换筛选。</p>
+            </div>
+            <Switch id="batch-only-missing" checked={batchOnlyMissing} onCheckedChange={onBatchOnlyMissingChange} />
+        </div>
+
+
+                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                    <p className="w-full px-2 text-sm" role="status">{pendingCount ? `${pendingCount} 张待保存（${pendingWritableCount} 张可写回）。页面预览尚未写入原文件，待写回照片会保留在左侧。` : "没有待保存修改。先预览补齐结果，或直接补齐并写回。"}</p>
+                    <Button variant="outline" size="sm" className={secondaryButtonClass} onClick={onExportBatch} disabled={isExportingBatch || isOverwritingInPlace || !pendingCount}>
+                        <Download className="w-4 h-4 mr-2" />
+                        {isExportingBatch ? "导出中..." : "导出已修改图片"}
+                    </Button>
+                    <Button className={dangerButtonClass} size="sm" onClick={onOverwriteBatchInPlace} disabled={isOverwritingInPlace || !pendingWritableCount}>
+                        <Save className="w-4 h-4 mr-2" />
+                        {isOverwritingInPlace ? "原地改写中..." : "写回全部待保存照片"}
+                    </Button>
+                </div>
+
         <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
             <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Upload className="w-5 h-5" />
+                    批量来源图导入
+                </CardTitle>
+                <CardDescription>
+                    选择来源图和信息范围，只处理左侧当前筛选出的照片；已有信息按“只补充缺失信息”设置保留。
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-4">
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" className={secondaryButtonClass} onClick={onSetSelectedAsBatchImportSource}>
+                        从当前图片设为来源图
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className={secondaryButtonClass}
+                        onClick={() => onBatchImportScopeSelectionChange(createImportScopeSelection(["gps"]))}
+                    >
+                        只导入GPS
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className={secondaryButtonClass}
+                        onClick={() => onBatchImportScopeSelectionChange(createImportScopeSelection(["time"]))}
+                    >
+                        只导入时间
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className={secondaryButtonClass}
+                        onClick={() => onBatchImportScopeSelectionChange(DEFAULT_IMPORT_SCOPE_SELECTION)}
+                    >
+                        恢复默认勾选
+                    </Button>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <div className="space-y-2">
+                        <Label htmlFor="batch-import-source">来源图片</Label>
+                        <select
+                            id="batch-import-source"
+                            title="选择批量来源图片"
+                            aria-label="选择批量来源图片"
+                            value={batchImportSourceId}
+                            onChange={(event) => onBatchImportSourceIdChange(event.target.value)}
+                            className="flex h-10 w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm ring-offset-background dark:border-slate-800"
+                        >
+                            <option value="">{batchImportSourceOptions.length ? "请选择来源图片" : "没有包含所选信息的来源图片"}</option>
+                            {batchImportSourceOptions.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                    {getEffectiveFileName(item)}
+                                </option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-slate-500">仅列出含有所勾选信息的照片（{batchImportSourceOptions.length} 张）</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
+                        <p>当前筛选目标：{batchImportTargetItems.length} 张</p>
+                        <p>可原地写回：{batchImportWritableTargetItems.length} 张</p>
+                        <p>当前来源图：{batchImportSourceItem ? getEffectiveFileName(batchImportSourceItem) : "未选择"}</p>
+                    </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {IMPORT_SCOPE_DEFINITIONS.map((scope) => (
+                        <label
+                            key={`batch-scope-${scope.key}`}
+                            className={`flex cursor-pointer gap-3 rounded-2xl border p-4 transition-colors ${
+                                batchImportScopeSelection[scope.key]
+                                    ? "border-blue-500 bg-blue-50/70 dark:border-blue-500/70 dark:bg-blue-950/20"
+                                    : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
+                            }`}
+                        >
+                            <input
+                                type="checkbox"
+                                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                checked={batchImportScopeSelection[scope.key]}
+                                onChange={(event) =>
+                                    onBatchImportScopeSelectionChange({
+                                        ...batchImportScopeSelection,
+                                        [scope.key]: event.target.checked,
+                                    })
+                                }
+                            />
+                            <div className="min-w-0 space-y-1">
+                                <p className="text-sm font-medium">{scope.label}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">{scope.description}</p>
+                            </div>
+                        </label>
+                    ))}
+                </div>
+
+                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                    <Button variant="outline" className={secondaryButtonClass} size="sm" onClick={onApplyBatchSourceImport} disabled={isOverwritingInPlace || !batchImportSourceItem || !batchImportTargetItems.length}>
+                        预览补齐（不改原文件）
+                    </Button>
+                    <Button className={accentButtonClass} size="sm" onClick={onApplyBatchSourceImportAndWrite} disabled={isOverwritingInPlace || !batchImportSourceItem || !batchImportTargetItems.length}>
+                        {isOverwritingInPlace ? "写回中…" : "补齐并写回原文件"}
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Files className="w-5 h-5" />
+                    批量统一修改
+                </CardTitle>
+                <CardDescription>
+                    默认只补充照片中缺失的字段；关闭“只补充缺失信息”后可统一覆盖已有值
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium">空值也覆盖</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                            需先关闭“只补充缺失信息”；打开后，未填写的字段及 GPS 会清空
+                        </p>
+                    </div>
+                    <Switch disabled={batchOnlyMissing} checked={!batchOnlyMissing && batchOverwriteEmpty} onCheckedChange={onBatchOverwriteEmptyChange} />
+                </div>
+
+                <details><summary className="cursor-pointer text-sm font-medium">填写相机、镜头与拍摄参数</summary><div className="pt-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    {EDITABLE_FIELDS.map((field) => (
+                        <div key={field.key} className="space-y-2">
+                            <Label htmlFor={`batch-${field.key}`}>{field.label}</Label>
+                            <Input
+                                id={`batch-${field.key}`}
+                                type={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? "datetime-local" : undefined}
+                                step={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? "1" : undefined}
+                                value={
+                                    field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized"
+                                        ? exifDateTimeToLocalInputValue(batchEditable[field.key])
+                                        : batchEditable[field.key]
+                                }
+                                placeholder={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? undefined : field.placeholder}
+                                onChange={(event) => onBatchEditableFieldChange(field.key, event.target.value)}
+                            />
+                            {(field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized") && (
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    自动转换为 EXIF 时间格式后批量应用
+                                </p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                </div></details>
+
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <h3 className="text-base font-semibold flex items-center gap-2">
+                                <LocateFixed className="w-4 h-4" />
+                                批量 GPS 处理
+                            </h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                                可手动统一设置 GPS，或从一张已有定位的照片同步到当前筛选照片
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" className={secondaryButtonClass} onClick={onSyncBatchGpsFromSelected}>
+                                从当前图片同步
+                            </Button>
+                            <Button variant="outline" className={dangerSubtleButtonClass} onClick={onClearBatchGpsConfig}>
+                                清空 GPS 配置
+                            </Button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="batch-gps-source">同步来源照片</Label>
+                        <select
+                            id="batch-gps-source"
+                            title="选择批量 GPS 同步来源照片"
+                            aria-label="选择批量 GPS 同步来源照片"
+                            value={batchGpsSourceId}
+                            onChange={(event) => onBatchGpsSourceIdChange(event.target.value)}
+                            className="flex h-10 w-full rounded-md border border-slate-200 dark:border-slate-800 bg-transparent px-3 py-2 text-sm ring-offset-background"
+                        >
+                            <option value="">不使用同步来源，改为手动填写 GPS</option>
+                            {gpsSourceOptions.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                    {getEffectiveFileName(item)}{item.gpsCurrent.locationName.trim() ? ` - ${item.gpsCurrent.locationName}` : ""}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                        <div>
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <Input
+                                    value={batchLocationSearchQuery}
+                                    placeholder="搜索批量地点，例如 上海外滩 / 故宫博物院"
+                                    disabled={isSearchingLocation}
+                                    onChange={(event) => onBatchLocationSearchQueryChange(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            event.preventDefault();
+                                            onSearchBatchLocation();
+                                        }
+                                    }}
+                                />
+                                <Button
+                                    className={primaryButtonClass}
+                                    onClick={onSearchBatchLocation}
+                                    disabled={isSearchingLocation}
+                                >
+                                    <Search className="w-4 h-4 mr-2" />
+                                    {isSearchingLocation ? "搜索中..." : "搜索地点"}
+                                </Button>
+                            </div>
+                        </div>
+                        <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 lg:justify-end">
+                            {batchGps.locationName || "未设置地点名称"}
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="space-y-2">
+                            <Label htmlFor="batch-gps-lat">批量纬度</Label>
+                            <Input
+                                id="batch-gps-lat"
+                                value={batchGps.lat}
+                                placeholder="例如 31.230416"
+                                onChange={(event) => onBatchGpsFieldChange("lat", event.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="batch-gps-lng">批量经度</Label>
+                            <Input
+                                id="batch-gps-lng"
+                                value={batchGps.lng}
+                                placeholder="例如 121.473701"
+                                onChange={(event) => onBatchGpsFieldChange("lng", event.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="batch-gps-location">地点名称</Label>
+                            <Input
+                                id="batch-gps-location"
+                                value={batchGps.locationName}
+                                placeholder="例如 上海外滩"
+                                onChange={(event) => onBatchGpsFieldChange("locationName", event.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                        <div ref={batchMapContainerRef} className="h-[280px] w-full bg-slate-100 dark:bg-slate-900" />
+                    </div>
+                    {batchMapState.loading && (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">批量地图加载中...</p>
+                    )}
+                    {batchMapState.error && (
+                        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+                            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                            {batchMapState.error}
+                        </div>
+                    )}
+
+                    <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-3 text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                        <p>1. 选了“同步来源照片”后，批量应用时会优先使用该照片的 GPS。</p>
+                        <p>2. 未选来源时，可手动填写、搜索地点，或直接点击地图和拖拽标记设置 GPS。</p>
+                        <p>3. 打开“空值也覆盖”且 GPS 配置为空时，关闭“只补充缺失信息”后，会清除当前筛选照片的 GPS。</p>
+                    </div>
+                </div>
+
+
+                <div className="flex flex-wrap gap-2">                    <Button onClick={onApplyBatchChanges} size="sm" className={primaryButtonClass}>
+                        <PencilLine className="w-4 h-4 mr-2" />
+                        预览填写内容（不改原文件）
+                    </Button>
+                    <Button variant="outline" size="sm" className={dangerSubtleButtonClass} onClick={onResetAllEditable}>
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        恢复全部修改
+                    </Button>
+</div>
+            </CardContent>
+        </Card>
+
+            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+            <CardHeader>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <CardTitle className="flex items-center gap-2">
+                                <FileImage className="w-5 h-5" />
+                                批量逐张编辑与概览
+                            </CardTitle>
+                            <CardDescription>
+                                支持逐张调整文件名和时间，并快速查看哪些图片可导出、可原地改写或包含位置信息
+                            </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline">{items.length} 张</Badge>
+                            {items.length > OVERVIEW_AUTO_COLLAPSE_THRESHOLD && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className={secondaryButtonClass}
+                                    onClick={() => setIsItemOverviewExpanded((previous) => !previous)}
+                                >
+                                    {isItemOverviewExpanded ? "收起列表" : "展开列表"}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+                    {isItemOverviewExpanded ? (
+                        <BatchItemOverviewBody
+                            items={items}
+                            secondaryButtonClass={secondaryButtonClass}
+                            onSelectItem={onSelectItem}
+                            onItemFileNameChange={onItemFileNameChange}
+                            onItemDateTimeFieldChange={onItemDateTimeFieldChange}
+                        />
+                    ) : (
+                        <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4 text-sm text-slate-500 dark:text-slate-400 space-y-2">
+                            <p>当前工作台共有 {items.length} 张图片。</p>
+                            <p>为避免批量改名时整页重复渲染，这里的逐张编辑列表在较多图片时默认折叠，按需展开即可。</p>
+                        </div>
+                    )}
+            </CardContent>
+        </Card>
+        <details className="rounded-xl border p-3"><summary className="cursor-pointer text-sm font-medium">批量改名</summary><div className="pt-3">        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+            <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2">
                     <PencilLine className="w-5 h-5" />
                     批量改名助手
@@ -310,7 +671,7 @@ const BatchTabContent = ({
                     把常和 EXIF 联动使用的改名规则直接放进工作台；应用后会进入当前图片的导出/原地写回文件名
                 </CardDescription>
             </CardHeader>
-            <CardContent className="pt-0 space-y-6">
+            <CardContent className="pt-0 space-y-4">
                 <div className="grid gap-4 xl:grid-cols-3">
                     {RENAME_RULE_DEFINITIONS.map((definition) => (
                         <div key={definition.type} className="space-y-2">
@@ -437,7 +798,7 @@ const BatchTabContent = ({
                         <div>
                             <p className="text-sm font-medium">改名预览</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                                真正落盘发生在后续“导出已修改图片”或“原地改写已修改 JPEG / PNG”
+                                真正落盘发生在后续“导出已修改图片”或“写回全部待保存照片”
                             </p>
                         </div>
                         <Badge variant="outline">{renamePreviewRows.length} 条结果</Badge>
@@ -484,348 +845,7 @@ const BatchTabContent = ({
                     )}
                 </div>
             </CardContent>
-        </Card>
-
-        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Upload className="w-5 h-5" />
-                    批量来源图导入
-                </CardTitle>
-                <CardDescription>
-                    选择一张来源图后，可把它的 EXIF 与 GPS 按范围导入到其它全部可导出图片
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-6">
-                <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" className={secondaryButtonClass} onClick={onSetSelectedAsBatchImportSource}>
-                        从当前图片设为来源图
-                    </Button>
-                    <Button
-                        variant="outline"
-                        className={secondaryButtonClass}
-                        onClick={() => onBatchImportScopeSelectionChange(createImportScopeSelection(["gps"]))}
-                    >
-                        只导入GPS
-                    </Button>
-                    <Button
-                        variant="outline"
-                        className={secondaryButtonClass}
-                        onClick={() => onBatchImportScopeSelectionChange(createImportScopeSelection(["time"]))}
-                    >
-                        只导入时间
-                    </Button>
-                    <Button
-                        variant="outline"
-                        className={secondaryButtonClass}
-                        onClick={() => onBatchImportScopeSelectionChange(DEFAULT_IMPORT_SCOPE_SELECTION)}
-                    >
-                        恢复默认勾选
-                    </Button>
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                    <div className="space-y-2">
-                        <Label htmlFor="batch-import-source">来源图片</Label>
-                        <select
-                            id="batch-import-source"
-                            title="选择批量来源图片"
-                            aria-label="选择批量来源图片"
-                            value={batchImportSourceId}
-                            onChange={(event) => onBatchImportSourceIdChange(event.target.value)}
-                            className="flex h-10 w-full rounded-md border border-slate-200 bg-transparent px-3 py-2 text-sm ring-offset-background dark:border-slate-800"
-                        >
-                            <option value="">请选择来源图片</option>
-                            {batchImportSourceOptions.map((item) => (
-                                <option key={item.id} value={item.id}>
-                                    {getEffectiveFileName(item)}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
-                        <p>目标图片：{batchImportTargetItems.length} 张</p>
-                        <p>可原地写回：{batchImportWritableTargetItems.length} 张</p>
-                        <p>当前来源图：{batchImportSourceItem ? getEffectiveFileName(batchImportSourceItem) : "未选择"}</p>
-                    </div>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {IMPORT_SCOPE_DEFINITIONS.map((scope) => (
-                        <label
-                            key={`batch-scope-${scope.key}`}
-                            className={`flex cursor-pointer gap-3 rounded-2xl border p-4 transition-colors ${
-                                batchImportScopeSelection[scope.key]
-                                    ? "border-blue-500 bg-blue-50/70 dark:border-blue-500/70 dark:bg-blue-950/20"
-                                    : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"
-                            }`}
-                        >
-                            <input
-                                type="checkbox"
-                                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                checked={batchImportScopeSelection[scope.key]}
-                                onChange={(event) =>
-                                    onBatchImportScopeSelectionChange({
-                                        ...batchImportScopeSelection,
-                                        [scope.key]: event.target.checked,
-                                    })
-                                }
-                            />
-                            <div className="min-w-0 space-y-1">
-                                <p className="text-sm font-medium">{scope.label}</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">{scope.description}</p>
-                            </div>
-                        </label>
-                    ))}
-                </div>
-
-                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
-                    <Button className={accentButtonClass} size="sm" onClick={onApplyBatchSourceImport}>
-                        导入到全部图片
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-
-        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Files className="w-5 h-5" />
-                    批量统一修改
-                </CardTitle>
-                <CardDescription>
-                    默认只覆盖你填写的字段；打开“空值也覆盖”后，留空字段会清空原有值
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                    <div className="space-y-1">
-                        <p className="text-sm font-medium">空值也覆盖</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                            打开后，批量表单里未填写的字段也会写成空值
-                        </p>
-                    </div>
-                    <Switch checked={batchOverwriteEmpty} onCheckedChange={onBatchOverwriteEmptyChange} />
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                    {EDITABLE_FIELDS.map((field) => (
-                        <div key={field.key} className="space-y-2">
-                            <Label htmlFor={`batch-${field.key}`}>{field.label}</Label>
-                            <Input
-                                id={`batch-${field.key}`}
-                                type={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? "datetime-local" : undefined}
-                                step={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? "1" : undefined}
-                                value={
-                                    field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized"
-                                        ? exifDateTimeToLocalInputValue(batchEditable[field.key])
-                                        : batchEditable[field.key]
-                                }
-                                placeholder={field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized" ? undefined : field.placeholder}
-                                onChange={(event) => onBatchEditableFieldChange(field.key, event.target.value)}
-                            />
-                            {(field.key === "dateTimeOriginal" || field.key === "dateTimeDigitized") && (
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    自动转换为 EXIF 时间格式后批量应用
-                                </p>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-4">
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
-                            <h3 className="text-base font-semibold flex items-center gap-2">
-                                <LocateFixed className="w-4 h-4" />
-                                批量 GPS 处理
-                            </h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                可手动统一设置 GPS，或从一张已有定位的照片同步到全部可导出图片
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" className={secondaryButtonClass} onClick={onSyncBatchGpsFromSelected}>
-                                从当前图片同步
-                            </Button>
-                            <Button variant="outline" className={dangerSubtleButtonClass} onClick={onClearBatchGpsConfig}>
-                                清空 GPS 配置
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label htmlFor="batch-gps-source">同步来源照片</Label>
-                        <select
-                            id="batch-gps-source"
-                            title="选择批量 GPS 同步来源照片"
-                            aria-label="选择批量 GPS 同步来源照片"
-                            value={batchGpsSourceId}
-                            onChange={(event) => onBatchGpsSourceIdChange(event.target.value)}
-                            className="flex h-10 w-full rounded-md border border-slate-200 dark:border-slate-800 bg-transparent px-3 py-2 text-sm ring-offset-background"
-                        >
-                            <option value="">不使用同步来源，改为手动填写 GPS</option>
-                            {gpsSourceOptions.map((item) => (
-                                <option key={item.id} value={item.id}>
-                                    {getEffectiveFileName(item)}{item.gpsCurrent.locationName.trim() ? ` - ${item.gpsCurrent.locationName}` : ""}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                        <div>
-                            <div className="flex flex-col gap-3 sm:flex-row">
-                                <Input
-                                    value={batchLocationSearchQuery}
-                                    placeholder="搜索批量地点，例如 上海外滩 / 故宫博物院"
-                                    disabled={isSearchingLocation}
-                                    onChange={(event) => onBatchLocationSearchQueryChange(event.target.value)}
-                                    onKeyDown={(event) => {
-                                        if (event.key === "Enter") {
-                                            event.preventDefault();
-                                            onSearchBatchLocation();
-                                        }
-                                    }}
-                                />
-                                <Button
-                                    className={primaryButtonClass}
-                                    onClick={onSearchBatchLocation}
-                                    disabled={isSearchingLocation}
-                                >
-                                    <Search className="w-4 h-4 mr-2" />
-                                    {isSearchingLocation ? "搜索中..." : "搜索地点"}
-                                </Button>
-                            </div>
-                        </div>
-                        <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 lg:justify-end">
-                            {batchGps.locationName || "未设置地点名称"}
-                        </div>
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-3">
-                        <div className="space-y-2">
-                            <Label htmlFor="batch-gps-lat">批量纬度</Label>
-                            <Input
-                                id="batch-gps-lat"
-                                value={batchGps.lat}
-                                placeholder="例如 31.230416"
-                                onChange={(event) => onBatchGpsFieldChange("lat", event.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="batch-gps-lng">批量经度</Label>
-                            <Input
-                                id="batch-gps-lng"
-                                value={batchGps.lng}
-                                placeholder="例如 121.473701"
-                                onChange={(event) => onBatchGpsFieldChange("lng", event.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="batch-gps-location">地点名称</Label>
-                            <Input
-                                id="batch-gps-location"
-                                value={batchGps.locationName}
-                                placeholder="例如 上海外滩"
-                                onChange={(event) => onBatchGpsFieldChange("locationName", event.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
-                        <div ref={batchMapContainerRef} className="h-[280px] w-full bg-slate-100 dark:bg-slate-900" />
-                    </div>
-                    {batchMapState.loading && (
-                        <p className="text-sm text-slate-500 dark:text-slate-400">批量地图加载中...</p>
-                    )}
-                    {batchMapState.error && (
-                        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
-                            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                            {batchMapState.error}
-                        </div>
-                    )}
-
-                    <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-3 text-xs text-slate-500 dark:text-slate-400 space-y-1">
-                        <p>1. 选了“同步来源照片”后，批量应用时会优先使用该照片的 GPS。</p>
-                        <p>2. 未选来源时，可手动填写、搜索地点，或直接点击地图和拖拽标记设置 GPS。</p>
-                        <p>3. 打开“空值也覆盖”且 GPS 配置为空时，会批量清除全部可导出图片的 GPS。</p>
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
-                    <Button onClick={onApplyBatchChanges} size="sm" className={primaryButtonClass}>
-                        <PencilLine className="w-4 h-4 mr-2" />
-                        应用到全部图片
-                    </Button>
-                    <Button variant="outline" size="sm" className={dangerSubtleButtonClass} onClick={onResetAllEditable}>
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        恢复全部修改
-                    </Button>
-                    <Button variant="outline" size="sm" className={secondaryButtonClass} onClick={onExportBatch} disabled={isExportingBatch}>
-                        <Download className="w-4 h-4 mr-2" />
-                        {isExportingBatch ? "导出中..." : "导出已修改图片"}
-                    </Button>
-                    <Button className={dangerButtonClass} size="sm" onClick={onOverwriteBatchInPlace} disabled={isOverwritingInPlace}>
-                        <Save className="w-4 h-4 mr-2" />
-                        {isOverwritingInPlace ? "原地改写中..." : "原地改写已修改 JPEG / PNG"}
-                    </Button>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-sm text-slate-600 dark:text-slate-300 space-y-2">
-                    <p>原地改写说明：</p>
-                    <p>1. 仅对从“选择文件夹并授权写入”导入的 JPEG / PNG 生效。</p>
-                    <p>2. 会直接覆盖原文件，请先确认字段修改无误。</p>
-                    <p>3. 原地写回后，列表会自动刷新为最新 EXIF 状态。</p>
-                </div>
-            </CardContent>
-        </Card>
-
-            <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-            <CardHeader>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <CardTitle className="flex items-center gap-2">
-                                <FileImage className="w-5 h-5" />
-                                批量逐张编辑与概览
-                            </CardTitle>
-                            <CardDescription>
-                                支持逐张调整文件名和时间，并快速查看哪些图片可导出、可原地改写或包含位置信息
-                            </CardDescription>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Badge variant="outline">{items.length} 张</Badge>
-                            {items.length > OVERVIEW_AUTO_COLLAPSE_THRESHOLD && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className={secondaryButtonClass}
-                                    onClick={() => setIsItemOverviewExpanded((previous) => !previous)}
-                                >
-                                    {isItemOverviewExpanded ? "收起列表" : "展开列表"}
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-                    {isItemOverviewExpanded ? (
-                        <BatchItemOverviewBody
-                            items={items}
-                            secondaryButtonClass={secondaryButtonClass}
-                            onSelectItem={onSelectItem}
-                            onItemFileNameChange={onItemFileNameChange}
-                            onItemDateTimeFieldChange={onItemDateTimeFieldChange}
-                        />
-                    ) : (
-                        <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4 text-sm text-slate-500 dark:text-slate-400 space-y-2">
-                            <p>当前工作台共有 {items.length} 张图片。</p>
-                            <p>为避免批量改名时整页重复渲染，这里的逐张编辑列表在较多图片时默认折叠，按需展开即可。</p>
-                        </div>
-                    )}
-            </CardContent>
-        </Card>
+        </Card></div></details>
         </TabsContent>
     );
 };
