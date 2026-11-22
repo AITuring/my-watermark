@@ -91,7 +91,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                 <Tabs defaultValue="viewer" className="space-y-3">
                                     <TabsList className="grid w-full grid-cols-2">
                                         <TabsTrigger value="viewer">当前照片</TabsTrigger>
-                                        <TabsTrigger value="batch">批量处理</TabsTrigger>
+                                        <TabsTrigger value="batch">批量补齐</TabsTrigger>
                                     </TabsList>
 
                                     <ViewerTabContent

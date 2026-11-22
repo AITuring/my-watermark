@@ -32,6 +32,8 @@ export type PhotoFrameProps = SortablePhotoProps & {
 };
 
 export interface ImgProp {
+    fileName?: string;
+    sourceFile?: File;
     id: string;
     src: string;
     width: number;

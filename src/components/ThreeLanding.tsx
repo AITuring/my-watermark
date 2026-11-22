@@ -28,11 +28,11 @@ export default function ThreeLanding({ getRootProps, getInputProps }: ThreeLandi
         {showScene && <SceneBoundary><Suspense fallback={null}><LandingScene /></Suspense></SceneBoundary>}
       </div>
 
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-end pb-6 sm:pb-10 pointer-events-none">
          <div className="pointer-events-auto">
              <div
                 {...getRootProps()}
-                className="group relative flex flex-col items-center justify-center p-12 transition-all duration-300 hover:scale-105 cursor-pointer"
+                className="group relative flex flex-col items-center justify-center p-4 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
              >
                 <input {...getInputProps()} />
                 <div className="absolute inset-0 bg-black/40 rounded-full blur-xl group-hover:bg-black/60 transition-all duration-500" />

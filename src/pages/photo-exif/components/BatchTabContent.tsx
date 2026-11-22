@@ -308,6 +308,191 @@ const BatchTabContent = ({
     const pendingWritableCount = items.filter((item) => isDirty(item) && item.canOverwriteInPlace && item.fileHandle).length;
     return (
         <TabsContent value="batch" className="space-y-4">
+        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
+            <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                    <PencilLine className="w-5 h-5" />
+                    批量重命名
+                </CardTitle>
+                <CardDescription>
+                    对已载入照片按文件名筛选，添加规则后检查预览；应用后点击下方“写回全部待保存照片”或“导出已修改图片”保存。
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-4">
+                <div className="grid gap-4 xl:grid-cols-3">
+                    {RENAME_RULE_DEFINITIONS.map((definition) => (
+                        <div key={definition.type} className="space-y-2">
+                            <Label htmlFor={`rename-rule-${definition.type}`}>{definition.label}</Label>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    id={`rename-rule-${definition.type}`}
+                                    value={renameRuleInputs[definition.type]}
+                                    placeholder={definition.placeholder}
+                                    onChange={(event) => onRenameRuleInputChange(definition.type, event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            event.preventDefault();
+                                            onSubmitRenameRule(definition.type);
+                                        }
+                                    }}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className={secondaryButtonClass}
+                                    onClick={() => onSubmitRenameRule(definition.type)}
+                                >
+                                    添加
+                                </Button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-medium">当前规则</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                规则按添加顺序依次执行，适合先删前缀，再补统一前后缀
+                            </p>
+                        </div>
+                        <Badge variant="outline">{renameRules.length} 条规则</Badge>
+                    </div>
+                    {renameRules.length ? (
+                        <div className="flex flex-wrap gap-2">
+                            {renameRules.map((rule) => (
+                                <div
+                                    key={rule.id}
+                                    className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm dark:border-slate-700 dark:bg-slate-950"
+                                >
+                                    <span className="text-slate-500 dark:text-slate-400">
+                                        {rule.type === "delete" ? "删除" : rule.type === "add_prefix" ? "前缀" : "后缀"}
+                                    </span>
+                                    <span className="font-medium break-all">{rule.value}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => onRemoveRenameRule(rule.id)}
+                                        className="text-slate-400 hover:text-rose-500"
+                                        aria-label="删除改名规则"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            还没有规则，先输入要删除的内容或要追加的前后缀
+                        </p>
+                    )}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                    <div className="space-y-2">
+                        <Label htmlFor="rename-filter-keyword">筛选范围</Label>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                id="rename-filter-keyword"
+                                value={renameFilterKeyword}
+                                placeholder="只处理名称里包含这个关键词的图片；留空表示全部"
+                                onChange={(event) => onRenameFilterKeywordChange(event.target.value)}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className={secondaryButtonClass}
+                                onClick={() => onRenameFilterKeywordChange("")}
+                                disabled={!renameFilterKeyword}
+                            >
+                                <Search className="w-4 h-4 mr-2" />
+                                清空
+                            </Button>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                            只对当前工作台里可导出修改的图片生效；TIF 也会使用这里的文件名预设
+                        </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
+                        <p>匹配图片：{renamePreviewRows.length} 张</p>
+                        <p>名称变化：{renameChangedCount} 张</p>
+                        <p>可直接应用：{renameApplicableCount} 张</p>
+                        <p>待处理冲突：{renameBlockedCount} 张</p>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
+                    <Button
+                        type="button"
+                        size="sm"
+                        className={primaryButtonClass}
+                        onClick={onApplyRenameRulesToWorkbench}
+                        disabled={!renameRules.length || !renamePreviewRows.length}
+                    >
+                        <PencilLine className="w-4 h-4 mr-2" />
+                        应用到当前工作台
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" className={dangerSubtleButtonClass} onClick={onClearRenameRules}>
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        清空规则
+                    </Button>
+                </div>
+
+                <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-sm font-medium">改名预览</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                真正落盘发生在后续“导出已修改图片”或“写回全部待保存照片”
+                            </p>
+                        </div>
+                        <Badge variant="outline">{renamePreviewRows.length} 条结果</Badge>
+                    </div>
+                    {renamePreviewRows.length ? (
+                        <ScrollArea className="h-[260px] pr-3">
+                            <div className="space-y-3">
+                                {renamePreviewRows.map((row) => (
+                                    <div key={row.itemId} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                            <div className="min-w-0 flex-1 space-y-2">
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 break-all">
+                                                    原名：{row.originalName}
+                                                </p>
+                                                <p className={`text-sm font-medium break-all ${row.canApply ? "text-blue-600 dark:text-blue-300" : "text-slate-900 dark:text-slate-100"}`}>
+                                                    目标：{row.nextName}
+                                                </p>
+                                            </div>
+                                            <Badge
+                                                className={
+                                                    row.canApply
+                                                        ? "bg-emerald-600 text-white hover:bg-emerald-600"
+                                                        : row.duplicate || row.validationError
+                                                            ? "bg-rose-600 text-white hover:bg-rose-600"
+                                                            : "bg-slate-500 text-white hover:bg-slate-500"
+                                                }
+                                            >
+                                                {row.canApply ? "可应用" : row.duplicate ? "名称重复" : row.validationError ? "名称非法" : "无变化"}
+                                            </Badge>
+                                        </div>
+                                        {(row.validationError || row.duplicate) && (
+                                            <p className="mt-2 text-xs text-rose-500">
+                                                {row.validationError || "目标名称与其它图片重复，请调整规则或筛选范围"}
+                                            </p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </ScrollArea>
+                    ) : (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            当前没有可预览结果，先上传图片或调整筛选关键词
+                        </p>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
         <div className="flex items-center justify-between gap-4 rounded-2xl border p-4">
             <div>
                 <Label htmlFor="batch-only-missing">只补充缺失信息</Label>
@@ -661,191 +846,7 @@ const BatchTabContent = ({
                     )}
             </CardContent>
         </Card>
-        <details className="rounded-xl border p-3"><summary className="cursor-pointer text-sm font-medium">批量改名</summary><div className="pt-3">        <Card className="border-slate-200/70 bg-white/85 dark:bg-slate-900/80 dark:border-slate-800">
-            <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                    <PencilLine className="w-5 h-5" />
-                    批量改名助手
-                </CardTitle>
-                <CardDescription>
-                    把常和 EXIF 联动使用的改名规则直接放进工作台；应用后会进入当前图片的导出/原地写回文件名
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-4">
-                <div className="grid gap-4 xl:grid-cols-3">
-                    {RENAME_RULE_DEFINITIONS.map((definition) => (
-                        <div key={definition.type} className="space-y-2">
-                            <Label htmlFor={`rename-rule-${definition.type}`}>{definition.label}</Label>
-                            <div className="flex items-center gap-2">
-                                <Input
-                                    id={`rename-rule-${definition.type}`}
-                                    value={renameRuleInputs[definition.type]}
-                                    placeholder={definition.placeholder}
-                                    onChange={(event) => onRenameRuleInputChange(definition.type, event.target.value)}
-                                    onKeyDown={(event) => {
-                                        if (event.key === "Enter") {
-                                            event.preventDefault();
-                                            onSubmitRenameRule(definition.type);
-                                        }
-                                    }}
-                                />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className={secondaryButtonClass}
-                                    onClick={() => onSubmitRenameRule(definition.type)}
-                                >
-                                    添加
-                                </Button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
 
-                <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="text-sm font-medium">当前规则</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                规则按添加顺序依次执行，适合先删前缀，再补统一前后缀
-                            </p>
-                        </div>
-                        <Badge variant="outline">{renameRules.length} 条规则</Badge>
-                    </div>
-                    {renameRules.length ? (
-                        <div className="flex flex-wrap gap-2">
-                            {renameRules.map((rule) => (
-                                <div
-                                    key={rule.id}
-                                    className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm dark:border-slate-700 dark:bg-slate-950"
-                                >
-                                    <span className="text-slate-500 dark:text-slate-400">
-                                        {rule.type === "delete" ? "删除" : rule.type === "add_prefix" ? "前缀" : "后缀"}
-                                    </span>
-                                    <span className="font-medium break-all">{rule.value}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => onRemoveRenameRule(rule.id)}
-                                        className="text-slate-400 hover:text-rose-500"
-                                        aria-label="删除改名规则"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                            还没有规则，先输入要删除的内容或要追加的前后缀
-                        </p>
-                    )}
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-                    <div className="space-y-2">
-                        <Label htmlFor="rename-filter-keyword">筛选范围</Label>
-                        <div className="flex items-center gap-2">
-                            <Input
-                                id="rename-filter-keyword"
-                                value={renameFilterKeyword}
-                                placeholder="只处理名称里包含这个关键词的图片；留空表示全部"
-                                onChange={(event) => onRenameFilterKeywordChange(event.target.value)}
-                            />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className={secondaryButtonClass}
-                                onClick={() => onRenameFilterKeywordChange("")}
-                                disabled={!renameFilterKeyword}
-                            >
-                                <Search className="w-4 h-4 mr-2" />
-                                清空
-                            </Button>
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                            只对当前工作台里可导出修改的图片生效；TIF 也会使用这里的文件名预设
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 space-y-1">
-                        <p>匹配图片：{renamePreviewRows.length} 张</p>
-                        <p>名称变化：{renameChangedCount} 张</p>
-                        <p>可直接应用：{renameApplicableCount} 张</p>
-                        <p>待处理冲突：{renameBlockedCount} 张</p>
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/60">
-                    <Button
-                        type="button"
-                        size="sm"
-                        className={primaryButtonClass}
-                        onClick={onApplyRenameRulesToWorkbench}
-                        disabled={!renameRules.length || !renamePreviewRows.length}
-                    >
-                        <PencilLine className="w-4 h-4 mr-2" />
-                        应用到当前工作台
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" className={dangerSubtleButtonClass} onClick={onClearRenameRules}>
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        清空规则
-                    </Button>
-                </div>
-
-                <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="text-sm font-medium">改名预览</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                真正落盘发生在后续“导出已修改图片”或“写回全部待保存照片”
-                            </p>
-                        </div>
-                        <Badge variant="outline">{renamePreviewRows.length} 条结果</Badge>
-                    </div>
-                    {renamePreviewRows.length ? (
-                        <ScrollArea className="h-[260px] pr-3">
-                            <div className="space-y-3">
-                                {renamePreviewRows.map((row) => (
-                                    <div key={row.itemId} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3">
-                                        <div className="flex flex-wrap items-start justify-between gap-3">
-                                            <div className="min-w-0 flex-1 space-y-2">
-                                                <p className="text-xs text-slate-500 dark:text-slate-400 break-all">
-                                                    原名：{row.originalName}
-                                                </p>
-                                                <p className={`text-sm font-medium break-all ${row.canApply ? "text-blue-600 dark:text-blue-300" : "text-slate-900 dark:text-slate-100"}`}>
-                                                    目标：{row.nextName}
-                                                </p>
-                                            </div>
-                                            <Badge
-                                                className={
-                                                    row.canApply
-                                                        ? "bg-emerald-600 text-white hover:bg-emerald-600"
-                                                        : row.duplicate || row.validationError
-                                                            ? "bg-rose-600 text-white hover:bg-rose-600"
-                                                            : "bg-slate-500 text-white hover:bg-slate-500"
-                                                }
-                                            >
-                                                {row.canApply ? "可应用" : row.duplicate ? "名称重复" : row.validationError ? "名称非法" : "无变化"}
-                                            </Badge>
-                                        </div>
-                                        {(row.validationError || row.duplicate) && (
-                                            <p className="mt-2 text-xs text-rose-500">
-                                                {row.validationError || "目标名称与其它图片重复，请调整规则或筛选范围"}
-                                            </p>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </ScrollArea>
-                    ) : (
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                            当前没有可预览结果，先上传图片或调整筛选关键词
-                        </p>
-                    )}
-                </div>
-            </CardContent>
-        </Card></div></details>
         </TabsContent>
     );
 };

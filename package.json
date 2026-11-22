@@ -22,7 +22,9 @@
     "build:miniapp": "cd miniapp && taro build --type weapp",
     "dev:miniapp": "cd miniapp && npm run build:weapp -- --watch",
     "build:195app": "cd 195miniapp && taro build --type weapp",
-    "dev:195app": "cd 195miniapp && npm run build:weapp -- --watch"
+    "dev:195app": "cd 195miniapp && npm run build:weapp -- --watch",
+    "people:setup": "node scripts/people-service.mjs --setup",
+    "people:serve": "node scripts/people-service.mjs"
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
@@ -49,6 +51,7 @@
     "@vercel/analytics": "^1.1.1",
     "@vercel/speed-insights": "^1.0.1",
     "@vitejs/plugin-legacy": "^5.4.1",
+    "@vladmandic/face-api": "1.7.15",
     "babel-plugin-import": "^1.13.8",
     "canvas-confetti": "^1.9.2",
     "chroma-js": "^2.4.2",
@@ -67,6 +70,7 @@
     "konva": "^9.2.3",
     "lucide-react": "^0.503.0",
     "next-themes": "^0.4.6",
+    "onnxruntime-web": "1.23.2",
     "openai": "^6.16.0",
     "p-limit": "^6.2.0",
     "piexifjs": "^1.0.6",

@@ -28,6 +28,14 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("../pages/watermark"),
     },
     {
+        id: "people-sort",
+        label: "人物分类",
+        url: "/people-sort",
+        icon: "lucide:users",
+        description: "导入文件夹，在本地识别人脸、按人物分组并分类导出原图",
+        component: () => import("../pages/people-sort"),
+    },
+    {
         id: "mosaic",
         label: "图片打马赛克",
         url: "/mosaic",

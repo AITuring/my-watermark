@@ -36,6 +36,7 @@ export default defineConfig({
         },
     },
     server: {
+        proxy: { "/api/people-sort": { target: "http://127.0.0.1:8131", rewrite: path => path.replace(/^\/api\/people-sort/, "") } },
         port: 8123,
         headers: {
             "Cross-Origin-Opener-Policy": "same-origin",
@@ -43,6 +44,7 @@ export default defineConfig({
         },
     },
     preview: {
+        proxy: { "/api/people-sort": { target: "http://127.0.0.1:8131", rewrite: path => path.replace(/^\/api\/people-sort/, "") } },
         headers: {
             "Cross-Origin-Opener-Policy": "same-origin",
             "Cross-Origin-Embedder-Policy": "require-corp",

@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import ts from 'typescript';
+const source=await readFile(new URL('../src/pages/puzzle/similar-photos.ts',import.meta.url),'utf8');
+const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const {groupSimilarPhotos,similarityReason,photoPairKey}=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+const photo=(id,fileName)=>({photo:{id,src:id,width:100,height:100,fileName},signature:null});
+const a=photo('a','春秋-玉琮-刘家洼遗址M49出土-DSC00523.jpg');
+const b=photo('b','春秋-玉琮-刘家洼遗址M49出土-DSC00531.jpg');
+const c=photo('c','良渚文化-玉琮-大英博物馆藏-DSC00569.jpg');
+assert.equal(groupSimilarPhotos([a,b,c]).length,1);
+assert.deepEqual(groupSimilarPhotos([a,b,c])[0].photos.map(p=>p.id),['a','b']);
+assert.equal(groupSimilarPhotos([a,b],new Set([photoPairKey('a','b')])).length,0);
+assert.equal(similarityReason(c,photo('d','良渚文化-玉琮-大英博物馆藏-DSC00589.jpg')),null);
+assert.ok(similarityReason(photo('x','DSC00612.jpg'),photo('y','DSC00612-1.jpg')));
+assert.ok(similarityReason(photo('x','未标题-6.jpg'),photo('y','未标题-6-1.jpg')));
+assert.equal(similarityReason(photo('x','DSC00612.jpg'),photo('y','DSC00613.jpg')),null);
+const sig=(ones,contrast=40)=>({hash:Array.from({length:64},(_,i)=>Number(i<ones)),histogram:Array(24).fill(1/8),contrast,aspect:1});
+const v=(id,ones)=>({...photo(id,`${id}.jpg`),signature:sig(ones)});
+// A-B and B-C match, but A-C differs: do not merge all three through a chain.
+assert.deepEqual(groupSimilarPhotos([v('a',0),v('b',8),v('c',16)])[0].photos.map(p=>p.id),['a','b']);
+assert.equal(similarityReason({...v('a',0),signature:sig(0,0)},{...v('b',0),signature:sig(0,0)}),null);
+assert.equal(groupSimilarPhotos([]).length,0);
+console.log('Puzzle similar-photo grouping checks passed');

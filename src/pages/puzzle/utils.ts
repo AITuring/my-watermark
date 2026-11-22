@@ -1,19 +1,13 @@
+import { exactRatioSize } from "./fixed-ratio";
+import { isPuzzleImageFile } from "./import-files";
 import { aspectRatioOptions } from "./constants";
 import type { AspectRatio, ImgProp } from "./types";
 import {
     loadHtml2Canvas,
     loadImageCompression,
-    loadJSZip,
     loadSaveAs,
 } from "@/utils/lazy-deps";
 import { canUseLocalLargeImageService, getLargeImageAsset, isLargeJpeg, releaseLargeImage } from '@/utils/large-image';
-
-type ZipInstance = {
-    file: (name: string, data: Blob | File) => void;
-    generateAsync: (options: { type: "blob" }) => Promise<Blob>;
-};
-
-type ZipConstructor = new () => ZipInstance;
 
 export const MAX_PUZZLE_IMAGE_SIZE = 200 * 1024 * 1024;
 
@@ -109,6 +103,7 @@ export async function processAcceptedFiles(acceptedFiles: File[]) {
     const images: ImgProp[] = [];
     // Bound peak decoder memory: never decode a batch of originals concurrently.
     for (const file of acceptedFiles) {
+        if (!isPuzzleImageFile(file)) continue;
         const tiff = /\.tiff?$/i.test(file.name) || file.type === 'image/tiff';
         const oversized = await isLargeJpeg(file);
         const local = canUseLocalLargeImageService();
@@ -130,7 +125,7 @@ export async function processAcceptedFiles(acceptedFiles: File[]) {
                 });
                 src = URL.createObjectURL(compressed);
             }
-            images.push(await loadImageSize(src));
+            images.push({ ...await loadImageSize(src), fileName: file.name, sourceFile: file });
         } catch (error) {
             if (src) URL.revokeObjectURL(src);
             for (const image of images) URL.revokeObjectURL(image.src);
@@ -203,8 +198,8 @@ type DownloadPuzzleImageParams = {
     filesCount: number;
     inputScale: number;
     selectedRatio: AspectRatio | null;
-    overlayBounds: number[];
-    pageScale: number;
+    overlayBounds?: number[];
+    pageScale?: number;
 };
 
 // Check the encoded file, rather than estimating bytes from canvas dimensions.
@@ -221,14 +216,13 @@ export async function downloadPuzzleImage({
     filesCount,
     inputScale,
     selectedRatio,
-    overlayBounds,
-    pageScale,
 }: DownloadPuzzleImageParams) {
     if (filesCount === 0) {
         throw new Error("请选择图片");
     }
 
     const target =
+        document.getElementById("puzzle-fixed-canvas") ||
         document.getElementById("tilt-wrapper") ||
         document.getElementById("gallery") ||
         document.getElementById("container");
@@ -322,80 +316,18 @@ export async function downloadPuzzleImage({
         return { pageCount: 1 };
     }
 
-    const ratio = selectedRatio.width / selectedRatio.height;
-    const pageWidth = fullCanvas.width;
-    const pageHeight = Math.max(1, Math.round(pageWidth / ratio));
-    const pageSourceHeight = Math.max(
-        1,
-        Math.round(pageHeight / Math.max(pageScale, 0.1))
-    );
-    const breaksCss = overlayBounds.length > 0 ? overlayBounds : [];
-    const boundaries = [
-        0,
-        ...breaksCss.map((value) => Math.round(padding + value * exportScale)),
-        fullCanvas.height,
-    ];
-    const JSZip = (await loadJSZip()) as ZipConstructor;
+    const size = exactRatioSize(fullCanvas.width, selectedRatio.width, selectedRatio.height);
+    const page = document.createElement("canvas");
+    page.width = size.width; page.height = size.height;
+    const pageContext = page.getContext("2d");
+    if (!pageContext) throw new Error("导出画布初始化失败");
+    pageContext.fillStyle = "#ffffff"; pageContext.fillRect(0, 0, page.width, page.height);
+    // Contain the entire preview. Never slice, crop, or stretch individual photographs.
+    const fit = Math.min(page.width / fullCanvas.width, page.height / fullCanvas.height);
+    const drawWidth = fullCanvas.width * fit, drawHeight = fullCanvas.height * fit;
+    pageContext.drawImage(fullCanvas, (page.width - drawWidth) / 2, (page.height - drawHeight) / 2, drawWidth, drawHeight);
+    const blob = await encodePuzzleJpeg(page);
     const saveAs = await loadSaveAs();
-    const zip = new JSZip();
-    const files: { name: string; blob: Blob }[] = [];
-
-    for (let index = 1; index < boundaries.length; index += 1) {
-        const prev = boundaries[index - 1];
-        const end = boundaries[index];
-        const sliceHeight = Math.max(0, end - prev);
-        const page = document.createElement("canvas");
-        page.width = pageWidth;
-        page.height = pageHeight;
-        const pageContext = page.getContext("2d");
-
-        if (!pageContext) {
-            throw new Error("分页导出失败");
-        }
-
-        pageContext.imageSmoothingEnabled = true;
-        pageContext.imageSmoothingQuality = "high";
-        pageContext.fillStyle = "#ffffff";
-        pageContext.fillRect(0, 0, pageWidth, pageHeight);
-
-        if (sliceHeight > 0) {
-            const scaleFactor = pageHeight / Math.max(pageSourceHeight, 1);
-            const drawHeight = Math.min(
-                pageHeight,
-                Math.round(sliceHeight * scaleFactor)
-            );
-            const drawY = Math.round((pageHeight - drawHeight) / 2);
-            pageContext.drawImage(
-                fullCanvas,
-                0,
-                prev,
-                fullCanvas.width,
-                sliceHeight,
-                0,
-                drawY,
-                pageWidth,
-                drawHeight
-            );
-        }
-
-        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
-
-        const blob = await encodePuzzleJpeg(page);
-
-        if (blob) {
-            files.push({
-                name: `album-${selectedRatio.label}-${files.length + 1}.jpeg`,
-                blob,
-            });
-        }
-    }
-
-    files.forEach((file) => {
-        zip.file(file.name, file.blob);
-    });
-
-    const zipBlob = await zip.generateAsync({ type: "blob" });
-    saveAs(zipBlob, `album-${selectedRatio.label}-${files.length}p.zip`);
-
-    return { pageCount: files.length };
+    saveAs(blob, `album-${selectedRatio.label.replace(":", "x")}.jpeg`);
+    return { pageCount: 1 };
 }
