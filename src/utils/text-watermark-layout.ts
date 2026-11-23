@@ -82,7 +82,11 @@ export function buildSingleLineCaptionRuns(title:string,caption:string,order:'ti
 
 /** Keep digits upright; turn horizontal connecting strokes into vertical ones. */
 export function getWatermarkGlyphRotation(character:string,vertical:boolean){
-    return vertical&&'《》〈〉-－—–−~～'.includes(character)?Math.PI/2:0;
+    // Rotate punctuation that has a dedicated vertical-writing orientation.
+    // In particular, full-width parentheses must become horizontal arcs in a
+    // vertical column; leaving them upright makes the pair look like tall,
+    // uneven side marks around the caption.
+    return vertical&&'《》〈〉（）()-－—–−~～'.includes(character)?Math.PI/2:0;
 }
 
 /** Positions use visible ink bounds. Preview and export use this one geometry. */

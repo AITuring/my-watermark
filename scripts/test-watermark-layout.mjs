@@ -107,7 +107,7 @@ test('explicit horizontal arrangements override the short-title fallback',()=>{
 });
 
 test('vertical date connectors rotate while numbers and horizontal captions stay upright',()=>{
-    for(const character of '-－—–−~～《》〈〉'){
+    for(const character of '-－—–−~～《》〈〉（）()'){
         assert.equal(arrangement.getWatermarkGlyphRotation(character,true),Math.PI/2,character);
         assert.equal(arrangement.getWatermarkGlyphRotation(character,false),0,character);
     }
