@@ -151,6 +151,7 @@ interface MobileWatermarkEditorProps {
     quality: number;
     setQuality: (val: number) => void;
     onAutoColor?: () => void;
+    onAutoLogoColor?: () => void;
     onConfigPatch?: (patch:Partial<MixedWatermarkConfig>) => void;
     watermarkMode: "image" | "mixed" | "text";
     setWatermarkMode: (mode: "image" | "mixed" | "text") => void;
@@ -200,7 +201,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
     setWatermarkBlur,
     quality,
     setQuality,
-    onAutoColor, onConfigPatch,
+    onAutoColor, onAutoLogoColor, onConfigPatch,
     watermarkMode,
     setWatermarkMode,
     mixedWatermarkConfig,
@@ -1373,8 +1374,10 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         <Label>第二行</Label>
                                         <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第二行文字" aria-label="第二行" maxLength={120} placeholder="请输入第二行文字" value={mixedWatermarkConfig.textLine2} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: value }))} />
                                     </div>
-                                    <WatermarkColorControl value={mixedWatermarkConfig.color} onAuto={onAutoColor}
+                                    <WatermarkColorControl label="文字颜色" value={mixedWatermarkConfig.color} onAuto={onAutoColor}
                                         onChange={color => updateConfig({color})} />
+                                    {watermarkMode === "mixed" && <WatermarkColorControl label="Logo颜色" autoLabel="智能" value={mixedWatermarkConfig.iconColor || mixedWatermarkConfig.color} onAuto={onAutoLogoColor}
+                                        onChange={iconColor => updateConfig({iconColor})} />}
                                     <WatermarkFontPicker label={mixedWatermarkConfig.compactMode?'名称字体':'统一字体'} value={mixedWatermarkConfig.fontId} text={[mixedWatermarkConfig.textLine1,mixedWatermarkConfig.textLine2].filter(Boolean).join(' · ')}
                                         onChange={fontId => updateConfig({fontId,captionFontId:fontId})} />
                                     {mixedWatermarkConfig.compactMode && <WatermarkFontPicker label="作者字体" value={mixedWatermarkConfig.authorFontId||mixedWatermarkConfig.fontId} text={mixedWatermarkConfig.compactAuthor??'笑谈间气吐霓虹'} onChange={authorFontId=>updateConfig({authorFontId})}/>}

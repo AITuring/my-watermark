@@ -35,6 +35,8 @@ interface MixedWatermarkConfig {
     textLine1: string;
     textLine2: string;
     color: string;
+    /** Optional independent icon/logo color; text continues to use color. */
+    iconColor?: string;
     fontSize: number;
     gap: number;
     layout?: 'horizontal' | 'vertical';

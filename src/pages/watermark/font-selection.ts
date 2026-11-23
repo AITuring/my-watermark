@@ -21,7 +21,16 @@ export function suggestWatermarkFont(filename:string):string {
     return artwork?'fzzhaomfksjf':DEFAULT_FONT_ID;
 }
 
-export function resolveWatermarkTypography(filename:string,base:Partial<MixedWatermarkConfig>,manual:Partial<MixedWatermarkConfig>={},automatic=true) {
-    const fontId=manual.fontId||manual.captionFontId||((manual.compactMode??base.compactMode)?DEFAULT_FONT_ID:automatic?suggestWatermarkFont(filename):base.fontId||base.captionFontId)||DEFAULT_FONT_ID;
-    return {fontId,captionFontId:fontId};
+export function resolveWatermarkTypography(_filename:string,base:Partial<MixedWatermarkConfig>,manual:Partial<MixedWatermarkConfig>={},_automatic=true) {
+    void _filename;
+    void _automatic;
+    // Typography is a batch-level choice.  Previously the automatic branch
+    // selected a different calligrapher from each filename, which meant that
+    // switching between images changed the selected font and the exported
+    // batch was inconsistent.  Keep the shared/base choice authoritative and
+    // only fall back to an image entry for sessions created before the shared
+    // setting was introduced.
+    const fontId=base.fontId||base.captionFontId||manual.fontId||manual.captionFontId||DEFAULT_FONT_ID;
+    const authorFontId=base.authorFontId||manual.authorFontId;
+    return authorFontId ? {fontId,captionFontId:fontId,authorFontId} : {fontId,captionFontId:fontId};
 }

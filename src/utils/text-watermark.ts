@@ -83,7 +83,7 @@ export async function createTextWatermark(config:MixedWatermarkConfig,onLayout?:
         const x=padding+item.x,y=padding+item.y;
         if(item.role==='icon'&&icon&&iconBounds){
             const tint=document.createElement('canvas');tint.width=Math.max(1,Math.ceil(item.width*3));tint.height=Math.max(1,Math.ceil(item.height*3));const c=tint.getContext('2d');if(!c)throw Error('无法绘制水印图标');
-            c.drawImage(icon,iconBounds.x,iconBounds.y,iconBounds.width,iconBounds.height,0,0,tint.width,tint.height);c.globalCompositeOperation='source-in';c.fillStyle=config.color;c.fillRect(0,0,tint.width,tint.height);ctx.drawImage(tint,x,y,item.width,item.height);continue;
+            c.drawImage(icon,iconBounds.x,iconBounds.y,iconBounds.width,iconBounds.height,0,0,tint.width,tint.height);c.globalCompositeOperation='source-in';c.fillStyle=config.iconColor||config.color;c.fillRect(0,0,tint.width,tint.height);ctx.drawImage(tint,x,y,item.width,item.height);continue;
         }
         const shape=shapes[item.index!];
         for(const glyph of shape.glyphs){ctx.save();ctx.font=`${glyph.fontSize}px ${glyph.fontFamily}`;ctx.translate(x+glyph.x,y+glyph.y);if(glyph.angle)ctx.rotate(glyph.angle);ctx.fillText(glyph.text,0,0);ctx.restore();}

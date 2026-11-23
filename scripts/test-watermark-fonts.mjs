@@ -86,13 +86,13 @@ const presets={},layoutGeometry={};vm.runInNewContext(presetCode,{exports:preset
 function renderer() {
     const exports={},canvases=[],requested=[];
     const document={fonts:{load:async()=>[]},createElement(){
-        const calls=[];
-        const context={font:'',fillStyle:'',textAlign:'',scale(){},translate(){},rotate(){},save(){},restore(){},fillRect(){},drawImage(){},
+        const calls=[],fills=[];
+        const context={font:'',fillStyle:'',textAlign:'',scale(){},translate(){},rotate(){},save(){},restore(){},fillRect(){fills.push(this.fillStyle);},drawImage(){},
             measureText(text){return {width:Array.from(text).length*40};},
             strokeText(){throw new Error('Text outlines must remain disabled');},
             fillText(text){calls.push({text,font:this.font,color:this.fillStyle});},
         };
-        const canvas={width:0,height:0,calls,getContext:()=>context,toDataURL:()=>`data:image/png;${canvas.width}x${canvas.height}`};
+        const canvas={width:0,height:0,calls,fills,getContext:()=>context,toDataURL:()=>`data:image/png;${canvas.width}x${canvas.height}`};
         canvases.push(canvas);return canvas;
     }};
     class Image {naturalWidth=50;naturalHeight=100;set src(value){this.onload();}}
@@ -107,6 +107,13 @@ test('title and caption use one loaded font, the same size and selected solid co
     assert.equal(calls.length,4);assert.ok(calls.every(call=>call.font.includes('"title"')));assert.equal(new Set(calls.map(call=>call.font)).size,1);
     assert.ok(calls.every(call=>call.color==='#cc2828'));
     assert.equal(r.requested[0].text,'秋声赋·元');assert.equal(r.requested.length,1);
+});
+
+test('icon color is independent from text color',async()=>{
+    const r=renderer();
+    await r.render({...baseConfig,textOnly:false,icon:'logo.png',color:'#ffffff',iconColor:'#00ff00'});
+    assert.ok(r.canvases.some(canvas=>canvas.fills.includes('#00ff00')));
+    assert.ok(r.canvases[0].calls.length>0&&r.canvases[0].calls.every(call=>call.color==='#ffffff'));
 });
 
 test('inline edit regions match rendered title and caption in both directions',async()=>{

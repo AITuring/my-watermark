@@ -86,7 +86,11 @@ export async function createSmartWatermark(
         const centerPenalty = Math.max(0,1-Math.hypot(position.x+width/sample.width/2-0.5,position.y+height/sample.height/2-0.5)*1.4);
         const score = detail / values.length + centerPenalty * 0.06 + (overrides.color ? 0 : (1-colorAnalysis.coverage)*0.5);
         if (!best || score < best.score) {
-            const finalConfig = {...renderConfig,color};
+            // Keep logo tint independent from text. A manual iconColor wins;
+            // otherwise the same background analysis supplies a conspicuous
+            // automatic logo color for the generated preview and export.
+            const iconColor = overrides.iconColor || config.iconColor || colorAnalysis.color;
+            const finalConfig = {...renderConfig,color,iconColor};
             best = {url:await createTextWatermark(finalConfig),config:finalConfig,position,score};
         }
     }

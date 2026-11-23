@@ -26,6 +26,7 @@ interface DesktopToolbarProps {
     scale: number;
     onScaleChange: (scale:number) => void;
     onAutoColor: () => void;
+    onAutoLogoColor: () => void;
     fontNotice: string;
     smartPending: boolean;
     smartError: string;
@@ -124,7 +125,10 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
                 <div className="wm-control-stack"><WatermarkRange label="字距" value={config.letterSpacing??0.1} min={0} max={0.6} step={0.05} display={`${Math.round((config.letterSpacing??0.1)*100)}%`} onChange={letterSpacing=>update({letterSpacing})}/><WatermarkRange label="行列间距" value={config.lineGap??0.55} min={0.1} max={1.2} step={0.05} display={`${Math.round((config.lineGap??0.55)*100)}%`} onChange={lineGap=>update({lineGap})}/></div>
             </section>}
             <section className="wm-settings-section" aria-label="外观与位置"><h3 className="wm-settings-section-title">外观与位置</h3><div className="wm-style-grid">
-                {textMode?<WatermarkColorControl suggestions={props.suggestedColors} value={config.color} onAuto={props.onAutoColor} onChange={color=>update({color})}/>:<WatermarkColorControl label="图片水印颜色" autoLabel="原色" suggestions={props.suggestedColors} value={props.imageTint} onChange={props.onImageTintChange} onAuto={()=>props.onImageTintChange("transparent")}/>}
+                {textMode ? <>
+                    <WatermarkColorControl label="文字颜色" suggestions={props.suggestedColors} value={config.color} onAuto={props.onAutoColor} onChange={color=>update({color})}/>
+                    {mode==='mixed' && <WatermarkColorControl label="Logo颜色" autoLabel="智能" suggestions={props.suggestedColors} value={config.iconColor || config.color} onAuto={props.onAutoLogoColor} onChange={iconColor=>update({iconColor})}/>}
+                </> : <WatermarkColorControl label="图片水印颜色" autoLabel="原色" suggestions={props.suggestedColors} value={props.imageTint} onChange={props.onImageTintChange} onAuto={()=>props.onImageTintChange("transparent")}/>}
                 <WatermarkColorControl label="独立水印颜色" autoLabel="原色" value={props.transparentWatermarkColor || '#ffffff'} onAuto={() => props.onTransparentWatermarkColorChange('transparent')} onChange={props.onTransparentWatermarkColorChange}/>
                 <div className="wm-control-stack"><WatermarkRange label="独立水印大小" value={props.transparentWatermarkScale} min={2} max={8} step={0.01} display={`${Math.round(props.transparentWatermarkScale*100)}%`} onChange={props.setTransparentWatermarkScale}/><WatermarkRange label="独立水印透明度" value={props.transparentWatermarkOpacity} min={0} max={1} step={0.01} display={`${Math.round(props.transparentWatermarkOpacity*100)}%`} onChange={props.setTransparentWatermarkOpacity}/></div>
             </div></section>

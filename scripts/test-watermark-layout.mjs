@@ -135,6 +135,24 @@ test('approved arrangements enforce visible-ink alignment and never enlarge a ve
     assert.ok(Math.abs(seal.x+seal.width/2-vertical.width/2)<1e-8);
 });
 
+test('vertical logos stay visually subordinate and leave a deliberate text gap',()=>{
+    const layout=arrangement.arrangeWatermark([{width:95,height:800}],true,false,100,40,.6);
+    const seal=layout.items.find(i=>i.role==='icon');
+    const text=layout.items.find(i=>i.role==='text');
+    assert.ok(seal&&text);
+    assert.ok(seal.height<=125);
+    assert.ok(text.y-(seal.y+seal.height)>=75);
+});
+
+test('compact vertical logos are smaller and separated from the caption',()=>{
+    const layout=arrangement.arrangeCompactWatermark({width:40,height:100},{width:40,height:100},true,100,.6,true);
+    const seal=layout.items.find(i=>i.role==='icon');
+    const main=layout.items.find(i=>i.role==='text'&&i.index===0);
+    assert.ok(seal&&main);
+    assert.ok(seal.width<=85);
+    assert.ok(main.y-(seal.y+seal.height)>=65);
+});
+
 test('simplified font groups keep the full catalog reachable through four choices',async()=>{
     const code=ts.transpileModule(await readFile(new URL('../src/pages/watermark/fonts/groups.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
     const api={};vm.runInNewContext(code,{exports:api});

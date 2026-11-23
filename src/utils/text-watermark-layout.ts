@@ -87,19 +87,19 @@ export function getWatermarkGlyphRotation(character:string,vertical:boolean){
 
 /** Positions use visible ink bounds. Preview and export use this one geometry. */
 export function arrangeWatermark(shapes:LayoutShape[],vertical:boolean,centered:boolean,fontSize:number,lineGap:number,iconRatio?:number,iconScale=1){
-    const items:LayoutItem[]=[],gap=vertical?fontSize*.5:fontSize;
+    const items:LayoutItem[]=[],gap=vertical?fontSize*.75:fontSize;
     let width=0,height=0;
     const add=(role:'text'|'icon',shape:LayoutShape,x:number,y:number,index?:number)=>{items.push({role,x,y,width:shape.width,height:shape.height,index});width=Math.max(width,x+shape.width);height=Math.max(height,y+shape.height);};
     const icon=(h:number)=>({width:h*(iconRatio||1)*iconScale,height:h*iconScale});
     if(!shapes.length){if(iconRatio)add('icon',icon(fontSize*2.2),0,0);}
     else if(shapes.length===1){
-        const text=shapes[0],logo=icon(vertical?Math.min(fontSize*1.7,text.width*1.5):text.height*1.18);
+        const text=shapes[0],logo=icon(vertical?Math.min(fontSize*1.3,text.width*1.15):text.height*1.18);
         if(vertical){const w=Math.max(text.width,iconRatio?logo.width:0);if(iconRatio)add('icon',logo,(w-logo.width)/2,0);add('text',text,(w-text.width)/2,iconRatio?logo.height+gap:0,0);}
         else{if(iconRatio)add('icon',logo,0,0);add('text',text,iconRatio?logo.width+gap:0,0,0);}
     }else if(vertical){
         // Legacy paired configs collapse into one column for saved sessions.
         const [first,second]=shapes;
-        const logo=icon(Math.min(fontSize*1.7,Math.max(first.width,second.width)*1.5));
+        const logo=icon(Math.min(fontSize*1.3,Math.max(first.width,second.width)*1.15));
         const w=Math.max(first.width,second.width,iconRatio?logo.width:0),y=iconRatio?logo.height+gap:0;
         if(iconRatio)add('icon',logo,(w-logo.width)/2,0);
         add('text',first,(w-first.width)/2,y,0);add('text',second,(w-second.width)/2,y+first.height+lineGap,1);
@@ -124,9 +124,9 @@ export function arrangeWatermark(shapes:LayoutShape[],vertical:boolean,centered:
 /** Compact layouts keep the logo before the caption and signature. */
 export function arrangeCompactWatermark(main:LayoutShape|undefined,author:LayoutShape|undefined,vertical:boolean,fontSize:number,iconRatio?:number,paired=true){
     const items:LayoutItem[]=[];
-    const gap=fontSize*.4,authorGap=fontSize*1.1;
+    const gap=fontSize*.65,authorGap=fontSize*1.1;
     // Size by visible width so tall, narrow logos still look slightly wider than a glyph.
-    const sealWidth=fontSize*1.12;
+    const sealWidth=fontSize*.85;
     const seal=iconRatio?{width:sealWidth,height:sealWidth/iconRatio}:undefined;
     const add=(role:'text'|'icon',shape:LayoutShape,x:number,y:number,index?:number)=>items.push({role,...shape,x,y,index});
     if(!paired){

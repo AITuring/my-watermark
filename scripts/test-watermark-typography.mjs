@@ -32,3 +32,14 @@ test('compact names default to fine Jinling while a manual name font still wins'
     assert.equal(api.resolveWatermarkTypography('元-赵孟頫《秋声赋卷》',{}, {compactMode:true,authorFontId:'calligraphy'}).fontId,'fzxijinljw');
     assert.equal(api.resolveWatermarkTypography('元-赵孟頫《秋声赋卷》',{compactMode:true}, {fontId:'custom'}).fontId,'custom');
 });
+
+test('batch typography stays shared across filenames and the shared choice wins over legacy per-image entries',()=>{
+    const first=api.resolveWatermarkTypography('元-赵孟頫《秋声赋卷》',{});
+    const second=api.resolveWatermarkTypography('唐-颜真卿《祭侄文稿》',{});
+    assert.equal(first.fontId,'fzxijinljw');
+    assert.equal(second.fontId,first.fontId);
+    const shared=api.resolveWatermarkTypography('x',{fontId:'kesong',authorFontId:'author-font'},{fontId:'other',authorFontId:'legacy-author'});
+    assert.equal(shared.fontId,'kesong');
+    assert.equal(shared.captionFontId,'kesong');
+    assert.equal(shared.authorFontId,'author-font');
+});

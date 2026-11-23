@@ -2,7 +2,7 @@ import { DEFAULT_FONT_ID, missingFontCharacters } from "./fonts/registry";
 import { applyColorToWatermark, extractDominantColors, getAdaptiveWatermarkRenderMetrics, getWatermarkMaximumScale, fitWatermarkPosition } from "@/utils/watermark-editor";
 import { analyzeWatermarkCaption, extractWatermarkCaption } from "./filename-watermark";
 import { clearCaptionCorrection, getCaptionCorrection, loadCaptionCorrections, saveCaptionCorrections, setCaptionCorrection, type CaptionCorrectionMap } from "./caption-corrections";
-import { resolveWatermarkTypography } from './font-selection';
+import { resolveWatermarkTypography, suggestWatermarkFont } from './font-selection';
 import { getWatermarkLayoutMetrics } from './layout-metrics';
 import { getWatermarkPreset, shouldJoinWatermarkLines } from './layout-presets';
 import { createSmartWatermark, createSizedTextWatermark } from "./smart-watermark";
@@ -147,6 +147,24 @@ const Watermark: React.FC = () => {
     configRef.current = mixedWatermarkConfig;
     const patchWatermarkConfig = (patch:Partial<MixedWatermarkConfig>) => {
         patch=unifyWatermarkFontPatch(patch);
+        // Font selection is shared by the whole batch.  Layout/text edits can
+        // remain scoped to the current image, while the name/caption/author
+        // font choices must never diverge when moving between images.
+        const globalFontPatch: Partial<MixedWatermarkConfig> = {};
+        for (const key of ['fontId', 'captionFontId', 'authorFontId'] as const) {
+            if (patch[key] !== undefined) Object.assign(globalFontPatch, {[key]: patch[key]});
+        }
+        if (Object.keys(globalFontPatch).length) {
+            setBaseWatermarkConfig(previous => ({...previous, ...globalFontPatch}));
+            setManualConfigs(previous => {
+                const next = {...previous};
+                for (const image of images) {
+                    next[image.id] = {...(previous[image.id] || {}), ...globalFontPatch};
+                }
+                return next;
+            });
+            patch = Object.fromEntries(Object.entries(patch).filter(([key]) => !(key in globalFontPatch))) as Partial<MixedWatermarkConfig>;
+        }
         if (!currentImg) {setBaseWatermarkConfig(prev=>({...prev,...patch}));return;}
         const targets = editScope === "all" ? images : [currentImg];
         setManualConfigs(prev => applyWatermarkConfigPatch(prev, targets.map(image=>image.id), patch));
@@ -243,10 +261,18 @@ const Watermark: React.FC = () => {
                 ...manualConfigs[image.id], ...resolveWatermarkTypography(image.file.name,baseWatermarkConfig,manualConfigs[image.id],smartEnabled),textOnly: effectiveMode === "text"};
             if (smartEnabled) {
                 const result = await createSmartWatermark(image, config, manualConfigs[image.id]);
-                return {url: result.url, position: result.url && manualPositions.current.has(image.id) ? fitWatermarkPosition(image.width,image.height,await loadPositionImage(result.url),{...item.position,scaleX:result.position.scaleX,scaleY:result.position.scaleY}) : result.position};
+                const manuallyPlaced = manualPositions.current.has(image.id);
+                const position = result.url && manuallyPlaced
+                    ? fitWatermarkPosition(image.width,image.height,await loadPositionImage(result.url),item.position)
+                    : result.position;
+                return {url: result.url, position};
             }
             const result=await createSizedTextWatermark(image,config);
-            return {url:result.url,position:result.url?fitWatermarkPosition(image.width,image.height,await loadPositionImage(result.url),{...item.position,scaleX:result.scale,scaleY:result.scale}):item.position};
+            const manuallyPlaced = manualPositions.current.has(image.id);
+            const position = result.url
+                ? fitWatermarkPosition(image.width,image.height,await loadPositionImage(result.url),manuallyPlaced ? item.position : {...item.position,scaleX:result.scale,scaleY:result.scale})
+                : item.position;
+            return {url:result.url,position};
         },
         oversizeThresholdBytes: WATERMARK_OVERSIZE_THRESHOLD_BYTES,
         onOversizedFiles: async (files) => {
@@ -388,15 +414,27 @@ const Watermark: React.FC = () => {
                     const missing = missingFontCharacters(config.fontId || DEFAULT_FONT_ID,config.textLine1)
                         + missingFontCharacters(config.captionFontId || DEFAULT_FONT_ID,config.textLine2);
                     setFontNotice(missing ? `所选字体缺少「${[...new Set(Array.from(missing))].join("")}」，这些字使用系统宋体补齐。` : "");
-                    setAutomaticStyle(result ? {color:result.config.color, layout:result.config.layout} : {});
+                    setAutomaticStyle(result ? {color:result.config.color, iconColor:result.config.iconColor, layout:result.config.layout} : {});
                     if (logo && currentImg) {
                         setWatermarkMaxScale(getWatermarkMaximumScale(currentImg.width,currentImg.height,logo));
-                        setWatermarkPositions(prev => prev.map(position => position.id === currentImg.id
-                            ? fitWatermarkPosition(currentImg.width,currentImg.height,logo,
-                                result && !manualPositions.current.has(currentImg.id)
-                                    ? result.position
-                                    : {...position,scaleX:result?.position.scaleX??sized?.scale??position.scaleX,scaleY:result?.position.scaleY??sized?.scale??position.scaleY})
-                            : position));
+                        setWatermarkPositions(prev => prev.map(position => {
+                            if (position.id !== currentImg.id) return position;
+                            // A manually moved/resized watermark belongs to this
+                            // image. Re-generating the text (for example after
+                            // switching away and back) must not replace its
+                            // saved scale with the newly generated smart scale.
+                            // Keep the saved position and only clamp it if a
+                            // changed footprint would otherwise leave the image.
+                            const manuallyPlaced = manualPositions.current.has(currentImg.id);
+                            const next = manuallyPlaced
+                                ? position
+                                : result?.position ?? {
+                                    ...position,
+                                    scaleX: sized?.scale ?? position.scaleX,
+                                    scaleY: sized?.scale ?? position.scaleY,
+                                };
+                            return fitWatermarkPosition(currentImg.width,currentImg.height,logo,next);
+                        }));
                     }
                 }
             } catch (error) {
@@ -476,6 +514,13 @@ const Watermark: React.FC = () => {
 
             setImages((prevImages) => {
                 if (prevImages.length === 0) {
+                    // Pick the initial automatic font once for the batch. The
+                    // choice is shared by every image; later images must not
+                    // derive a different font from their own filenames.
+                    const initialFont = suggestWatermarkFont(uploadImages[0].file.name);
+                    setBaseWatermarkConfig(previous => previous.fontId || previous.captionFontId
+                        ? previous
+                        : {...previous, fontId: initialFont, captionFontId: initialFont});
                     setCurrentImg(uploadImages[0]);
                     setImageUploaderVisible(false);
                     setWatermarkPositions(newPositions);
@@ -556,6 +601,20 @@ const Watermark: React.FC = () => {
                 const config = {...prev[image.id]};
                 if (color === "transparent") delete config.color;
                 else config.color = color;
+                next[image.id] = config;
+            }
+            return next;
+        });
+    };
+
+    const handleLogoColorChange = (color: string, batch = editScope === "all") => {
+        const targets = batch ? images : currentImg ? [currentImg] : [];
+        setManualConfigs(prev => {
+            const next = {...prev};
+            for (const image of targets) {
+                const config = {...prev[image.id]};
+                if (color === "transparent") delete config.iconColor;
+                else config.iconColor = color;
                 next[image.id] = config;
             }
             return next;
@@ -926,6 +985,7 @@ const Watermark: React.FC = () => {
                             setQuality={setQuality}
                             onConfigPatch={patchWatermarkConfig}
                             onAutoColor={() => handleTextColorChange("transparent")}
+                            onAutoLogoColor={() => handleLogoColorChange("transparent")}
                             watermarkMode={watermarkMode}
                             setWatermarkMode={handleWatermarkModeChange}
                             mixedWatermarkConfig={mixedWatermarkConfig}
@@ -1046,6 +1106,7 @@ const Watermark: React.FC = () => {
                     scale={watermarkMode === 'image' ? (currentWatermarkPosition?.scaleX || 1) : (mixedWatermarkConfig.textScale || 1)}
                     onScaleChange={handleWatermarkScaleChange}
                     onAutoColor={() => handleTextColorChange("transparent")}
+                    onAutoLogoColor={() => handleLogoColorChange("transparent")}
                     fontNotice={fontNotice}
                     smartPending={smartPending}
                     smartError={smartError}
