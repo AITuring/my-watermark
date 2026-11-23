@@ -85,17 +85,25 @@ test('directions retain independent choices and vertical never exposes a three-c
     assert.equal(presetApi.VERTICAL_PRESETS.length,1);
 });
 
-test('short artifact names and long descriptions always form one line or column',()=>{
+test('short artifact names keep the automatic single-line default but respect explicit horizontal choices',()=>{
     for(const layout of ['horizontal','vertical'])for(const preset of ['paired','centered','single']){
         const config={layout,textLine1:'供盘',textLine2:'17—19世纪·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄',horizontalPreset:preset,verticalPreset:preset};
-        assert.equal(presetApi.getWatermarkPreset(config),'single');
-        assert.equal(presetApi.getWatermarkPreset({...config,textLine1:'青铜供盘'}),'single');
+        assert.equal(presetApi.getWatermarkPreset(config),layout==='vertical'?'single':preset);
+        assert.equal(presetApi.getWatermarkPreset({...config,textLine1:'青铜供盘'}),layout==='vertical'?'single':preset);
         const expected=layout==='vertical'?'single':preset;
         assert.equal(presetApi.getWatermarkPreset({...config,textLine1:'《江山放牧图卷》'}),expected);
         assert.equal(presetApi.getWatermarkPreset({...config,textLine2:'宋·故宫藏'}),expected);
         assert.equal(presetApi.getWatermarkPreset({...config,textLine1:''}),expected);
         assert.equal(presetApi.getWatermarkPreset({...config,textLine2:''}),expected);
     }
+    const automatic={layout:'horizontal',textLine1:'供盘',textLine2:'17—19世纪·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄'};
+    assert.equal(presetApi.getWatermarkPreset(automatic),'single');
+});
+
+test('explicit horizontal arrangements override the short-title fallback',()=>{
+    const base={layout:'horizontal',textLine1:'供盘',textLine2:'宋·故宫博物院藏 / 摄'};
+    assert.equal(presetApi.getWatermarkPreset({...base,horizontalPreset:'paired'}),'paired');
+    assert.equal(presetApi.getWatermarkPreset({...base,horizontalPreset:'centered'}),'centered');
 });
 
 test('vertical date connectors rotate while numbers and horizontal captions stay upright',()=>{

@@ -10,8 +10,11 @@ export function shouldJoinWatermarkLines(config:Partial<MixedWatermarkConfig>,di
 }
 export function getWatermarkPreset(config:Partial<MixedWatermarkConfig>, direction=config.layout||'horizontal'):WatermarkPreset {
     if (config.compactMode) return direction==='vertical'?config.verticalPreset||'single':config.horizontalPreset==='paired'?'paired':'single';
-    if(shouldJoinWatermarkLines(config,direction))return 'single';
-    return direction==='vertical'?'single':config.horizontalPreset||'paired';
+    if(direction==='vertical')return 'single';
+    // An explicitly chosen horizontal preset must remain selectable even when
+    // the automatic short-title heuristic would otherwise join the lines.
+    // Configs without a preset still get the compact single-line fallback.
+    return config.horizontalPreset || (shouldJoinWatermarkLines(config,direction)?'single':'paired');
 }
 export const HORIZONTAL_PRESETS = [
     {value:'single',label:'单行横署',hint:'图案与单行文字齐平'},

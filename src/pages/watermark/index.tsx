@@ -4,7 +4,7 @@ import { analyzeWatermarkCaption, extractWatermarkCaption } from "./filename-wat
 import { clearCaptionCorrection, getCaptionCorrection, loadCaptionCorrections, saveCaptionCorrections, setCaptionCorrection, type CaptionCorrectionMap } from "./caption-corrections";
 import { resolveWatermarkTypography, suggestWatermarkFont } from './font-selection';
 import { getWatermarkLayoutMetrics } from './layout-metrics';
-import { getWatermarkPreset, shouldJoinWatermarkLines } from './layout-presets';
+import { getWatermarkPreset } from './layout-presets';
 import { createSmartWatermark, createSizedTextWatermark } from "./smart-watermark";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -308,7 +308,7 @@ const Watermark: React.FC = () => {
         const hasBothLines = Boolean(config.textLine1?.trim() && config.textLine2?.trim());
         const displayMode = direction === 'vertical'
             ? (hasBothLines ? 'multiple' : 'single')
-            : (shouldJoinWatermarkLines(config, direction) || preset === 'single' ? 'single' : 'multiple');
+            : (preset === 'single' ? 'single' : 'multiple');
         return {
             id: image.id,
             filename: image.file.name,
