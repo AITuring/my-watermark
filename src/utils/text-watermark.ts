@@ -15,12 +15,29 @@ type TextShape=Rect&{glyphs:Glyph[]};
 
 function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Field;fontScale?:number}[],vertical:boolean,size:number,spacing:number,family:string):TextShape{
     const glyphs:Glyph[]=[];let cursor=0,left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
+    // A middle dot is a layout token, rather than a normal glyph with two
+    // literal spaces around it. This keeps dots from inheriting both spaces
+    // and tracking, which made identical separators look uneven and widened
+    // long captions enough to shrink the whole watermark.
+    const separatorGap=Math.max(size*.1,spacing*.45);
+    let lastAdvanceIncludedSpacing=false;
     for(const run of runs){
         const fontSize=size*Math.max(.1,run.fontScale??1);
         ctx.font=`${fontSize}px ${family}`;
-        for(const text of Array.from(run.text)){
+        const characters=Array.from(run.text);
+        for(let index=0;index<characters.length;index++){
+            const text=characters[index];
             const m=ctx.measureText(text),box={left:-(m.actualBoundingBoxLeft??0),right:m.actualBoundingBoxRight??m.width,top:-(m.actualBoundingBoxAscent??fontSize*.85),bottom:m.actualBoundingBoxDescent??fontSize*.15};
-            if(text===' '){cursor+=vertical?fontSize*.65:m.width+spacing;continue;}
+            const aroundSeparator=!vertical&&text===' '&&(characters[index-1]==='·'||characters[index+1]==='·');
+            if(text===' '){
+                // Spaces adjacent to a separator are formatting in the
+                // caption source; the fixed separator gap below owns them.
+                if(!aroundSeparator)cursor+=vertical?fontSize*.65:m.width;
+                else if(lastAdvanceIncludedSpacing&&characters[index+1]==='·')cursor-=spacing;
+                lastAdvanceIncludedSpacing=false;
+                continue;
+            }
+            const isSeparator=!vertical&&text==='·';
             let x=cursor,y=0,angle=0,ink:Rect;
             if(vertical){
                 angle=getWatermarkGlyphRotation(text,vertical);
@@ -28,7 +45,19 @@ function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Fiel
                 const w=b.right-b.left,h=b.bottom-b.top;
                 x=-w/2-b.left;y=cursor+(fontSize-h)/2-b.top;
                 ink={x:-w/2,y:cursor+(fontSize-h)/2,width:w,height:h};cursor+=fontSize+spacing;
-            }else{ink={x:cursor+box.left,y:box.top,width:box.right-box.left,height:box.bottom-box.top};cursor+=m.width+spacing;}
+                lastAdvanceIncludedSpacing=true;
+            }else if(isSeparator){
+                if(lastAdvanceIncludedSpacing)cursor-=spacing;
+                cursor+=separatorGap;
+                x=cursor;
+                ink={x:cursor+box.left,y:box.top,width:box.right-box.left,height:box.bottom-box.top};
+                cursor+=m.width+separatorGap;
+                lastAdvanceIncludedSpacing=false;
+            }else{
+                ink={x:cursor+box.left,y:box.top,width:box.right-box.left,height:box.bottom-box.top};
+                cursor+=m.width+spacing;
+                lastAdvanceIncludedSpacing=true;
+            }
             glyphs.push({text,x,y,angle,field:run.field,fontSize,fontFamily:family,ink});left=Math.min(left,ink.x);top=Math.min(top,ink.y);right=Math.max(right,ink.x+ink.width);bottom=Math.max(bottom,ink.y+ink.height);
         }
     }
