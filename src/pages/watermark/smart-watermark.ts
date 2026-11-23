@@ -3,12 +3,24 @@ import type { ImageType, MixedWatermarkConfig, WatermarkPosition } from '@/types
 import { createTextWatermark } from '@/utils/text-watermark';
 import { getImageOpaqueBounds, getAdaptiveWatermarkRenderMetrics } from '@/utils/watermark-editor';
 import { findSmartWatermarkPosition, loadPositionImage } from './smart-position';
-import { getWatermarkLayoutMetrics } from './layout-metrics';
+import { getTextWatermarkScale } from './layout-metrics';
 
 export interface SmartWatermarkResult {
     url: string;
     config: MixedWatermarkConfig;
     position: WatermarkPosition;
+}
+
+/** Preview and export share glyph-based sizing, including manually placed text. */
+export async function createSizedTextWatermark(image:ImageType,config:MixedWatermarkConfig){
+    let generatedFontSize=Math.max(24,config.fontSize*4);
+    const url=await createTextWatermark(config,regions=>{
+        if(regions[0]?.fontSize)generatedFontSize=regions[0].fontSize;
+    });
+    if(!url)return {url,scale:1};
+    const logo=await loadPositionImage(url),bounds=getImageOpaqueBounds(logo);
+    const baseWidth=getAdaptiveWatermarkRenderMetrics(image.width,image.height,logo).width;
+    return {url,scale:getTextWatermarkScale(image.width,image.height,bounds,baseWidth,generatedFontSize,config.textScale,config.referenceTextHeight)};
 }
 
 /** Compare actual watermark footprints rather than guessing orientation from photo aspect. */
@@ -37,31 +49,14 @@ export async function createSmartWatermark(
             if (textRegion?.fontSize && Number.isFinite(textRegion.fontSize)) generatedTextSize = textRegion.fontSize;
         });
         if (!draft) return {url: '', config: candidateConfig, position: {id:image.id,x:0.04,y:0.04,scaleX:1,scaleY:1,rotation:0}};
-        let logo = await loadPositionImage(draft);
-        let bounds = getImageOpaqueBounds(logo);
+        const logo = await loadPositionImage(draft);
+        const bounds = getImageOpaqueBounds(logo);
         // Resolve ORIGINAL-pixel typography first, then fit the complete block.
-        const metrics=getWatermarkLayoutMetrics(image.width,image.height,config.referenceTextHeight);
         const singleLine = layout==='horizontal' && candidateConfig.horizontalPreset==='single';
-        const singleLineBoost = singleLine ? 1.65 : 1;
-        const textScale = Math.max(.1,candidateConfig.textScale??1);
-        // The generated canvas can downscale long blocks to stay within its
-        // pixel limit. Use the measured glyph size so both directions retain
-        // the same visible character height.
-        const targetRenderFactor = metrics.title * singleLineBoost * textScale / generatedTextSize;
-        // Preserve glyph proportions. Long captions are reduced uniformly to
-        // fit a generous 95% width; never squash the glyphs horizontally.
-        const horizontalScale = 1;
-        const renderConfig = {...candidateConfig, textHorizontalScale:horizontalScale};
-        if (horizontalScale < .999) {
-            const compressedDraft = await createTextWatermark(renderConfig);
-            logo = await loadPositionImage(compressedDraft);
-            bounds = getImageOpaqueBounds(logo);
-        }
-        const renderFactor = Math.min(targetRenderFactor,
-            singleLine ? image.width * .95 / bounds.width : image.width * .65 / bounds.width,
-            image.height * .65 / bounds.height);
+        const renderConfig = {...candidateConfig, textHorizontalScale:1};
         const baseWidth = getAdaptiveWatermarkRenderMetrics(image.width, image.height, logo).width;
-        const scale = bounds.width * renderFactor / baseWidth;
+        const scale = getTextWatermarkScale(image.width,image.height,bounds,baseWidth,generatedTextSize,config.textScale,config.referenceTextHeight);
+        const renderFactor=baseWidth*scale/bounds.width;
         let position = findSmartWatermarkPosition(photo, logo, image.id, scale, image.width, image.height, !overrides.color);
         // A clean upper margin benefits from a centered editorial caption. Keep
         // smart placement for busy/central areas so the watermark never covers

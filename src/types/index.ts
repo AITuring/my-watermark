@@ -44,6 +44,8 @@ interface MixedWatermarkConfig {
     textScale?: number;
     textHorizontalScale?: number;
     compactMode?: boolean;
+    compactAuthor?: string;
+    authorFontId?: string;
 }
 
 interface TextWatermarkConfig {

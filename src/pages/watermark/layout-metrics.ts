@@ -24,3 +24,10 @@ export function getWatermarkLayoutMetrics(width: number, height: number, referen
     return {title, caption: title * .58, signature: title * .66, gap: title * .22,
         basis: hasReference ? 'reference-text' : 'image-estimate'};
 }
+
+/** Normalize block-relative scale to a fixed glyph height for every layout. */
+export function getTextWatermarkScale(imageWidth:number,imageHeight:number,bounds:{width:number;height:number},baseWidth:number,generatedFontSize:number,textScale=1,referenceTextHeight?:number){
+    const target=getWatermarkLayoutMetrics(imageWidth,imageHeight,referenceTextHeight).title*Math.max(.1,textScale)/generatedFontSize;
+    const factor=Math.min(target,imageWidth*.95/bounds.width,imageHeight*.95/bounds.height);
+    return bounds.width*factor/baseWidth;
+}

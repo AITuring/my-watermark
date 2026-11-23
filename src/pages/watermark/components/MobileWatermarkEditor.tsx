@@ -1375,9 +1375,11 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                     </div>
                                     <WatermarkColorControl value={mixedWatermarkConfig.color} onAuto={onAutoColor}
                                         onChange={color => updateConfig({color})} />
-                                    <WatermarkFontPicker label="统一字体" value={mixedWatermarkConfig.fontId} text={[mixedWatermarkConfig.textLine1,mixedWatermarkConfig.textLine2].filter(Boolean).join(' · ')}
+                                    <WatermarkFontPicker label={mixedWatermarkConfig.compactMode?'名称字体':'统一字体'} value={mixedWatermarkConfig.fontId} text={[mixedWatermarkConfig.textLine1,mixedWatermarkConfig.textLine2].filter(Boolean).join(' · ')}
                                         onChange={fontId => updateConfig({fontId,captionFontId:fontId})} />
-                                    <label className="flex items-center justify-between rounded-lg border border-input px-3 py-2 text-sm" title="只显示图案、时代和名称"><span>精简模式</span><Switch aria-label="精简模式" checked={Boolean(mixedWatermarkConfig.compactMode)} onCheckedChange={compactMode=>updateConfig({compactMode})}/></label>
+                                    {mixedWatermarkConfig.compactMode && <WatermarkFontPicker label="作者字体" value={mixedWatermarkConfig.authorFontId||mixedWatermarkConfig.fontId} text={mixedWatermarkConfig.compactAuthor??'笑谈间气吐霓虹'} onChange={authorFontId=>updateConfig({authorFontId})}/>}
+                                    <label className="flex items-center justify-between rounded-lg border border-input px-3 py-2 text-sm" title="显示图案、时代、名称和作者署名"><span>精简模式</span><Switch aria-label="精简模式" checked={Boolean(mixedWatermarkConfig.compactMode)} onCheckedChange={compactMode=>updateConfig({compactMode})}/></label>
+                {mixedWatermarkConfig.compactMode && <label className="wm-copyright-field"><span className="wm-label">作者名称</span><input aria-label="作者名称" className="wm-text-input" value={mixedWatermarkConfig.compactAuthor??'笑谈间气吐霓虹'} maxLength={120} onChange={event=>updateConfig({compactAuthor:event.target.value})} placeholder="笑谈间气吐霓虹" /></label>}
                                     <WatermarkLayoutControl config={{...mixedWatermarkConfig,textOnly:watermarkMode==='text'}} onChange={updateConfig}/>
                                 </div>
                             )}

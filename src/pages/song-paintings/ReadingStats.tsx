@@ -40,6 +40,11 @@ export default function ReadingStats({ artworks }: { artworks: readonly Artwork[
                 <p>以完整目录的 {numberFormat.format(statistics.total)} 条作品为基准，不受目录筛选影响。</p>
             </header>
 
+            <aside className="song-size-research" aria-label="宋画尺寸研究">
+                <div><strong>宋画尺寸研究</strong><p>查看710条尺寸记录及方形、圆形册页候选的分布，可调整长宽比筛选。</p></div>
+                <a href="/song-paintings/research/dimensions/index.html" target="_blank" rel="noopener noreferrer">查看尺寸研究<span className="song-size-research-new-tab">（新窗口）</span> ↗</a>
+            </aside>
+
             <div className="song-stats-overview">
                 <div className="song-stats-completion">
                     <svg className="song-stats-ring" viewBox="0 0 160 160" role="img" aria-label={`阅读进度 ${percentFormat.format(statistics.percent)}%，已看过 ${statistics.read} 条，共 ${statistics.total} 条`}>

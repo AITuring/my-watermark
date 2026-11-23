@@ -120,3 +120,39 @@ export function arrangeWatermark(shapes:LayoutShape[],vertical:boolean,centered:
     }
     return{width,height,items};
 }
+
+/** Compact layouts keep the logo before the caption and signature. */
+export function arrangeCompactWatermark(main:LayoutShape|undefined,author:LayoutShape|undefined,vertical:boolean,fontSize:number,iconRatio?:number,paired=true){
+    const items:LayoutItem[]=[];
+    const gap=fontSize*.4,authorGap=fontSize*1.1;
+    // Size by visible width so tall, narrow logos still look slightly wider than a glyph.
+    const sealWidth=fontSize*1.12;
+    const seal=iconRatio?{width:sealWidth,height:sealWidth/iconRatio}:undefined;
+    const add=(role:'text'|'icon',shape:LayoutShape,x:number,y:number,index?:number)=>items.push({role,...shape,x,y,index});
+    if(!paired){
+        const width=Math.max(main?.width??0,author?.width??0,seal?.width??0);
+        let cursor=0;
+        const append=(role:'text'|'icon',shape:LayoutShape,index?:number)=>{
+            add(role,shape,vertical?(width-shape.width)/2:cursor,vertical?cursor:0,index);
+            cursor+=(vertical?shape.height:shape.width)+gap;
+        };
+        if(seal)append('icon',seal);
+        if(main)append('text',main,0);
+        if(author){if(main)cursor+=authorGap-gap;append('text',author,main?1:0);}
+    }else if(vertical){
+        const textWidth=(main?.width??0)+(main&&author?authorGap:0)+(author?.width??0);
+        const width=Math.max(textWidth,seal?.width??0);
+        const top=seal?seal.height+gap:0;
+        const height=Math.max(main?.height??0,author?.height??0);
+        const left=(width-textWidth)/2;
+        if(seal)add('icon',seal,(width-seal.width)/2,0);
+        if(main)add('text',main,left,top+height-main.height,0);
+        if(author)add('text',author,left+(main?main.width+authorGap:0),top+height-author.height,main?1:0);
+    }else{
+        const x=seal?seal.width+gap:0;
+        if(seal)add('icon',seal,0,0);
+        if(main)add('text',main,x,0,0);
+        if(author)add('text',author,x,main?main.height+authorGap:0,main?1:0);
+    }
+    return {items,width:Math.max(0,...items.map(item=>item.x+item.width)),height:Math.max(0,...items.map(item=>item.y+item.height))};
+}

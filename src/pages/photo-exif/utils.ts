@@ -538,7 +538,7 @@ export const cloneEditableGps = (gps: EditableGps): EditableGps => ({
 });
 
 export const editableGpsToPoint = (gps: EditableGps): GpsPoint | null => {
-    if (!gps.enabled) return null;
+    if (!gps.enabled || !gps.lat.trim() || !gps.lng.trim()) return null;
     const lat = Number(gps.lat);
     const lng = Number(gps.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -580,6 +580,7 @@ export const applySourceMetadataToItem = (
     target: PhotoExifItem,
     source: PhotoExifItem,
     selection: ImportScopeSelection,
+    onlyMissing = false,
 ): PhotoExifItem => {
     let nextItem = target;
 
@@ -587,12 +588,14 @@ export const applySourceMetadataToItem = (
     (Object.keys(IMPORT_SCOPE_EDITABLE_FIELDS) as Array<Exclude<ImportScopeKey, "gps">>).forEach((scopeKey) => {
         if (!selection[scopeKey]) return;
         IMPORT_SCOPE_EDITABLE_FIELDS[scopeKey].forEach((fieldKey: EditableExifKey) => {
-            nextEditable[fieldKey] = source.editableCurrent[fieldKey];
+            if (!onlyMissing || (!nextEditable[fieldKey].trim() && source.editableCurrent[fieldKey].trim())) {
+                nextEditable[fieldKey] = source.editableCurrent[fieldKey];
+            }
         });
     });
     nextItem = applyEditableStateToItem(nextItem, nextEditable);
 
-    if (selection.gps) {
+    if (selection.gps && (!onlyMissing || (!editableGpsToPoint(target.gpsCurrent) && editableGpsToPoint(source.gpsCurrent)))) {
         nextItem = applyGpsStateToItem(nextItem, cloneEditableGps(source.gpsCurrent));
     }
 
@@ -905,10 +908,17 @@ export const verifyPermission = async (handle: FileSystemHandle, readWrite: bool
     return false;
 };
 
+// AppleDouble files contain filesystem metadata, even when their names end in .jpg.
+export const isPhotoExifImageName = (name: string): boolean => {
+    const parts = name.replace(/\\/g, "/").split("/");
+    const baseName = parts[parts.length - 1];
+    return !parts.includes("__MACOSX") && !baseName.startsWith("._") && IMAGE_FILE_PATTERN.test(baseName);
+};
+
 export const listDirectoryImageEntries = async (handle: FileSystemDirectoryHandle): Promise<DirectoryImageEntry[]> => {
     const entries: DirectoryImageEntry[] = [];
     for await (const entry of handle.values()) {
-        if (entry.kind !== "file" || !IMAGE_FILE_PATTERN.test(entry.name)) continue;
+        if (entry.kind !== "file" || !isPhotoExifImageName(entry.name)) continue;
         const fileHandle = entry as FileSystemFileHandle;
         const file = await fileHandle.getFile();
         entries.push({ fileHandle, file });
@@ -927,6 +937,9 @@ export const buildPhotoExifItem = async (
         preferOriginalPreview?: boolean;
     },
 ): Promise<PhotoExifItem> => {
+    if (!isPhotoExifImageName(file.name)) {
+        throw new Error(`${file.name} 不是可导入的照片，macOS 元数据伴随文件会被忽略`);
+    }
     let tags: Record<string, unknown> = {};
     try {
         const ExifReader = (await loadExifReader()) as {
@@ -975,12 +988,13 @@ export const buildPhotoExifItemsSequentially = async (
         copyrightPresetEnabled: boolean;
     },
 ): Promise<PhotoExifItem[]> => {
+    const photoEntries = entries.filter((entry) => isPhotoExifImageName(entry.file.name));
     const nextItems: PhotoExifItem[] = [];
-    const totalBytes = entries.reduce((sum, entry) => sum + entry.file.size, 0);
-    const preferOriginalPreview = entries.length >= PREVIEW_FALLBACK_BATCH_COUNT
+    const totalBytes = photoEntries.reduce((sum, entry) => sum + entry.file.size, 0);
+    const preferOriginalPreview = photoEntries.length >= PREVIEW_FALLBACK_BATCH_COUNT
         || totalBytes >= PREVIEW_FALLBACK_TOTAL_BYTES;
 
-    for (const [index, entry] of entries.entries()) {
+    for (const [index, entry] of photoEntries.entries()) {
         nextItems.push(await buildPhotoExifItem(entry.file, {
             fileHandle: entry.fileHandle,
             source: entry.source,
@@ -988,7 +1002,7 @@ export const buildPhotoExifItemsSequentially = async (
             copyrightPresetEnabled: options.copyrightPresetEnabled,
             preferOriginalPreview,
         }));
-        if (index < entries.length - 1) {
+        if (index < photoEntries.length - 1) {
             await yieldToMainThread();
         }
     }

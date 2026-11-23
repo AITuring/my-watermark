@@ -26,3 +26,9 @@ test('title and description share one font while manual choices win over automat
     const disabled=api.resolveWatermarkTypography('元-赵孟頫《秋声赋卷》.jpg',{fontId:'kesong'},{},false);
     assert.equal(disabled.fontId,'kesong');assert.equal(disabled.captionFontId,'kesong');
 });
+
+test('compact names default to fine Jinling while a manual name font still wins',()=>{
+    assert.equal(api.resolveWatermarkTypography('元-赵孟頫《秋声赋卷》',{compactMode:true}).fontId,'fzxijinljw');
+    assert.equal(api.resolveWatermarkTypography('元-赵孟頫《秋声赋卷》',{}, {compactMode:true,authorFontId:'calligraphy'}).fontId,'fzxijinljw');
+    assert.equal(api.resolveWatermarkTypography('元-赵孟頫《秋声赋卷》',{compactMode:true}, {fontId:'custom'}).fontId,'custom');
+});

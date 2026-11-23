@@ -95,6 +95,10 @@ export const usePhotoExifImportFlow = ({
                 files.map((file) => ({ file, source: "dropzone" as const })),
                 persistenceContext,
             );
+            if (!nextItems.length) {
+                toast.info("没有可导入的照片，已忽略 macOS 元数据伴随文件");
+                return;
+            }
             const importedIds = nextItems.map((item) => item.id);
             appendItems(nextItems);
             const activeItemId = selectedItemRef.current?.id ?? null;

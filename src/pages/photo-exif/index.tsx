@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { filterPhotoItems, type PhotoListFilter } from "@/pages/photo-exif/missing-info";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     accentButtonClass,
@@ -20,10 +21,22 @@ import { usePhotoExifWorkbench } from "@/pages/photo-exif/hooks/usePhotoExifWork
 const PhotoExifWorkbench: React.FC = () => {
     const workbench = usePhotoExifWorkbench();
     const { stats, preferences, selection, importFlow, batchFlow, singleFlow } = workbench;
+    const [photoListFilter, setPhotoListFilter] = useState<PhotoListFilter>("auto");
+    const visibleItems = useMemo(
+        () => filterPhotoItems(workbench.items, photoListFilter, batchFlow.batchOnlyMissing),
+        [workbench.items, photoListFilter, batchFlow.batchOnlyMissing],
+    );
+    const { selectedId, setSelectedId } = selection;
+    useEffect(() => {
+        if (!visibleItems.some((item) => item.id === selectedId)) {
+            setSelectedId(visibleItems[0]?.id ?? null);
+        }
+    }, [visibleItems, selectedId, setSelectedId]);
+
 
     return (
         <div className="min-h-screen bg-background px-4 py-4 text-foreground lg:px-5">
-            <div className="mx-auto max-w-[1680px] space-y-5">
+            <div className="mx-auto max-w-[1680px] space-y-3">
                 <WorkbenchHeader
                     hasItems={workbench.items.length > 0}
                     dangerSubtleButtonClass={dangerSubtleButtonClass}
@@ -59,9 +72,13 @@ const PhotoExifWorkbench: React.FC = () => {
                             writableCount={stats.writableCount}
                         />
 
-                        <div className="grid gap-5 xl:grid-cols-12">
+                        <div className="grid items-start gap-4 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
                             <PhotoListPanel
-                                items={workbench.items}
+                                items={visibleItems}
+                                totalCount={workbench.items.length}
+                                filter={photoListFilter}
+                                onlyMissing={batchFlow.batchOnlyMissing}
+                                onFilterChange={setPhotoListFilter}
                                 selectedId={selection.selectedId}
                                 selectedImportSourceId={selection.selectedImportSourceId}
                                 secondaryButtonClass={secondaryButtonClass}
@@ -70,11 +87,11 @@ const PhotoExifWorkbench: React.FC = () => {
                                 onToggleImportSource={selection.toggleImportSource}
                             />
 
-                            <div className="xl:col-span-9 space-y-5">
+                            <div className="min-w-0 space-y-3">
                                 <Tabs defaultValue="viewer" className="space-y-3">
                                     <TabsList className="grid w-full grid-cols-2">
-                                        <TabsTrigger value="viewer">单图查看与修改</TabsTrigger>
-                                        <TabsTrigger value="batch">批量处理</TabsTrigger>
+                                        <TabsTrigger value="viewer">当前照片</TabsTrigger>
+                                        <TabsTrigger value="batch">批量补齐</TabsTrigger>
                                     </TabsList>
 
                                     <ViewerTabContent
@@ -119,7 +136,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                     />
 
                                     <BatchTabContent
-                                        items={workbench.items}
+                                        items={visibleItems}
                                         renameRules={batchFlow.renameRules}
                                         renameRuleInputs={batchFlow.renameRuleInputs}
                                         renameFilterKeyword={batchFlow.renameFilterKeyword}
@@ -130,9 +147,11 @@ const PhotoExifWorkbench: React.FC = () => {
                                         batchImportScopeSelection={batchFlow.batchImportScopeSelection}
                                         batchImportSourceId={batchFlow.batchImportSourceId}
                                         batchImportSourceOptions={batchFlow.batchImportSourceOptions}
-                                        batchImportTargetItems={batchFlow.batchImportTargetItems}
-                                        batchImportWritableTargetItems={batchFlow.batchImportWritableTargetItems}
+                                        batchImportTargetItems={visibleItems.filter((item) => item.canWriteExif && item.id !== batchFlow.batchImportSourceId)}
+                                        batchImportWritableTargetItems={visibleItems.filter((item) => item.canWriteExif && item.canOverwriteInPlace && item.fileHandle && item.id !== batchFlow.batchImportSourceId)}
                                         batchImportSourceItem={batchFlow.batchImportSourceItem}
+                                        batchOnlyMissing={batchFlow.batchOnlyMissing}
+                                        onBatchOnlyMissingChange={batchFlow.setBatchOnlyMissing}
                                         batchOverwriteEmpty={batchFlow.batchOverwriteEmpty}
                                         batchEditable={batchFlow.batchEditable}
                                         batchGps={batchFlow.batchGps}
@@ -152,7 +171,8 @@ const PhotoExifWorkbench: React.FC = () => {
                                         onSetSelectedAsBatchImportSource={batchFlow.setSelectedAsBatchImportSource}
                                         onBatchImportScopeSelectionChange={batchFlow.setBatchImportScopeSelection}
                                         onBatchImportSourceIdChange={batchFlow.setBatchImportSourceId}
-                                        onApplyBatchSourceImport={() => void batchFlow.applyBatchSourceImport(false)}
+                                        onApplyBatchSourceImport={() => void batchFlow.applyBatchSourceImport(false, visibleItems.map((item) => item.id))}
+                                        onApplyBatchSourceImportAndWrite={() => void batchFlow.applyBatchSourceImport(true, visibleItems.map((item) => item.id))}
                                         onRenameRuleInputChange={batchFlow.updateRenameRuleInput}
                                         onSubmitRenameRule={batchFlow.submitRenameRule}
                                         onRemoveRenameRule={batchFlow.removeRenameRule}
@@ -175,7 +195,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                         onBatchLocationSearchQueryChange={batchFlow.setBatchLocationSearchQuery}
                                         onSearchBatchLocation={() => void batchFlow.searchBatchLocation()}
                                         onBatchGpsFieldChange={batchFlow.updateBatchGpsField}
-                                        onApplyBatchChanges={batchFlow.applyBatchChanges}
+                                        onApplyBatchChanges={() => batchFlow.applyBatchChanges(visibleItems.map((item) => item.id))}
                                         onResetAllEditable={batchFlow.resetAllEditable}
                                         onExportBatch={() => void batchFlow.exportBatch()}
                                         onOverwriteBatchInPlace={() => void batchFlow.overwriteBatchInPlace()}

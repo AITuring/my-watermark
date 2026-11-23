@@ -1,3 +1,4 @@
+import { hasSourceMetadata } from "@/pages/photo-exif/missing-info";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_IMPORT_SCOPE_SELECTION, EMPTY_EDITABLE, EMPTY_GPS } from "@/pages/photo-exif/constants";
@@ -65,6 +66,7 @@ export const usePhotoExifBatchFlow = ({
         add_suffix: "",
     });
     const [renameFilterKeyword, setRenameFilterKeyword] = useState("");
+    const [batchOnlyMissing, setBatchOnlyMissing] = useState(true);
     const [batchOverwriteEmpty, setBatchOverwriteEmpty] = useState(false);
     const [batchImportScopeSelection, setBatchImportScopeSelection] = useState<ImportScopeSelection>(DEFAULT_IMPORT_SCOPE_SELECTION);
     const [batchLocationSearchQuery, setBatchLocationSearchQuery] = useState("");
@@ -85,10 +87,18 @@ export const usePhotoExifBatchFlow = ({
         () => items.filter((item) => editableGpsToPoint(item.gpsCurrent)),
         [items],
     );
-    const batchImportSourceOptions = useMemo(() => items, [items]);
+    const batchImportSourceOptions = useMemo(
+        () => items.filter((item) => hasSourceMetadata(item, batchImportScopeSelection)),
+        [items, batchImportScopeSelection],
+    );
+    useEffect(() => {
+        if (batchImportSourceId && !batchImportSourceOptions.some((item) => item.id === batchImportSourceId)) {
+            setBatchImportSourceId("");
+        }
+    }, [batchImportSourceId, batchImportSourceOptions]);
     const batchImportSourceItem = useMemo(
-        () => items.find((item) => item.id === batchImportSourceId) ?? null,
-        [items, batchImportSourceId],
+        () => batchImportSourceOptions.find((item) => item.id === batchImportSourceId) ?? null,
+        [batchImportSourceOptions, batchImportSourceId],
     );
     const batchImportTargetItems = useMemo(
         () => items.filter((item) => item.canWriteExif && item.id !== batchImportSourceId),
@@ -189,9 +199,13 @@ export const usePhotoExifBatchFlow = ({
             toast.error("请先在左侧选择一张图片");
             return;
         }
+        if (!hasSourceMetadata(selectedItem, batchImportScopeSelection)) {
+            toast.error("当前图片没有所选范围的可导入信息，请选择其他来源图");
+            return;
+        }
         setBatchImportSourceId(selectedItem.id);
         toast.success("已将当前图片设为批量来源图");
-    }, [selectedItem]);
+    }, [selectedItem, batchImportScopeSelection]);
 
     const applyCopyrightPresetToAll = useCallback(() => {
         if (!copyrightPresetEnabled) {
@@ -203,9 +217,9 @@ export const usePhotoExifBatchFlow = ({
         toast.success(`已将默认版权应用到 ${affected} 张可导出图片`);
     }, [copyrightPreset, copyrightPresetEnabled, items, setItems]);
 
-    const applyBatchChanges = useCallback(() => {
+    const applyBatchChanges = useCallback((targetIds?: string[]) => {
         const sourceGps = batchGpsSourceId ? items.find((item) => item.id === batchGpsSourceId)?.gpsCurrent ?? null : null;
-        const result = applyBatchChangesToItems(items, batchEditable, batchGps, batchOverwriteEmpty, sourceGps);
+        const result = applyBatchChangesToItems(targetIds ? items.filter((item) => targetIds.includes(item.id)) : items, batchEditable, batchGps, batchOverwriteEmpty, sourceGps, batchOnlyMissing);
         if (result.hasGpsValidationError) {
             toast.error("请填写有效的批量 GPS 经纬度，或选择一张带 GPS 的照片同步");
             return;
@@ -214,9 +228,10 @@ export const usePhotoExifBatchFlow = ({
             toast.error("请至少填写一个批量修改字段，或配置 GPS 批量处理");
             return;
         }
-        setItems(result.nextItems);
-        toast.success(`已把批量修改应用到 ${result.affected} 张可导出图片`);
-    }, [batchEditable, batchGps, batchGpsSourceId, batchOverwriteEmpty, items, setItems]);
+        const updated = new Map(result.nextItems.map((item) => [item.id, item]));
+        setItems((previous) => previous.map((item) => updated.get(item.id) ?? item));
+        toast.success(`已预览 ${result.affected} 张照片的修改，尚未写入原文件，请点击写回或导出`);
+    }, [batchEditable, batchGps, batchGpsSourceId, batchOverwriteEmpty, batchOnlyMissing, items, setItems]);
 
     const resetAllEditable = useCallback(() => {
         setItems((previous) => resetItemsToOriginal(previous));
@@ -301,7 +316,7 @@ export const usePhotoExifBatchFlow = ({
         toast.success("已清空批量 GPS 配置");
     }, []);
 
-    const applyBatchSourceImport = useCallback(async (persistInPlace = false) => {
+    const applyBatchSourceImport = useCallback(async (persistInPlace = false, targetIds?: string[]) => {
         if (!batchImportSourceId) {
             toast.error("请先选择一张批量来源图");
             return;
@@ -315,23 +330,34 @@ export const usePhotoExifBatchFlow = ({
             toast.error("批量来源图不存在，请重新选择");
             return;
         }
-        if (!batchImportTargetItems.length) {
+        if (!hasSourceMetadata(sourceItem, batchImportScopeSelection)) {
+            toast.error("来源图片没有所选范围的可导入信息，请重新选择");
+            return;
+        }
+        const targets = targetIds ? batchImportTargetItems.filter((item) => targetIds.includes(item.id)) : batchImportTargetItems;
+        if (!targets.length) {
             toast.error("没有可导入的目标图片");
             return;
         }
 
-        const stagedItems = batchImportTargetItems.map((item) => applySourceMetadataToItem(item, sourceItem, batchImportScopeSelection));
+        const stagedItems = targets.map((item) => applySourceMetadataToItem(item, sourceItem, batchImportScopeSelection, batchOnlyMissing))
+            .filter((item, index) => (persistInPlace && isDirty(item)) || JSON.stringify(item.editableCurrent) !== JSON.stringify(targets[index].editableCurrent)
+                || JSON.stringify(item.gpsCurrent) !== JSON.stringify(targets[index].gpsCurrent));
+        if (!stagedItems.length) {
+            toast.info("没有需要更新的信息，已有数据已保留");
+            return;
+        }
         const stagedItemsMap = new Map(stagedItems.map((item) => [item.id, item]));
 
+        setItems((previous) => previous.map((item) => stagedItemsMap.get(item.id) ?? item));
         if (!persistInPlace) {
-            setItems((previous) => previous.map((item) => stagedItemsMap.get(item.id) ?? item));
-            toast.success(`已将来源图信息导入到 ${stagedItems.length} 张图片`);
+            toast.success(`已预览 ${stagedItems.length} 张照片的补齐结果，尚未写入原文件，请点击写回或导出`);
             return;
         }
 
-        const writableItems = stagedItems.filter((item) => item.canOverwriteInPlace && item.fileHandle);
-        if (!writableItems.length) {
-            toast.error("当前没有已授权原文件的目标 JPEG / PNG，无法批量原地写回");
+        const writableItems = stagedItems.filter((item) => isDirty(item) && item.canOverwriteInPlace && item.fileHandle);
+        if (writableItems.length !== stagedItems.length) {
+            toast.error(`已保留补齐预览；${stagedItems.length - writableItems.length} 张照片不支持写回或未授权，本次尚未写入，请授权后写回或导出副本`);
             return;
         }
 
@@ -340,16 +366,18 @@ export const usePhotoExifBatchFlow = ({
             const refreshedItems = await overwriteItemsInPlace(writableItems, {
                 directoryHandle,
                 ...persistenceContext,
+            }, (written) => {
+                setItems((previous) => previous.map((item) => item.id === written.id ? written : item));
             });
             setItems((previous) => previous.map((item) => refreshedItems.get(item.id) ?? item));
             toast.success(`已导入来源图信息并原地写回 ${refreshedItems.size} 张 JPEG / PNG`);
         } catch (error) {
             console.error(error);
-            toast.error(error instanceof Error ? error.message : "批量导入并写回失败，请重试");
+            toast.error(`${error instanceof Error ? error.message : "写回失败"}；已成功的照片已刷新，其余保留待写回状态`);
         } finally {
             setIsOverwritingInPlace(false);
         }
-    }, [batchImportScopeSelection, batchImportSourceId, batchImportTargetItems, directoryHandle, items, persistenceContext, setItems]);
+    }, [batchOnlyMissing, batchImportScopeSelection, batchImportSourceId, batchImportTargetItems, directoryHandle, items, persistenceContext, setItems]);
 
     const searchBatchLocation = useCallback(async () => {
         const keyword = batchLocationSearchQuery.trim();
@@ -416,6 +444,8 @@ export const usePhotoExifBatchFlow = ({
             const refreshedItems = await overwriteItemsInPlace(writableDirtyItems, {
                 directoryHandle,
                 ...persistenceContext,
+            }, (written) => {
+                setItems((previous) => previous.map((item) => item.id === written.id ? written : item));
             });
             setItems((previous) => previous.map((item) => refreshedItems.get(item.id) ?? item));
             toast.success(`已原地改写 ${refreshedItems.size} 张 JPEG / PNG 图片的 EXIF`);
@@ -440,6 +470,8 @@ export const usePhotoExifBatchFlow = ({
         renameRules,
         renameRuleInputs,
         renameFilterKeyword,
+        batchOnlyMissing,
+        setBatchOnlyMissing,
         batchOverwriteEmpty,
         batchImportScopeSelection,
         batchLocationSearchQuery,

@@ -144,3 +144,24 @@ test('simplified font groups keep the full catalog reachable through four choice
     assert.equal(api.fontGroup(fonts.find(f=>f.id==='fzxijinljw')),'宋体');
     assert.equal(api.fontGroup(fonts.find(f=>f.id==='fzzhaomfksjf')),'书法');
 });
+
+test('layout footprint changes preserve glyph height in single, paired and centered text',()=>{
+    const imageWidth=6000,imageHeight=8000,baseWidth=900;
+    const desired=metrics(imageWidth,imageHeight).title;
+    for(const bounds of [{width:120,height:2400},{width:300,height:1200},{width:2400,height:120},{width:1200,height:300}]){
+        const scale=api.getTextWatermarkScale(imageWidth,imageHeight,bounds,baseWidth,120);
+        const visibleGlyphHeight=120*baseWidth*scale/bounds.width;
+        assert.ok(Math.abs(visibleGlyphHeight-desired)<1e-8);
+    }
+});
+test('manual text size survives layout changes and oversized captions fit inside the photo',()=>{
+    const baseWidth=900;
+    for(const width of [120,300,1000]){
+        const scale=api.getTextWatermarkScale(6000,8000,{width,height:1200},baseWidth,120,1.5);
+        assert.ok(Math.abs(120*baseWidth*scale/width-metrics(6000,8000).title*1.5)<1e-8);
+    }
+    const bounds={width:12000,height:24000};
+    const scale=api.getTextWatermarkScale(6000,8000,bounds,baseWidth,120,3);
+    const factor=baseWidth*scale/bounds.width;
+    assert.ok(bounds.width*factor<=6000*.95&&bounds.height*factor<=8000*.95);
+});

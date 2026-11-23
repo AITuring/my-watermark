@@ -1,7 +1,7 @@
 import {ensureWatermarkFont} from '@/pages/watermark/fonts/registry';
 import {getWatermarkPreset} from '@/pages/watermark/layout-presets';
 import {getImageOpaqueBounds} from '@/utils/watermark-editor';
-import {arrangeWatermark,buildSingleLineCaptionRuns,getCompactWatermarkCaption,getFittedVerticalLetterSpacing,getWatermarkGlyphRotation,splitLongCaptionForMultiple} from './text-watermark-layout';
+import {arrangeCompactWatermark,arrangeWatermark,buildSingleLineCaptionRuns,getCompactWatermarkCaption,getFittedVerticalLetterSpacing,getWatermarkGlyphRotation,splitLongCaptionForMultiple} from './text-watermark-layout';
 import type {MixedWatermarkConfig} from '@/types';
 
 type Field='textLine1'|'textLine2';
@@ -10,7 +10,7 @@ export interface WatermarkTextRegion extends Rect{
     field:Field;fontSize:number;fontFamily:string;letterSpacing:number;
     inputOffsetX?:number;inputOffsetY?:number;lineHeight?:number;
 }
-type Glyph={text:string;x:number;y:number;angle:number;field?:Field;fontSize:number;ink:Rect};
+type Glyph={text:string;x:number;y:number;angle:number;field?:Field;fontSize:number;fontFamily:string;ink:Rect};
 type TextShape=Rect&{glyphs:Glyph[]};
 
 function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Field;fontScale?:number}[],vertical:boolean,size:number,spacing:number,family:string):TextShape{
@@ -29,7 +29,7 @@ function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Fiel
                 x=-w/2-b.left;y=cursor+(fontSize-h)/2-b.top;
                 ink={x:-w/2,y:cursor+(fontSize-h)/2,width:w,height:h};cursor+=fontSize+spacing;
             }else{ink={x:cursor+box.left,y:box.top,width:box.right-box.left,height:box.bottom-box.top};cursor+=m.width+spacing;}
-            glyphs.push({text,x,y,angle,field:run.field,fontSize,ink});left=Math.min(left,ink.x);top=Math.min(top,ink.y);right=Math.max(right,ink.x+ink.width);bottom=Math.max(bottom,ink.y+ink.height);
+            glyphs.push({text,x,y,angle,field:run.field,fontSize,fontFamily:family,ink});left=Math.min(left,ink.x);top=Math.min(top,ink.y);right=Math.max(right,ink.x+ink.width);bottom=Math.max(bottom,ink.y+ink.height);
         }
     }
     if(!glyphs.length)return{x:0,y:0,width:0,height:0,glyphs:[]};
@@ -40,28 +40,37 @@ function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Fiel
 export async function createTextWatermark(config:MixedWatermarkConfig,onLayout?:(regions:WatermarkTextRegion[])=>void):Promise<string>{
     const compactCaption=config.compactMode?getCompactWatermarkCaption(config.textLine2):config.textLine2;
     const runs=([['textLine1',config.textLine1],['textLine2',compactCaption]] as const).map(([field,text])=>({field,text:text.trim()})).filter(run=>run.text);
-    if(!runs.length&&(config.textOnly||!config.icon)){onLayout?.([]);return '';}
+    const author=config.compactMode?(config.compactAuthor??'笑谈间气吐霓虹').trim():'';
+    if(!author&&!runs.length&&(config.textOnly||!config.icon)){onLayout?.([]);return '';}
     const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)throw Error('无法创建文字水印');
-    const family=await ensureWatermarkFont(config.fontId||config.captionFontId,runs.map(run=>run.text).join('·'));
+    const [family,authorFamily]=await Promise.all([
+        ensureWatermarkFont(config.fontId||config.captionFontId,runs.map(run=>run.text).join('·')),
+        author?ensureWatermarkFont(config.authorFontId||config.fontId||config.captionFontId,author):Promise.resolve(''),
+    ]);
     const size=Math.max(24,config.fontSize*4),vertical=config.layout==='vertical',textScale=Math.max(.1,config.textScale??1);
     const baseLetterSpacing=config.letterSpacing??.1;
     const letterSpacing=vertical?getFittedVerticalLetterSpacing(baseLetterSpacing-.08,textScale):baseLetterSpacing;
     const spacing=size*letterSpacing;
-    await document.fonts.load(`${size}px ${family}`,runs.map(run=>run.text).join('')||'秋');ctx.font=`${size}px ${family}`;
+    await Promise.all([document.fonts.load(`${size}px ${family}`,runs.map(run=>run.text).join('')||'秋'),...(author?[document.fonts.load(`${size}px ${authorFamily}`,author)]:[])]);ctx.font=`${size}px ${family}`;
     const preset=getWatermarkPreset(config),single=preset==='single'||runs.length<2;
     const joined=buildSingleLineCaptionRuns(runs[0]?.text||'',runs[1]?.text||'',config.compactMode?'era-first':config.singleLineOrder,vertical);
     const multiplePlan=!single&&!vertical
         ? splitLongCaptionForMultiple(runs[0]?.text||'',runs[1]?.text||'')
         : undefined;
-    const shapes=single&&runs.length
+    const shapes=config.compactMode
+        ? (runs.length?[measureShape(ctx,joined,vertical,size,spacing,family)]:[])
+        : single&&runs.length
         ? [measureShape(ctx,joined,vertical,size,spacing,family)]
         : multiplePlan
             ? [measureShape(ctx,multiplePlan.first,vertical,size,spacing,family),measureShape(ctx,multiplePlan.second,vertical,size,spacing,family)]
             : runs.map(run=>measureShape(ctx,[run],vertical,size,spacing,family));
+    const compactMain=config.compactMode?shapes[0]:undefined;
+    const authorShape=author?measureShape(ctx,[{text:author}],vertical,size,spacing,authorFamily):undefined;
+    if(authorShape)shapes.push(authorShape);
     let icon:HTMLImageElement|undefined;
     if(!config.textOnly&&config.icon)icon=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(Error('水印图标加载失败'));image.src=config.icon;});
     const iconBounds=icon?getImageOpaqueBounds(icon):undefined;
-    const geometry=arrangeWatermark(shapes,vertical,preset==='centered',size,size*(config.lineGap??.55),iconBounds?iconBounds.width/iconBounds.height:undefined,vertical?1/Math.max(1,textScale):1);
+    const geometry=config.compactMode?arrangeCompactWatermark(compactMain,authorShape,vertical,size,iconBounds?iconBounds.width/iconBounds.height:undefined,preset!=='single'):arrangeWatermark(shapes,vertical,preset==='centered',size,size*(config.lineGap??.55),iconBounds?iconBounds.width/iconBounds.height:undefined,vertical?1/Math.max(1,textScale):1);
     // Icon-only mode retains the existing size control; text layouts lock icon proportions.
     if(!shapes.length&&config.iconScale){for(const item of geometry.items){item.width*=config.iconScale;item.height*=config.iconScale;}geometry.width*=config.iconScale;geometry.height*=config.iconScale;}
     const padding=size*.3,horizontalScale=Math.max(.1,Math.min(1,config.textHorizontalScale??1));
@@ -77,7 +86,7 @@ export async function createTextWatermark(config:MixedWatermarkConfig,onLayout?:
             c.drawImage(icon,iconBounds.x,iconBounds.y,iconBounds.width,iconBounds.height,0,0,tint.width,tint.height);c.globalCompositeOperation='source-in';c.fillStyle=config.color;c.fillRect(0,0,tint.width,tint.height);ctx.drawImage(tint,x,y,item.width,item.height);continue;
         }
         const shape=shapes[item.index!];
-        for(const glyph of shape.glyphs){ctx.save();ctx.font=`${glyph.fontSize}px ${family}`;ctx.translate(x+glyph.x,y+glyph.y);if(glyph.angle)ctx.rotate(glyph.angle);ctx.fillText(glyph.text,0,0);ctx.restore();}
+        for(const glyph of shape.glyphs){ctx.save();ctx.font=`${glyph.fontSize}px ${glyph.fontFamily}`;ctx.translate(x+glyph.x,y+glyph.y);if(glyph.angle)ctx.rotate(glyph.angle);ctx.fillText(glyph.text,0,0);ctx.restore();}
         for(const field of ['textLine1','textLine2'] as const){
             const glyphs=shape.glyphs.filter(g=>g.field===field);if(!glyphs.length)continue;
             const left=Math.min(...glyphs.map(g=>g.ink.x)),top=Math.min(...glyphs.map(g=>g.ink.y)),right=Math.max(...glyphs.map(g=>g.ink.x+g.ink.width)),bottom=Math.max(...glyphs.map(g=>g.ink.y+g.ink.height));

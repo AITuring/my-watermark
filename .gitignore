@@ -70,3 +70,7 @@ wheels/
 # 避免源码目录中的编译产物进入版本库
 src/**/dist/
 
+
+# Downloaded local face models (installed by npm run people:setup)
+backend/people_models/*.onnx
+backend/people_models/*.part
