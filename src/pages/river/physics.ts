@@ -12,9 +12,12 @@ export const defaults: RiverSettings = { discharge: 4.8, depth: .65, wind: 1.8, 
 export function meanSpeed(s: RiverSettings) { return s.discharge / (WIDTH * s.depth * (0.35 + 0.65 * 2 / 3)); }
 export class RiverPhysics {
     height = new Float32Array(NX * NZ);
+    flow = new Float32Array(NX * NZ * 4);
     private u = new Float32Array((NX + 1) * NZ);
     private v = new Float32Array(NX * (NZ + 1));
     private next = new Float32Array(NX * NZ);
+    private foamPrev = new Float32Array(NX * NZ);
+    private foamNext = new Float32Array(NX * NZ);
     solid = new Uint8Array(NX * NZ);
     private pulse = new Float32Array(NX * NZ);
     private envelope = new Float32Array(NX * NZ);
@@ -28,7 +31,7 @@ export class RiverPhysics {
             this.solid[j * NX + i] = obstacles.some(o => Math.hypot(x - o.x, z - o.z) < o.r) ? 1 : 0;
         }
     }
-    reset() { this.height.fill(0); this.u.fill(0); this.v.fill(0); this.time = 0; }
+    reset() { this.height.fill(0); this.u.fill(0); this.v.fill(0); this.flow.fill(0); this.foamPrev.fill(0); this.foamNext.fill(0); this.time = 0; }
     splash(x: number, z: number, amplitude = .085) {
         const variance=Math.max(.015,.13*(this.width/WIDTH)**2);
         let total=0,weights=0;
@@ -68,6 +71,39 @@ export class RiverPhysics {
             this.next[k] = (h[k] - dt * divergence - dt * current * (h[k] - upstream) / this.dz) * Math.exp(-dt * (absorption * 5 + .12));
         }
         this.height.set(this.next);
+        this.updateFlowField(dt, speed, s.depth);
+    }
+    private updateFlowField(dt: number, speed: number, baseDepth: number) {
+        const decay = Math.exp(-dt * (.16 + speed * .025));
+        for (let k = 0; k < this.foamPrev.length; k++) this.foamPrev[k] = this.flow[k * 4 + 2];
+        const sampleFoam = (x: number, z: number) => {
+            const fx = Math.max(0, Math.min(NX - 1.001, x)), fz = Math.max(0, Math.min(NZ - 1.001, z));
+            const x0 = Math.floor(fx), z0 = Math.floor(fz), tx = fx - x0, tz = fz - z0;
+            const at = (ix: number, iz: number) => this.foamPrev[(Math.max(0, Math.min(NZ - 1, iz)) * NX) + Math.max(0, Math.min(NX - 1, ix))];
+            return (at(x0, z0) * (1 - tx) + at(x0 + 1, z0) * tx) * (1 - tz) + (at(x0, z0 + 1) * (1 - tx) + at(x0 + 1, z0 + 1) * tx) * tz;
+        };
+        for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
+            const k = j * NX + i, f = k * 4;
+            if (this.solid[k]) { this.flow[f] = this.flow[f + 1] = this.flow[f + 2] = this.flow[f + 3] = 0; continue; }
+            const uc = (this.u[j * (NX + 1) + i] + this.u[j * (NX + 1) + i + 1]) * .5;
+            const lateral = (i + .5) / NX * 2 - 1;
+            const perturbV = (this.v[k] + this.v[k + NX]) * .5;
+            const vc = perturbV + speed * (1.25 - .6 * lateral * lateral) / 1.094255319;
+            const left = i ? this.height[k - 1] : this.height[k], right = i + 1 < NX ? this.height[k + 1] : this.height[k];
+            const up = j ? this.height[k - NX] : this.height[k], down = j + 1 < NZ ? this.height[k + NX] : this.height[k];
+            const slope = Math.hypot((right - left) / (2 * this.dx), (down - up) / (2 * this.dz));
+            const shear = Math.min(1, Math.hypot(uc, perturbV) / Math.max(.15, speed) * .8);
+            const bank = i === 0 || i === NX - 1 || (i && this.solid[k - 1]) || (i + 1 < NX && this.solid[k + 1]) ? 1 : 0;
+            const obstacleWake = bank * Math.min(1, Math.hypot(uc, vc) / Math.max(.1, speed));
+            const source = Math.min(1, slope * 2.8 + shear * .32 + obstacleWake * .42);
+            const backX = i - uc * dt / this.dx, backZ = j - vc * dt / this.dz;
+            const carried = sampleFoam(backX, backZ) * decay;
+            this.foamNext[k] = Math.max(0, Math.min(1, carried + source * dt * (1.8 + baseDepth * .25)));
+            this.flow[f] = uc / Math.max(.1, speed);
+            this.flow[f + 1] = vc / Math.max(.1, speed);
+            this.flow[f + 2] = this.foamNext[k];
+            this.flow[f + 3] = Math.max(0, Math.min(1, 1 - Math.abs((i + .5) / NX * 2 - 1) * .7));
+        }
     }
     advance(delta: number, s: RiverSettings) {
         // CFL bounds both wave propagation and transport at every setting.

@@ -199,13 +199,17 @@ export function createRiverScene(host: HTMLDivElement, getSettings: () => Simula
     const heightTexture = new THREE.DataTexture(physics.height,NX,NZ,THREE.RedFormat,THREE.FloatType);
     heightTexture.minFilter=THREE.NearestFilter; heightTexture.magFilter=THREE.NearestFilter;
     heightTexture.needsUpdate=true;
+    const flowTexture = new THREE.DataTexture(physics.flow,NX,NZ,THREE.RGBAFormat,THREE.FloatType);
+    const flowFilter = renderer.extensions.has('OES_texture_float_linear') ? THREE.LinearFilter : THREE.NearestFilter;
+    flowTexture.minFilter=flowFilter; flowTexture.magFilter=flowFilter;
+    flowTexture.wrapS=flowTexture.wrapT=THREE.ClampToEdgeWrapping; flowTexture.needsUpdate=true;
     const reflection = new THREE.WebGLRenderTarget(800,600,{type:THREE.HalfFloatType});
     const refraction = new THREE.WebGLRenderTarget(800,600,{type:THREE.HalfFloatType});
     refraction.depthTexture=new THREE.DepthTexture(800,600,THREE.UnsignedIntType);
     const reflectionCamera = camera.clone();
     const reflectionMatrix=new THREE.Matrix4(),viewProjection=new THREE.Matrix4(),inverseViewProjection=new THREE.Matrix4();
     const uniforms = {
-        heights:{value:heightTexture},time:{value:0},wind:{value:1.8},speed:{value:.9},depth:{value:.65},
+        heights:{value:heightTexture},flowField:{value:flowTexture},time:{value:0},wind:{value:1.8},speed:{value:.9},depth:{value:.65},choppiness:{value:.52},
         reflection:{value:reflection.texture},refraction:{value:refraction.texture},bedDepth:{value:refraction.depthTexture},viewProjection:{value:viewProjection},inverseViewProjection:{value:inverseViewProjection},
         reflectionMatrix:{value:reflectionMatrix},sunDirection:{value:new THREE.Vector3()},
         variability:{value:getSettings().variability},realization:{value:getSettings().realization%10000},longWave:{value:new THREE.Vector4()},clarity:{value:.8},domainScale:{value:new THREE.Vector2(scaleX,scaleZ)},
@@ -245,7 +249,7 @@ export function createRiverScene(host: HTMLDivElement, getSettings: () => Simula
         const hit=raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),new THREE.Vector3());
         if(hit){const x=hit.x/scaleX,z=hit.z/scaleZ;
             if(Math.abs(z)<LENGTH/2&&Math.abs(x-center(z))<breadth(z)){
-                physics.splash((x-center(z))/breadth(z)*env.width/2,hit.z);heightTexture.needsUpdate=true;
+                physics.splash((x-center(z))/breadth(z)*env.width/2,hit.z);heightTexture.needsUpdate=true;flowTexture.needsUpdate=true;
             }}
     };
     renderer.domElement.addEventListener('pointerdown',onDown); renderer.domElement.addEventListener('pointerup',onUp);
@@ -269,7 +273,7 @@ export function createRiverScene(host: HTMLDivElement, getSettings: () => Simula
                 lastWake=simulationTime;
                 obstacles.forEach((o,i)=>physics.splash((o.x+Math.sin(simulationTime*3+i)*o.r*.65)*scaleX,(o.z+o.r*1.5)*scaleZ,.008*currentSpeed(settings)));
             }
-            heightTexture.needsUpdate=true;
+            heightTexture.needsUpdate=true;flowTexture.needsUpdate=true;
         }
         leaves.update(settings.playing?delta*settings.timeScale:0,simulationTime,settings);
         wind.time.value=simulationTime;wind.speed.value=settings.wind;wind.direction.value.set(Math.sin(settings.direction*Math.PI/180),Math.cos(settings.direction*Math.PI/180));
@@ -283,7 +287,7 @@ export function createRiverScene(host: HTMLDivElement, getSettings: () => Simula
         uniforms.time.value=simulationTime; uniforms.wind.value=settings.wind;uniforms.speed.value=currentSpeed(settings); uniforms.depth.value=settings.depth;
         const k=waveNumber(settings.period,settings.depth);
         uniforms.longWave.value.set(k,2*Math.PI/settings.period,settings.waveHeight*.5,settings.direction*Math.PI/180);
-        uniforms.variability.value=settings.variability;uniforms.realization.value=settings.realization%10000;uniforms.clarity.value=settings.clarity;
+        uniforms.variability.value=settings.variability;uniforms.realization.value=settings.realization%10000;uniforms.clarity.value=settings.clarity;uniforms.choppiness.value=settings.choppiness;
         (water.material as THREE.ShaderMaterial).wireframe=settings.wireframe;arrows.visible=settings.vectors;
         camera.updateMatrixWorld();viewProjection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);inverseViewProjection.copy(viewProjection).invert(); camera.getWorldDirection(look);
         reflectionCamera.position.copy(camera.position); reflectionCamera.position.y*=-1;
@@ -301,8 +305,8 @@ export function createRiverScene(host: HTMLDivElement, getSettings: () => Simula
     return {
         resetCamera,
         setView:(view)=>{resetCamera();if(view==='overview')camera.position.set(scaleX,29,18*scaleZ);else camera.position.set(3.5*scaleX,1.4,12*scaleZ);controls.update();},
-        reset:()=>{resetCamera();physics.reset();simulationTime=0;lastWake=0;heightTexture.needsUpdate=true;},
-        disturb:()=>{physics.splash(0,0);heightTexture.needsUpdate=true;},
+        reset:()=>{resetCamera();physics.reset();simulationTime=0;lastWake=0;heightTexture.needsUpdate=true;flowTexture.needsUpdate=true;},
+        disturb:()=>{physics.splash(0,0);heightTexture.needsUpdate=true;flowTexture.needsUpdate=true;},
         screenshot:()=>downloadCanvas(renderer.domElement,`水流模拟-${getSettings().kind==='creek'?'小溪':'小河'}.png`),
         dispose:()=>{
             disposed=true;cancelAnimationFrame(frame);observer.disconnect();controls.dispose();
@@ -310,7 +314,7 @@ export function createRiverScene(host: HTMLDivElement, getSettings: () => Simula
             const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>();
             scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line){geometries.add(o.geometry);(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>materials.add(m));}});
             geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());sun.shadow.dispose();
-            leaves.dispose();stopForest();stopGrass();groundTextures.forEach(t=>t.dispose());mineralTexture.dispose();stopLight();stopRocks();heightTexture.dispose();reflection.dispose();refraction.depthTexture.dispose();refraction.dispose();renderer.dispose();renderer.domElement.remove();
+            leaves.dispose();stopForest();stopGrass();groundTextures.forEach(t=>t.dispose());mineralTexture.dispose();stopLight();stopRocks();heightTexture.dispose();flowTexture.dispose();reflection.dispose();refraction.depthTexture.dispose();refraction.dispose();renderer.dispose();renderer.domElement.remove();
         },
     };
 }

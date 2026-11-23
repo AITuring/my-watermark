@@ -1,11 +1,13 @@
 export const vertexShader = /* glsl */`
 uniform sampler2D heights;
+uniform sampler2D flowField;
 uniform float time;
 uniform float wind;
 uniform float speed;
 uniform float depth;
 uniform vec4 longWave;
 uniform float variability;uniform float realization;
+uniform float choppiness;
 uniform vec2 domainScale;
 uniform mat4 reflectionMatrix;
 varying vec3 world;
@@ -26,7 +28,7 @@ float micro(vec2 p) {
         h+=weight*sin(dot(p,d)*k-(omega+k*d.y*speed)*time+f*f*1.731+sin(realization*.13+f*19.17)*3.14);
         energy+=weight*weight;
     }
-    h*=longWave.z/sqrt(2.0*energy);
+    h*=longWave.z/sqrt(2.0*energy)*(0.72+choppiness*.58);
     for (int i=0; i<6; i++) {
         float f=float(i);
         float k=5.0+f*4.8;
@@ -47,7 +49,9 @@ float elevation(vec2 uv, vec2 p) {
 void main() {
     riverUv=uv;
     vec3 p=position;
-    p.y=elevation(uv,p.xz);
+    vec4 flowSample=texture2D(flowField,uv);
+    p.y=elevation(uv,p.xz)+flowSample.b*.012;
+    p.xz+=flowSample.rg*.012*(.6+choppiness*.8);
     float e=.04;
     float hx=(elevation(uv+vec2(e/(9.0*domainScale.x),0.0),p.xz+vec2(e/domainScale.x,0.0))-elevation(uv-vec2(e/(9.0*domainScale.x),0.0),p.xz-vec2(e/domainScale.x,0.0)))/(2.0*e);
     float hz=(elevation(uv+vec2(0.0,e/(48.0*domainScale.y)),p.xz+vec2(0.0,e/domainScale.y))-elevation(uv-vec2(0.0,e/(48.0*domainScale.y)),p.xz-vec2(0.0,e/domainScale.y)))/(2.0*e);
@@ -60,12 +64,14 @@ void main() {
 export const fragmentShader = /* glsl */`
 uniform sampler2D reflection;
 uniform sampler2D refraction;
+uniform sampler2D flowField;
 uniform sampler2D bedDepth;uniform mat4 viewProjection;uniform mat4 inverseViewProjection;
 uniform float clarity;
 uniform vec2 domainScale;
 uniform float depth;
 uniform float time;
 uniform float speed;
+uniform float choppiness;
 uniform vec3 sunDirection;
 uniform mat4 reflectionMatrix;
 varying vec3 world;
@@ -120,23 +126,33 @@ void main() {
     vec3 color=mix(bed*trans+scattering*(1.0-trans),mirror,fresnel);
     vec3 halfVector=normalize(sunDirection+view);
     float nl=max(dot(n,sunDirection),.001),nh=max(dot(n,halfVector),0.0),vh=max(dot(view,halfVector),0.0);
-    float a2=.0016,denom=nh*nh*(a2-1.0)+1.0;
+    float slopeVariance=dot(fineSlope,fineSlope);
+    float a2=.0012+slopeVariance*.018+(1.0-clarity)*.0018;
+    float denom=nh*nh*(a2-1.0)+1.0;
     float d=a2/(3.14159265*denom*denom);
     float gv=2.0*cosTheta/(cosTheta+sqrt(a2+(1.0-a2)*cosTheta*cosTheta));
     float gl=2.0*nl/(nl+sqrt(a2+(1.0-a2)*nl*nl));
     float f=.02037+.97963*pow(1.0-vh,5.0);
     color+=vec3(1.0,.91,.75)*min(3.0,d*gv*gl*f/(4.0*max(cosTheta,.001)))*.12;
-    // Sparse foam in the downstream wakes, stretched and advected.
-    float foam=0.0;
-    for (int i=0; i<3; i++) {
-        vec2 rock=i==0?vec2(-1.65,3.0):(i==1?vec2(1.25,-8.0):vec2(-.55,14.0));
-        float localX=(riverUv.x-.5)*9.0-rock.x;
-        float dz=world.z/domainScale.y-rock.y;
-        float wake=exp(-abs(localX)/(0.12+max(dz,0.0)*.11))*exp(-max(dz,0.0)*.65)*step(.3,dz);
-        float grain=foamNoise(vec2(localX*20.0,(dz-time*speed/domainScale.y)*18.0));
-        foam+=wake*smoothstep(.5,.78,grain)*min(speed*.4,.7);
-    }
-    color=mix(color,vec3(.76,.83,.76),min(foam,.45));
+    // Persistent flow-map foam with two world-space phases. The first phase keeps the
+    // broad lace attached to the river, while the second breaks it into moving holes.
+    vec4 field=texture2D(flowField,riverUv);
+    vec2 flow=field.rg;
+    float fieldFoam=field.b;
+    vec2 flowUv=world.xz*vec2(.55,.12)-flow*time*vec2(1.8,2.7);
+    float laceA=foamNoise(flowUv*2.15+vec2(time*.035,-time*.021));
+    float laceB=foamNoise(flowUv*6.2-vec2(time*.13,time*.08));
+    float lace=mix(laceA,laceB,.38);
+    float shore=smoothstep(.58,.96,side)*smoothstep(.05,.42,field.a);
+    float currentWake=smoothstep(.03,.18,abs(flow.x))*smoothstep(.32,.82,lace);
+    float crest=smoothstep(.045,.18,length(fineSlope))*(.35+.65*choppiness);
+    float foam=min(1.0,fieldFoam*.92+shore*lace*.24+currentWake*.32+crest*.18);
+    float breakup=smoothstep(.32,.8,laceB);
+    foam*=.72+.28*breakup;
+    color=mix(color,vec3(.72,.83,.77),foam*.62);
+    // Shallow-water caustic bands follow the same flow direction and fade with depth.
+    float caustic=pow(max(0.0,sin(flowUv.x*8.0+flowUv.y*3.0+time*.75)*sin(flowUv.y*11.0-time*.48)),6.0);
+    color+=vec3(.10,.18,.12)*caustic*(1.0-trans.x)*(.12+.3*field.a);
     float fog=1.0-exp(-.00014*length(cameraPosition-world)*length(cameraPosition-world));
     color=mix(color,vec3(.63,.73,.69),fog);
     gl_FragColor=vec4(color,1.0);

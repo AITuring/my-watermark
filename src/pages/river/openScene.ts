@@ -1,18 +1,23 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
-import { buildSpectrum, currentSpeed, environment, sampleSurface, type SimulationSettings } from './system';
+import { buildSpectrum, currentSpeed, environment, type SimulationSettings } from './system';
 import { spectralVertex, spectralFragment } from './spectralShaders';
 import { SpectralOcean } from './SpectralOcean';
 import { photographicLight } from './photographicLight';
 import { forest, type TreeSite } from './forest';
+import { scannedRocks, type RockPlacement } from './scannedRocks';
+import { wildlife } from './wildlife';
 import { windState } from './wind';
 import { downloadCanvas } from './capture';
 import type { RiverScene } from './scene';
 
 export function createOpenScene(host: HTMLDivElement, getSettings:()=>SimulationSettings,onReady:()=>void): RiverScene {
     const initial=getSettings(), env=environment(initial.kind), isSea=initial.kind==='ocean'||initial.kind==='storm';
-    const isStorm=initial.kind==='storm', isRiver=initial.kind==='great-river';
+    const isStorm=initial.kind==='storm', isRiver=initial.kind==='great-river', isLake=initial.kind==='lake';
+    const channelCenter=(z:number)=>isRiver?Math.sin(z*.0017)*110+Math.sin(z*.0043+1.1)*28:0;
+    const channelHalfWidth=(z:number)=>isRiver?env.width*.5*(1+.10*Math.sin(z*.0022-.8)+.05*Math.sin(z*.0067+1.4)):env.width*.5;
+    const lakeEdge=(x:number,z:number)=>{const qx=x/(env.width*.5),qz=z/(env.length*.5);const ripple=.14*Math.sin(x*.006+z*.002)+.07*Math.sin(x*.014-z*.009+1.7);return Math.hypot(qx,qz)/(1+ripple);};
     const domain=new THREE.Vector2(env.width,env.length);
     const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',preserveDrawingBuffer:true});
     renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -21,8 +26,8 @@ export function createOpenScene(host: HTMLDivElement, getSettings:()=>Simulation
     host.appendChild(renderer.domElement);
     let loadedAssets=0;const assetReady=()=>{loadedAssets++;};
     const wind=windState();let lastWindShadow=0,lastWindKey='';
-    const scene=new THREE.Scene(), haze=new THREE.Color(isStorm?'#566974':'#a3bfca');
-    scene.fog=new THREE.FogExp2(haze,isSea?.0005:.00055);
+    const scene=new THREE.Scene(), haze=new THREE.Color(isStorm?'#566974':isRiver?'#86a5a0':isLake?'#91a99d':'#a3bfca');
+    scene.fog=new THREE.FogExp2(haze,isSea?.0005:isRiver?.0002:isLake?.00035:.00055);
     const sky=new Sky();sky.scale.setScalar(12000);scene.add(sky);
     if(isStorm)sky.visible=false;
     sky.material.uniforms.turbidity.value=isStorm?12:4;
@@ -59,26 +64,29 @@ export function createOpenScene(host: HTMLDivElement, getSettings:()=>Simulation
     const resetCamera=()=>{
         if(isStorm){camera.position.set(35,4,65);controls.target.set(0,0,-120);}
         else if(isSea){camera.position.set(35,12,78);controls.target.set(0,0,-70);}
-        else if(isRiver){camera.position.set(45,5,170);controls.target.set(-15,0,-150);}
+        else if(isRiver){camera.position.set(95,7,210);controls.target.set(-35,1,-360);}
+        else if(isLake){camera.position.set(300,55,430);controls.target.set(0,0,-260);}
         else {camera.position.set(80,4,180);controls.target.set(0,0,-90);}
         controls.update();
     };resetCamera();
     let seed=918734;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
     let updateBed:((depth:number)=>void)|null=null;
     let stopForest:(()=>void)|null=null;
+    let stopRocks:(()=>void)|null=null;
+    let stopGrass:(()=>void)|null=null;
     const landTextures:THREE.Texture[]=[];
     if(!isSea){
-        const sizeX=isRiver?900:1600,sizeZ=isRiver?2200:1500;
-        const geometry=new THREE.PlaneGeometry(sizeX,sizeZ,140,140);geometry.rotateX(-Math.PI/2);
+        const sizeX=isRiver?2400:isLake?2800:1600,sizeZ=isRiver?3600:isLake?3200:1500;
+        const geometry=new THREE.PlaneGeometry(sizeX,sizeZ,isRiver||isLake?220:140,isRiver||isLake?220:140);geometry.rotateX(-Math.PI/2);
         const terrainNoise=(x:number,z:number)=>{const hash=(a:number,b:number)=>{const v=Math.sin(a*127.1+b*311.7)*43758.5453;return v-Math.floor(v);};const ix=Math.floor(x),iz=Math.floor(z),u=x-ix,v=z-iz,fx=u*u*(3-2*u),fz=v*v*(3-2*v);return THREE.MathUtils.lerp(THREE.MathUtils.lerp(hash(ix,iz),hash(ix+1,iz),fx),THREE.MathUtils.lerp(hash(ix,iz+1),hash(ix+1,iz+1),fx),fz);};
-        const landHeight=(x:number,z:number,edge:number)=>{const distance=Math.max(0,edge-1)*(isRiver?env.width/2:Math.min(env.width,env.length)/2);const fade=1-Math.exp(-distance/28);const macro=terrainNoise(x*.007,z*.007)*.55+terrainNoise(x*.018+13,z*.018-7)*.3+terrainNoise(x*.049,z*.049)*.15;return distance*.035+fade*(5+70*Math.pow(macro,1.6))+fade*terrainNoise(x*.13,z*.13)*2;};
+        const landHeight=(x:number,z:number,edge:number)=>{const distance=Math.max(0,edge-1)*(isRiver?env.width/2:Math.min(env.width,env.length)/2);const macro=terrainNoise(x*.007,z*.007)*.55+terrainNoise(x*.018+13,z*.018-7)*.3+terrainNoise(x*.049,z*.049)*.15;if(isRiver){const floodplain=1-Math.exp(-distance/95);return distance*.008+floodplain*(1.2+18*Math.pow(macro,1.5))+floodplain*terrainNoise(x*.05,z*.05)*.8;}if(isLake){const shore=1-Math.exp(-distance/150);return distance*.004+shore*(.8+12*Math.pow(macro,1.4))+shore*terrainNoise(x*.04,z*.04)*.6;}const fade=1-Math.exp(-distance/28);return distance*.035+fade*(5+70*Math.pow(macro,1.6))+fade*terrainNoise(x*.13,z*.13)*2;};
         const pos=geometry.attributes.position,col=new Float32Array(pos.count*3),color=new THREE.Color();
         for(let i=0;i<pos.count;i++){
             const x=pos.getX(i),z=pos.getZ(i);
-            const edge=isRiver?Math.abs(x-Math.sin(z*.004)*28)/(env.width/2):Math.hypot(x/(env.width/2),z/(env.length/2));
+            const edge=isRiver?Math.abs(x-channelCenter(z))/channelHalfWidth(z):isLake?lakeEdge(x,z):Math.hypot(x/(env.width/2),z/(env.length/2));
             const h=edge<1?-initial.depth*(1-edge*edge*.9):landHeight(x,z,edge);
             pos.setY(i,h);
-            color.set(edge<1.08?'#999a7c':'#a4ad91');color.multiplyScalar(.8+random()*.3);color.toArray(col,i*3);
+            color.set(edge<1.08?(isRiver?'#506b68':isLake?'#687c70':'#999a7c'):(isRiver?'#768d7e':isLake?'#879a88':'#a4ad91'));color.multiplyScalar(.8+random()*.3);color.toArray(col,i*3);
         }
         geometry.computeVertexNormals();geometry.setAttribute('color',new THREE.BufferAttribute(col,3));
         const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1});
@@ -99,21 +107,48 @@ export function createOpenScene(host: HTMLDivElement, getSettings:()=>Simulation
         updateBed=(depth)=>{
             for(let i=0;i<pos.count;i++){
                 const x=pos.getX(i),z=pos.getZ(i);
-                const edge=isRiver?Math.abs(x-Math.sin(z*.004)*28)/(env.width/2):Math.hypot(x/(env.width/2),z/(env.length/2));
+                const edge=isRiver?Math.abs(x-channelCenter(z))/channelHalfWidth(z):isLake?lakeEdge(x,z):Math.hypot(x/(env.width/2),z/(env.length/2));
                 if(edge<1)pos.setY(i,-depth*(1-edge*edge*.9));
             }pos.needsUpdate=true;geometry.computeVertexNormals();
         };
         const landMesh=new THREE.Mesh(geometry,material);landMesh.receiveShadow=true;landMesh.castShadow=true;scene.add(landMesh);
+        const landforms=isLake
+            ? [[180,-180,115,10],[-280,150,78,7],[330,310,55,5] as [number,number,number,number]]
+            : isRiver
+                ? [[channelCenter(-260)+150,-260,82,3.2],[channelCenter(420)-190,420,58,2.4] as [number,number,number,number]]
+                : [];
+        landforms.forEach(([x,z,r,h])=>{const island=new THREE.Mesh(new THREE.ConeGeometry(r*.68,r*1.08,h?24:16,4),material);island.scale.y=h/(r*1.08);island.position.set(x,h*.5-.18,z);island.rotation.y=random()*Math.PI;island.castShadow=true;island.receiveShadow=true;scene.add(island);});
         const treeSites:TreeSite[]=[];
-        for(let i=0;i<1600;i++){
+        const treeCount=isRiver?850:1600;
+        for(let i=0;i<treeCount;i++){
             const angle=random()*Math.PI*2,r=1.015+Math.pow(random(),1.6)*.5;
             let x=Math.sin(angle)*env.width*.5*r,z=Math.cos(angle)*env.length*.5*r;
-            if(isRiver){z=(random()-.5)*1600;x=(random()>.5?1:-1)*(env.width*.5+6+random()*170)+Math.sin(z*.004)*28;}
-            const edge=isRiver?Math.abs(x-Math.sin(z*.004)*28)/(env.width/2):Math.hypot(x/(env.width/2),z/(env.length/2));
+            if(isRiver){z=(random()-.5)*env.length*.9;x=(random()>.5?1:-1)*(channelHalfWidth(z)+8+random()*210)+channelCenter(z);}
+            const edge=isRiver?Math.abs(x-channelCenter(z))/channelHalfWidth(z):isLake?lakeEdge(x,z):Math.hypot(x/(env.width/2),z/(env.length/2));
             const y=landHeight(x,z,edge);
-            treeSites.push({x,y,z,height:12+random()*14});
+            treeSites.push({x,y,z,height:isRiver?20+random()*22:12+random()*14});
         }
+        landforms.forEach(([x,z,r,h])=>{const count=isLake?5:3;for(let i=0;i<count;i++){const a=random()*Math.PI*2,rr=Math.sqrt(random())*r*.52;treeSites.push({x:x+Math.cos(a)*rr,y:h-.1,z:z+Math.sin(a)*rr,height:isLake?12+random()*12:15+random()*16});}});
         stopForest=forest(scene,treeSites,()=>{assetReady();renderer.shadowMap.needsUpdate=true;},wind);
+        if(isRiver||isLake){
+            const shoreRocks:RockPlacement[]=[];const bankGrass:RockPlacement[]=[];
+            const rockCount=isRiver?420:360,grassCount=isRiver?980:760;
+            for(let i=0;i<rockCount;i++){
+                let x=0,z=0,edge=1.04;
+                if(isRiver){z=(random()-.5)*env.length*.9;const side=random()>.5?1:-1;x=channelCenter(z)+side*(channelHalfWidth(z)+random()*24);}
+                else {const a=random()*Math.PI*2,r=1.015+random()*.12;x=Math.cos(a)*env.width*.5*r;z=Math.sin(a)*env.length*.5*r;edge=lakeEdge(x,z);}
+                const y=landHeight(x,z,edge),size=isRiver?.35+random()*.95:.45+random()*1.25;shoreRocks.push({x,y:y-size*.08,z,size,yaw:random()*Math.PI*2});
+            }
+            for(let i=0;i<grassCount;i++){
+                let x=0,z=0,edge=1.03;
+                if(isRiver){z=(random()-.5)*env.length*.92;const side=random()>.5?1:-1;x=channelCenter(z)+side*(channelHalfWidth(z)+random()*32);}
+                else {const a=random()*Math.PI*2,r=1.01+random()*.17;x=Math.cos(a)*env.width*.5*r;z=Math.sin(a)*env.length*.5*r;edge=lakeEdge(x,z);}
+                bankGrass.push({x,y:landHeight(x,z,edge)-.015,z,size:isRiver?1.2+random()*2.4:1.5+random()*2.8,yaw:random()*Math.PI*2});
+            }
+            landforms.forEach(([x,z,r,h])=>{for(let i=0;i<18;i++){const a=random()*Math.PI*2,rr=Math.sqrt(random())*r*.82;bankGrass.push({x:x+Math.cos(a)*rr,y:h-.015,z:z+Math.sin(a)*rr,size:1.3+random()*2.2,yaw:random()*Math.PI*2});}});
+            stopRocks=scannedRocks(scene,shoreRocks,()=>{assetReady();renderer.shadowMap.needsUpdate=true;},'/river/rock/rock.gltf','natural',undefined,wind);
+            stopGrass=scannedRocks(scene,bankGrass,()=>{assetReady();renderer.shadowMap.needsUpdate=true;},'/river/grass/grass.gltf','natural','/river/grass/alpha.jpg',wind);
+        }
     }
     const cubeTarget=new THREE.WebGLCubeRenderTarget(256,{type:THREE.HalfFloatType,generateMipmaps:true,minFilter:THREE.LinearMipmapLinearFilter});
     const cubeCamera=new THREE.CubeCamera(1,21000,cubeTarget);cubeCamera.position.set(0,3,0);scene.add(cubeCamera);
@@ -124,7 +159,7 @@ export function createOpenScene(host: HTMLDivElement, getSettings:()=>Simulation
         time:{value:0},current:{value:currentSpeed(initial)},depth:{value:initial.depth},
         domain:{value:domain},kind:{value:isSea?2:isRiver?1:0},
         environmentMap:{value:cubeTarget.texture},sunDirection:{value:new THREE.Vector3()},
-        haze:{value:haze},waterColor:{value:new THREE.Color(isRiver?'#455e43':isStorm?'#173b47':isSea?'#075065':'#18575a')},
+        haze:{value:haze},waterColor:{value:new THREE.Color(isRiver?'#1f5a62':isStorm?'#173b47':isSea?'#075065':isLake?'#2c6e6d':'#18575a')},
         roughness:{value:isStorm?.8:.25},heightScale:{value:initial.waveHeight},clarity:{value:initial.clarity},wind:{value:initial.wind},windDirection:{value:new THREE.Vector2(Math.sin(initial.direction*Math.PI/180),Math.cos(initial.direction*Math.PI/180))},variability:{value:initial.variability},realization:{value:initial.realization%10000},
         foamMap:{value:null as THREE.Texture|null},foamDomain:{value:new THREE.Vector2(isSea?2200:env.width,isSea?2200:env.length)},
         wire:{value:0},impulse:{value:new THREE.Vector4(0,0,-100,0)},
@@ -152,8 +187,9 @@ export function createOpenScene(host: HTMLDivElement, getSettings:()=>Simulation
         #include <colorspace_fragment>
         }`});
     const postQuad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),postMaterial);postScene.add(postQuad);
-    const size=isSea?2200:env.width;
-    const geometry=new THREE.PlaneGeometry(size,isSea?2200:env.length,isSea?640:400,isSea?640:360);geometry.rotateX(-Math.PI/2);
+    const size=isSea?2200:isRiver?env.width*1.35:isLake?env.width*1.3:env.width;
+    const depth=isSea?2200:isLake?env.length*1.25:env.length;
+    const geometry=new THREE.PlaneGeometry(size,depth,isSea?640:isRiver||isLake?520:400,isSea?640:isRiver||isLake?520:360);geometry.rotateX(-Math.PI/2);
     if(isSea){
         // Concentrate actual geometry near the observer: ~1 m cells in the central 200 m.
         const p=geometry.attributes.position;
@@ -163,6 +199,7 @@ export function createOpenScene(host: HTMLDivElement, getSettings:()=>Simulation
     }
     const material=new THREE.ShaderMaterial({uniforms,vertexShader:spectralVertex,fragmentShader:spectralFragment,side:THREE.DoubleSide});
     const water=new THREE.Mesh(geometry,material);water.frustumCulled=false;scene.add(water);
+    const fauna=wildlife(scene,initial.kind,env.width,env.length);
     // Low-resolution far field shares phases exactly with the detailed inner patch.
     let farWater:THREE.Mesh|null=null;
     if(isSea){
@@ -257,12 +294,13 @@ export function createOpenScene(host: HTMLDivElement, getSettings:()=>Simulation
         if(Math.hypot(e.clientX-downX,e.clientY-downY)>5)return;
         const rect=renderer.domElement.getBoundingClientRect();raycaster.setFromCamera(new THREE.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1),camera);
         const hit=raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),new THREE.Vector3());
-        if(hit){const inside=isSea||(isRiver?Math.abs(hit.x-Math.sin(hit.z*.004)*28)<env.width/2:Math.hypot(hit.x/(env.width/2),hit.z/(env.length/2))<1);if(inside)splashAt(hit.x,hit.z);}
+        if(hit){const inside=isSea||(isRiver?Math.abs(hit.x-channelCenter(hit.z))<channelHalfWidth(hit.z):Math.hypot(hit.x/(env.width/2),hit.z/(env.length/2))<1);if(inside)splashAt(hit.x,hit.z);}
     };renderer.domElement.addEventListener('pointerdown',down);renderer.domElement.addEventListener('pointerup',up);
     function render(now:number){
         if(disposed)return;frame=requestAnimationFrame(render);
         const delta=Math.min((now-previous)/1000,.05);previous=now;if(document.hidden)return;
         const s=getSettings();wind.time.value=time;wind.speed.value=s.wind;wind.direction.value.set(Math.sin(s.direction*Math.PI/180),Math.cos(s.direction*Math.PI/180));const windKey=`${s.wind}:${s.direction}`;if(windKey!==lastWindKey){lastWindKey=windKey;renderer.shadowMap.needsUpdate=true;}if(!isSea&&s.playing&&s.wind>.5&&now-lastWindShadow>250){lastWindShadow=now;renderer.shadowMap.needsUpdate=true;}if(s.depth!==lastDepth){lastDepth=s.depth;updateBed?.(s.depth);renderer.shadowMap.needsUpdate=true;}if(s.playing)time+=delta*s.timeScale;
+        fauna.update(time);
         const key=[s.waveHeight,s.period,s.direction,s.choppiness,s.depth,s.wind,s.variability,s.realization].join(':');
         if(key!==spectrumKey){
             // No last-state foam, spray, impulses or reflection survives a sea-state change.
@@ -327,7 +365,7 @@ export function createOpenScene(host: HTMLDivElement, getSettings:()=>Simulation
             renderer.domElement.removeEventListener('pointerdown',down);renderer.domElement.removeEventListener('pointerup',up);
             const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>();
             scene.traverse(o=>{if(o instanceof THREE.Mesh||o instanceof THREE.Line||o instanceof THREE.Points){geometries.add(o.geometry);(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>materials.add(m));}});
-            geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());stopForest?.();landTextures.forEach(t=>t.dispose());spectral.dispose();stopLight();frameRead.dispose();frameWrite.dispose();postQuad.geometry.dispose();postMaterial.dispose();cubeTarget.dispose();landscapeReflection.dispose();renderer.dispose();renderer.domElement.remove();
+            geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());stopForest?.();stopRocks?.();stopGrass?.();fauna.dispose();landTextures.forEach(t=>t.dispose());spectral.dispose();stopLight();frameRead.dispose();frameWrite.dispose();postQuad.geometry.dispose();postMaterial.dispose();cubeTarget.dispose();landscapeReflection.dispose();renderer.dispose();renderer.domElement.remove();
         },
     };
 }

@@ -8,11 +8,13 @@ uniform float depth;
 uniform float kind;
 uniform vec2 domain;
 uniform vec4 impulse;
-float channelCenter(float z){return kind==1.0?sin(z*.004)*28.0:0.0;}
+float channelCenter(float z){return kind==1.0?sin(z*.0024)*52.0+sin(z*.0062+1.1)*13.0:0.0;}
+float channelHalfWidth(float z){return kind==1.0?domain.x*.5*(1.0+.12*sin(z*.0031-.8)+.06*sin(z*.0087+1.4)):domain.x*.5;}
 `;
 const noise = `
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+float lakeEdge(vec2 p){vec2 q=p/(domain*.5);float ripple=.14*sin(p.x*.006+p.y*.002)+.07*sin(p.x*.014-p.y*.009+1.7);return length(q)/(1.0+ripple);}
 `;
 export const openVertex = /* glsl */`
 ${waves}
@@ -90,8 +92,8 @@ varying vec3 normalWater;
 varying vec2 materialPoint;
 void main(){
     float edge=0.0;
-    if(kind==0.0)edge=length(materialPoint/(domain*.5));
-    if(kind==1.0)edge=abs(materialPoint.x-channelCenter(materialPoint.y))/(domain.x*.5);
+    if(kind==0.0)edge=lakeEdge(materialPoint);
+    if(kind==1.0)edge=abs(materialPoint.x-channelCenter(materialPoint.y))/channelHalfWidth(materialPoint.y);
     if(kind<2.0 && edge>.997)discard;
     vec2 p=materialPoint;
     float footprint=max(length(dFdx(p)),length(dFdy(p)));

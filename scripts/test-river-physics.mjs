@@ -16,11 +16,16 @@ for (const settings of [defaults, { ...defaults, depth: .3, discharge: 10 }, { .
             if (solver.solid[i]) assert.equal(height, 0, 'Water cannot enter solid cells');
             peak = Math.max(peak, Math.abs(height));
         }
+        for (let i = 0; i < solver.flow.length; i += 4) {
+            assert.ok(Number.isFinite(solver.flow[i]) && Number.isFinite(solver.flow[i + 1]), 'Flow diagnostics must remain finite');
+            assert.ok(solver.flow[i + 2] >= 0 && solver.flow[i + 2] <= 1 && solver.flow[i + 3] >= 0 && solver.flow[i + 3] <= 1, 'Foam and shallow-water masks must stay bounded');
+        }
     }
     assert.ok(peak < .09, 'Unforced wave amplitude must remain bounded');
     assert.ok(Math.max(...solver.height.map(Math.abs)) < .001, 'Friction and open ends must dissipate the disturbance');
     solver.reset();
     assert.ok(solver.height.every(h => h === 0));
+    assert.ok(solver.flow.every(value => value === 0));
     assert.equal(solver.time, 0);
     console.log(`PASS 20 seconds: depth ${settings.depth} m, discharge ${settings.discharge} m³/s, peak ${peak.toFixed(4)} m`);
 }

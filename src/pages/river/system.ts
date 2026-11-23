@@ -22,8 +22,8 @@ const common = { variability:.7, realization:731942, sun: 35, direction: 175, ch
 export const environments: WaterEnvironment[] = [
     { id:'creek',name:'小溪',english:'CREEK',description:'浅滩、卵石与细小湍动',width:3,length:36,depthRange:[.2,.8],flowRange:[.2,5],heightRange:[0,.12],periodRange:[.5,3],defaults:{...common,discharge:1.3,depth:.32,wind:1,waveHeight:.025,period:1.2,clarity:.9} },
     { id:'river',name:'小河',english:'RIVER',description:'连续河流与岸边波纹',width:12,length:64,depthRange:[.3,2],flowRange:[.5,14],heightRange:[0,.35],periodRange:[.7,4],defaults:{...common,discharge:4.8,depth:.65,wind:1.8,waveHeight:.06,period:1.8,clarity:.8} },
-    { id:'lake',name:'湖泊',english:'LAKE',description:'封闭水域上的风生波与涟漪',width:460,length:660,depthRange:[2,40],flowRange:[0,0],heightRange:[0,2],periodRange:[1.5,6],defaults:{...common,discharge:0,depth:12,wind:3,waveHeight:.3,period:3.2,direction:125,clarity:.7} },
-    { id:'great-river',name:'大江',english:'GREAT RIVER',description:'宽阔断面、强流与风浪叠加',width:180,length:1400,depthRange:[3,30],flowRange:[200,12000],heightRange:[0,3],periodRange:[1.5,7],defaults:{...common,discharge:3800,depth:12,wind:6,waveHeight:.65,period:3.8,clarity:.2} },
+    { id:'lake',name:'湖泊',english:'LAKE',description:'开阔湖盆上的风生波与岸线回声',width:1200,length:1600,depthRange:[2,40],flowRange:[0,0],heightRange:[0,2],periodRange:[1.5,6],defaults:{...common,discharge:0,depth:18,wind:3,waveHeight:.55,period:3.2,direction:125,clarity:.7} },
+    { id:'great-river',name:'大江',english:'GREAT RIVER',description:'宽阔断面、强流与风浪叠加',width:720,length:2400,depthRange:[3,30],flowRange:[200,20000],heightRange:[0,3],periodRange:[1.5,7],defaults:{...common,discharge:20000,depth:16,wind:6,waveHeight:.65,period:3.8,clarity:.2} },
     { id:'ocean',name:'大海',english:'OPEN OCEAN',description:'远海涌浪与方向性风浪',width:2000,length:2000,depthRange:[10,500],flowRange:[0,0],heightRange:[0,8],periodRange:[2,18],defaults:{...common,discharge:0,depth:120,wind:9,waveHeight:1.8,period:7,direction:155,clarity:.85} },
     { id:'storm',name:'巨浪',english:'STORM SEA',description:'长周期巨浪、尖锐浪脊与白沫',width:2600,length:2600,depthRange:[30,1000],flowRange:[0,0],heightRange:[0,25],periodRange:[6,22],defaults:{...common,discharge:0,depth:240,wind:25,waveHeight:14,period:13,direction:160,choppiness:1,sun:18,clarity:.7} },
 ];
@@ -75,7 +75,7 @@ export function buildSpectrum(settings: SimulationSettings): WaveComponent[] {
     // Log bands retain both long swell and short wind waves. Integrate S(omega) d omega.
     const frequencies=Array.from({length:WAVE_COUNT},(_,i)=>wp*.55*Math.pow(5/.55,i/(WAVE_COUNT-1)));
     const gamma=1+2.3*Math.min(s.wind/12,1);
-    const weights=frequencies.map((w,i)=>{
+    const weights=frequencies.map(w=>{
         const sigma=w<=wp?.07:.09, r=Math.exp(-Math.pow((w-wp)/(sigma*wp),2)/2);
         const dw=w*(Math.pow(5/.55,1/(WAVE_COUNT-1))-1);
         return Math.pow(w,-5)*Math.exp(-1.25*(wp/w)**4)*Math.pow(gamma,r)*dw;
