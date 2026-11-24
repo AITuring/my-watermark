@@ -53,6 +53,7 @@ import {
     getAdaptiveWatermarkRenderMetrics,
 } from "@/utils/watermark-editor";
 import { TRANSPARENT_WATERMARK_CONTRAST_OPACITY } from "@/utils/transparent-watermark";
+import { getWatermarkTextFieldLabels } from "../layout-presets";
 
 // 绘制辅助线函数
 const drawGuideLines = (layer: Konva.Layer, width: number, height: number) => {
@@ -249,6 +250,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         if(onConfigPatch) onConfigPatch(patch);
         else setMixedWatermarkConfig(prev=>({...prev,...patch}));
     };
+    const textFieldLabels = getWatermarkTextFieldLabels(mixedWatermarkConfig);
     const [localBatch, setLocalBatch] = useState<boolean>(false);
     const isBatch = batchEditing ?? localBatch;
     const setIsBatch = (value:boolean) => {setLocalBatch(value);onBatchEditingChange?.(value);};
@@ -1367,12 +1369,12 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                     </div>}
 
                                     <div className="space-y-2">
-                                        <Label>第一行</Label>
-                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第一行文字" aria-label="第一行" maxLength={120} placeholder="请输入第一行文字" value={mixedWatermarkConfig.textLine1} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine1: value }))} />
+                                        <Label>{textFieldLabels.textLine1}</Label>
+                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title={textFieldLabels.textLine1Placeholder} aria-label={textFieldLabels.textLine1} maxLength={120} placeholder={textFieldLabels.textLine1Placeholder} value={mixedWatermarkConfig.textLine1} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine1: value }))} />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>第二行</Label>
-                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title="第二行文字" aria-label="第二行" maxLength={120} placeholder="请输入第二行文字" value={mixedWatermarkConfig.textLine2} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: value }))} />
+                                        <Label>{textFieldLabels.textLine2}</Label>
+                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title={textFieldLabels.textLine2Placeholder} aria-label={textFieldLabels.textLine2} maxLength={120} placeholder={textFieldLabels.textLine2Placeholder} value={mixedWatermarkConfig.textLine2} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: value }))} />
                                     </div>
                                     <WatermarkColorControl label="文字颜色" value={mixedWatermarkConfig.color} onAuto={onAutoColor}
                                         onChange={color => updateConfig({color})} />

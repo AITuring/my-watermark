@@ -19,6 +19,15 @@ test('analysis exposes compound Chinese eras and leaves title-like date text alo
     assert.deepEqual(analyze('五代-后唐-供盘-大都会艺术博物馆藏-xxx.jpg').metadata, {
         time:'五代-后唐', place:'', collection:'大都会艺术博物馆藏',
     });
+    assert.deepEqual(extract('五代吴越国-狮形水晶摆件-钱鏐墓出土-吴越文化博物馆藏-DSC01149_1.jpg'), {
+        textLine1: '狮形水晶摆件',
+        textLine2: '五代吴越国·钱鏐墓出土·吴越文化博物馆藏 / 笑谈间气吐霓虹摄',
+    });
+    const continuousEra = analyze('五代吴越国-狮形水晶摆件-钱鏐墓出土-吴越文化博物馆藏-DSC01149_1.jpg');
+    assert.equal(continuousEra.confidence, 'high');
+    assert.deepEqual(continuousEra.metadata, {
+        time:'五代吴越国', place:'', collection:'吴越文化博物馆藏',
+    });
     assert.deepEqual(analyze('17世纪风格供盘-大都会艺术博物馆藏-xxx.jpg').metadata, {
         time:'', place:'', collection:'大都会艺术博物馆藏',
     });

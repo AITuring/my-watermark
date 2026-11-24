@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type Konva from 'konva';
 import type { MixedWatermarkConfig } from '@/types';
 import { createTextWatermark, type WatermarkTextRegion } from '@/utils/text-watermark';
+import { getWatermarkTextFieldLabels } from '../layout-presets';
 
 export interface InlineWatermarkEditorHandle {
     edit: (event: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
@@ -117,6 +118,7 @@ const InlineWatermarkTextEditor = forwardRef<InlineWatermarkEditorHandle, Props>
 
     if (!session || !session.node.getStage()) return null;
     const {node, region, vertical} = session;
+    const textFieldLabels = getWatermarkTextFieldLabels(config || {});
     const stage = node.getStage()!;
     const crop = node.crop();
     // Use the same complete source-to-stage transform as the PNG. This keeps
@@ -134,7 +136,7 @@ const InlineWatermarkTextEditor = forwardRef<InlineWatermarkEditorHandle, Props>
     const height = vertical ? Math.max(region.height,
         characters.length * fontSize * (region.lineHeight?1:1.2) + Math.max(0, characters.length - 1) * region.letterSpacing) : region.height;
     return createPortal(<textarea ref={input} className="wm-inline-text-editor"
-        aria-label={region.field === 'textLine1' ? '原位编辑第一行' : '原位编辑第二行'}
+        aria-label={`原位编辑${textFieldLabels[region.field]}`}
         title="Enter 确认 · Esc 取消 · 点击外部保存"
         defaultValue={session.value} maxLength={120} rows={1} spellCheck={false}
         style={{left: 0, top: 0, width: width + (vertical ? 0 : extra), height: height + (vertical ? extra : 0),

@@ -11,6 +11,7 @@ import WatermarkLayoutControl from "./WatermarkLayoutControl";
 import WatermarkDirectionSwitch from "./WatermarkDirectionSwitch";
 import CaptionReviewDialog, {type CaptionReviewItem} from './CaptionReviewDialog';
 import WatermarkExportMenu from './WatermarkExportMenu';
+import {getWatermarkTextFieldLabels} from '../layout-presets';
 
 interface DesktopToolbarProps {
     imageTint: string;
@@ -79,6 +80,7 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
     const {watermarkMode:mode,mixedWatermarkConfig:config}=props;
     const update=props.onConfigPatch;
     const textMode=mode!=='image';
+    const textFieldLabels=getWatermarkTextFieldLabels(config);
     const status=props.smartError || props.fontNotice || (props.smartPending?'正在更新预览…':'预览已就绪');
     return <>
         <section className="wm-inspector wm-compact-toolbar" aria-label="水印编辑工具" data-mode={mode}>
@@ -90,8 +92,8 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
             </div>
             {mode!=='text'&&<div className={`wm-material-field ${mode==='image'?'is-image-mode':''}`}><span className="wm-label">{mode==='image'?'水印素材':'水印图标'}</span><ImageUploader onUpload={props.onWatermarkUpload} fileType={mode==='image'?'水印图片':'图标'} className="wm-bottom-logo"><span className="wm-logo-checker"><img src={mode==='image'?props.storedImageWatermarkUrl:config.icon} alt="水印素材缩略图"/></span><span>更换{mode==='image'?'图片':'图标'}</span><ChevronDown size={13}/></ImageUploader></div>}
             {textMode?<div className="wm-bottom-inputs">
-                <label className="wm-bottom-title"><span className="wm-label">第一行</span><WatermarkTextInput className="wm-text-input" aria-label="第一行" maxLength={120} value={config.textLine1} placeholder="第一行文字" onValueChange={textLine1=>update({textLine1})}/></label>
-                <label className="wm-bottom-caption"><span className="wm-label">第二行</span><WatermarkTextInput className="wm-text-input" aria-label="第二行" maxLength={120} value={config.textLine2} placeholder="第二行文字" onValueChange={textLine2=>update({textLine2})}/></label>
+                <label className="wm-bottom-title"><span className="wm-label">{textFieldLabels.textLine1}</span><WatermarkTextInput className="wm-text-input" aria-label={textFieldLabels.textLine1} maxLength={120} value={config.textLine1} placeholder={textFieldLabels.textLine1Placeholder} onValueChange={textLine1=>update({textLine1})}/></label>
+                <label className="wm-bottom-caption"><span className="wm-label">{textFieldLabels.textLine2}</span><WatermarkTextInput className="wm-text-input" aria-label={textFieldLabels.textLine2} maxLength={120} value={config.textLine2} placeholder={textFieldLabels.textLine2Placeholder} onValueChange={textLine2=>update({textLine2})}/></label>
             </div>:<div className="wm-bottom-image-note">拖动水印可调整位置</div>}
             {textMode && <div className="wm-bottom-review"><span className="wm-label" aria-hidden="true">&nbsp;</span><CaptionReviewDialog pendingCount={props.captionPendingCount} items={props.captionReviewItems} onSave={props.onSaveCaptionReview} onClear={props.onClearCaptionReview}/></div>}
             {textMode && <div className="wm-bottom-layout"><span className="wm-label">排版</span><WatermarkDirectionSwitch value={config.layout} onChange={layout=>update({layout})}/></div>}

@@ -85,6 +85,14 @@ test('directions retain independent choices and vertical never exposes a three-c
     assert.equal(presetApi.VERTICAL_PRESETS.length,1);
 });
 
+test('text field labels follow compact and visual layout semantics',()=>{
+    assert.equal(JSON.stringify(presetApi.getWatermarkTextFieldLabels({compactMode:true})),JSON.stringify({textLine1:'名称',textLine2:'时代',textLine1Placeholder:'作品名称',textLine2Placeholder:'如 五代、南宋、18世纪'}));
+    assert.equal(JSON.stringify(presetApi.getWatermarkTextFieldLabels({layout:'horizontal',horizontalPreset:'paired'})),JSON.stringify({textLine1:'第一行',textLine2:'第二行',textLine1Placeholder:'第一行文字',textLine2Placeholder:'第二行文字'}));
+    for(const config of [{layout:'horizontal',horizontalPreset:'single'},{layout:'horizontal',horizontalPreset:'centered'},{layout:'vertical',verticalPreset:'single'}]){
+        assert.equal(JSON.stringify(presetApi.getWatermarkTextFieldLabels(config)),JSON.stringify({textLine1:'标题',textLine2:'说明',textLine1Placeholder:'作品名称',textLine2Placeholder:'年代 · 馆藏 · 摄影者'}));
+    }
+});
+
 test('short artifact names keep the automatic single-line default but respect explicit horizontal choices',()=>{
     for(const layout of ['horizontal','vertical'])for(const preset of ['paired','centered','single']){
         const config={layout,textLine1:'供盘',textLine2:'17—19世纪·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄',horizontalPreset:preset,verticalPreset:preset};

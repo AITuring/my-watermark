@@ -23,7 +23,11 @@ const ERA_JOIN = '\\s*[-_－—–−~～至到]{1,2}\\s*';
 // e.g. 赵国铜镜 remains an artwork name rather than being partly consumed.
 const STATE_ERA = `(?:春秋战国|战国|春秋|东周)(?:时期)?${ERA_JOIN}(?:齐国|楚国|燕国|韩国|赵国|魏国|秦国|鲁国|郑国|晋国|吴国|越国|宋国|卫国)`;
 const THREE_KINGDOMS_ERA = `三国(?:时期)?${ERA_JOIN}(?:魏国|蜀国|吴国)`;
-const CHINESE_ERA_POINT = `(?:${STATE_ERA}|${THREE_KINGDOMS_ERA}|(?:${CHINESE_ERAS})(?:代|时期)?)`;
+// The Five Dynasties/Ten Kingdoms states are also commonly written without a
+// separator, e.g. 五代吴越国. Keep these combinations ahead of the generic
+// era list so the whole metadata field is protected before splitting fields.
+const CONTIGUOUS_CHINESE_ERA = `(?:(?:五代|十国)(?:后梁|后唐|后晋|后汉|后周|杨吴|吴越国|吴越|南唐|前蜀|后蜀|南汉|北汉|南平|马楚|闽))`;
+const CHINESE_ERA_POINT = `(?:${STATE_ERA}|${THREE_KINGDOMS_ERA}|${CONTIGUOUS_CHINESE_ERA}|(?:${CHINESE_ERAS})(?:代|时期)?)`;
 const LEADING_CHINESE_ERA = new RegExp(`^${CHINESE_ERA_POINT}(?:${ERA_JOIN}${CHINESE_ERA_POINT})*${FIELD_BOUNDARY}`);
 const COLLECTION = /(?:博物馆|博物院|美术馆|艺术馆|纪念馆|图书馆|藏)$/;
 const PLACEHOLDER = /^(?:未标题|未命名|无标题|副本|拷贝)(?:\s*\d+)?$/;
