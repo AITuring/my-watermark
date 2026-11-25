@@ -68,6 +68,14 @@ export const appCatalog: AppCatalogItem[] = [
         component: () => import("../pages/batch-workbench"),
     },
     {
+        id: "color-match",
+        label: "色温色调统一",
+        url: "/color-match",
+        icon: "material-symbols:palette-outline",
+        description: "以一张基准图统一同组照片的色温、色调与整体观感",
+        component: () => import("../pages/color-match"),
+    },
+    {
         id: "photo",
         label: "Google 相册",
         url: "/google-photo",

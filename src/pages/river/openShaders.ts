@@ -8,8 +8,8 @@ uniform float depth;
 uniform float kind;
 uniform vec2 domain;
 uniform vec4 impulse;
-float channelCenter(float z){return kind==1.0?sin(z*.0024)*52.0+sin(z*.0062+1.1)*13.0:0.0;}
-float channelHalfWidth(float z){return kind==1.0?domain.x*.5*(1.0+.12*sin(z*.0031-.8)+.06*sin(z*.0087+1.4)):domain.x*.5;}
+float channelCenter(float z){return kind==1.0?sin(z*.0017)*110.0+sin(z*.0043+1.1)*28.0:0.0;}
+float channelHalfWidth(float z){return kind==1.0?domain.x*.5*(1.0+.10*sin(z*.0022-.8)+.05*sin(z*.0067+1.4)):domain.x*.5;}
 `;
 const noise = `
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
