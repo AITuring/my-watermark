@@ -13,6 +13,8 @@ interface VerticalCarouselProps {
     setCurrentImg: React.Dispatch<React.SetStateAction<ImageType | null>>;
     height?: number;
     currentImageId?: string;
+    /** The page-level loader also creates each image's watermark position. */
+    onUpload: (files: File[]) => Promise<void>;
 }
 
 const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
@@ -21,6 +23,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
     setImageUploaderVisible,
     setCurrentImg,
     currentImageId,
+    onUpload,
 }) => {
     const [collapsed, setCollapsed] = useState(false);
     const [selectedImageId, setSelectedImageId] = useState<string | null>(
@@ -53,28 +56,6 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
         }
     };
 
-    const handleImagesUpload = async (files: File[]) => {
-        const { loadImageData } = await import("@/utils");
-        const { images: newImages, failedFiles } = await loadImageData(files);
-
-        setImages((prevImages) => [...prevImages, ...newImages]);
-
-        if (newImages.length > 0 && images.length === 0) {
-            setSelectedImageId(newImages[0].id);
-            setCurrentImg(newImages[0]);
-        }
-
-        if (failedFiles.length > 0) {
-            const summary =
-                failedFiles.length > 3
-                    ? `${failedFiles.slice(0, 3).join("、")} 等 ${failedFiles.length} 张`
-                    : failedFiles.join("、");
-            alert(
-                `已添加 ${newImages.length} 张图片，跳过 ${failedFiles.length} 张不支持或读取失败的图片：${summary}`
-            );
-        }
-    };
-
     return (
         <aside className={`wm-source-rail ${collapsed ? 'is-collapsed' : ''}`} aria-label="背景图片列表">
             <header className="wm-source-header">
@@ -84,9 +65,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                 </button>
             </header>
             <div className="wm-source-actions">
-                <ImageUploader onUpload={files=>void handleImagesUpload(files).catch(error=>{
-                    console.error('添加背景图片失败',error);alert('图片添加失败，请重试。');
-                })} fileType="背景图片" className="wm-source-add">
+                <ImageUploader onUpload={files=>void onUpload(files)} fileType="背景图片" className="wm-source-add">
                     <button type="button" className="wm-source-add-button" aria-label="添加背景图片" title="添加背景图片"><Plus size={15}/>{!collapsed && <span>添加</span>}</button>
                 </ImageUploader>
                 {!collapsed && <button type="button" className="wm-source-add-button wm-source-clear" aria-label="清空图片列表" title="清空图片列表" onClick={()=>{
@@ -116,7 +95,7 @@ const VerticalCarousel: React.FC<VerticalCarouselProps> = ({
                     setCurrentImg(null);
                     setSelectedImageId(null);
                 }}
-                onUpload={handleImagesUpload}
+                onUpload={onUpload}
             />
         </aside>
     );

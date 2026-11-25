@@ -721,9 +721,11 @@ const Watermark: React.FC = () => {
         position: Omit<WatermarkPosition, "id">
     ) => {
         manualPositions.current.add(imageId);
+        // The editor's payload may still carry the previously shown image's
+        // id; the saved entry must stay keyed by the image being edited.
         setWatermarkPositions((prev) =>
             prev.map((pos) =>
-                pos.id === imageId ? { ...pos, ...position } : pos
+                pos.id === imageId ? { ...pos, ...position, id: imageId } : pos
             )
         );
         console.log(watermarkPositions, "watermarkPositions");
@@ -1045,6 +1047,9 @@ const Watermark: React.FC = () => {
                             setImageUploaderVisible={setImageUploaderVisible}
                             setCurrentImg={setCurrentImg}
                             height={editorHeight}
+                            onUpload={async (files) => {
+                                await handleImagesUpload(files);
+                            }}
                         />
                     )}
                     {currentImg && (
