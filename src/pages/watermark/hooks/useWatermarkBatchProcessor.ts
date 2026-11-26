@@ -6,7 +6,6 @@ import confetti from "canvas-confetti";
 import { ImgWithPosition, WatermarkPosition } from "@/types";
 import { useSmoothProgress } from "@/pages/watermark/hooks/useSmoothProgress";
 import { importWithRecovery } from "@/utils/import-recovery";
-import { TRANSPARENT_WATERMARK_OPACITY, TRANSPARENT_WATERMARK_SCALE } from "@/utils/transparent-watermark";
 
 interface UseWatermarkBatchProcessorOptions {
     resolveWatermark?: (image: ImgWithPosition) => Promise<{url: string; position: WatermarkPosition}>;
@@ -14,11 +13,10 @@ interface UseWatermarkBatchProcessorOptions {
     watermarkColorUrls: Record<string, string>;
     watermarkOpacity: number;
     watermarkBlur: boolean;
-    transparentWatermarkEnabled: boolean;
-    transparentWatermarkUrl: string;
-    transparentWatermarkOpacities: Record<string, number>;
-    transparentWatermarkScales: Record<string, number>;
-    transparentWatermarkPositions: Record<string, {x: number; y: number}>;
+    /** The independent watermark exactly as set for one image. */
+    resolveTransparentWatermark: (imageId: string) => {
+        enabled: boolean; url: string; opacity: number; scale: number; position: {x: number; y: number};
+    };
     copyrightStatement: string;
     quality: number;
     downloadMode?: WatermarkDownloadMode;
@@ -39,11 +37,7 @@ export function useWatermarkBatchProcessor({
     watermarkColorUrls,
     watermarkOpacity,
     watermarkBlur,
-    transparentWatermarkEnabled,
-    transparentWatermarkUrl,
-    transparentWatermarkOpacities,
-    transparentWatermarkScales,
-    transparentWatermarkPositions,
+    resolveTransparentWatermark,
     copyrightStatement,
     quality,
     downloadMode = 'zip',
@@ -165,8 +159,9 @@ export function useWatermarkBatchProcessor({
                                 throw new Error(`图片 ${img.id} 的水印加载失败`);
                             }
 
-                            const transparentImg = transparentWatermarkEnabled && transparentWatermarkUrl
-                                ? await getWatermarkImage(transparentWatermarkUrl)
+                            const protection = resolveTransparentWatermark(img.id);
+                            const transparentImg = protection.enabled && protection.url
+                                ? await getWatermarkImage(protection.url)
                                 : undefined;
 
                             console.log("调用 processImage，参数：", {
@@ -184,7 +179,7 @@ export function useWatermarkBatchProcessor({
                                 watermarkBlur,
                                 quality,
                                 watermarkOpacity,
-                                transparentImg ? {image: transparentImg, opacity: transparentWatermarkOpacities[img.id] ?? TRANSPARENT_WATERMARK_OPACITY, scale: transparentWatermarkScales[img.id] ?? TRANSPARENT_WATERMARK_SCALE, position: transparentWatermarkPositions[img.id] || {x: 0.5, y: 0.5}} : undefined,
+                                transparentImg ? {image: transparentImg, opacity: protection.opacity, scale: protection.scale, position: protection.position} : undefined,
                                 copyrightStatement,
                                 (progress) => {
                                     console.log(
@@ -285,11 +280,7 @@ export function useWatermarkBatchProcessor({
             oversizeThresholdBytes,
             updateProgressSmoothly,
             watermarkBlur,
-            transparentWatermarkEnabled,
-            transparentWatermarkUrl,
-            transparentWatermarkOpacities,
-            transparentWatermarkScales,
-            transparentWatermarkPositions,
+            resolveTransparentWatermark,
             copyrightStatement,
             watermarkColorUrls,
             watermarkOpacity,

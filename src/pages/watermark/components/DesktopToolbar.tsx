@@ -11,7 +11,7 @@ import WatermarkLayoutControl from "./WatermarkLayoutControl";
 import WatermarkDirectionSwitch from "./WatermarkDirectionSwitch";
 import CaptionReviewDialog, {type CaptionReviewItem} from './CaptionReviewDialog';
 import WatermarkExportMenu from './WatermarkExportMenu';
-import {getWatermarkTextFieldLabels} from '../layout-presets';
+import {applyWatermarkLines,getWatermarkLineModel} from '../watermark-lines';
 
 interface DesktopToolbarProps {
     imageTint: string;
@@ -63,7 +63,7 @@ interface DesktopToolbarProps {
     progress: number;
     captionReviewItems: CaptionReviewItem[];
     captionPendingCount: number;
-    onSaveCaptionReview: (changes: Record<string, {textLine1:string;textLine2:string;time:string;place:string;collection:string}>) => void;
+    onSaveCaptionReview: (edits: Record<string, Partial<MixedWatermarkConfig>>) => void;
     onClearCaptionReview: (ids: string[]) => void;
 }
 
@@ -80,24 +80,27 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
     const {watermarkMode:mode,mixedWatermarkConfig:config}=props;
     const update=props.onConfigPatch;
     const textMode=mode!=='image';
-    const textFieldLabels=getWatermarkTextFieldLabels(config);
+    // One field per line, exactly as the watermark draws it (shared with 水印校对).
+    const lineModel=getWatermarkLineModel(config,mode==='text');
+    const lineValues=lineModel.fields.map(field=>field.value);
+    const editLine=(index:number,value:string)=>{const values=[...lineValues];values[index]=value;update(applyWatermarkLines(lineModel,values));};
+    const hasText=lineValues.some(value=>value.trim());
     const status=props.smartError || props.fontNotice || (props.smartPending?'正在更新预览…':'预览已就绪');
     return <>
         <section className="wm-inspector wm-compact-toolbar" aria-label="水印编辑工具" data-mode={mode}>
-            <div className="wm-bottom-mode"><span className="wm-label">水印类型</span>
+            <div className="wm-bottom-mode" title={props.editScope==='all'?'预览工具条为“全部”：所有图片使用同一种水印类型':'预览工具条为“当前”：仅设置当前图片的水印类型'}><span className="wm-label">水印类型</span>
                 <Select value={mode} onValueChange={value=>{if(value==='image'||value==='text'||value==='mixed')props.setWatermarkMode(value);}}>
                     <SelectTrigger aria-label="水印类型" className="wm-mode-dropdown"><SelectValue/></SelectTrigger>
                     <SelectContent><SelectItem value="image">图片水印</SelectItem><SelectItem value="text">文字水印</SelectItem><SelectItem value="mixed">图文水印</SelectItem></SelectContent>
                 </Select>
             </div>
             {mode!=='text'&&<div className={`wm-material-field ${mode==='image'?'is-image-mode':''}`}><span className="wm-label">{mode==='image'?'水印素材':'水印图标'}</span><ImageUploader onUpload={props.onWatermarkUpload} fileType={mode==='image'?'水印图片':'图标'} className="wm-bottom-logo"><span className="wm-logo-checker"><img src={mode==='image'?props.storedImageWatermarkUrl:config.icon} alt="水印素材缩略图"/></span><span>更换{mode==='image'?'图片':'图标'}</span><ChevronDown size={13}/></ImageUploader></div>}
-            {textMode?<div className="wm-bottom-inputs">
-                <label className="wm-bottom-title"><span className="wm-label">{textFieldLabels.textLine1}</span><WatermarkTextInput className="wm-text-input" aria-label={textFieldLabels.textLine1} maxLength={120} value={config.textLine1} placeholder={textFieldLabels.textLine1Placeholder} onValueChange={textLine1=>update({textLine1})}/></label>
-                <label className="wm-bottom-caption"><span className="wm-label">{textFieldLabels.textLine2}</span><WatermarkTextInput className="wm-text-input" aria-label={textFieldLabels.textLine2} maxLength={120} value={config.textLine2} placeholder={textFieldLabels.textLine2Placeholder} onValueChange={textLine2=>update({textLine2})}/></label>
+            {textMode?<div className={`wm-bottom-inputs ${lineModel.fields.length===1?'is-single-line':''}`}>
+                {lineModel.fields.map((field,index)=><label key={index} className={index===0?'wm-bottom-title':'wm-bottom-caption'} title="文字内容只改当前图片"><span className="wm-label">{field.label}</span><WatermarkTextInput className="wm-text-input" aria-label={field.label} maxLength={240} value={field.value} placeholder={field.placeholder} onValueChange={value=>editLine(index,value)}/></label>)}
             </div>:<div className="wm-bottom-image-note">拖动水印可调整位置</div>}
             {textMode && <div className="wm-bottom-review"><span className="wm-label" aria-hidden="true">&nbsp;</span><CaptionReviewDialog pendingCount={props.captionPendingCount} items={props.captionReviewItems} onSave={props.onSaveCaptionReview} onClear={props.onClearCaptionReview}/></div>}
             {textMode && <div className="wm-bottom-layout"><span className="wm-label">排版</span><WatermarkDirectionSwitch value={config.layout} onChange={layout=>update({layout})}/></div>}
-            <div className="wm-bottom-protection"><div className="wm-bottom-blur"><label className="wm-label" htmlFor="wm-bottom-blur">背景模糊</label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-blur" checked={props.watermarkBlur} onCheckedChange={props.setWatermarkBlur}/><span aria-hidden="true">{props.watermarkBlur?'开':'关'}</span></div></div><div className="wm-bottom-blur" title="居中叠加独立图片水印，可在设置中调节透明度"><label className="wm-label" htmlFor="wm-bottom-transparent">独立透明水印</label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-transparent" checked={props.transparentWatermarkEnabled} onCheckedChange={props.setTransparentWatermarkEnabled}/><span aria-hidden="true">{props.transparentWatermarkEnabled?'开':'关'}</span></div></div></div>
+            <div className="wm-bottom-protection"><div className="wm-bottom-blur"><label className="wm-label" htmlFor="wm-bottom-blur" title="背景模糊对所有图片生效">背景模糊<span className="wm-scope-all">所有图片</span></label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-blur" checked={props.watermarkBlur} onCheckedChange={props.setWatermarkBlur}/><span aria-hidden="true">{props.watermarkBlur?'开':'关'}</span></div></div><div className="wm-bottom-blur" title={`居中叠加独立图片水印，可在设置中调节透明度。${props.editScope==='all'?'预览工具条为“全部”：开关应用到所有图片':'预览工具条为“当前”：开关仅作用于当前图片'}`}><label className="wm-label" htmlFor="wm-bottom-transparent">独立透明水印</label><div className="wm-bottom-switch-row"><Switch id="wm-bottom-transparent" checked={props.transparentWatermarkEnabled} onCheckedChange={props.setTransparentWatermarkEnabled}/><span aria-hidden="true">{props.transparentWatermarkEnabled?'开':'关'}</span></div></div></div>
             <div className="wm-bottom-actions"><div className="wm-action-field"><span className="wm-label">调整</span><button type="button" title={status} className="wm-unified-settings" aria-label="水印设置" aria-expanded={drawerOpen} onClick={()=>setDrawerOpen(!drawerOpen)}><SlidersHorizontal size={16}/><span>设置</span></button></div>
             <div className="wm-action-field wm-export-field"><span className="wm-label">导出图片</span>
                 <WatermarkExportMenu
@@ -108,21 +111,21 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
                     progress={props.progress}
                     imageCount={props.imageCount}
                     currentDisabled={!props.currentFilename}
-                    disabled={props.smartPending || Boolean(props.smartError) || mode==='text' && !config.textLine1.trim() && !config.textLine2.trim()}
+                    disabled={props.smartPending || Boolean(props.smartError) || mode==='text' && !hasText}
                 />
             </div></div>
         </section>
         <SettingsDialog.Root modal={false} open={drawerOpen} onOpenChange={setDrawerOpen}>
             <SettingsDialog.Portal>
                 <SettingsDialog.Content className="wm-inspector wm-settings-drawer" onPointerDownOutside={event=>event.preventDefault()} onFocusOutside={event=>event.preventDefault()}>
-                    <header className="wm-drawer-heading"><div><SettingsDialog.Title>水印设置</SettingsDialog.Title><SettingsDialog.Description>{props.editScope==='all'?'设置应用到全部图片':'设置仅应用到当前图片'}</SettingsDialog.Description></div><SettingsDialog.Close className="wm-drawer-close" aria-label="关闭设置"><X size={18}/></SettingsDialog.Close></header>
+                    <header className="wm-drawer-heading"><div><SettingsDialog.Title>水印设置</SettingsDialog.Title><SettingsDialog.Description>{props.editScope==='all'?'外观设置应用到全部图片，文字内容只改当前图片':'设置仅应用到当前图片'}</SettingsDialog.Description></div><SettingsDialog.Close className="wm-drawer-close" aria-label="关闭设置"><X size={18}/></SettingsDialog.Close></header>
                     <div className="wm-drawer-body">
             {textMode && <section className="wm-settings-section wm-typography-grid" aria-label="排版">
                 <div className="wm-settings-section-heading"><h3>排版</h3><div className="wm-auto-fit-row"><label title="显示图案、时代、名称和作者署名"><span>精简模式</span><Switch aria-label="精简模式" checked={Boolean(config.compactMode)} onCheckedChange={compactMode=>update({compactMode})}/></label><label><span>自动适配</span><Switch aria-label="智能适配" checked={props.smartEnabled} onCheckedChange={props.setSmartEnabled}/></label><button type="button" className="wm-settings-reset" aria-label="恢复自动设置" title="恢复自动大小、排版、位置与颜色" onClick={props.onResetSmart}><RotateCcw size={14}/></button></div></div>
                 {config.compactMode && <label className="wm-copyright-field"><span className="wm-label">作者名称</span><input aria-label="作者名称" className="wm-text-input" value={config.compactAuthor??'笑谈间气吐霓虹'} maxLength={120} onChange={event=>update({compactAuthor:event.target.value})} placeholder="笑谈间气吐霓虹" /></label>}
                 <WatermarkLayoutControl config={{...config,textOnly:mode==='text'}} onChange={update}/>
-                <WatermarkFontPicker label={config.compactMode?'名称字体':'统一字体'} value={config.fontId} text={[config.textLine1,config.textLine2].filter(Boolean).join(' · ')} onChange={fontId=>update({fontId,captionFontId:fontId})}/>
-                {config.compactMode && <WatermarkFontPicker label="作者字体" value={config.authorFontId||config.fontId} text={config.compactAuthor??'笑谈间气吐霓虹'} onChange={authorFontId=>update({authorFontId})}/>}
+                <WatermarkFontPicker scopeNote="所有图片" label={config.compactMode?'名称字体':'统一字体'} value={config.fontId} text={[config.textLine1,config.textLine2].filter(Boolean).join(' · ')} onChange={fontId=>update({fontId,captionFontId:fontId})}/>
+                {config.compactMode && <WatermarkFontPicker scopeNote="所有图片" label="作者字体" value={config.authorFontId||config.fontId} text={config.compactAuthor??'笑谈间气吐霓虹'} onChange={authorFontId=>update({authorFontId})}/>}
 
                 <div className="wm-control-stack"><WatermarkRange label="字距" value={config.letterSpacing??0.1} min={0} max={0.6} step={0.05} display={`${Math.round((config.letterSpacing??0.1)*100)}%`} onChange={letterSpacing=>update({letterSpacing})}/><WatermarkRange label="行列间距" value={config.lineGap??0.55} min={0.1} max={1.2} step={0.05} display={`${Math.round((config.lineGap??0.55)*100)}%`} onChange={lineGap=>update({lineGap})}/></div>
             </section>}
@@ -135,7 +138,7 @@ export default function DesktopToolbar(props: DesktopToolbarProps) {
                 <div className="wm-control-stack"><WatermarkRange label="独立水印大小" value={props.transparentWatermarkScale} min={2} max={8} step={0.01} display={`${Math.round(props.transparentWatermarkScale*100)}%`} onChange={props.setTransparentWatermarkScale}/><WatermarkRange label="独立水印透明度" value={props.transparentWatermarkOpacity} min={0} max={1} step={0.01} display={`${Math.round(props.transparentWatermarkOpacity*100)}%`} onChange={props.setTransparentWatermarkOpacity}/></div>
             </div></section>
             <section className="wm-settings-section wm-export-grid" aria-label="导出参数">
-                <div className="wm-settings-section-heading"><h3>导出</h3><span className="wm-help" title="保留原图尺寸和文件类型，文件名添加 -mark">原图尺寸</span></div>
+                <div className="wm-settings-section-heading"><h3>导出<span className="wm-scope-all">所有图片</span></h3><span className="wm-help" title="保留原图尺寸和文件类型，文件名添加 -mark">原图尺寸</span></div>
                 <WatermarkRange label="导出质量" value={props.quality} min={0.1} max={1} display={`${Math.round(props.quality*100)}%`} onChange={props.setQuality}/>
                 <label className="wm-copyright-field"><span className="wm-label">版权声明 · EXIF</span><input className="wm-text-input" value={props.copyrightStatement} maxLength={120} onChange={event=>props.setCopyrightStatement(event.target.value)} placeholder="作者或版权信息" /></label>
             </section>

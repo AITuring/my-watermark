@@ -19,6 +19,8 @@ const ERA_NAMES = [
 const ERA_NUMBER = /^(?:约|大约)?\s*[0-9０-９一二三四五六七八九十百千万〇零]{1,6}\s*(?:[-－—–−~～至到]\s*[0-9０-９一二三四五六七八九十百千万〇零]{1,6}\s*)?(?:世纪|年代|年)/;
 const ERA_MARKER = /(?:世纪|年代|时期|时代|文化|文明|帝国|王朝|年|代)$/;
 
+const PHOTOGRAPHER_CREDIT = /(?:摄影?|拍摄)$/;
+
 function visualLength(value:string){
     return Array.from(value.trim()).reduce((total,character)=>total+(character.charCodeAt(0)<=127?.55:1),0);
 }
@@ -68,16 +70,27 @@ export function getFittedVerticalLetterSpacing(base:number,textScale:number){
 export function buildSingleLineCaptionRuns(title:string,caption:string,order:'title-first'|'era-first'='title-first',vertical=false):CaptionRun[]{
     const titleRun={text:title,field:'textLine1' as const};
     const separator={text:vertical?'·':' · '};
+    // On one line every field, including the photographer credit, is joined by the middle dot.
+    const toLine=(value:string)=>value.split(' / ').map(part=>part.trim()).filter(Boolean).join(separator.text);
     if(!caption.trim())return title.trim()?[titleRun]:[];
-    if(!title.trim())return [{text:caption,field:'textLine2'}];
-    if(order!=='era-first')return [titleRun,separator,{text:caption,field:'textLine2'}];
-    const [metadata,photographer]=caption.split(' / ');
+    if(!title.trim())return [{text:toLine(caption),field:'textLine2'}];
+    if(order!=='era-first')return [titleRun,separator,{text:toLine(caption),field:'textLine2'}];
+    const [metadata,...credits]=caption.split(' / ');
+    const photographer=credits.map(value=>value.trim()).filter(Boolean).join(separator.text);
     const parts=metadata.split('·').map(value=>value.trim()).filter(Boolean);
-    if(parts.length===1)return [{text:parts[0],field:'textLine2'},separator,titleRun];
-    if(parts.length<2)return [titleRun,separator,{text:caption,field:'textLine2'}];
+    // A caption that only holds the photographer credit has no era to lead with;
+    // keep the field order the user sees: title first, credit after it.
+    if(parts.length===1&&!photographer&&PHOTOGRAPHER_CREDIT.test(parts[0]))return [titleRun,separator,{text:parts[0],field:'textLine2'}];
+    if(parts.length===1)return [{text:parts[0],field:'textLine2'},separator,titleRun,...(photographer?[separator,{text:photographer,field:'textLine2' as const}]:[])];
+    if(parts.length<2)return [titleRun,separator,{text:toLine(caption),field:'textLine2'}];
     const era=parts.shift()!;
-    const tail=[parts.join('·'),photographer].filter(Boolean).join(photographer?' / ':'');
+    const tail=[parts.join('·'),photographer].filter(Boolean).join(separator.text);
     return [{text:era,field:'textLine2'},separator,titleRun,separator,{text:tail,field:'textLine2'}];
+}
+
+/** The one-line text exactly as drawn: fields separated by a spaced middle dot. */
+export function getSingleLineCaptionText(title:string,caption:string,order:'title-first'|'era-first'='title-first',vertical=false){
+    return buildSingleLineCaptionRuns(title,caption,order,vertical).map(run=>run.text).join('').replace(/\s*·\s*/g,' · ').trim();
 }
 
 /** Keep digits upright; turn horizontal connecting strokes into vertical ones. */

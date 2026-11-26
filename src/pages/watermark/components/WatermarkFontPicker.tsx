@@ -4,7 +4,7 @@ import {Root as Dialog,Portal,Content,Close,Description as DialogDescription,Tit
 import {DEFAULT_FONT_ID,WATERMARK_FONTS,ensureWatermarkFont,fontFamily,fontName,getImportedFonts,importWatermarkFont,missingFontCharacters,subscribeFonts,FONT_PREVIEW_TEXT} from '../fonts/registry';
 import {FONT_GROUPS,fontGroup} from '../fonts/groups';
 
-export default function WatermarkFontPicker({value=DEFAULT_FONT_ID,onChange,text,label='统一字体'}:{value?:string;onChange:(id:string)=>void;text:string;label?:string}){
+export default function WatermarkFontPicker({value=DEFAULT_FONT_ID,onChange,text,label='统一字体',scopeNote}:{value?:string;onChange:(id:string)=>void;text:string;label?:string;scopeNote?:string}){
     const [open,setOpen]=useState(false),[category,setCategory]=useState('全部'),[query,setQuery]=useState('');
     const [pending,setPending]=useState(''),[error,setError]=useState('');
     const input=useRef<HTMLInputElement>(null),sequence=useRef(0);
@@ -45,7 +45,7 @@ export default function WatermarkFontPicker({value=DEFAULT_FONT_ID,onChange,text
         finally{if(request===sequence.current)setPending('');}
     };
     return <div className="wm-font-field">
-        <span className="wm-label">{label}</span>
+        <span className="wm-label">{label}{scopeNote && <span className="wm-scope-all">{scopeNote}</span>}</span>
         <button type="button" className="wm-font-trigger" onClick={()=>{setError('');setOpen(true);}} aria-label={`选择${label}`}>
             <span className="wm-font-glyph" style={{fontFamily:fontFamily(value)}}>永</span><span className="min-w-0 flex-1 truncate text-left">{fontName(value)}</span><ChevronDown size={14}/>
         </button>

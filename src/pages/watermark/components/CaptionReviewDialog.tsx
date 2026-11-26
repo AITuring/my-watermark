@@ -1,8 +1,9 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useMemo, useState} from 'react';
 import {Check, ClipboardCheck, RotateCcw, X} from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
+import type {MixedWatermarkConfig} from '@/types';
 import type {CaptionConfidence, WatermarkCaptionAnalysis} from '../filename-watermark';
-import {splitLongCaptionForMultiple} from '@/utils/text-watermark-layout';
+import {applyWatermarkLines, type WatermarkLineModel} from '../watermark-lines';
 
 export type CaptionReviewItem = {
     id: string;
@@ -10,20 +11,18 @@ export type CaptionReviewItem = {
     analysis: WatermarkCaptionAnalysis;
     textLine1: string;
     textLine2: string;
-    time: string;
-    place: string;
-    collection: string;
-    displayMode: 'single' | 'multiple';
-    displayLines?: 1 | 2 | 3;
+    /** The watermark's text exactly as drawn, one field per visual line. */
+    model: WatermarkLineModel;
+    /** Image watermarks draw no text; the lines apply once the image uses a text type. */
+    imageMode?: boolean;
     corrected: boolean;
 };
-
-type CaptionPatch = {textLine1: string; textLine2: string; time: string; place: string; collection: string};
 
 type Props = {
     pendingCount: number;
     items: CaptionReviewItem[];
-    onSave: (changes: Record<string, CaptionPatch>) => void;
+    /** Applies the edited lines per image and marks every listed image as reviewed. */
+    onSave: (edits: Record<string, Partial<MixedWatermarkConfig>>) => void;
     onClear: (ids: string[]) => void;
 };
 
@@ -34,46 +33,35 @@ function statusLabel(confidence: CaptionConfidence, corrected: boolean) {
     return '自动解析';
 }
 
-function previewCaption(value: CaptionPatch) {
-    if (!value.time && !value.place && !value.collection) return value.textLine2;
-    const photographer = value.textLine2.split(' / ').slice(1).join(' / ').trim();
-    const sourceDetails = value.textLine2.split(' / ')[0].split('·').map(part => part.trim()).filter(Boolean);
-    const extras = sourceDetails.length > 1 ? sourceDetails.slice(1, -1) : [];
-    const detectedEra = splitLongCaptionForMultiple(value.textLine1, value.textLine2).promoted ? sourceDetails[0] : '';
-    const details = [value.time || detectedEra, value.place, ...extras, value.collection].filter(Boolean).join('·');
-    return [details, photographer].filter(Boolean).join(' / ') || value.textLine2;
-}
-
-function previewSingleLine(value: CaptionPatch) {
-    const caption = previewCaption(value);
-    const [metadata, ...credits] = caption.split(' / ');
-    const parts = metadata.split('·').map(part => part.trim()).filter(Boolean);
-    const era = value.time || parts.shift() || '';
-    const main = [era, value.textLine1, parts.join('·')].filter(Boolean).join(' · ');
-    return [main, credits.join(' / ')].filter(Boolean).join(' / ');
-}
-
 export default function CaptionReviewDialog({pendingCount, items, onSave, onClear}: Props) {
     const [open, setOpen] = useState(false);
-    const [draft, setDraft] = useState<Record<string, CaptionPatch>>({});
+    // Edited line texts per image; images without an entry are unchanged.
+    const [draft, setDraft] = useState<Record<string, string[]>>({});
     const reviewItems = useMemo(() => [...items].sort((a, b) => {
         const score = (item: CaptionReviewItem) => item.corrected ? 2 : item.analysis.confidence === 'high' ? 1 : 0;
         return score(a) - score(b) || a.filename.localeCompare(b.filename, 'zh-CN');
     }), [items]);
+    const original = (item: CaptionReviewItem) => item.model.fields.map(field => field.value);
+    const isEdited = (item: CaptionReviewItem) => Boolean(draft[item.id]) && draft[item.id].some((value, index) => value !== original(item)[index]);
+    const editedCount = reviewItems.filter(isEdited).length;
 
-    useEffect(() => {
-        if (!open) return;
-        setDraft(Object.fromEntries(reviewItems.map(item => [item.id, {textLine1: item.textLine1, textLine2: item.textLine2, time:item.time, place:item.place, collection:item.collection}])));
-    }, [open, reviewItems]);
-
-    const update = (id: string, field: keyof CaptionPatch, value: string) => {
-        setDraft(previous => ({...previous, [id]: {...previous[id], [field]: value}}));
+    const changeOpen = (next: boolean) => {setDraft({}); setOpen(next);};
+    const editLine = (item: CaptionReviewItem, index: number, value: string) => setDraft(previous => {
+        const values = [...(previous[item.id] ?? original(item))];
+        values[index] = value;
+        return {...previous, [item.id]: values};
+    });
+    const save = () => {
+        const edits = Object.fromEntries(reviewItems.filter(isEdited).map(item => [item.id, applyWatermarkLines(item.model, draft[item.id])]));
+        onSave(edits);
+        changeOpen(false);
     };
+
     return <>
-        <button type="button" className="wm-caption-review-trigger" aria-label="打开水印校对" onClick={() => setOpen(true)}>
+        <button type="button" className="wm-caption-review-trigger" aria-label="打开水印校对" onClick={() => changeOpen(true)}>
             <ClipboardCheck size={14}/><span>{pendingCount ? `待确认 ${pendingCount}` : '水印校对'}</span>
         </button>
-        <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Root open={open} onOpenChange={changeOpen}>
             <Dialog.Portal>
                 <Dialog.Overlay className="wm-caption-review-overlay"/>
                 <Dialog.Content className="wm-caption-review-dialog" aria-describedby={undefined}>
@@ -81,38 +69,42 @@ export default function CaptionReviewDialog({pendingCount, items, onSave, onClea
                         <Dialog.Title>水印校对</Dialog.Title>
                         <Dialog.Close className="wm-drawer-close" aria-label="关闭校对"><X size={18}/></Dialog.Close>
                     </header>
-                    <div className="wm-caption-review-summary"><span>{pendingCount ? `有 ${pendingCount} 张图片需要确认` : '当前没有待确认项'}</span></div>
+                    <div className="wm-caption-review-summary">
+                        <span>{pendingCount ? `有 ${pendingCount} 张图片需要确认` : '当前没有待确认项'}</span>
+                        <span>每一栏就是水印上的一行，直接修改，保存后预览和导出同步</span>
+                    </div>
                     <div className="wm-caption-review-list">
                         {reviewItems.length ? reviewItems.map(item => {
-                            const value = draft[item.id] || {textLine1:item.textLine1,textLine2:item.textLine2,time:item.time,place:item.place,collection:item.collection};
                             const needsReview = item.analysis.confidence !== 'high' && !item.corrected;
-                            const caption = previewCaption(value);
-                            const linePlan = splitLongCaptionForMultiple(value.textLine1, caption);
-                            return <article key={item.id} className={`wm-caption-review-row ${needsReview ? 'needs-review' : ''}`}>
-                                <div className="wm-caption-review-row-heading"><span className="wm-caption-review-file" title={item.filename}>{item.filename}</span><span className={`wm-caption-review-badge ${needsReview ? 'is-review' : ''}`}>{statusLabel(item.analysis.confidence,item.corrected)}</span></div>
-                                {item.analysis.issues.length > 0 && <p className="wm-caption-review-issues">{item.analysis.issues.join(' · ')}</p>}
-                                <div className={'wm-caption-review-preview is-' + item.displayMode}>
-                                    <span className="wm-caption-review-preview-mode">{item.displayMode === 'single' ? '单行' : '多行'} · 实际排版</span>
-                                    <div className="wm-caption-review-preview-content">
-                                        {item.displayLines !== 3 && <span className="wm-caption-review-preview-mark" aria-hidden="true">印</span>}
-                                        {item.displayMode === 'single' ? (
-                                            <span className="wm-caption-review-lines">
-                                                <span className="wm-caption-review-line"><small className="wm-caption-review-line-label">第一行</small><span>{previewSingleLine(value) || '暂无文字内容'}</span></span>
-                                            </span>
-                                        ) : (
-                                            <span className="wm-caption-review-lines">
-                                                {item.displayLines === 3 && <span className="wm-caption-review-line wm-caption-review-line-icon"><small className="wm-caption-review-line-label">第一行</small><span>印</span></span>}
-                                                <span className="wm-caption-review-line wm-caption-review-line-primary"><small className="wm-caption-review-line-label">{item.displayLines === 3 ? '第二行' : '第一行'}</small><strong>{linePlan.firstText || '暂无内容'}</strong></span>
-                                                {linePlan.secondText && <span className="wm-caption-review-line"><small className="wm-caption-review-line-label">{item.displayLines === 3 ? '第三行' : '第二行'}</small><small>{linePlan.secondText}</small></span>}
-                                            </span>
-                                        )}
+                            const edited = isEdited(item);
+                            const values = draft[item.id] ?? original(item);
+                            const {model} = item;
+                            return <article key={item.id} className={`wm-caption-review-row ${needsReview ? 'needs-review' : ''} ${edited ? 'is-edited' : ''}`}>
+                                <div className="wm-caption-review-row-heading">
+                                    <span className="wm-caption-review-file" title={item.filename}>{item.filename}</span>
+                                    <span className="wm-caption-review-layout">{item.imageMode ? '图片水印 · 当前不显示文字' : model.layoutLabel}</span>
+                                    <span className={`wm-caption-review-badge ${needsReview || edited ? 'is-review' : ''}`}>{edited ? '已修改' : statusLabel(item.analysis.confidence, item.corrected)}</span>
+                                </div>
+                                {needsReview && item.analysis.issues.length > 0 && <p className="wm-caption-review-issues">{item.analysis.issues.join(' · ')}</p>}
+                                <div className="wm-caption-review-body">
+                                    {model.seal === 'beside' && <span className="wm-caption-review-seal" title="图案" aria-hidden="true">印</span>}
+                                    <div className="wm-caption-review-lines">
+                                        {model.seal === 'row' && <div className="wm-caption-review-line"><span className="wm-caption-review-line-label">第一行</span><span className="wm-caption-review-seal" title="图案">印</span></div>}
+                                        {model.fields.map((field, index) => <label key={index} className="wm-caption-review-line">
+                                            <span className="wm-caption-review-line-label">{field.label}</span>
+                                            <input aria-label={`${item.filename} ${field.label}`} className={index === 0 && model.kind === 'lines' ? 'is-primary' : ''}
+                                                value={values[index] ?? ''} placeholder={field.placeholder} maxLength={240}
+                                                onChange={event => editLine(item, index, event.target.value)}/>
+                                        </label>)}
                                     </div>
                                 </div>
-                                <div className="wm-caption-review-meta-fields"><label><span>时间</span><input aria-label={`${item.filename} 时间`} value={value.time} onChange={event => update(item.id,'time',event.target.value)} placeholder="如 明代、18世纪"/></label><label><span>地点 / 文化</span><input aria-label={`${item.filename} 地点`} value={value.place} onChange={event => update(item.id,'place',event.target.value)} placeholder="如 英国、莫切文化"/></label><label><span>馆藏</span><input aria-label={`${item.filename} 馆藏`} value={value.collection} onChange={event => update(item.id,'collection',event.target.value)} placeholder="如 南京博物院藏"/></label></div>
                             </article>;
                         }) : <div className="wm-caption-review-empty"><Check size={18}/>目前所有文件名都已通过规则解析。</div>}
                     </div>
-                    <footer className="wm-caption-review-footer"><button type="button" className="wm-text-button" onClick={() => onClear(reviewItems.filter(item => item.corrected).map(item => item.id))}><RotateCcw size={13}/>恢复已校对的自动结果</button><div><Dialog.Close className="wm-caption-review-cancel">取消</Dialog.Close><button type="button" className="wm-caption-review-save" onClick={() => {onSave(draft);setOpen(false);}}><Check size={14}/>确认并保存</button></div></footer>
+                    <footer className="wm-caption-review-footer">
+                        <button type="button" className="wm-text-button" onClick={() => {setDraft({}); onClear(reviewItems.filter(item => item.corrected).map(item => item.id));}}><RotateCcw size={13}/>恢复已校对的自动结果</button>
+                        <div><Dialog.Close className="wm-caption-review-cancel">取消</Dialog.Close><button type="button" className="wm-caption-review-save" onClick={save}><Check size={14}/>{editedCount ? `保存修改（${editedCount} 张）` : '确认并保存'}</button></div>
+                    </footer>
                 </Dialog.Content>
             </Dialog.Portal>
         </Dialog.Root>

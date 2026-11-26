@@ -23,16 +23,35 @@ export function getWatermarkPreset(config:Partial<MixedWatermarkConfig>, directi
     return config.horizontalPreset || (shouldJoinWatermarkLines(config,direction)?'single':'paired');
 }
 
-/** Labels describe the editable content fields, which are not always visual lines. */
+const ORDINAL_LINES=['第一行','第二行','第三行'] as const;
+const numberedLabels=(first:number):WatermarkTextFieldLabels=>({
+    textLine1:ORDINAL_LINES[first],textLine2:ORDINAL_LINES[first+1],
+    textLine1Placeholder:`${ORDINAL_LINES[first]}文字`,textLine2Placeholder:`${ORDINAL_LINES[first+1]}文字`,
+});
+
+/** Labels name the visual line each field is drawn on; a single line shares both fields. */
 export function getWatermarkTextFieldLabels(config:Partial<MixedWatermarkConfig>):WatermarkTextFieldLabels {
     if(config.compactMode)return {
         textLine1:'名称',textLine2:'时代',
         textLine1Placeholder:'作品名称',textLine2Placeholder:'如 五代、南宋、18世纪',
     };
     const direction=config.layout||'horizontal';
-    return direction==='horizontal'&&getWatermarkPreset(config,direction)==='paired'
-        ? {textLine1:'第一行',textLine2:'第二行',textLine1Placeholder:'第一行文字',textLine2Placeholder:'第二行文字'}
-        : {textLine1:'标题',textLine2:'说明',textLine1Placeholder:'作品名称',textLine2Placeholder:'年代 · 馆藏 · 摄影者'};
+    const preset=direction==='horizontal'?getWatermarkPreset(config,direction):'single';
+    if(preset==='paired')return numberedLabels(0);
+    // The centered seal takes the first row, so with it the text starts on the second.
+    if(preset==='centered')return numberedLabels(config.textOnly?0:1);
+    return {textLine1:'标题',textLine2:'说明',textLine1Placeholder:'作品名称',textLine2Placeholder:'年代 · 馆藏 · 摄影者'};
+}
+
+/** One-line layouts show one field holding the exact line drawn on the watermark. */
+export function getWatermarkSingleLineField(config:Partial<MixedWatermarkConfig>){
+    const direction=config.layout||'horizontal';
+    if(config.compactMode||getWatermarkPreset(config,direction)!=='single')return null;
+    return {
+        label:direction==='vertical'?'第一列':'第一行',
+        placeholder:'年代 · 作品名称 · 馆藏 · 摄影者',
+        vertical:direction==='vertical',
+    };
 }
 
 export const HORIZONTAL_PRESETS = [

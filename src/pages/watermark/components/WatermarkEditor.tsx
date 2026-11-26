@@ -1059,7 +1059,7 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                     </SelectContent>
                                 </Select>
 
-                                <label className="wm-floating-scope" title={isBatch ? "修改应用于全部图片" : "修改仅应用于当前图片"}>
+                                <label className="wm-floating-scope" title={isBatch ? "外观、位置等修改应用于全部图片；文字内容始终只改当前图片" : "修改仅应用于当前图片"}>
                                     <Switch checked={isBatch} onCheckedChange={setIsBatch} aria-label="编辑范围"/>
                                     <span>{isBatch ? "全部" : "当前"}</span>
                                 </label>

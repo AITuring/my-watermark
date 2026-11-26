@@ -68,27 +68,32 @@ function measureShape(ctx:CanvasRenderingContext2D,runs:{text:string;field?:Fiel
 /** Original pixels are preserved by the caller; the same PNG is used for preview and export. */
 export async function createTextWatermark(config:MixedWatermarkConfig,onLayout?:(regions:WatermarkTextRegion[])=>void):Promise<string>{
     const compactCaption=config.compactMode?getCompactWatermarkCaption(config.textLine2):config.textLine2;
-    const runs=([['textLine1',config.textLine1],['textLine2',compactCaption]] as const).map(([field,text])=>({field,text:text.trim()})).filter(run=>run.text);
+    const preset=getWatermarkPreset(config);
+    const vertical=config.layout==='vertical';
+    // A one-line layout can carry its own text; it then replaces the title and caption.
+    const lineOverride=!config.compactMode&&preset==='single'&&config.singleLineText!==undefined
+        ?(vertical?config.singleLineText.replace(/\s*·\s*/g,'·'):config.singleLineText).trim():undefined;
+    const runs=lineOverride!==undefined?[]:([['textLine1',config.textLine1],['textLine2',compactCaption]] as const).map(([field,text])=>({field,text:text.trim()})).filter(run=>run.text);
     const author=config.compactMode?(config.compactAuthor??'笑谈间气吐霓虹').trim():'';
-    if(!author&&!runs.length&&(config.textOnly||!config.icon)){onLayout?.([]);return '';}
+    if(!author&&!runs.length&&!lineOverride&&(config.textOnly||!config.icon)){onLayout?.([]);return '';}
     const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');if(!ctx)throw Error('无法创建文字水印');
     const [family,authorFamily]=await Promise.all([
-        ensureWatermarkFont(config.fontId||config.captionFontId,runs.map(run=>run.text).join('·')),
+        ensureWatermarkFont(config.fontId||config.captionFontId,[...runs.map(run=>run.text),lineOverride].filter(Boolean).join('·')),
         author?ensureWatermarkFont(config.authorFontId||config.fontId||config.captionFontId,author):Promise.resolve(''),
     ]);
-    const size=Math.max(24,config.fontSize*4),vertical=config.layout==='vertical',textScale=Math.max(.1,config.textScale??1);
+    const size=Math.max(24,config.fontSize*4),textScale=Math.max(.1,config.textScale??1);
     const baseLetterSpacing=config.letterSpacing??.1;
     const letterSpacing=vertical?getFittedVerticalLetterSpacing(baseLetterSpacing-.08,textScale):baseLetterSpacing;
     const spacing=size*letterSpacing;
-    await Promise.all([document.fonts.load(`${size}px ${family}`,runs.map(run=>run.text).join('')||'秋'),...(author?[document.fonts.load(`${size}px ${authorFamily}`,author)]:[])]);ctx.font=`${size}px ${family}`;
-    const preset=getWatermarkPreset(config),single=preset==='single'||runs.length<2;
-    const joined=buildSingleLineCaptionRuns(runs[0]?.text||'',runs[1]?.text||'',config.compactMode?'era-first':config.singleLineOrder,vertical);
+    await Promise.all([document.fonts.load(`${size}px ${family}`,[...runs.map(run=>run.text),lineOverride].filter(Boolean).join('')||'秋'),...(author?[document.fonts.load(`${size}px ${authorFamily}`,author)]:[])]);ctx.font=`${size}px ${family}`;
+    const single=preset==='single'||runs.length<2;
+    const joined=lineOverride?[{text:lineOverride,field:'textLine1' as const}]:buildSingleLineCaptionRuns(runs[0]?.text||'',runs[1]?.text||'',config.compactMode?'era-first':config.singleLineOrder,vertical);
     const multiplePlan=!single&&!vertical
-        ? splitLongCaptionForMultiple(runs[0]?.text||'',runs[1]?.text||'')
+        ? splitLongCaptionForMultiple(runs[0]?.text||'',runs[1]?.text||'',config.promoteEra!==false)
         : undefined;
     const shapes=config.compactMode
         ? (runs.length?[measureShape(ctx,joined,vertical,size,spacing,family)]:[])
-        : single&&runs.length
+        : single&&(runs.length||lineOverride)
         ? [measureShape(ctx,joined,vertical,size,spacing,family)]
         : multiplePlan
             ? [measureShape(ctx,multiplePlan.first,vertical,size,spacing,family),measureShape(ctx,multiplePlan.second,vertical,size,spacing,family)]

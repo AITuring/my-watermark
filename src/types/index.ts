@@ -43,6 +43,10 @@ interface MixedWatermarkConfig {
     horizontalPreset?: 'single' | 'paired' | 'centered';
     verticalPreset?: 'single' | 'paired';
     singleLineOrder?: 'title-first' | 'era-first';
+    /** One-line layouts: the exact line to draw. When defined it replaces title and caption. */
+    singleLineText?: string;
+    /** false keeps hand-edited lines as typed instead of moving a long caption's era into the first line. */
+    promoteEra?: boolean;
     textScale?: number;
     textHorizontalScale?: number;
     compactMode?: boolean;

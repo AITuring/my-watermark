@@ -53,7 +53,7 @@ import {
     getAdaptiveWatermarkRenderMetrics,
 } from "@/utils/watermark-editor";
 import { TRANSPARENT_WATERMARK_CONTRAST_OPACITY } from "@/utils/transparent-watermark";
-import { getWatermarkTextFieldLabels } from "../layout-presets";
+import { applyWatermarkLines, getWatermarkLineModel } from "../watermark-lines";
 
 // 绘制辅助线函数
 const drawGuideLines = (layer: Konva.Layer, width: number, height: number) => {
@@ -250,7 +250,13 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
         if(onConfigPatch) onConfigPatch(patch);
         else setMixedWatermarkConfig(prev=>({...prev,...patch}));
     };
-    const textFieldLabels = getWatermarkTextFieldLabels(mixedWatermarkConfig);
+    // One field per line, exactly as the watermark draws it (shared with 水印校对).
+    const lineModel = getWatermarkLineModel(mixedWatermarkConfig, watermarkMode === 'text');
+    const editLine = (index: number, value: string) => {
+        const values = lineModel.fields.map(field => field.value);
+        values[index] = value;
+        updateConfig(applyWatermarkLines(lineModel, values));
+    };
     const [localBatch, setLocalBatch] = useState<boolean>(false);
     const isBatch = batchEditing ?? localBatch;
     const setIsBatch = (value:boolean) => {setLocalBatch(value);onBatchEditingChange?.(value);};
@@ -1291,7 +1297,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                 {/* 滑块控制组 - 极简布局 */}
                                 <div className="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-3 space-y-3">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">水印透明度</span>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">水印透明度<span className="wm-scope-all">所有图片</span></span>
                                         <Slider value={[watermarkOpacity]} max={1} step={0.01} onValueChange={(v) => setWatermarkOpacity(v[0])} className="w-24 flex-shrink-0" />
                                         <span className="text-xs font-mono text-gray-500 w-7 text-right">{Math.round(watermarkOpacity * 100)}%</span>
                                         {/* <div className="w-px h-3 bg-gray-200 dark:bg-slate-700 mx-1"></div> */}
@@ -1304,7 +1310,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                     </div>}
 
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">导出质量</span>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">导出质量<span className="wm-scope-all">所有图片</span></span>
                                         <Slider value={[quality]} max={1} step={0.01} onValueChange={(v) => setQuality(v[0])} className="w-24 flex-shrink-0" />
                                         <span className="text-xs font-mono text-gray-500 w-7 text-right">{Math.round(quality * 100)}%</span>
                                         {/* <div className="w-px h-3 bg-gray-200 dark:bg-slate-700 mx-1"></div> */}
@@ -1314,7 +1320,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="wm-mobile-copyright">版权声明 · EXIF</Label>
+                                        <Label htmlFor="wm-mobile-copyright">版权声明 · EXIF<span className="wm-scope-all">所有图片</span></Label>
                                         <input id="wm-mobile-copyright" className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={copyrightStatement} maxLength={120} onChange={event => setCopyrightStatement(event.target.value)} placeholder="作者或版权信息" />
                                     </div>
                                 </div>
@@ -1368,21 +1374,17 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                                         </ImageUploader>
                                     </div>}
 
-                                    <div className="space-y-2">
-                                        <Label>{textFieldLabels.textLine1}</Label>
-                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title={textFieldLabels.textLine1Placeholder} aria-label={textFieldLabels.textLine1} maxLength={120} placeholder={textFieldLabels.textLine1Placeholder} value={mixedWatermarkConfig.textLine1} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine1: value }))} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>{textFieldLabels.textLine2}</Label>
-                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title={textFieldLabels.textLine2Placeholder} aria-label={textFieldLabels.textLine2} maxLength={120} placeholder={textFieldLabels.textLine2Placeholder} value={mixedWatermarkConfig.textLine2} onValueChange={(value)=>setMixedWatermarkConfig(prev=>({ ...prev, textLine2: value }))} />
-                                    </div>
+                                    {lineModel.fields.map((field, index) => <div key={index} className="space-y-2">
+                                        <Label>{field.label}</Label>
+                                        <WatermarkTextInput type="text" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" title={field.placeholder} aria-label={field.label} maxLength={240} placeholder={field.placeholder} value={field.value} onValueChange={(value) => editLine(index, value)} />
+                                    </div>)}
                                     <WatermarkColorControl label="文字颜色" value={mixedWatermarkConfig.color} onAuto={onAutoColor}
                                         onChange={color => updateConfig({color})} />
                                     {watermarkMode === "mixed" && <WatermarkColorControl label="Logo颜色" autoLabel="智能" value={mixedWatermarkConfig.iconColor || mixedWatermarkConfig.color} onAuto={onAutoLogoColor}
                                         onChange={iconColor => updateConfig({iconColor})} />}
-                                    <WatermarkFontPicker label={mixedWatermarkConfig.compactMode?'名称字体':'统一字体'} value={mixedWatermarkConfig.fontId} text={[mixedWatermarkConfig.textLine1,mixedWatermarkConfig.textLine2].filter(Boolean).join(' · ')}
+                                    <WatermarkFontPicker scopeNote="所有图片" label={mixedWatermarkConfig.compactMode?'名称字体':'统一字体'} value={mixedWatermarkConfig.fontId} text={[mixedWatermarkConfig.textLine1,mixedWatermarkConfig.textLine2].filter(Boolean).join(' · ')}
                                         onChange={fontId => updateConfig({fontId,captionFontId:fontId})} />
-                                    {mixedWatermarkConfig.compactMode && <WatermarkFontPicker label="作者字体" value={mixedWatermarkConfig.authorFontId||mixedWatermarkConfig.fontId} text={mixedWatermarkConfig.compactAuthor??'笑谈间气吐霓虹'} onChange={authorFontId=>updateConfig({authorFontId})}/>}
+                                    {mixedWatermarkConfig.compactMode && <WatermarkFontPicker scopeNote="所有图片" label="作者字体" value={mixedWatermarkConfig.authorFontId||mixedWatermarkConfig.fontId} text={mixedWatermarkConfig.compactAuthor??'笑谈间气吐霓虹'} onChange={authorFontId=>updateConfig({authorFontId})}/>}
                                     <label className="flex items-center justify-between rounded-lg border border-input px-3 py-2 text-sm" title="显示图案、时代、名称和作者署名"><span>精简模式</span><Switch aria-label="精简模式" checked={Boolean(mixedWatermarkConfig.compactMode)} onCheckedChange={compactMode=>updateConfig({compactMode})}/></label>
                 {mixedWatermarkConfig.compactMode && <label className="wm-copyright-field"><span className="wm-label">作者名称</span><input aria-label="作者名称" className="wm-text-input" value={mixedWatermarkConfig.compactAuthor??'笑谈间气吐霓虹'} maxLength={120} onChange={event=>updateConfig({compactAuthor:event.target.value})} placeholder="笑谈间气吐霓虹" /></label>}
                                     <WatermarkLayoutControl config={{...mixedWatermarkConfig,textOnly:watermarkMode==='text'}} onChange={updateConfig}/>
@@ -1430,7 +1432,7 @@ const MobileWatermarkEditor: React.FC<MobileWatermarkEditorProps> = ({
                         <span className="text-xs font-medium">水印</span>
                     </Button>
                     <div className="flex items-center gap-3 pl-2 text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                        <label htmlFor="wm-mobile-blur" className="flex items-center gap-1.5">背景模糊<Switch id="wm-mobile-blur" checked={watermarkBlur} onCheckedChange={setWatermarkBlur}/></label>
+                        <label htmlFor="wm-mobile-blur" className="flex items-center gap-1.5">背景模糊<span className="wm-scope-all">所有图片</span><Switch id="wm-mobile-blur" checked={watermarkBlur} onCheckedChange={setWatermarkBlur}/></label>
                         <label htmlFor="wm-mobile-transparent" className="flex items-center gap-1.5">透明水印<Switch id="wm-mobile-transparent" checked={transparentWatermarkEnabled} onCheckedChange={setTransparentWatermarkEnabled}/></label>
                     </div>
                 </div>

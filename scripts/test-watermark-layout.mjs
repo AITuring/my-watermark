@@ -88,9 +88,13 @@ test('directions retain independent choices and vertical never exposes a three-c
 test('text field labels follow compact and visual layout semantics',()=>{
     assert.equal(JSON.stringify(presetApi.getWatermarkTextFieldLabels({compactMode:true})),JSON.stringify({textLine1:'名称',textLine2:'时代',textLine1Placeholder:'作品名称',textLine2Placeholder:'如 五代、南宋、18世纪'}));
     assert.equal(JSON.stringify(presetApi.getWatermarkTextFieldLabels({layout:'horizontal',horizontalPreset:'paired'})),JSON.stringify({textLine1:'第一行',textLine2:'第二行',textLine1Placeholder:'第一行文字',textLine2Placeholder:'第二行文字'}));
-    for(const config of [{layout:'horizontal',horizontalPreset:'single'},{layout:'horizontal',horizontalPreset:'centered'},{layout:'vertical',verticalPreset:'single'}]){
+    for(const config of [{layout:'horizontal',horizontalPreset:'single'},{layout:'vertical',verticalPreset:'single'}]){
         assert.equal(JSON.stringify(presetApi.getWatermarkTextFieldLabels(config)),JSON.stringify({textLine1:'标题',textLine2:'说明',textLine1Placeholder:'作品名称',textLine2Placeholder:'年代 · 馆藏 · 摄影者'}));
     }
+    // Centered: the seal is the first row, so the text fields sit on rows two and three.
+    assert.equal(JSON.stringify(presetApi.getWatermarkTextFieldLabels({layout:'horizontal',horizontalPreset:'centered'})),JSON.stringify({textLine1:'第二行',textLine2:'第三行',textLine1Placeholder:'第二行文字',textLine2Placeholder:'第三行文字'}));
+    // Text-only has no seal, so the same preset is two lines.
+    assert.equal(JSON.stringify(presetApi.getWatermarkTextFieldLabels({layout:'horizontal',horizontalPreset:'centered',textOnly:true})),JSON.stringify({textLine1:'第一行',textLine2:'第二行',textLine1Placeholder:'第一行文字',textLine2Placeholder:'第二行文字'}));
 });
 
 test('short artifact names keep the automatic single-line default but respect explicit horizontal choices',()=>{
@@ -124,9 +128,9 @@ test('vertical date connectors rotate while numbers and horizontal captions stay
 
 test('single-line captions place era before title and keep collection/photographer after it',()=>{
     const eraFirst=arrangement.buildSingleLineCaptionRuns('朱漆戗金莲托八吉祥纹护经板','明永乐时期·南京博物院藏 / 笑谈间气吐霓虹摄','era-first');
-    assert.equal(JSON.stringify(eraFirst.map(run=>run.text)),JSON.stringify(['明永乐时期',' · ','朱漆戗金莲托八吉祥纹护经板',' · ','南京博物院藏 / 笑谈间气吐霓虹摄']));
+    assert.equal(JSON.stringify(eraFirst.map(run=>run.text)),JSON.stringify(['明永乐时期',' · ','朱漆戗金莲托八吉祥纹护经板',' · ','南京博物院藏 · 笑谈间气吐霓虹摄']));
     assert.equal(eraFirst[0].field,'textLine2');assert.equal(eraFirst[2].field,'textLine1');assert.equal(eraFirst[4].field,'textLine2');
-    assert.equal(JSON.stringify(arrangement.buildSingleLineCaptionRuns('供盘','17—19世纪·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄','title-first').map(run=>run.text)),JSON.stringify(['供盘',' · ','17—19世纪·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄']));
+    assert.equal(JSON.stringify(arrangement.buildSingleLineCaptionRuns('供盘','17—19世纪·大都会艺术博物馆藏 / 笑谈间气吐霓虹摄','title-first').map(run=>run.text)),JSON.stringify(['供盘',' · ','17—19世纪·大都会艺术博物馆藏 · 笑谈间气吐霓虹摄']));
     assert.equal(JSON.stringify(arrangement.buildSingleLineCaptionRuns('供盘','', 'era-first').map(run=>run.text)),JSON.stringify(['供盘']));
 });
 

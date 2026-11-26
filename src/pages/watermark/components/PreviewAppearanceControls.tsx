@@ -122,7 +122,7 @@ export function WatermarkColorControl({color, automatic, textMode, suggestions, 
         </div>
         {error && <p className="wm-canvas-control-error" role="alert">{error}</p>}
         <label className="wm-canvas-alpha-control" htmlFor={opacityId}>
-            <span><span>透明度</span><output htmlFor={opacityId}>{Math.round(opacity * 100)}%</output></span>
+            <span><span>透明度<span className="wm-scope-all">所有图片</span></span><output htmlFor={opacityId}>{Math.round(opacity * 100)}%</output></span>
             <input id={opacityId} type="range" aria-label="水印颜色透明度" aria-valuetext={`${Math.round(opacity * 100)}%`} min={0} max={1} step={0.01}
                 value={opacity} disabled={!onOpacityChange} onChange={event => onOpacityChange?.(Number(event.target.value))}/>
         </label>
