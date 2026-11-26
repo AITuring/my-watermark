@@ -9,8 +9,8 @@ async function module(path){
     const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
     const api={};vm.runInNewContext(code,{exports:api});return api;
 }
-const api=await module('../src/pages/watermark/preview-minimap.ts');
-const camera=await module('../src/pages/watermark/preview-zoom.ts');
+const api=await module('../src/components/image-workbench/preview-minimap.ts');
+const camera=await module('../src/components/image-workbench/preview-zoom.ts');
 const close=(actual,expected)=>assert.ok(Math.abs(actual-expected)<1e-8,`${actual} != ${expected}`);
 
 test('minimap rectangle matches the actual visible source region for panorama, portrait and mural',()=>{

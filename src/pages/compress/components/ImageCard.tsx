@@ -43,8 +43,8 @@ const ImageCardComponent = ({
   const targetResolution = getTargetResolution(image);
 
   return (
-    <Card className="overflow-hidden rounded-[20px] border border-slate-200/80 bg-white/90 shadow-[0_10px_30px_rgba(15,23,42,0.07)]">
-      <div className="relative aspect-video overflow-hidden bg-slate-100">
+    <Card className="overflow-hidden rounded-[20px] border border-border/80 bg-card/90 shadow-[0_10px_30px_rgba(15,23,42,0.07)]">
+      <div className="relative aspect-video overflow-hidden bg-muted">
         <img
           src={image.preview}
           alt={image.originalFile.name}
@@ -88,12 +88,12 @@ const ImageCardComponent = ({
           <div className="flex items-start justify-between gap-2.5">
             <div className="min-w-0">
               <p
-                className="truncate text-[13px] font-medium text-slate-900"
+                className="truncate text-[13px] font-medium text-foreground"
                 title={image.originalFile.name}
               >
                 {image.originalFile.name}
               </p>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 目标 {image.targetSizeMB} MB · {formatResizeLabel(image.resizePercent)}
               </p>
             </div>
@@ -103,7 +103,7 @@ const ImageCardComponent = ({
               size="sm"
               disabled={isCompressing}
               onClick={() => onToggleExpanded(image.id)}
-              className="h-7 rounded-full border-slate-200 bg-white px-2.5 text-[12px] text-slate-600"
+              className="h-7 rounded-full border-border bg-card px-2.5 text-[12px] text-muted-foreground"
             >
               <Settings2 className="mr-1 h-3.5 w-3.5" />
               单张设置
@@ -114,11 +114,11 @@ const ImageCardComponent = ({
           </div>
         </div>
         {isExpanded && (
-          <div className="space-y-2.5 rounded-[18px] border border-slate-200/80 bg-slate-50/80 p-2.5">
+          <div className="space-y-2.5 rounded-[18px] border border-border/80 bg-muted/80 p-2.5">
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] text-slate-600">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>单张目标体积</span>
-                <span className="font-medium text-slate-900">{image.targetSizeMB} MB</span>
+                <span className="font-medium text-foreground">{image.targetSizeMB} MB</span>
               </div>
               <Input
                 type="number"
@@ -132,13 +132,13 @@ const ImageCardComponent = ({
                   }
                 }}
                 disabled={isCompressing}
-                className="h-9 rounded-xl border-slate-200 bg-white"
+                className="h-9 rounded-xl border-border bg-card"
               />
             </div>
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] text-slate-600">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>单张输出尺寸</span>
-                <span className="font-medium text-slate-900">{formatResizeLabel(image.resizePercent)}</span>
+                <span className="font-medium text-foreground">{formatResizeLabel(image.resizePercent)}</span>
               </div>
               <Slider
                 value={[image.resizePercent]}
@@ -162,37 +162,37 @@ const ImageCardComponent = ({
             </Button>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
-          <div className="rounded-[16px] bg-slate-50 p-2.5">
-            <div className="text-slate-500">原始大小</div>
-            <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
+        <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+          <div className="rounded-[16px] bg-muted p-2.5">
+            <div className="text-muted-foreground">原始大小</div>
+            <div className="mt-0.5 text-[13px] font-semibold text-foreground">
               {formatFileSize(image.originalSize)}
             </div>
           </div>
-          <div className="rounded-[16px] bg-slate-50 p-2.5">
-            <div className="text-slate-500">压缩后</div>
-            <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
+          <div className="rounded-[16px] bg-muted p-2.5">
+            <div className="text-muted-foreground">压缩后</div>
+            <div className="mt-0.5 text-[13px] font-semibold text-foreground">
               {image.compressedFile ? formatFileSize(image.compressedSize) : '--'}
             </div>
           </div>
         </div>
-        <div className="rounded-[16px] border border-slate-200/80 bg-gradient-to-r from-slate-50 to-white px-2.5 py-2">
-          <div className="mb-1 text-[10px] font-medium text-slate-500">分辨率</div>
-          <div className="flex items-center gap-1 text-[12px] font-semibold text-slate-900">
-            <span className="rounded-full bg-white px-2 py-0.5 shadow-sm shadow-slate-200/60">
+        <div className="rounded-[16px] border border-border/80 bg-gradient-to-r from-muted to-card px-2.5 py-2">
+          <div className="mb-1 text-[10px] font-medium text-muted-foreground">分辨率</div>
+          <div className="flex items-center gap-1 text-[12px] font-semibold text-foreground">
+            <span className="rounded-full bg-card px-2 py-0.5 shadow-sm shadow-slate-200/60">
               {formatResolution(image.originalWidth, image.originalHeight)}
             </span>
-            <ArrowRight className="h-3 w-3 text-slate-400" />
+            <ArrowRight className="h-3 w-3 text-muted-foreground" />
             <span className="rounded-full bg-slate-900 px-2 py-0.5 text-white shadow-sm shadow-slate-300/40">
               {formatResolution(targetResolution.width, targetResolution.height)}
             </span>
           </div>
         </div>
         {image.compressedFile && (
-          <div className="space-y-1.5 rounded-[16px] border border-slate-200/80 bg-slate-50/80 p-2.5 text-[11px] text-slate-600">
+          <div className="space-y-1.5 rounded-[16px] border border-border/80 bg-muted/80 p-2.5 text-[11px] text-muted-foreground">
             <div className="flex justify-between">
               <span>输出尺寸</span>
-              <span className="font-medium text-slate-900">{formatResizeLabel(image.outputScalePercent)}</span>
+              <span className="font-medium text-foreground">{formatResizeLabel(image.outputScalePercent)}</span>
             </div>
             <div className="flex justify-between">
               <span>节省体积</span>

@@ -1,3 +1,4 @@
+import { downloadExportFiles } from "@/utils/image-export";
 import chroma from "chroma-js";
 import ColorThief from "colorthief";
 
@@ -6,17 +7,8 @@ import type { AspectRatio, ImgProp } from "./types";
 import {
     loadHtml2Canvas,
     loadImageCompression,
-    loadJSZip,
-    loadSaveAs,
 } from "@/utils/lazy-deps";
 import { getLargeImageAsset } from '@/utils/large-image';
-
-type ZipInstance = {
-    file: (name: string, data: Blob | File) => void;
-    generateAsync: (options: { type: "blob" }) => Promise<Blob>;
-};
-
-type ZipConstructor = new () => ZipInstance;
 
 export const prepareImagesFromFiles = async (acceptedFiles: File[]) => {
     const newImages: ImgProp[] = [];
@@ -177,12 +169,7 @@ export const exportGalleryImage = async ({
             throw new Error("导出图片失败");
         }
 
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "album-long.png";
-        link.click();
-        URL.revokeObjectURL(url);
+        await downloadExportFiles([{ data: blob, name: "album-long.png" }], { mode: "current" });
         return { exportedCount: 1, isZip: false };
     }
 
@@ -209,9 +196,6 @@ export const exportGalleryImage = async ({
         ),
         fullCanvas.height,
     ];
-    const JSZip = (await loadJSZip()) as ZipConstructor;
-    const saveAs = await loadSaveAs();
-    const zip = new JSZip();
     const pagePadding = Math.round(outerPadding * inputScale);
     const files: { name: string; blob: Blob }[] = [];
 
@@ -282,12 +266,9 @@ export const exportGalleryImage = async ({
         }
     }
 
-    files.forEach((file) => {
-        zip.file(file.name, file.blob);
+    await downloadExportFiles(files.map(file => ({ name: file.name, data: file.blob })), {
+        mode: "zip", archiveName: `album-${selectedRatio.label}-${files.length}p.zip`,
     });
-
-    const zipBlob = await zip.generateAsync({ type: "blob" });
-    saveAs(zipBlob, `album-${selectedRatio.label}-${files.length}p.zip`);
 
     return { exportedCount: files.length, isZip: true };
 };

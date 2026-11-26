@@ -1,3 +1,4 @@
+import { ImageWorkbenchPanels } from "@/components/image-workbench/ImageWorkbench";
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -183,6 +184,8 @@ export default function ImageCropper() {
             return;
         }
 
+        // Hidden responsive panels must not overwrite the last visible camera.
+        if (!viewport.clientWidth || !viewport.clientHeight || !stage.offsetWidth || !stage.offsetHeight) return;
         const stageWidth = stage.offsetWidth || 1;
         const stageHeight = stage.offsetHeight || 1;
         const left = clamp((viewport.scrollLeft - stage.offsetLeft) / stageWidth, 0, 1);
@@ -226,10 +229,9 @@ export default function ImageCropper() {
         if (!viewport) return;
 
         const updateViewportSize = () => {
-            setViewportSize({
-                width: viewport.clientWidth,
-                height: viewport.clientHeight,
-            });
+            const width = viewport.clientWidth, height = viewport.clientHeight;
+            if (!width || !height) return;
+            setViewportSize(previous => previous.width === width && previous.height === height ? previous : { width, height });
         };
 
         updateViewportSize();
@@ -784,13 +786,7 @@ export default function ImageCropper() {
         });
     };
 
-    const handleMinimapPointer = (event: React.PointerEvent<HTMLDivElement>) => {
-        if (!activeImage) return;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const xRatio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
-        const yRatio = clamp((event.clientY - rect.top) / rect.height, 0, 1);
-        centerViewportOnImagePoint(xRatio, yRatio);
-    };
+    const [workbenchPanel, setWorkbenchPanel] = useState<"images" | "editor" | "settings">("editor");
 
     return (
         <div
@@ -826,8 +822,8 @@ export default function ImageCropper() {
                 </div>
             )}
             <div className="mx-auto flex h-full max-w-[1520px] min-h-0 flex-col">
-                <div className="grid h-full min-h-0 grid-cols-[240px_minmax(0,1fr)_260px] grid-rows-[minmax(0,1fr)] gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
-                    <div className="flex min-h-0">
+                <ImageWorkbenchPanels activePanel={workbenchPanel} onPanelChange={setWorkbenchPanel} imageCount={images.length} className="h-full" gridClassName="lg:grid-cols-[240px_minmax(0,1fr)_260px] xl:grid-cols-[260px_minmax(0,1fr)_300px]"
+                    images={<div className="flex min-h-0 flex-1">
                         <LeftPanel
                             className="w-full"
                             images={images}
@@ -848,7 +844,7 @@ export default function ImageCropper() {
                             onResetAllCrop={resetAllCrop}
                             onClearAllImages={clearAllImages}
                             onRemoveSelectedImages={removeSelectedImages}
-                            onSelectImage={setActiveId}
+                            onSelectImage={id => { setActiveId(id); setWorkbenchPanel("editor"); }}
                             onRemoveImage={removeImage}
                             onSwapAspect={swapAspect}
                             selectedImageIds={selectedImageIds}
@@ -862,9 +858,8 @@ export default function ImageCropper() {
                             onRetryFailed={retryFailedCrops}
                             storageEstimate={storageEstimate}
                         />
-                    </div>
-
-                    <div className="flex h-full min-h-0 flex-col gap-3">
+                    </div>}
+                    editor={<div className="flex h-full min-h-0 flex-col gap-3">
                         <CropEditor
                             activeImage={activeImage}
                             cropPercent={cropPercent}
@@ -890,11 +885,10 @@ export default function ImageCropper() {
                             canRedo={canRedo}
                             onZoomChange={setZoom}
                             onStartDrag={startDrag}
-                            onMinimapPointer={handleMinimapPointer}
+                            onMinimapCenter={center => centerViewportOnImagePoint(center.x, center.y)}
                         />
-                    </div>
-
-                    <div className="flex min-h-0">
+                    </div>}
+                    settings={<div className="flex min-h-0 flex-1">
                         <RightPanel
                             className="w-full"
                             savedCropCount={savedCrops.length}
@@ -913,8 +907,8 @@ export default function ImageCropper() {
                             onToggleAllSavedCrops={toggleAllSavedCrops}
                             onRemoveSelectedSavedCrops={removeSelectedSavedCrops}
                         />
-                    </div>
-                </div>
+                    </div>}
+                />
             </div>
         </div>
     );

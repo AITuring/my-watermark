@@ -1,3 +1,4 @@
+import {createTypeScriptLoader} from './helpers/load-typescript.mjs';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import test from 'node:test';
@@ -188,8 +189,7 @@ test('font and direction changes keep even enlarged watermarks inside the photo'
     assert.equal(kept.x,normal.x);assert.equal(kept.y,normal.y);assert.equal(kept.scaleX,normal.scaleX);
 });
 
-const namesCode=ts.transpileModule(await readFile(new URL('../src/pages/watermark/export-names.ts',import.meta.url),'utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
-const names={};vm.runInNewContext(namesCode,{exports:names});
+const names=createTypeScriptLoader()('src/pages/watermark/export-names.ts');
 test('exports preserve dotted filenames and ZIP entries never overwrite duplicates',()=>{
     assert.equal(names.watermarkOutputName('作品.v2.detail.jpg','image/jpeg'),'作品.v2.detail-mark.jpg');
     assert.equal(names.watermarkOutputName('作品.webp','image/webp'),'作品-mark.webp');

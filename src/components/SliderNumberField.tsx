@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ type SliderNumberFieldProps = {
     max: number;
     step: number;
     onChange: (value: number) => void;
+    disabled?: boolean;
     valueLabel?: string;
     valueFormatter?: (value: number) => string;
     showInput?: boolean;
@@ -31,6 +32,7 @@ export default function SliderNumberField({
     max,
     step,
     onChange,
+    disabled = false,
     valueLabel,
     valueFormatter,
     showInput = false,
@@ -42,13 +44,14 @@ export default function SliderNumberField({
     sliderClassName,
     inputClassName,
 }: SliderNumberFieldProps) {
+    const labelId = useId();
     const resolvedValueLabel = valueLabel ?? valueFormatter?.(value) ?? String(value);
 
     if (layout === "inline") {
         return (
             <div className={cn("flex items-center gap-2 text-sm", className)}>
-                <Label className="shrink-0 text-xs sm:text-sm">{label}</Label>
-                <Slider
+                <Label id={labelId} className="shrink-0 text-xs sm:text-sm">{label}</Label>
+                <Slider disabled={disabled} aria-labelledby={labelId}
                     value={[value]}
                     min={min}
                     max={max}
@@ -58,6 +61,7 @@ export default function SliderNumberField({
                 />
                 {showInput ? (
                     <Input
+                        disabled={disabled}
                         type="number"
                         min={min}
                         max={max}
@@ -87,6 +91,7 @@ export default function SliderNumberField({
                 )}
             >
                 <Label
+                    id={labelId}
                     className={cn(
                         "text-xs",
                         mutedLabel && "text-muted-foreground"
@@ -105,7 +110,7 @@ export default function SliderNumberField({
                 </span>
             </div>
             <div className="flex items-center gap-2">
-                <Slider
+                <Slider disabled={disabled} aria-labelledby={labelId}
                     value={[value]}
                     min={min}
                     max={max}
@@ -115,6 +120,7 @@ export default function SliderNumberField({
                 />
                 {showInput ? (
                     <Input
+                        disabled={disabled}
                         type="number"
                         min={min}
                         max={max}

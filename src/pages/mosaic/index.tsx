@@ -1,24 +1,28 @@
+import { useImageExport } from "@/hooks/useImageExport";
+import { ImageWorkbenchHeader, ImageWorkbenchPanels } from "@/components/image-workbench/ImageWorkbench";
+import ImageAssetPicker from "@/components/ImageAssetPicker";
+import SliderNumberField from "@/components/SliderNumberField";
+import { SettingsSection } from "@/components/SettingsSection";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import {
-    Download,
     Grip,
-    ImagePlus,
     Layers3,
-    Package,
     Plus,
-    SquareDashedMousePointer,
     Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getLargeImageAsset, processLargeImage } from '@/utils/large-image';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { loadJSZip, loadSaveAs } from "@/utils/lazy-deps";
+
+import WatermarkExportMenu from "@/components/image-workbench/ImageExportMenu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import "./mosaic.css";
+import ImageViewport from "@/components/image-workbench/ImageViewport";
+import EmptyMosaicPanel from "./EmptyMosaicPanel";
 
 type ExportFormat = "original" | "jpeg" | "png" | "webp";
 
@@ -62,14 +66,9 @@ type ResizeHandleDirection =
     | "se"
     | "sw";
 
-type ZipConstructor = new () => {
-    file: (name: string, data: Blob) => void;
-    generateAsync: (options: { type: "blob" }) => Promise<Blob>;
-};
-
 const DEFAULT_REGION_BLOCK_SIZE = 18;
 const PREVIEW_MAX_DIMENSION = 1400;
-const MIN_REGION_SIZE = 0.04;
+const MIN_REGION_SIZE = 0.001;
 
 const resizeHandles: Array<{
     direction: Exclude<ResizeHandleDirection, "move">;
@@ -87,13 +86,6 @@ const resizeHandles: Array<{
 
 const clamp = (value: number, min: number, max: number) =>
     Math.min(Math.max(value, min), max);
-
-const formatBytes = (bytes: number) => {
-    if (bytes >= 1024 * 1024) {
-        return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-    }
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-};
 
 const getBaseName = (fileName: string) => fileName.replace(/\.[^/.]+$/, "") || "image";
 
@@ -285,13 +277,13 @@ export default function MosaicPage() {
     const [exportFormat, setExportFormat] = useState<ExportFormat>("original");
     const [quality, setQuality] = useState(0.92);
     const [previewUrl, setPreviewUrl] = useState<string>("");
-    const [exportingCurrent, setExportingCurrent] = useState(false);
-    const [exportingBatch, setExportingBatch] = useState(false);
     const [showOnlySelectedRegion, setShowOnlySelectedRegion] = useState(false);
 
+    const [previewView, setPreviewView] = useState({ zoom: 1, center: { x: .5, y: .5 } });
     const previewBoxRef = useRef<HTMLDivElement | null>(null);
     const previewImageRef = useRef<HTMLImageElement | null>(null);
     const previewUrlRef = useRef<string>("");
+    const imagesRef = useRef(images);
     const dragSessionRef = useRef<DragSession | null>(null);
 
     const activeImage = useMemo(
@@ -341,15 +333,19 @@ export default function MosaicPage() {
     }, [images, ensureRegionSelection]);
 
     useEffect(() => {
+        imagesRef.current = images;
+    }, [images]);
+
+    useEffect(() => {
         return () => {
-            for (const image of images) {
+            for (const image of imagesRef.current) {
                 URL.revokeObjectURL(image.objectUrl);
             }
             if (previewUrlRef.current) {
                 URL.revokeObjectURL(previewUrlRef.current);
             }
         };
-    }, [images]);
+    }, []);
 
     const handleUpload = useCallback(async (incomingFiles: File[]) => {
         const imageFiles = incomingFiles.filter((file) => file.type.startsWith("image/"));
@@ -426,7 +422,11 @@ export default function MosaicPage() {
 
         const nextRegion = fullImage
             ? createFullRegion(defaultBlockSize)
-            : createDefaultRegion(defaultBlockSize);
+            : { ...createDefaultRegion(defaultBlockSize),
+                x: clamp(previewView.center.x - .19 / previewView.zoom, 0, 1 - .38 / previewView.zoom),
+                y: clamp(previewView.center.y - .14 / previewView.zoom, 0, 1 - .28 / previewView.zoom),
+                width: .38 / previewView.zoom, height: .28 / previewView.zoom,
+            };
 
         setImages((prev) =>
             prev.map((image) =>
@@ -617,272 +617,58 @@ export default function MosaicPage() {
         window.addEventListener("pointerup", handlePointerUp);
     };
 
-    const handleDownloadCurrent = async () => {
-        if (!activeImage) {
-            toast.error("请先选择图片");
-            return;
-        }
-
-        try {
-            setExportingCurrent(true);
-            const { blob, fileName } = await renderMosaicBlob(activeImage, exportFormat, quality);
-            const saveAs = await loadSaveAs();
-            saveAs(blob, fileName);
-            toast.success("当前图片已开始下载");
-        } catch (error) {
-            console.error(error);
-            toast.error(error instanceof Error ? error.message : "导出失败");
-        } finally {
-            setExportingCurrent(false);
-        }
+    const imageExport = useImageExport({ items: images, current: activeImage,
+        archiveName: "mosaic-images.zip",
+        render: async (image: MosaicImage) => {
+            const { blob, fileName } = await renderMosaicBlob(image, exportFormat, quality);
+            return { data: blob, name: fileName };
+        },
+    });
+    const exportWithFeedback = async (mode: "current" | "files" | "zip") => {
+        try { await imageExport.run(mode); }
+        catch (error) { toast.error(error instanceof Error ? error.message : "导出失败"); }
     };
-
-    const handleDownloadAll = async () => {
-        if (images.length === 0) {
-            toast.error("请先上传图片");
-            return;
-        }
-
-        try {
-            setExportingBatch(true);
-            const JSZip = (await loadJSZip()) as ZipConstructor;
-            const zip = new JSZip();
-
-            for (const image of images) {
-                const { blob, fileName } = await renderMosaicBlob(image, exportFormat, quality);
-                zip.file(fileName, blob);
-            }
-
-            const content = await zip.generateAsync({ type: "blob" });
-            const saveAs = await loadSaveAs();
-            saveAs(content, `mosaic-batch-${Date.now()}.zip`);
-            toast.success("批量导出已开始");
-        } catch (error) {
-            console.error(error);
-            toast.error(error instanceof Error ? error.message : "批量导出失败");
-        } finally {
-            setExportingBatch(false);
-        }
-    };
-
-    const totalRegions = useMemo(
-        () => images.reduce((sum, image) => sum + image.regions.length, 0),
-        [images]
-    );
-
     const activeImagePreviewUrl = previewUrl || activeImage?.objectUrl || "";
-
-    const renderEmptyState = () => (
-        <div className="flex min-h-[420px] items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-white/70 px-6 text-center shadow-sm">
-            <div className="max-w-md space-y-4">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white">
-                    <SquareDashedMousePointer className="h-6 w-6" />
-                </div>
-                <div className="space-y-2">
-                    <h2 className="text-xl font-semibold text-slate-900">上传图片后开始打马赛克</h2>
-                    <p className="text-sm leading-6 text-slate-600">
-                        支持多图导入、区域框选、整图像素化和批量导出。先上传图片，再拖动蓝色框调整马赛克范围。
-                    </p>
-                </div>
-                <Button onClick={open} className="rounded-full px-5">
-                    <ImagePlus className="mr-2 h-4 w-4" />
-                    选择图片
-                </Button>
-            </div>
-        </div>
-    );
+    const [mobilePanel, setMobilePanel] = useState<"images" | "editor" | "settings">("editor");
 
     return (
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(96,165,250,0.12),transparent_32%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] px-4 py-6 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-[1600px] space-y-6">
-                <Card className="border-white/65 bg-white/85 shadow-xl backdrop-blur-md">
-                    <CardHeader className="space-y-3">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                            <div className="space-y-2">
-                                <CardTitle className="flex items-center gap-2 text-2xl text-slate-900">
-                                    <Layers3 className="h-6 w-6 text-sky-600" />
-                                    图片打马赛克
-                                </CardTitle>
-                                <CardDescription className="max-w-2xl text-sm leading-6 text-slate-600">
-                                    给敏感区域快速加马赛克，支持多区域拖拽、整图像素化、不同图片批量导出。
-                                </CardDescription>
-                            </div>
-                            <div className="flex flex-wrap gap-2 text-xs text-slate-600">
-                                <div className="rounded-full bg-slate-100 px-3 py-1.5">图片 {images.length} 张</div>
-                                <div className="rounded-full bg-slate-100 px-3 py-1.5">区域 {totalRegions} 个</div>
-                                <div className="rounded-full bg-slate-100 px-3 py-1.5">
-                                    导出格式 {exportFormat === "original" ? "原格式" : exportFormat.toUpperCase()}
+        <main className="min-h-screen bg-background px-3 py-4 text-foreground sm:px-6 lg:px-8">
+            <div className={cn("mx-auto space-y-4", activeImage ? "max-w-[1680px]" : "max-w-[1040px]")}>
+                <ImageWorkbenchHeader title="图片马赛克" icon={<Layers3 className="h-5 w-5 text-muted-foreground" />}
+                    description={activeImage ? "遮住想隐藏的部分，其余保留原样。" : undefined}
+                    actions={activeImage && <Button variant="outline" onClick={open}><Plus className="h-4 w-4" />添加图片</Button>} />
+                <div {...getRootProps()} className={cn("rounded-2xl", !activeImage && "flex min-h-[calc(100dvh-100px)] items-center", isDragActive && "ring-2 ring-sky-500/50")}>
+                    <input {...getInputProps()} />
+                    {!activeImage ? <section className="w-full overflow-hidden rounded-3xl border border-border/70 bg-card/70 shadow-[0_8px_40px_-24px_rgba(0,0,0,0.15)]"><EmptyMosaicPanel isDragActive={isDragActive} onSelect={open} /></section> : <>
+                        <ImageWorkbenchPanels imageCount={images.length} activePanel={mobilePanel} onPanelChange={setMobilePanel}
+                            className="lg:h-[calc(100dvh-120px)] lg:min-h-[520px]"
+                            images={<aside className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card" aria-label="图片列表">
+                                <ImageAssetPicker layout="rows" title="图片" images={images.map(image => ({ ...image, previewUrl: image.objectUrl }))} selectedId={activeImageId}
+                                    className="bg-transparent" onUpload={handleUpload} onDelete={removeImage}
+                                    onClear={() => { images.forEach(image => URL.revokeObjectURL(image.objectUrl)); setImages([]); }}
+                                    onSelect={image => { setActiveImageId(image.id); setActiveRegionId(images.find(item => item.id === image.id)?.regions[0]?.id ?? null); setMobilePanel("editor"); }}
+                                    renderDetails={image => `${images.find(item => item.id === image.id)?.regions.length ?? 0} 个区域`} />
+                            </aside>}
+                            editor={
+                            <section aria-label="图片编辑" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+                                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{activeImage.name}</span>
+                                    <Button variant="outline" size="sm" onClick={() => addRegionToActive(false)}><Plus className="mr-1 h-4 w-4" />添加区域</Button>
                                 </div>
-                            </div>
-                        </div>
-                    </CardHeader>
-                </Card>
-
-                <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)_340px]">
-                    <div className="space-y-6">
-                        <Card className="border-white/65 bg-white/82 shadow-lg backdrop-blur-md">
-                            <CardHeader>
-                                <CardTitle className="text-base text-slate-900">上传图片</CardTitle>
-                                <CardDescription>拖拽图片到这里，或使用按钮继续添加。</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div
-                                    {...getRootProps()}
-                                    className={cn(
-                                        "rounded-2xl border border-dashed px-4 py-8 text-center transition-colors",
-                                        isDragActive
-                                            ? "border-sky-400 bg-sky-50 text-sky-700"
-                                            : "border-slate-300 bg-slate-50 text-slate-600"
-                                    )}
-                                >
-                                    <input {...getInputProps()} />
-                                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white">
-                                        <ImagePlus className="h-5 w-5" />
-                                    </div>
-                                    <div className="mt-3 text-sm font-medium">
-                                        {isDragActive ? "松开即可导入图片" : "将图片拖到这里"}
-                                    </div>
-                                    <p className="mt-1 text-xs text-slate-500">支持一次导入多张图片</p>
-                                </div>
-                                <Button onClick={open} variant="outline" className="w-full rounded-xl">
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    添加图片
-                                </Button>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="border-white/65 bg-white/82 shadow-lg backdrop-blur-md">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-base text-slate-900">图片列表</CardTitle>
-                                <CardDescription>选择一张图片后，在中间画面中调整马赛克区域。</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                {images.length === 0 ? (
-                                    <div className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                                        还没有图片
-                                    </div>
-                                ) : (
-                                    images.map((image) => (
-                                        <button
-                                            key={image.id}
-                                            type="button"
-                                            onClick={() => {
-                                                setActiveImageId(image.id);
-                                                setActiveRegionId(image.regions[0]?.id ?? null);
-                                            }}
-                                            className={cn(
-                                                "flex w-full items-center gap-3 rounded-2xl border p-2 text-left transition-all",
-                                                image.id === activeImageId
-                                                    ? "border-sky-300 bg-sky-50 shadow-sm"
-                                                    : "border-slate-200 bg-white hover:border-slate-300"
-                                            )}
-                                        >
-                                            <img
-                                                src={image.objectUrl}
-                                                alt={image.name}
-                                                className="h-16 w-16 rounded-xl object-cover"
-                                            />
-                                            <div className="min-w-0 flex-1">
-                                                <div className="truncate text-sm font-medium text-slate-900">
-                                                    {image.name}
-                                                </div>
-                                                <div className="mt-1 text-xs text-slate-500">
-                                                    {image.width} x {image.height} · {formatBytes(image.file.size)}
-                                                </div>
-                                                <div className="mt-1 text-xs text-sky-700">
-                                                    {image.regions.length} 个区域
-                                                </div>
-                                            </div>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="shrink-0 text-slate-500 hover:text-rose-600"
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    removeImage(image.id);
-                                                }}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </button>
-                                    ))
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <Card className="border-white/65 bg-white/80 shadow-xl backdrop-blur-md">
-                        <CardHeader className="pb-4">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div>
-                                    <CardTitle className="text-lg text-slate-900">编辑区域</CardTitle>
-                                    <CardDescription>
-                                        拖动区域可移动，拖右下角手柄可缩放，支持每张图多个马赛克框。
-                                    </CardDescription>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="rounded-full"
-                                        onClick={() => addRegionToActive(false)}
-                                        disabled={!activeImage}
-                                    >
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        新增区域
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="rounded-full"
-                                        onClick={() => addRegionToActive(true)}
-                                        disabled={!activeImage}
-                                    >
-                                        <SquareDashedMousePointer className="mr-2 h-4 w-4" />
-                                        整图马赛克
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {!activeImage ? (
-                                renderEmptyState()
-                            ) : (
-                                <>
-                                    <div className="flex flex-wrap gap-2">
-                                        {activeImage.regions.map((region, index) => (
-                                            <button
-                                                key={region.id}
-                                                type="button"
-                                                onClick={() => setActiveRegionId(region.id)}
-                                                className={cn(
-                                                    "rounded-full border px-3 py-1.5 text-xs transition-colors",
-                                                    region.id === activeRegionId
-                                                        ? "border-sky-300 bg-sky-50 text-sky-700"
-                                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                                                )}
-                                            >
-                                                区域 {index + 1} · {region.blockSize}px
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <div className="rounded-[28px] bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(226,232,240,0.62))] p-4">
-                                        <div className="flex min-h-[520px] items-center justify-center overflow-auto rounded-[24px] border border-white/70 bg-slate-950/90 px-4 py-6">
+                                <ImageViewport key={activeImage.id} src={activeImage.objectUrl} width={activeImage.width} height={activeImage.height} onViewChange={setPreviewView}>
                                             <div
                                                 ref={previewBoxRef}
-                                                className="relative inline-block select-none"
+                                                className="relative h-full w-full select-none"
                                                 onPointerDown={() => setActiveRegionId(null)}
                                             >
                                                 <img
                                                     ref={previewImageRef}
                                                     src={activeImage.objectUrl}
                                                     alt={activeImage.name}
-                                                    className="max-h-[70vh] max-w-full rounded-2xl object-contain shadow-2xl"
+                                                    className="block h-full w-full"
                                                     draggable={false}
                                                 />
-                                                <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                                                <div className="absolute inset-0">
                                                     {activeImage.regions.map((region) => {
                                                         if (showOnlySelectedRegion && region.id !== activeRegionId) {
                                                             return null;
@@ -891,8 +677,9 @@ export default function MosaicPage() {
                                                         return (
                                                             <div
                                                                 key={region.id}
+                                                                data-image-interaction="true"
                                                                 className={cn(
-                                                                    "absolute overflow-hidden rounded-xl border-2 transition-colors touch-none",
+                                                                    "absolute border-2 transition-colors touch-none",
                                                                     isActive
                                                                         ? "border-sky-400 shadow-[0_0_0_1px_rgba(14,165,233,0.35)]"
                                                                         : "border-white/90"
@@ -929,7 +716,7 @@ export default function MosaicPage() {
                                                                           <div
                                                                               key={handle.direction}
                                                                               className={cn(
-                                                                                  "absolute h-4 w-4 rounded-full border-2 border-white bg-sky-500 shadow-lg",
+                                                                                  "absolute h-4 w-4 rounded-full border-2 border-white bg-white shadow-lg",
                                                                                   handle.className
                                                                               )}
                                                                               onPointerDown={(event) =>
@@ -943,149 +730,50 @@ export default function MosaicPage() {
                                                     })}
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </CardContent>
-                    </Card>
+                                </ImageViewport>
 
-                    <div className="space-y-6">
-                        <Card className="border-white/65 bg-white/82 shadow-lg backdrop-blur-md">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-base text-slate-900">区域设置</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-5">
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="text-slate-700">马赛克强度</span>
-                                        <span className="font-medium text-slate-900">
-                                            {(activeRegion?.blockSize ?? defaultBlockSize)}px
-                                        </span>
-                                    </div>
-                                    <Slider
-                                        value={[activeRegion?.blockSize ?? defaultBlockSize]}
-                                        min={0}
-                                        max={80}
-                                        step={1}
-                                        onValueChange={(value) => {
-                                            const next = value[0];
-                                            if (typeof next !== "number") return;
-                                            handleStrengthChange(next);
-                                        }}
-                                    />
-                                </div>
 
-                                <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
-                                    <div>
-                                        <div className="text-sm font-medium text-slate-900">仅显示当前区域</div>
-                                        <div className="text-xs text-slate-500">方便精确调整多区域图片</div>
-                                    </div>
-                                    <Switch
-                                        checked={showOnlySelectedRegion}
-                                        onCheckedChange={setShowOnlySelectedRegion}
-                                    />
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs text-muted-foreground"><span>{activeImage.width} × {activeImage.height}</span><span>拖动框移动 · 拖动边角缩放</span></div>
+                            </section>}
+                            settings={<aside id="mosaic-panel-settings" aria-label="区域与导出设置" className="mosaic-controls min-h-0 flex-1 space-y-6 overflow-y-auto rounded-xl border border-border bg-card p-4">
+                            <SettingsSection title="区域调整" bodyClassName="space-y-5">
+                                <SliderNumberField label="马赛克强度" value={activeRegion?.blockSize ?? defaultBlockSize} min={0} max={80} step={1} onChange={handleStrengthChange} valueFormatter={value => `${value}px`} sliderClassName="mosaic-slider" />
+                                <div className="flex flex-wrap gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => addRegionToActive(false)}><Plus className="mr-1 h-4 w-4" />添加区域</Button>
+                                    <Button variant="outline" size="sm" onClick={() => addRegionToActive(true)}>整图马赛克</Button>
+                                    <Button variant="outline" size="sm" onClick={clearActiveRegions} disabled={!activeImage.regions.length}>清空区域</Button>
+                                    <Button variant="outline" size="sm" onClick={removeActiveRegion} disabled={!activeRegion}><Trash2 className="mr-1 h-4 w-4" />删除选中</Button>
                                 </div>
-
-                                <div className="grid gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="justify-start rounded-xl"
-                                        onClick={copyRegionsToAll}
-                                        disabled={!activeImage || activeImage.regions.length === 0}
-                                    >
-                                        <Layers3 className="mr-2 h-4 w-4" />
-                                        复制当前布局到全部图片
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="justify-start rounded-xl"
-                                        onClick={removeActiveRegion}
-                                        disabled={!activeRegion}
-                                    >
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        删除当前区域
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="justify-start rounded-xl text-rose-600 hover:text-rose-700"
-                                        onClick={clearActiveRegions}
-                                        disabled={!activeImage || activeImage.regions.length === 0}
-                                    >
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        清空当前图片区域
-                                    </Button>
+                                <label className="flex items-center justify-between gap-3 text-sm"><span>仅显示选中区域</span><Switch checked={showOnlySelectedRegion} onCheckedChange={setShowOnlySelectedRegion} /></label>
+                                {activeImage.regions.length > 1 && <div className="flex flex-wrap gap-2" aria-label="区域列表">
+                                    {activeImage.regions.map((region, index) => <button key={region.id} type="button" aria-pressed={region.id === activeRegionId} onClick={() => setActiveRegionId(region.id)} className={cn("rounded-md border px-3 py-1.5 text-xs", region.id === activeRegionId ? "border-sky-500 bg-sky-500/10 text-foreground" : "border-border text-muted-foreground")}>区域 {index + 1}</button>)}
+                                </div>}
+                                {images.length > 1 && <Button variant="outline" size="sm" disabled={!activeImage.regions.length} onClick={copyRegionsToAll}>将当前区域应用到全部图片</Button>}
+                            </SettingsSection>
+                            <SettingsSection title="导出" bodyClassName="space-y-5">
+                                <div className="flex items-center justify-between gap-3 text-sm"><label htmlFor="mosaic-export-format">导出格式</label>
+                                    <Select value={exportFormat} onValueChange={(value) => setExportFormat(value as ExportFormat)}>
+                                        <SelectTrigger id="mosaic-export-format" className="w-36 text-xs"><SelectValue /></SelectTrigger>
+                                        <SelectContent><SelectItem value="original">保留原格式</SelectItem><SelectItem value="jpeg">JPEG</SelectItem><SelectItem value="png">PNG</SelectItem><SelectItem value="webp">WebP</SelectItem></SelectContent>
+                                    </Select>
                                 </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="border-white/65 bg-white/82 shadow-lg backdrop-blur-md">
-                            <CardHeader className="pb-3">
-                                <CardTitle className="text-base text-slate-900">导出设置</CardTitle>
-                                <CardDescription>编辑区已经是所见即所得，这里只保留导出相关设置。</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-5">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-slate-700" htmlFor="mosaic-export-format">
-                                        导出格式
-                                    </label>
-                                    <select
-                                        id="mosaic-export-format"
-                                        value={exportFormat}
-                                        onChange={(event) => setExportFormat(event.target.value as ExportFormat)}
-                                        className="flex h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-sky-400"
-                                    >
-                                        <option value="original">保留原格式</option>
-                                        <option value="jpeg">JPEG</option>
-                                        <option value="png">PNG</option>
-                                        <option value="webp">WebP</option>
-                                    </select>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="text-slate-700">导出质量</span>
-                                        <span className="font-medium text-slate-900">{Math.round(quality * 100)}%</span>
-                                    </div>
-                                    <Slider
-                                        value={[quality]}
-                                        min={0.4}
-                                        max={1}
-                                        step={0.01}
-                                        onValueChange={(value) => setQuality(value[0] ?? 0.92)}
-                                    />
-                                    <p className="text-xs text-slate-500">对 JPEG 和 WebP 生效，PNG 会始终无损导出。</p>
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Button
-                                        type="button"
-                                        className="rounded-xl"
-                                        onClick={() => void handleDownloadCurrent()}
-                                        disabled={!activeImage || exportingCurrent || exportingBatch}
-                                    >
-                                        <Download className="mr-2 h-4 w-4" />
-                                        {exportingCurrent ? "正在导出当前图片..." : "下载当前图片"}
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="rounded-xl"
-                                        onClick={() => void handleDownloadAll()}
-                                        disabled={images.length === 0 || exportingCurrent || exportingBatch}
-                                    >
-                                        <Package className="mr-2 h-4 w-4" />
-                                        {exportingBatch ? "正在打包全部图片..." : "打包下载全部图片"}
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
+                                <SliderNumberField label="导出质量（JPEG / WebP）" value={quality} min={.4} max={1} step={.01} onChange={setQuality} valueFormatter={value => `${Math.round(value * 100)}%`} sliderClassName="mosaic-slider" />
+                                <WatermarkExportMenu
+                                    className="mosaic-export"
+                                    onExportCurrent={() => void exportWithFeedback("current")}
+                                    onExportAll={() => void exportWithFeedback("files")}
+                                    onExportZip={() => void exportWithFeedback("zip")}
+                                    loading={imageExport.loading}
+                                    progress={imageExport.progress}
+                                    imageCount={images.length}
+                                    currentDisabled={!activeImage}
+                                />
+                            </SettingsSection>
+                            </aside>}
+                        />
+                    </>}
                 </div>
             </div>
-        </div>
+        </main>
     );
 }

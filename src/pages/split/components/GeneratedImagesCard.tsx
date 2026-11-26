@@ -2,7 +2,10 @@ import ImagePreview from "@/components/ImagePreview";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { SplitImage } from '@/pages/split/types';
-import { loadSaveAs } from '@/utils/lazy-deps';
+import { downloadExportFiles } from "@/utils/image-export";
+import { useImageExport } from "@/hooks/useImageExport";
+import ImageExportMenu from "@/components/image-workbench/ImageExportMenu";
+import { toast } from "sonner";
 
 interface GeneratedImagesCardProps {
   images: SplitImage[];
@@ -11,8 +14,6 @@ interface GeneratedImagesCardProps {
   onOpenChange: (open: boolean) => void;
   onPreviewIndexChange: (index: number | null) => void;
   onSendToWatermark: () => void;
-  onBatchDownload: () => void;
-  onExportZip: () => void;
 }
 
 export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
@@ -23,9 +24,14 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
     onOpenChange,
     onPreviewIndexChange,
     onSendToWatermark,
-    onBatchDownload,
-    onExportZip,
   } = props;
+
+  const imageExport = useImageExport({ items: images, current: previewIndex === null ? null : images[previewIndex], archiveName: "split_images.zip", folder: "split_images",
+    render: (image: SplitImage) => ({ data: image.blob, name: image.fileName }),
+  });
+  const runExport = async (mode: "current" | "files" | "zip") => {
+    try { await imageExport.run(mode); } catch (error) { toast.error(error instanceof Error ? error.message : "导出失败"); }
+  };
 
   if (images.length === 0) {
     return null;
@@ -36,8 +42,7 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
       return;
     }
 
-    const saveAs = await loadSaveAs();
-    saveAs(image.blob, image.fileName);
+    await downloadExportFiles([{ data: image.blob, name: image.fileName }], { mode: "current" });
   };
 
   return (
@@ -49,12 +54,9 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
             <Button onClick={onSendToWatermark} variant="outline">
               转到水印
             </Button>
-            <Button onClick={onExportZip} variant="outline">
-              导出 ZIP
-            </Button>
-            <Button onClick={onBatchDownload} variant="outline">
-              批量下载
-            </Button>
+            <ImageExportMenu placement="bottom" imageCount={images.length} currentDisabled={previewIndex === null}
+              loading={imageExport.loading} progress={imageExport.progress}
+              onExportCurrent={() => void runExport("current")} onExportAll={() => void runExport("files")} onExportZip={() => void runExport("zip")} />
           </div>
         </CardHeader>
         <CardContent>
@@ -86,6 +88,7 @@ export function GeneratedImagesCard(props: GeneratedImagesCardProps) {
         currentIndex={previewIndex ?? 0}
         open={isPreviewOpen}
         onOpenChange={onOpenChange}
+        onIndexChange={onPreviewIndexChange}
         footerActions={
           (index) => (
             <Button onClick={() => void handleDownloadSingle(images[index])}>

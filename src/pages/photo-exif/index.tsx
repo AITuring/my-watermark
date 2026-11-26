@@ -1,3 +1,4 @@
+import { ImageWorkbenchPanels } from "@/components/image-workbench/ImageWorkbench";
 import React, { useEffect, useMemo, useState } from "react";
 import { filterPhotoItems, type PhotoListFilter } from "@/pages/photo-exif/missing-info";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,6 +21,7 @@ import { usePhotoExifWorkbench } from "@/pages/photo-exif/hooks/usePhotoExifWork
 
 const PhotoExifWorkbench: React.FC = () => {
     const workbench = usePhotoExifWorkbench();
+    const [workbenchPanel, setWorkbenchPanel] = useState<"images" | "editor" | "settings">("editor");
     const { stats, preferences, selection, importFlow, batchFlow, singleFlow } = workbench;
     const [photoListFilter, setPhotoListFilter] = useState<PhotoListFilter>("auto");
     const visibleItems = useMemo(
@@ -72,8 +74,7 @@ const PhotoExifWorkbench: React.FC = () => {
                             writableCount={stats.writableCount}
                         />
 
-                        <div className="grid items-start gap-4 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
-                            <PhotoListPanel
+                        <ImageWorkbenchPanels activePanel={workbenchPanel} onPanelChange={setWorkbenchPanel} imageCount={workbench.items.length} images={<PhotoListPanel
                                 items={visibleItems}
                                 totalCount={workbench.items.length}
                                 filter={photoListFilter}
@@ -82,12 +83,10 @@ const PhotoExifWorkbench: React.FC = () => {
                                 selectedId={selection.selectedId}
                                 selectedImportSourceId={selection.selectedImportSourceId}
                                 secondaryButtonClass={secondaryButtonClass}
-                                onSelect={selection.setSelectedId}
+                                onSelect={id => { selection.setSelectedId(id); setWorkbenchPanel("editor"); }}
                                 onRemove={selection.removeItem}
                                 onToggleImportSource={selection.toggleImportSource}
-                            />
-
-                            <div className="min-w-0 space-y-3">
+                            />} editorLabel="查看与批量编辑" editor={<div className="min-w-0 space-y-3">
                                 <Tabs defaultValue="viewer" className="space-y-3">
                                     <TabsList className="grid w-full grid-cols-2">
                                         <TabsTrigger value="viewer">当前照片</TabsTrigger>
@@ -204,8 +203,7 @@ const PhotoExifWorkbench: React.FC = () => {
                                         onItemDateTimeFieldChange={selection.updateItemDateTimeField}
                                     />
                                 </Tabs>
-                            </div>
-                        </div>
+                            </div>} gridClassName="items-start lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]" />
                     </>
                 )}
             </div>

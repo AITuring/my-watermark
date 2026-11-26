@@ -1,3 +1,4 @@
+import { downloadExportFiles } from "@/utils/image-export";
 import type {
   GridCropRegion,
   GridSplitPlan,
@@ -8,16 +9,8 @@ import type {
   SliceRegion,
   SplitImage,
 } from '@/pages/split/types';
-import { loadJSZip, loadSaveAs } from '@/utils/lazy-deps';
 import { downloadFilesIndividually } from '@/utils/download-files';
 
-type ZipInstance = {
-  file: (name: string, data: Blob | File) => void;
-  folder: (name: string) => ZipInstance | undefined;
-  generateAsync: (options: { type: 'blob' }) => Promise<Blob>;
-};
-
-type ZipConstructor = new () => ZipInstance;
 const MIN_OVERLAP_PERCENT = -90;
 const MAX_OVERLAP_PERCENT = 90;
 
@@ -622,19 +615,10 @@ export const buildGridSplitImages = async (
   return newImages;
 };
 
-export const exportSplitImagesZip = async (images: SplitImage[]) => {
-  const JSZip = (await loadJSZip()) as ZipConstructor;
-  const saveAs = await loadSaveAs();
-  const zip = new JSZip();
-  const folder = zip.folder('split_images');
-
-  images.forEach((image) => {
-    folder?.file(image.fileName, image.blob);
-  });
-
-  const content = await zip.generateAsync({ type: 'blob' });
-  saveAs(content, 'split_images.zip');
-};
+export const exportSplitImagesZip = (images: SplitImage[]) => downloadExportFiles(
+  images.map(image => ({ data: image.blob, name: image.fileName })),
+  { mode: 'zip', archiveName: 'split_images.zip', folder: 'split_images' },
+);
 
 export const exportSplitImagesIndividually = async (images: SplitImage[]) => {
   await downloadFilesIndividually(

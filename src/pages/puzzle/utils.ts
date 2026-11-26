@@ -1,3 +1,4 @@
+import { downloadExportFiles } from "@/utils/image-export";
 import { exactRatioSize } from "./fixed-ratio";
 import { isPuzzleImageFile } from "./import-files";
 import { aspectRatioOptions } from "./constants";
@@ -5,7 +6,6 @@ import type { AspectRatio, ImgProp } from "./types";
 import {
     loadHtml2Canvas,
     loadImageCompression,
-    loadSaveAs,
 } from "@/utils/lazy-deps";
 import { canUseLocalLargeImageService, getLargeImageAsset, isLargeJpeg, releaseLargeImage } from '@/utils/large-image';
 
@@ -306,12 +306,7 @@ export async function downloadPuzzleImage({
             throw new Error("导出图片失败");
         }
 
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "album-long.jpeg";
-        link.click();
-        URL.revokeObjectURL(url);
+        await downloadExportFiles([{ data: blob, name: "album-long.jpeg" }], { mode: "current" });
 
         return { pageCount: 1 };
     }
@@ -327,7 +322,6 @@ export async function downloadPuzzleImage({
     const drawWidth = fullCanvas.width * fit, drawHeight = fullCanvas.height * fit;
     pageContext.drawImage(fullCanvas, (page.width - drawWidth) / 2, (page.height - drawHeight) / 2, drawWidth, drawHeight);
     const blob = await encodePuzzleJpeg(page);
-    const saveAs = await loadSaveAs();
-    saveAs(blob, `album-${selectedRatio.label.replace(":", "x")}.jpeg`);
+    await downloadExportFiles([{ data: blob, name: `album-${selectedRatio.label.replace(":", "x")}.jpeg` }], { mode: "current" });
     return { pageCount: 1 };
 }

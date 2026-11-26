@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Slider } from '@/components/ui/slider';
+import SliderNumberField from "@/components/SliderNumberField";
 import { RESIZE_PERCENT_PRESETS, TARGET_SIZE_PRESETS } from '../constants';
 import type { CompressionAction } from '../types';
 import { formatFileSize, formatResizeLabel } from '../utils';
@@ -44,11 +44,11 @@ const CompressSidebar = ({
   onClearAll,
 }: CompressSidebarProps) => (
   <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-    <div className="flex flex-wrap gap-2 rounded-[20px] border border-slate-200/80 bg-white/88 p-3 shadow-sm backdrop-blur-sm">
-      <Badge variant="outline" className="rounded-full border-slate-200 bg-white text-slate-600">
+    <div className="flex flex-wrap gap-2 rounded-[20px] border border-border/80 bg-card p-3 shadow-sm backdrop-blur-sm">
+      <Badge variant="outline" className="rounded-full border-border bg-card text-muted-foreground">
         {imageCount} 张
       </Badge>
-      <Badge variant="outline" className="rounded-full border-slate-200 bg-white text-slate-600">
+      <Badge variant="outline" className="rounded-full border-border bg-card text-muted-foreground">
         已压缩 {compressedCount}
       </Badge>
       {imagesExceedingTargetCount > 0 && (
@@ -63,16 +63,16 @@ const CompressSidebar = ({
       )}
     </div>
 
-    <div className="space-y-4 rounded-[24px] border border-slate-200/80 bg-white/92 p-4 shadow-sm">
+    <div className="space-y-4 rounded-[24px] border border-border/80 bg-card p-4 shadow-sm">
       <div>
-        <div className="text-sm font-medium text-slate-900">批量设置</div>
-        <div className="mt-1 text-xs text-slate-500">修改后会立即同步到左侧图片列表</div>
+        <div className="text-sm font-medium text-foreground">批量设置</div>
+        <div className="mt-1 text-xs text-muted-foreground">修改后会立即同步到左侧图片列表</div>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-slate-800">目标体积</label>
-          <span className="text-sm font-semibold text-slate-900">{normalizedTargetSizeMB} MB</span>
+          <label className="text-sm font-medium text-foreground">目标体积</label>
+          <span className="text-sm font-semibold text-foreground">{normalizedTargetSizeMB} MB</span>
         </div>
         <Input
           type="number"
@@ -86,7 +86,7 @@ const CompressSidebar = ({
             }
           }}
           disabled={isCompressing}
-          className="h-10 rounded-2xl border-slate-200 bg-white/90"
+          className="h-10 rounded-2xl border-border bg-card/90"
         />
         <div className="flex flex-wrap gap-2">
           {TARGET_SIZE_PRESETS.map((preset) => (
@@ -97,10 +97,10 @@ const CompressSidebar = ({
               size="sm"
               disabled={isCompressing}
               onClick={() => onTargetSizeChange(preset)}
-              className={`rounded-full border-slate-200 bg-white px-3 ${
+              className={`rounded-full border-border bg-card px-3 ${
                 Math.abs(normalizedTargetSizeMB - preset) < 0.001
                   ? 'border-sky-500 bg-sky-50 text-sky-700'
-                  : 'text-slate-600 hover:bg-slate-50'
+                  : 'text-muted-foreground hover:bg-muted'
               }`}
             >
               {preset} MB
@@ -110,22 +110,9 @@ const CompressSidebar = ({
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-slate-800">输出尺寸</label>
-          <span className="text-sm font-semibold text-slate-900">
-            {formatResizeLabel(Math.round(resizePercent[0]))}
-          </span>
-        </div>
-        <Slider
-          value={resizePercent}
-          onValueChange={onResizePercentChange}
-          max={100}
-          min={10}
-          step={5}
-          className="w-full"
-          disabled={isCompressing}
-        />
-        <div className="flex justify-between text-xs text-slate-500">
+        <SliderNumberField label="输出尺寸" value={resizePercent[0]} min={10} max={100} step={5}
+          onChange={value => onResizePercentChange([value])} valueFormatter={value => formatResizeLabel(Math.round(value))} disabled={isCompressing} />
+        <div className="flex justify-between text-xs text-muted-foreground">
           <span>更小 (10%)</span>
           <span>原尺寸 (100%)</span>
         </div>
@@ -138,10 +125,10 @@ const CompressSidebar = ({
               size="sm"
               disabled={isCompressing}
               onClick={() => onResizePercentChange([preset])}
-              className={`rounded-full border-slate-200 bg-white px-3 ${
+              className={`rounded-full border-border bg-card px-3 ${
                 Math.round(resizePercent[0]) === preset
                   ? 'border-sky-500 bg-sky-50 text-sky-700'
-                  : 'text-slate-600 hover:bg-slate-50'
+                  : 'text-muted-foreground hover:bg-muted'
               }`}
             >
               {preset}%
@@ -153,21 +140,21 @@ const CompressSidebar = ({
       {isCompressing && (
         <div className="space-y-2 rounded-[18px] border border-sky-200 bg-sky-50/90 p-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-slate-800">
+            <span className="font-medium text-foreground">
               {compressionAction === 'force'
                 ? '强制压缩进度'
                 : compressionAction === 'single'
                   ? '单张压缩进度'
                   : '压缩进度'}
             </span>
-            <span className="font-semibold text-slate-900">{Math.round(compressionProgress)}%</span>
+            <span className="font-semibold text-foreground">{Math.round(compressionProgress)}%</span>
           </div>
           <Progress value={compressionProgress} className="w-full" />
         </div>
       )}
     </div>
 
-    <div className="space-y-3 rounded-[24px] border border-slate-200/80 bg-slate-900 p-4 text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
+    <div className="space-y-3 rounded-[24px] border border-border/80 bg-slate-900 p-4 text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
       <div className="text-sm text-slate-300">
         目标 {normalizedTargetSizeMB} MB · {formatResizeLabel(Math.round(resizePercent[0]))}
       </div>

@@ -38,7 +38,7 @@ const CompressImageGrid = ({
 }: CompressImageGridProps) => (
   <div className="space-y-4 lg:min-w-0">
     <div className="flex items-center justify-between">
-      <h3 className="text-lg font-semibold text-slate-900">图片列表 ({images.length})</h3>
+      <h3 className="text-lg font-semibold text-foreground">图片列表 ({images.length})</h3>
       <Button
         type="button"
         onClick={openFilePicker}
@@ -50,8 +50,8 @@ const CompressImageGrid = ({
       </Button>
     </div>
     {images.some((image) => image.compressedFile) && (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm">
-        <div className="text-sm text-slate-600">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-border/80 bg-card/90 px-4 py-3 shadow-sm">
+        <div className="text-sm text-muted-foreground">
           {imagesExceedingTargetCount > 0 ? `还有 ${imagesExceedingTargetCount} 张未达标` : '当前结果已达标'}
         </div>
         <div className="flex flex-wrap gap-2">

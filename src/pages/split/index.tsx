@@ -23,8 +23,6 @@ const ImageSplitter: React.FC = () => {
     gridRatioH,
     gridRatioW,
     handleActiveSourceChange,
-    handleBatchDownload,
-    handleExportZip,
     handleFileChange,
     handleGridSplit,
     handleHorizontalSplit,
@@ -159,8 +157,6 @@ const ImageSplitter: React.FC = () => {
         onOpenChange={setIsPreviewOpen}
         onPreviewIndexChange={setPreviewIndex}
         onSendToWatermark={handleSendToWatermark}
-        onBatchDownload={() => void handleBatchDownload()}
-        onExportZip={() => void handleExportZip()}
       />
     </div>
   );

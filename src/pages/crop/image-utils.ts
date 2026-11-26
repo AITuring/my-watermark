@@ -14,6 +14,16 @@ export const loadImageElement = (src: string) =>
         }
     });
 
+/** Decode the retained file; preview URLs may have expired after session/HMR recovery. */
+async function withImageFile<T>(file: File, render: (image: HTMLImageElement) => Promise<T>): Promise<T> {
+    const url = URL.createObjectURL(file);
+    try {
+        return await render(await loadImageElement(url));
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
+
 export const createEditorPreviewAsset = async (
     source: CanvasImageSource,
     width: number,
@@ -79,7 +89,7 @@ export const transformImageAsset = async (image: CropImage, angleDeg: number) =>
             previewHeight: Math.round(nextAsset.height * Math.min(1, 2200 / Math.max(width, height))),
             width, height };
     }
-    const img = await loadImageElement(image.url);
+    return withImageFile(image.file, async (img) => {
 
     const angleRad = (angleDeg * Math.PI) / 180;
     const sin = Math.abs(Math.sin(angleRad));
@@ -118,6 +128,7 @@ export const transformImageAsset = async (image: CropImage, angleDeg: number) =>
         width: canvas.width,
         height: canvas.height,
     };
+    });
 };
 
 export const drawCropToBlob = async (
@@ -134,7 +145,7 @@ export const drawCropToBlob = async (
             width: Math.round(outputW), height: Math.round(outputH), quality: 95,
         });
     }
-    const img = await loadImageElement(image.url);
+    return withImageFile(image.file, async (img) => {
     const canvas = document.createElement("canvas");
     canvas.width = outputW;
     canvas.height = outputH;
@@ -149,4 +160,5 @@ export const drawCropToBlob = async (
         canvas.toBlob(resolve, "image/jpeg", 0.95)
     );
     return blob;
+    });
 };

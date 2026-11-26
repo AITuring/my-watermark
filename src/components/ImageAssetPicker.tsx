@@ -13,7 +13,8 @@ import { Maximize2, Plus, X } from "lucide-react";
 type ImageAssetPickerProps = {
     images: ImageType[];
     selectedId?: string | null;
-    layout?: "grid" | "list";
+    layout?: "grid" | "list" | "rows";
+    renderDetails?: (image: ImageType) => ReactNode;
     title?: ReactNode;
     className?: string;
     headerClassName?: string;
@@ -35,6 +36,7 @@ export default function ImageAssetPicker({
     images,
     selectedId,
     layout = "grid",
+    renderDetails,
     title = "背景图片",
     className,
     headerClassName,
@@ -79,7 +81,7 @@ export default function ImageAssetPicker({
                     headerClassName
                 )}
             >
-                <Badge variant="outline" className="text-sm dark:text-slate-200">
+                <Badge variant="outline" className={cn("shrink-0 whitespace-nowrap text-sm dark:text-slate-200", layout === "rows" && "border-0 px-0 text-xs")}>
                     {title} ({images.length})
                 </Badge>
                 <div className="flex gap-2">
@@ -88,10 +90,12 @@ export default function ImageAssetPicker({
                         size="sm"
                         className="h-8 dark:text-slate-200 dark:hover:bg-slate-800"
                         onClick={onClear}
+                        aria-label={clearLabel}
+                        title={clearLabel}
                         disabled={images.length === 0}
                     >
                         <X className="mr-1 h-4 w-4" />
-                        {clearLabel}
+                        {layout !== "rows" && clearLabel}
                     </Button>
                     <ImageUploader
                         onUpload={handleUpload}
@@ -103,9 +107,11 @@ export default function ImageAssetPicker({
                             size="sm"
                             className="h-8 dark:text-slate-200 dark:hover:bg-slate-800"
                             disabled={isUploading}
+                            aria-label={isUploading ? "上传中" : addLabel}
+                            title={addLabel}
                         >
                             <Plus className="mr-1 h-4 w-4" />
-                            {isUploading ? "上传中" : addLabel}
+                            {layout !== "rows" && (isUploading ? "上传中" : addLabel)}
                         </Button>
                     </ImageUploader>
                 </div>
@@ -128,7 +134,8 @@ export default function ImageAssetPicker({
                                     ? {aspectRatio: `${image.width} / ${image.height}`}
                                     : undefined}
                                 className={cn(
-                                    "relative cursor-pointer overflow-hidden rounded-md transition-all duration-200",
+                                    "group relative cursor-pointer overflow-hidden rounded-md transition-all duration-200",
+                                    layout === "rows" && "flex min-h-16 items-center gap-2 border border-border/60 p-2 pr-16",
                                     selectedId === image.id
                                         ? "ring-2 ring-primary"
                                         : "hover:ring-1 hover:ring-primary/50",
@@ -136,24 +143,25 @@ export default function ImageAssetPicker({
                                 )}
                                 data-selected={selectedId === image.id}
                                 title={image.file.name}
-                                onClick={() => onSelect(image)}
                             >
+                                <button type="button" className="absolute inset-0 z-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" aria-label={`编辑 ${image.file.name}`} aria-pressed={selectedId === image.id} onClick={() => onSelect(image)} />
                                 <img
                                     src={image.previewUrl}
                                     alt={image.file.name}
                                     className={cn(
-                                        layout === "grid"
+                                        layout === "rows" ? "h-12 w-12 shrink-0 object-cover" : layout === "grid"
                                             ? "aspect-square w-full object-cover"
                                             : "h-auto w-full object-cover",
                                         imageClassName
                                     )}
                                 />
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity hover:opacity-100">
+                                {layout === "rows" && <div className="min-w-0"><div className="truncate text-xs font-medium">{image.file.name}</div><div className="mt-1 text-[11px] text-muted-foreground">{renderDetails?.(image) ?? `${image.width} × ${image.height}`}</div></div>}
+                                <div className={cn("pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100", layout === "rows" && "hidden")} >
                                     <p className="max-w-[90%] truncate px-2 text-xs text-white">
                                         {image.file.name}
                                     </p>
                                 </div>
-                                <div className="absolute right-1 top-1 flex gap-1">
+                                <div className="absolute right-1 top-1 z-10 flex gap-1">
                                     <Button
                                         variant="outline"
                                         size="icon"

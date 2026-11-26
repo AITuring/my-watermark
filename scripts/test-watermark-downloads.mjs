@@ -1,28 +1,14 @@
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
-import {createRequire} from 'node:module';
+import {createTypeScriptLoader} from './helpers/load-typescript.mjs';
 import test from 'node:test';
-import vm from 'node:vm';
-import ts from 'typescript';
 import JSZip from 'jszip';
 
-const require = createRequire(import.meta.url);
-const compile = async path => ts.transpileModule(await readFile(new URL(path, import.meta.url), 'utf8'), {
-    compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true},
-}).outputText;
-const names = {};
-vm.runInNewContext(await compile('../src/pages/watermark/export-names.ts'), {exports: names});
-const api = {};
 let zipLoads = 0;
-vm.runInNewContext(await compile('../src/pages/watermark/export-downloads.ts'), {
-    exports: api, File, setTimeout,
-    require: name => {
-        if (name === './export-names') return names;
-        if (name === '@/utils/import-recovery') return {importWithRecovery: loader => loader()};
-        if (name === 'jszip') {zipLoads++; return require(name);}
-        throw new Error(`Unexpected import ${name}`);
-    },
-});
+const load = createTypeScriptLoader({ '@/utils/lazy-deps': {
+    loadJSZip: async () => { zipLoads++; return JSZip; },
+    loadSaveAs: async () => () => assert.fail('unexpected default downloader'),
+} });
+const api = load('src/pages/watermark/export-downloads.ts');
 const makeFile = (name, content, type = 'image/jpeg') => new File([content], name, {type});
 
 test('ZIP mode emits one readable archive with every file and collision-safe names', async () => {
