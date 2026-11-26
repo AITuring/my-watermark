@@ -244,8 +244,8 @@
 .wm-drawer-body .wm-layout-control{display:grid;grid-template-columns:64px minmax(0,1fr);align-items:center;gap:8px}
 .wm-drawer-body .wm-layout-control>.wm-label:not(:first-child){margin-top:0}
 .wm-drawer-body .wm-layout-control>.wm-help{grid-column:2}
-.wm-drawer-body .wm-direction-switch{min-height:32px}
-.wm-drawer-body .wm-direction-label{padding:6px 0}
+.wm-drawer-body .wm-direction-switch{min-height:28px}
+.wm-drawer-body .wm-direction-label{padding:3px 8px}
 .wm-drawer-body .wm-layout-options{gap:4px}
 .wm-drawer-body .wm-layout-options button{height:32px;padding:0 4px;font-size:11px}
 .wm-drawer-body .wm-font-field{display:grid;grid-template-columns:64px minmax(0,1fr);align-items:center;gap:8px}
@@ -278,9 +278,9 @@
 
 .wm-bottom-layout,.wm-bottom-blur{flex-shrink:0}
 .wm-bottom-protection{display:flex;align-items:stretch;gap:14px;flex-shrink:0}
-.wm-direction-switch{display:flex;align-items:center;gap:6px;min-height:36px;width:fit-content}
-.wm-direction-label{font-size:12px;line-height:20px;padding:6px 0;min-width:24px;color:var(--wm-muted,#7b7d81);background:none}
-.wm-direction-label[aria-pressed=true]{color:var(--wm-text,#282c31);font-weight:600}
+.wm-direction-switch{display:flex;align-items:center;gap:2px;min-height:28px;width:fit-content;padding:2px;border:0;border-radius:6px;background:var(--wm-panel)}
+.wm-direction-label{font-size:12px;line-height:18px;padding:3px 8px;min-width:40px;color:var(--wm-text,#282c31);background:transparent;border:0;border-radius:4px;font-weight:400}
+.wm-direction-label[aria-pressed=true]{color:var(--wm-text,#282c31);background:var(--wm-border,#dedad3);font-weight:500}
 .wm-direction-label:focus-visible{outline:2px solid var(--wm-accent,#8d632c);outline-offset:2px;border-radius:3px}
 .wm-bottom-blur{min-width:58px}.wm-bottom-switch-row{display:flex;align-items:center;gap:7px;height:36px}
 .wm-copyright-field{display:flex;flex-direction:column;gap:8px}
@@ -413,3 +413,48 @@
 .wm-caption-review-line input:focus{border-color:var(--wm-accent);background:var(--wm-bg);box-shadow:0 0 0 2px #bd995b18}
 .wm-caption-review-footer{padding:10px 18px}
 @media(max-width:720px){.wm-caption-review-row-heading{flex-wrap:wrap}.wm-caption-review-layout{margin-left:0}}
+
+/* One editing surface, with rows following the rendered inscription. */
+.wm-bottom-inputs.wm-content-editor{display:flex;flex-direction:column;gap:2px;min-width:0;padding:5px 10px;border:1px solid var(--wm-border);border-radius:9px;background:var(--wm-panel);align-self:center;box-sizing:border-box}
+.wm-content-editor:focus-within{border-color:var(--wm-accent)}
+.wm-content-line{display:flex;align-items:center;min-width:0;flex:0 0 28px;height:28px;overflow-x:auto;overflow-y:hidden;border:0;background:transparent}
+.wm-content-editor .wm-content-line .wm-text-input{min-width:100%;width:0;height:28px!important;min-height:28px!important;padding:0!important;border:0!important;background:transparent!important;border-radius:0!important;box-shadow:none!important}
+.wm-content-sized-input{display:inline-grid;flex:0 0 auto;min-width:2px;font-size:13px;line-height:20px;border-radius:3px}
+.wm-content-sized-input:focus-within{background:color-mix(in srgb,var(--wm-accent) 8%,transparent)}
+.wm-content-sized-input>input,.wm-content-input-measure{grid-area:1/1;font:inherit!important;letter-spacing:inherit}
+.wm-content-input-measure{visibility:hidden;white-space:pre;pointer-events:none}
+.wm-content-separator{flex-shrink:0;white-space:pre;padding:0 6px;color:var(--wm-muted)}
+.wm-content-icon-line{display:flex;justify-content:center;height:24px;flex:0 0 24px;padding:2px 0;box-sizing:content-box}
+.wm-content-icon-line img{height:100%;max-width:60px;object-fit:contain}
+.wm-content-editor[data-centered=true] .wm-content-line{justify-content:center}
+.wm-caption-review-row .wm-content-editor{margin-top:12px;max-width:none;width:100%}
+.wm-caption-review-details{margin-top:10px;color:var(--wm-muted);font-size:11px}
+.wm-caption-review-details>summary{cursor:pointer;width:fit-content}
+
+.wm-bottom-inputs.wm-content-disclosure{position:relative;align-self:center;min-width:0;display:block}
+.wm-content-disclosure-trigger{display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 11px;border:1px solid var(--wm-border);border-radius:8px;background:var(--wm-panel);color:var(--wm-text);font-size:13px;text-align:left}
+.wm-content-disclosure-trigger>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wm-content-disclosure-trigger>svg{flex-shrink:0;color:var(--wm-muted)}
+.wm-content-disclosure-trigger:hover,.wm-content-disclosure-trigger[aria-expanded=true]{border-color:var(--wm-accent)}
+.wm-content-disclosure-trigger:focus-visible{outline:2px solid var(--wm-accent);outline-offset:2px}
+.wm-content-disclosure-panel{position:absolute;bottom:calc(100% + 10px);left:0;width:100%;min-width:280px;max-width:calc(100vw - 32px);padding:8px;background:var(--wm-bg);border:1px solid var(--wm-border);border-radius:12px;box-shadow:0 8px 30px #0003;z-index:50}
+.wm-content-disclosure-panel .wm-content-editor{max-width:none;width:100%;margin:0;padding:6px 10px}
+.wm-content-disclosure-panel .wm-content-line{height:34px;flex-basis:34px}
+.wm-content-disclosure-panel .wm-content-line .wm-text-input{height:34px!important;min-height:34px!important}
+
+/* The content field uses the same label/control grid as adjacent fields. */
+.wm-bottom-content-field{display:grid;grid-template-rows:12px 36px;row-gap:4px;flex:1;min-width:0;align-self:center}
+.wm-compact-toolbar .wm-bottom-content-field>.wm-bottom-inputs{width:100%;max-width:none;min-width:0;margin:0;transform:none;align-self:stretch}
+.wm-compact-toolbar .wm-bottom-content-field>.wm-content-editor{height:36px;min-height:36px;padding:3px 10px}
+.wm-compact-toolbar .wm-content-disclosure-trigger{height:36px;min-height:36px;box-sizing:border-box}
+.wm-compact-toolbar .wm-direction-switch{height:36px;min-height:36px;box-sizing:border-box}
+.wm-compact-toolbar .wm-bottom-review{grid-template-rows:12px 36px;row-gap:4px}
+.wm-compact-toolbar .wm-bottom-review>.wm-caption-review-trigger{width:36px;min-width:36px;max-width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+.wm-compact-toolbar .wm-bottom-review>.wm-caption-review-trigger>span{display:none}
+.wm-compact-toolbar .wm-bottom-review>.wm-caption-review-trigger>svg{width:16px;height:16px;flex-shrink:0}
+@media(min-width:768px) and (max-width:950px){
+    .wm-compact-toolbar .wm-bottom-content-field{grid-area:1/3;align-self:start;width:100%}
+    .wm-compact-toolbar[data-mode=text] .wm-bottom-content-field{grid-column:2/-1}
+}
+
+.wm-content-editor .wm-content-line .wm-content-line-input{min-width:0;width:100%;flex:1}

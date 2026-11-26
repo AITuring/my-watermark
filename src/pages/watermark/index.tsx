@@ -4,6 +4,7 @@ import { analyzeWatermarkCaption, extractWatermarkCaption } from "./filename-wat
 import { clearCaptionCorrection, getCaptionCorrection, loadCaptionCorrections, saveCaptionCorrections, setCaptionCorrection, type CaptionCorrectionMap } from "./caption-corrections";
 import { resolveWatermarkTypography, suggestWatermarkFont } from './font-selection';
 import { getWatermarkLineModel } from './watermark-lines';
+import { rebaseTextWatermarkScale } from './layout-metrics';
 import { createSmartWatermark, createSizedTextWatermark } from "./smart-watermark";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -100,7 +101,7 @@ const Watermark: React.FC = () => {
     const [imageWatermarkUrls, setImageWatermarkUrls] = useState<Record<string, string>>({});
     const [baseWatermarkConfig, setBaseWatermarkConfig] =
         useState<MixedWatermarkConfig>({ ...DEFAULT_MIXED_WATERMARK_CONFIG });
-    const [smartEnabled, setSmartEnabled] = useState(true);
+    const smartEnabled = true;
     const [previewZoom,setPreviewZoom] = useState(1);
     const [imageTints,setImageTints] = useState<Record<string,string>>({});
     const imageTint = currentImg ? imageTints[currentImg.id] || '' : '';
@@ -119,6 +120,7 @@ const Watermark: React.FC = () => {
     const [captionCorrections, setCaptionCorrections] = useState<CaptionCorrectionMap>({});
     const [automaticStyle, setAutomaticStyle] = useState<Partial<MixedWatermarkConfig>>({});
     const manualPositions = useRef(new Set<string>());
+    const generatedTextScales = useRef(new Map<string,number>());
     useEffect(() => { setCaptionCorrections(loadCaptionCorrections()); }, []);
 
     const resolveImageMaterial = (imageId: string) => imageWatermarkUrls[imageId] ?? storedImageWatermarkUrl;
@@ -430,6 +432,9 @@ const Watermark: React.FC = () => {
                     setFontNotice(missing ? `所选字体缺少「${[...new Set(Array.from(missing))].join("")}」，这些字使用系统宋体补齐。` : "");
                     setAutomaticStyle(result ? {color:result.config.color, iconColor:result.config.iconColor, layout:result.config.layout} : {});
                     if (logo && currentImg) {
+                        const generatedScale=result?.position.scaleX??sized?.scale??1;
+                        const previousGeneratedScale=generatedTextScales.current.get(currentImg.id);
+                        generatedTextScales.current.set(currentImg.id,generatedScale);
                         setWatermarkMaxScale(getWatermarkMaximumScale(currentImg.width,currentImg.height,logo));
                         setWatermarkPositions(prev => prev.map(position => {
                             if (position.id !== currentImg.id) return position;
@@ -440,8 +445,11 @@ const Watermark: React.FC = () => {
                             // Keep the saved position and only clamp it if a
                             // changed footprint would otherwise leave the image.
                             const manuallyPlaced = manualPositions.current.has(currentImg.id);
+                            // Block-relative scale changes with the layout's width.
+                            // Preserve the user's resize ratio, not the old block scale.
+                            const rebasedScale=rebaseTextWatermarkScale(position.scaleX,previousGeneratedScale,generatedScale);
                             const next = manuallyPlaced
-                                ? position
+                                ? {...position,scaleX:rebasedScale,scaleY:rebasedScale}
                                 : result?.position ?? {
                                     ...position,
                                     scaleX: sized?.scale ?? position.scaleX,
@@ -990,9 +998,6 @@ const Watermark: React.FC = () => {
                     {mobileView === "editor" && currentImg ? (
                         <div className="flex min-h-0 flex-1 flex-col">
                         {watermarkMode !== "image" && <div className="px-2 pt-1"><CaptionReviewDialog pendingCount={captionPendingCount} items={captionReviewItems} onSave={saveCaptionReview} onClear={clearCaptionReview}/></div>}
-                        {watermarkMode !== "image" && <label className="flex items-center gap-2 p-2 text-sm">
-                            <input type="checkbox" checked={smartEnabled} onChange={event => setSmartEnabled(event.target.checked)} />智能适配大小、颜色和排版
-                        </label>}
                         <MobileWatermarkEditor
                             watermarkUrl={watermarkUrl}
                             backgroundOriginalWidth={currentImg.width}
@@ -1169,8 +1174,6 @@ const Watermark: React.FC = () => {
                     fontNotice={fontNotice}
                     smartPending={smartPending}
                     smartError={smartError}
-                    smartEnabled={smartEnabled}
-                    setSmartEnabled={setSmartEnabled}
                     onResetSmart={() => {
                         if (currentImg) {
                             const targets = editScope === "all" ? images : [currentImg];
@@ -1194,7 +1197,6 @@ const Watermark: React.FC = () => {
                                 return next;
                             });
                         }
-                        setSmartEnabled(true);
                     }}
                     watermarkMode={watermarkMode}
                     setWatermarkMode={handleWatermarkModeChange}

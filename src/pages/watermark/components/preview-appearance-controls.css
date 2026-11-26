@@ -102,3 +102,11 @@
 .dark .wm-position-menu[data-state]{background:#1a1d24;border-color:#41444b;color:#e5e1d8}
 .dark .wm-position-menu-grid{border-color:#41444b}
 .dark .wm-position-menu [data-highlighted],.dark .wm-position-menu [data-state=checked]{background:#393329;color:#dfbd88}
+
+.wm-floating-toolbar .wm-floating-scope{gap:2px;height:28px;padding:2px;background:transparent}
+.wm-floating-scope>button{border:0;border-radius:4px;padding:3px 6px;background:transparent;color:inherit;font-size:12px;line-height:18px;font-weight:400}
+.wm-floating-scope>button[aria-pressed=true]{background:#e5e0d7;color:#282c31;font-weight:500}
+.wm-floating-scope>button:hover{background:#eee9e0;color:#282c31}
+.dark .wm-floating-scope>button{color:#e5e1d8}
+.dark .wm-floating-scope>button[aria-pressed=true]{background:#41444b;color:#fff}
+.dark .wm-floating-scope>button:hover{background:#35383f;color:#fff}

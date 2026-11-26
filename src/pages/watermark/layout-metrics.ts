@@ -31,3 +31,10 @@ export function getTextWatermarkScale(imageWidth:number,imageHeight:number,bound
     const factor=Math.min(target,imageWidth*.95/bounds.width,imageHeight*.95/bounds.height);
     return bounds.width*factor/baseWidth;
 }
+
+/** Carry a manual resize across changes to the generated text block's footprint. */
+export function rebaseTextWatermarkScale(savedScale:number,previousGeneratedScale:number|undefined,generatedScale:number){
+    return previousGeneratedScale&&previousGeneratedScale>0
+        ? savedScale/previousGeneratedScale*generatedScale
+        : generatedScale;
+}

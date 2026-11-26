@@ -203,3 +203,12 @@ test('manual text size survives layout changes and oversized captions fit inside
     const factor=baseWidth*scale/bounds.width;
     assert.ok(bounds.width*factor<=6000*.95&&bounds.height*factor<=8000*.95);
 });
+
+test('direction changes preserve manual text sizing rather than the previous block width',()=>{
+    const vertical=.2,horizontal=8;
+    assert.equal(api.rebaseTextWatermarkScale(vertical,vertical,horizontal),horizontal);
+    const resized=api.rebaseTextWatermarkScale(vertical*1.5,vertical,horizontal);
+    assert.ok(Math.abs(resized-horizontal*1.5)<1e-9);
+    assert.ok(Math.abs(api.rebaseTextWatermarkScale(resized,horizontal,vertical)-vertical*1.5)<1e-9);
+    assert.equal(api.rebaseTextWatermarkScale(.01,undefined,horizontal),horizontal);
+});

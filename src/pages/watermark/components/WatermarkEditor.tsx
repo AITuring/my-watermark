@@ -1,7 +1,8 @@
 import WatermarkBlurPreview from "./WatermarkBlurPreview";
-import PreviewMinimap from './PreviewMinimap';
-import {PreviewZoomControl, WatermarkColorControl} from "./PreviewAppearanceControls";
-import {fitPreviewImage, previewPositionForCenter, previewCenterForPosition} from "../preview-zoom";
+import PreviewMinimap from "@/components/image-workbench/PreviewMinimap";
+import {WatermarkColorControl} from "./PreviewAppearanceControls";
+import PreviewZoomControl from "@/components/image-workbench/PreviewZoomControl";
+import {fitPreviewImage, previewPositionForCenter, previewCenterForPosition} from "@/components/image-workbench/preview-zoom";
 import { useStableWatermarkImage } from "../hooks/useStableWatermarkImage";
 /* eslint-disable react/display-name */
 import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
@@ -14,7 +15,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { ArrowDown, ArrowDownLeft, ArrowDownRight, ArrowLeft, ArrowRight, ArrowUp, ArrowUpLeft, ArrowUpRight, ChevronDown, CircleDot, GripVertical, Lightbulb, Move, Sparkles } from "lucide-react";
 
 import Konva from "konva";
@@ -1059,10 +1059,10 @@ const WatermarkEditor: React.FC<WatermarkEditorProps> = ({
                                     </SelectContent>
                                 </Select>
 
-                                <label className="wm-floating-scope" title={isBatch ? "外观、位置等修改应用于全部图片；文字内容始终只改当前图片" : "修改仅应用于当前图片"}>
-                                    <Switch checked={isBatch} onCheckedChange={setIsBatch} aria-label="编辑范围"/>
-                                    <span>{isBatch ? "全部" : "当前"}</span>
-                                </label>
+                                <div className="wm-floating-scope" role="group" aria-label="编辑范围">
+                                    <button type="button" aria-pressed={!isBatch} title="修改仅应用于当前图片" onClick={()=>setIsBatch(false)}>当前</button>
+                                    <button type="button" aria-pressed={isBatch} title="修改应用于全部图片" onClick={()=>setIsBatch(true)}>全部</button>
+                                </div>
                             </div>
 
                             <span className="wm-canvas-divider" aria-hidden="true"/>
