@@ -1,0 +1,1 @@
+import{r as e}from"./app-runtime-98ef8efd.js";function r(r){const[n,t]=e.useState(null);return e.useEffect(()=>{if(!r)return;let e=!0;const n=new Image;return n.onload=()=>{e&&t({src:r,image:n})},n.src=r,()=>{e=!1}},[r]),(null==n?void 0:n.src)===r?n.image:null}export{r as u};
