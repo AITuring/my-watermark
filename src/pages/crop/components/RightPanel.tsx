@@ -6,6 +6,7 @@ import type { SavedCropGroup } from "../types";
 
 type RightPanelProps = {
     className?: string;
+    compact?: boolean;
     savedCropCount: number;
     groupedSavedCrops: SavedCropGroup[];
     selectedSavedCropIds: string[];
@@ -25,6 +26,7 @@ type RightPanelProps = {
 
 export default function RightPanel({
     className = "",
+    compact = false,
     savedCropCount,
     groupedSavedCrops,
     selectedSavedCropIds,
@@ -46,10 +48,10 @@ export default function RightPanel({
 
     return (
         <PanelCard
-            title="暂存结果"
-            icon={<PackageOpen className="h-4 w-4" />}
-            count={`${savedCropCount} 张`}
-            className={`flex h-full min-h-0 flex-col rounded-lg border-border/60 bg-background/90 shadow-sm ${className}`}
+            title={compact ? undefined : "暂存结果"}
+            icon={compact ? undefined : <PackageOpen className="h-4 w-4" />}
+            count={compact ? undefined : `${savedCropCount} 张`}
+            className={`flex h-full min-h-0 flex-col ${compact ? "rounded-none border-0 bg-transparent shadow-none" : "rounded-lg border-border/60 bg-background/90 shadow-sm"} ${className}`}
             headerClassName="px-4 py-3"
             titleClassName="text-base"
             contentClassName="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-6 pt-0"

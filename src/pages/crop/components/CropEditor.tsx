@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -82,7 +81,7 @@ export default function CropEditor({
                     <div className="min-w-0 flex items-center gap-2">
                         <CardTitle className="flex shrink-0 items-center gap-2 text-base">
                             <ScanSearch className="h-4 w-4" />
-                            当前编辑
+                            编辑
                         </CardTitle>
                         <div className="truncate text-sm text-muted-foreground">
                             {activeImage ? activeImage.name : "还没有选择原图"}
@@ -96,7 +95,7 @@ export default function CropEditor({
                             disabled={!activeImage}
                         >
                             <Scissors className="h-4 w-4" />
-                            <span className="hidden sm:inline">暂存当前裁切</span>
+                            <span className="hidden sm:inline">暂存</span>
                         </Button>
                         <Button
                             variant="secondary"
@@ -106,7 +105,7 @@ export default function CropEditor({
                             disabled={!activeImage}
                         >
                             <Download className="h-4 w-4" />
-                            <span className="hidden sm:inline">单独导出</span>
+                            <span className="hidden sm:inline">导出</span>
                         </Button>
                     </div>
                 </div>
@@ -118,17 +117,13 @@ export default function CropEditor({
                     </div>
                 ) : (
                     <div className="flex min-h-0 flex-1 flex-col gap-3">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <Badge variant="outline">原图 {activeImage.width} × {activeImage.height}</Badge>
-                            <Badge variant="outline">
-                                选区 {Math.round(activeImage.crop.w)} × {Math.round(activeImage.crop.h)}
-                            </Badge>
-                            <Badge variant="outline">缩放 {Math.round(effectiveZoom * 100)}%</Badge>
-                            <Badge variant="outline">{currentDisplayLabel}</Badge>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                            <span>原图 {activeImage.width} × {activeImage.height}</span>
+                            <span>选区 {Math.round(activeImage.crop.w)} × {Math.round(activeImage.crop.h)}</span>
+                            <span>{Math.round(effectiveZoom * 100)}% · {currentDisplayLabel}</span>
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col gap-3">
-                            <div className="rounded bg-muted/20">
-                                <div className="flex flex-wrap items-center gap-2">
+                            <div className="relative flex flex-wrap items-center gap-1.5">
                                     <Button variant="secondary" size="sm" onClick={onUndo} disabled={!canUndo} title="撤销">
                                         <Undo2 className="h-4 w-4" />
                                         <span className="hidden sm:inline">撤销</span>
@@ -137,7 +132,6 @@ export default function CropEditor({
                                         <Redo2 className="h-4 w-4" />
                                         <span className="hidden sm:inline">重做</span>
                                     </Button>
-                                    <div className="mx-1 hidden h-5 w-px bg-border lg:block" />
                                     <Button
                                         variant="secondary"
                                         size="sm"
@@ -145,7 +139,7 @@ export default function CropEditor({
                                         disabled={!activeImage}
                                     >
                                         <RotateCcw className="h-4 w-4" />
-                                        <span className="hidden sm:inline">顺时针 90°</span>
+                                        <span className="hidden sm:inline">右转 90°</span>
                                     </Button>
                                     <Button
                                         variant="secondary"
@@ -154,29 +148,11 @@ export default function CropEditor({
                                         disabled={!activeImage}
                                     >
                                         <RotateCcw className="h-4 w-4" />
-                                        <span className="hidden sm:inline">逆时针 90°</span>
+                                        <span className="hidden sm:inline">左转 90°</span>
                                     </Button>
-                                    <Input
-                                        type="number"
-                                        value={customAngle}
-                                        step="0.1"
-                                        className="h-8 w-20 bg-background"
-                                        onChange={(e) => onCustomAngleChange(Number(e.target.value || 0))}
-                                        placeholder="角度"
-                                    />
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={() => onApplyRotation(customAngle)}
-                                        disabled={!activeImage}
-                                    >
-                                        <RotateCcw className="h-4 w-4" />
-                                        <span className="hidden sm:inline">应用角度</span>
-                                    </Button>
-                                    <div className="mx-1 hidden h-5 w-px bg-border lg:block" />
                                     <Button variant="secondary" size="sm" onClick={() => onZoomChange(fitZoom)}>
                                         <Maximize className="h-4 w-4" />
-                                        <span className="hidden sm:inline">适应窗口</span>
+                                        <span className="hidden sm:inline">适应</span>
                                     </Button>
                                     <Button
                                         variant="secondary"
@@ -198,7 +174,21 @@ export default function CropEditor({
                                         <Minimize className="h-4 w-4" />
                                         <span className="hidden sm:inline">缩小</span>
                                     </Button>
-                                </div>
+                                    <details className="ml-auto">
+                                        <summary className="cursor-pointer list-none rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">更多</summary>
+                                        <div className="absolute z-20 mt-1 flex items-center gap-2 rounded-md border border-border bg-background p-2 shadow-md">
+                                            <Input
+                                                aria-label="自定义旋转角度"
+                                                type="number"
+                                                value={customAngle}
+                                                step="0.1"
+                                                className="h-8 w-20"
+                                                onChange={(e) => onCustomAngleChange(Number(e.target.value || 0))}
+                                                placeholder="角度"
+                                            />
+                                            <Button variant="secondary" size="sm" onClick={() => onApplyRotation(customAngle)} disabled={!activeImage}>应用旋转</Button>
+                                        </div>
+                                    </details>
                             </div>
                             <div className="relative min-h-0 flex-1">
                                 <div ref={viewportRef} className="h-full overflow-auto rounded border bg-black/5">

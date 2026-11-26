@@ -826,7 +826,8 @@ export default function ImageCropper() {
                 </div>
             )}
             <div className="mx-auto flex h-full max-w-[1520px] min-h-0 flex-col">
-                <div className="grid h-full min-h-0 grid-cols-[240px_minmax(0,1fr)_260px] grid-rows-[minmax(0,1fr)] gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
+                <div className="flex min-h-0 flex-1 flex-col gap-3">
+                    <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(220px,auto)_minmax(0,1fr)] gap-3 lg:grid-cols-[220px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]">
                     <div className="flex min-h-0">
                         <LeftPanel
                             className="w-full"
@@ -860,7 +861,6 @@ export default function ImageCropper() {
                             batchFailures={batchFailures}
                             onCancelBatch={cancelBatchCrops}
                             onRetryFailed={retryFailedCrops}
-                            storageEstimate={storageEstimate}
                         />
                     </div>
 
@@ -894,26 +894,38 @@ export default function ImageCropper() {
                         />
                     </div>
 
-                    <div className="flex min-h-0">
-                        <RightPanel
-                            className="w-full"
-                            savedCropCount={savedCrops.length}
-                            groupedSavedCrops={groupedSavedCrops}
-                            selectedSavedCropIds={selectedSavedCropIds}
-                            selectedSavedCropCount={selectedSavedCrops.length}
-                            isBatchDownloading={isBatchDownloading}
-                            isBatchExporting={isBatchExporting}
-                            isRoutingExporting={isRoutingExporting}
-                            onExportBatch={() => void exportBatch(selectedSavedCrops)}
-                            onDownloadBatch={() => void downloadBatch(selectedSavedCrops)}
-                            onRouteWithCrops={(target) => void routeWithCrops(target, selectedSavedCrops)}
-                            onClearSavedCrops={clearSavedCrops}
-                            onRemoveSavedCrop={removeSavedCrop}
-                            onToggleSavedCrop={toggleSavedCropSelection}
-                            onToggleAllSavedCrops={toggleAllSavedCrops}
-                            onRemoveSelectedSavedCrops={removeSelectedSavedCrops}
-                        />
                     </div>
+                    {savedCrops.length > 0 && (
+                        <details className="shrink-0 rounded-lg border border-border/60 bg-background/90 shadow-sm">
+                            <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
+                                <span className="flex items-center justify-between gap-2">
+                                    <span>暂存结果</span>
+                                    <span className="text-xs font-normal text-muted-foreground">{savedCrops.length} 张 · 点击展开</span>
+                                </span>
+                            </summary>
+                            <div className="h-[min(36vh,420px)] min-h-[220px] border-t border-border/60 p-3">
+                                <RightPanel
+                                    compact
+                                    className="w-full"
+                                    savedCropCount={savedCrops.length}
+                                    groupedSavedCrops={groupedSavedCrops}
+                                    selectedSavedCropIds={selectedSavedCropIds}
+                                    selectedSavedCropCount={selectedSavedCrops.length}
+                                    isBatchDownloading={isBatchDownloading}
+                                    isBatchExporting={isBatchExporting}
+                                    isRoutingExporting={isRoutingExporting}
+                                    onExportBatch={() => void exportBatch(selectedSavedCrops)}
+                                    onDownloadBatch={() => void downloadBatch(selectedSavedCrops)}
+                                    onRouteWithCrops={(target) => void routeWithCrops(target, selectedSavedCrops)}
+                                    onClearSavedCrops={clearSavedCrops}
+                                    onRemoveSavedCrop={removeSavedCrop}
+                                    onToggleSavedCrop={toggleSavedCropSelection}
+                                    onToggleAllSavedCrops={toggleAllSavedCrops}
+                                    onRemoveSelectedSavedCrops={removeSelectedSavedCrops}
+                                />
+                            </div>
+                        </details>
+                    )}
                 </div>
             </div>
         </div>
