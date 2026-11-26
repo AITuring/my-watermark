@@ -1,43 +1,43 @@
 {
   "/": {
     "scripts": [
-      "assets/index-cdd64f5b.js",
+      "assets/index-d1acd9af.js",
       "assets/app-runtime-98ef8efd.js",
-      "assets/ui-primitives-adbf0037.js",
-      "assets/index-1e1c54d2.js",
+      "assets/ui-primitives-8d83a049.js",
+      "assets/index-fc66ec7f.js",
       "assets/index-25699f56.js"
     ],
     "styles": [
-      "assets/index-42de32c5.css",
+      "assets/index-edb1207a.css",
       "assets/index-72ade40d.css"
     ]
   },
   "/split": {
     "scripts": [
-      "assets/index-cdd64f5b.js",
+      "assets/index-d1acd9af.js",
       "assets/app-runtime-98ef8efd.js",
-      "assets/ui-primitives-adbf0037.js",
-      "assets/index-f02a05db.js",
-      "assets/image-tool-common-25e75aa2.js",
-      "assets/ui-controls-bf1d93ce.js",
-      "assets/useImageExport-6ec6a3ef.js",
-      "assets/ImageExportMenu-393250c7.js"
+      "assets/ui-primitives-8d83a049.js",
+      "assets/index-1d4afe0d.js",
+      "assets/image-tool-common-7a10eb52.js",
+      "assets/ui-controls-fffcab99.js",
+      "assets/useImageExport-bbc3330d.js",
+      "assets/ImageExportMenu-f76b8999.js"
     ],
     "styles": [
-      "assets/index-42de32c5.css",
+      "assets/index-edb1207a.css",
       "assets/ImageExportMenu-7973e19a.css",
       "assets/index-d8433a35.css"
     ]
   },
   "/song-paintings": {
     "scripts": [
-      "assets/index-cdd64f5b.js",
+      "assets/index-d1acd9af.js",
       "assets/app-runtime-98ef8efd.js",
-      "assets/ui-primitives-adbf0037.js",
-      "assets/index-35df7ce8.js"
+      "assets/ui-primitives-8d83a049.js",
+      "assets/index-e3d26db0.js"
     ],
     "styles": [
-      "assets/index-42de32c5.css",
+      "assets/index-edb1207a.css",
       "assets/index-ad0c6f2e.css"
     ]
   }
