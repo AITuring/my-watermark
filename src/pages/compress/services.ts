@@ -1,6 +1,7 @@
+import { downloadExportFiles } from "@/utils/image-export";
 import { MIN_FORCE_EDGE, PREVIEW_MAX_EDGE } from './constants';
-import type { CompressedImage, CompressionConfig, CompressionResult, ZipConstructor } from './types';
-import { loadImageCompression, loadJSZip, loadSaveAs } from '@/utils/lazy-deps';
+import type { CompressedImage, CompressionConfig, CompressionResult } from './types';
+import { loadImageCompression } from '@/utils/lazy-deps';
 import { getLargeImageAsset, processLargeImage } from '@/utils/large-image';
 
 const getFileNameWithoutExtension = (fileName: string) => fileName.replace(/\.[^.]+$/, '');
@@ -282,26 +283,10 @@ export const exportCompressedImages = async (images: CompressedImage[]) => {
     return;
   }
 
-  if (compressedImages.length === 1) {
-    const image = compressedImages[0];
-    const saveAs = await loadSaveAs();
-    saveAs(image.compressedFile!, getOutputFileName(image.compressedFile!));
-    return;
-  }
-
-  const JSZip = (await loadJSZip()) as ZipConstructor;
-  const saveAs = await loadSaveAs();
-  const zip = new JSZip();
-
-  compressedImages.forEach((image) => {
-    if (image.compressedFile) {
-      zip.file(getOutputFileName(image.compressedFile), image.compressedFile);
-    }
-  });
-
   try {
-    const content = await zip.generateAsync({ type: 'blob' });
-    saveAs(content, 'compressed_images.zip');
+    await downloadExportFiles(compressedImages.map(image => ({ data: image.compressedFile!, name: getOutputFileName(image.compressedFile!) })), {
+      mode: 'zip', archiveName: 'compressed_images.zip', singleFileAsFile: true,
+    });
   } catch (error) {
     console.error('导出失败:', error);
     alert('导出失败，请重试');

@@ -1,3 +1,4 @@
+import { downloadExportFiles } from "@/utils/image-export";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import { toast } from "sonner";
@@ -6,15 +7,7 @@ import { drawCropToBlob } from "../image-utils";
 import type { CropImage, CropMode, SavedCrop, SavedCropGroup } from "../types";
 import { setPendingCropTransfer, type TransferTarget } from "@/utils/crop-transfer";
 import { clearFileSession, loadFileSession, saveFileSession } from "@/utils/file-storage";
-import { loadJSZip, loadSaveAs } from "@/utils/lazy-deps";
 import { downloadFilesIndividually } from "@/utils/download-files";
-
-type ZipInstance = {
-    file: (name: string, data: Blob | File) => void;
-    generateAsync: (options: { type: "blob"; streamFiles?: boolean }) => Promise<Blob>;
-};
-
-type ZipConstructor = new () => ZipInstance;
 
 type SavedCropMetadata = Omit<SavedCrop, "file" | "previewUrl">;
 
@@ -157,21 +150,20 @@ export function useCropExports({
             return;
         }
 
-        const crop = activeImage.crop;
-        const { outputW, outputH } = getOutputSize(crop, mode, targetWidth, targetHeight);
-        const blob = await drawCropToBlob(activeImage, crop, outputW, outputH);
-        if (!blob) {
-            toast.error("导出失败");
-            return;
-        }
+        try {
+            const crop = activeImage.crop;
+            const { outputW, outputH } = getOutputSize(crop, mode, targetWidth, targetHeight);
+            const blob = await drawCropToBlob(activeImage, crop, outputW, outputH);
+            if (!blob) {
+                toast.error("导出失败");
+                return;
+            }
 
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = `${activeImage.name}-crop-${outputW}x${outputH}.jpg`;
-        anchor.click();
-        URL.revokeObjectURL(url);
-        toast.success(`已导出 ${outputW} × ${outputH}`);
+            await downloadExportFiles([{ data: blob, name: `${activeImage.name}-crop-${outputW}x${outputH}.jpg` }], { mode: "current" });
+            toast.success(`已导出 ${outputW} × ${outputH}`);
+        } catch (error) {
+            toast.error(error instanceof Error ? `导出失败：${error.message}` : "导出失败，请重试");
+        }
     }, [activeImage, mode, targetHeight, targetWidth]);
 
     const saveCurrentCrop = useCallback(async () => {
@@ -283,24 +275,9 @@ export function useCropExports({
         setIsBatchExporting(true);
 
         try {
-            const [JSZip, saveAs] = await Promise.all([
-                loadJSZip() as Promise<ZipConstructor>,
-                loadSaveAs(),
-            ]);
-            const zip = new JSZip();
-            exportItems.forEach((item) => {
-                zip.file(item.file.name, item.file);
+            await downloadExportFiles(exportItems.map(item => ({ data: item.file, name: item.file.name })), {
+                mode: "zip", archiveName: `crop-batch-${Date.now()}.zip`,
             });
-
-            const zipBlob = await zip.generateAsync({
-                type: "blob",
-                streamFiles: true,
-            });
-            if (!zipBlob.size) {
-                throw new Error("ZIP 文件为空");
-            }
-
-            saveAs(zipBlob, `crop-batch-${Date.now()}.zip`);
             toast.success(`已批量导出 ${exportItems.length} 张`);
         } catch (error) {
             console.error("导出裁切 ZIP 失败", error);

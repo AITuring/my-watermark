@@ -1,3 +1,5 @@
+import { ImageWorkbenchPanels } from "@/components/image-workbench/ImageWorkbench";
+import { downloadExportFiles } from "@/utils/image-export";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import {
@@ -44,7 +46,6 @@ import {
     getImageDimensions,
 } from "@/pages/compress/services";
 import { formatFileSize } from "@/pages/compress/utils";
-import { loadJSZip, loadSaveAs } from "@/utils/lazy-deps";
 import { getLargeImageAsset, processLargeImage } from "@/utils/large-image";
 
 type BatchItemStatus = "idle" | "processing" | "done" | "error";
@@ -730,33 +731,15 @@ export default function BatchWorkbenchPage() {
 
         setIsExporting(true);
         try {
-            const saveAs = await loadSaveAs();
-
             const renderedFiles = await Promise.all(
                 exportItems.map((item) =>
                     processFullResolutionImage(item.originalFile, normalizeSettings(settings), ratioValue)
                 )
             );
 
-            if (renderedFiles.length === 1) {
-                const single = renderedFiles[0].file;
-                saveAs(single, single.name);
-                toast.success("已导出 1 张图片");
-                return;
-            }
-
-            const JSZip = await loadJSZip();
-            const zip = new (JSZip as new () => {
-                file: (name: string, data: Blob | File) => void;
-                generateAsync: (options: { type: "blob" }) => Promise<Blob>;
-            })();
-
-            renderedFiles.forEach((item) => {
-                zip.file(item.file.name, item.file);
+            await downloadExportFiles(renderedFiles.map(item => ({ data: item.file, name: item.file.name })), {
+                mode: "zip", archiveName: `batch-workbench-${Date.now()}.zip`, singleFileAsFile: true,
             });
-
-            const zipBlob = await zip.generateAsync({ type: "blob" });
-            saveAs(zipBlob, `batch-workbench-${Date.now()}.zip`);
             toast.success(`已导出 ${exportItems.length} 张图片`);
         } finally {
             setIsExporting(false);
@@ -764,21 +747,21 @@ export default function BatchWorkbenchPage() {
     }, [items, ratioValue, settings]);
 
     return (
-        <div className="min-h-screen bg-[#f6f4ee] px-4 py-5 text-slate-900 md:px-6">
+        <div className="min-h-screen bg-background px-4 py-5 text-foreground md:px-6">
             <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
-                <Card className="border-white/70 bg-white/88 shadow-lg shadow-black/5">
+                <Card className="border-border bg-card shadow-lg shadow-black/5">
                     <CardHeader className="pb-3">
                         <CardTitle className="flex items-center gap-2 text-lg">
-                            <Wand2 className="h-5 w-5 text-slate-700" />
+                            <Wand2 className="h-5 w-5 text-foreground" />
                             批量图片工作台
                         </CardTitle>
                         <CardDescription>
-                            参数一改就自动重算结果，左侧保留参数历史，方便撤销、重做和恢复版本。
+                            参数一改就自动重算结果，保留参数历史，方便撤销、重做和恢复版本。
                         </CardDescription>
                     </CardHeader>
 
                     <CardContent className="space-y-4">
-                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/88 p-3 shadow-sm shadow-black/5">
+                        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/80 bg-card p-3 shadow-sm shadow-black/5">
                             <Button variant="outline" size="sm" onClick={handleUndo} disabled={!canUndo}>
                                 <Undo2 className="h-3.5 w-3.5" />
                                 撤销
@@ -795,10 +778,10 @@ export default function BatchWorkbenchPage() {
                                     </Button>
                                 </DialogTrigger>
                                 <DialogContent className="max-w-[720px]">
-                                    <div className="rounded-[28px] border border-slate-200/80 bg-white/96 p-6 shadow-2xl shadow-black/10">
+                                    <div className="rounded-[28px] border border-border/80 bg-card p-6 shadow-2xl shadow-black/10">
                                         <DialogHeader className="pr-10">
-                                            <DialogTitle className="flex items-center gap-2 text-lg text-slate-900">
-                                                <History className="h-5 w-5 text-slate-700" />
+                                            <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
+                                                <History className="h-5 w-5 text-foreground" />
                                                 历史记录
                                             </DialogTitle>
                                             <DialogDescription>
@@ -806,7 +789,7 @@ export default function BatchWorkbenchPage() {
                                             </DialogDescription>
                                         </DialogHeader>
 
-                                        <ScrollArea className="mt-5 h-[420px] rounded-2xl border border-slate-200 bg-slate-50/70">
+                                        <ScrollArea className="mt-5 h-[420px] rounded-2xl border border-border bg-muted">
                                             <div className="space-y-3 p-4">
                                                 {historyEntries
                                                     .map((entry, index) => ({ entry, index }))
@@ -820,16 +803,16 @@ export default function BatchWorkbenchPage() {
                                                                 onClick={() => restoreHistoryEntry(index)}
                                                                 className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
                                                                     isCurrent
-                                                                        ? "border-slate-900 bg-white shadow-sm"
-                                                                        : "border-slate-200 bg-white/90 hover:border-slate-300 hover:bg-white"
+                                                                        ? "border-slate-900 bg-card shadow-sm"
+                                                                        : "border-border bg-card hover:border-ring hover:bg-card"
                                                                 }`}
                                                             >
                                                                 <div className="flex items-center justify-between gap-4">
                                                                     <div className="min-w-0">
-                                                                        <div className="truncate text-base font-semibold text-slate-900">
+                                                                        <div className="truncate text-base font-semibold text-foreground">
                                                                             {entry.label}
                                                                         </div>
-                                                                        <div className="mt-1 text-sm text-slate-500">
+                                                                        <div className="mt-1 text-sm text-muted-foreground">
                                                                             {formatHistoryTime(entry.createdAt)}
                                                                         </div>
                                                                     </div>
@@ -878,9 +861,79 @@ export default function BatchWorkbenchPage() {
                             </Button>
                         </div>
 
-                        <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-                        <div className="space-y-4">
-                            <Card className="border-slate-200/80 shadow-none">
+                        <ImageWorkbenchPanels editorLabel="图片与结果" editor={<div className="space-y-4">
+                            <Card className="border-border/80 shadow-none">
+                                <CardContent className="pt-6">
+                                    <div
+                                        {...getRootProps()}
+                                        className={`rounded-2xl border border-dashed p-5 transition ${
+                                            isDragActive
+                                                ? "border-slate-900 bg-muted"
+                                                : "border-border bg-muted"
+                                        }`}
+                                    >
+                                        <input {...getInputProps()} />
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2 text-sm font-medium">
+                                                    <Upload className="h-4 w-4" />
+                                                    拖入图片后自动处理
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    支持 JPG、PNG、WEBP、BMP。参数变化后会自动重算预览。
+                                                </p>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                                {items.map((item) => (
+                                    <Card key={item.id} className="overflow-hidden border-border/80 shadow-none">
+                                        <CardContent className="space-y-3 p-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <div className="truncate text-sm font-medium">{item.name}</div>
+                                                    <div className="mt-1 text-xs text-muted-foreground">
+                                                        {item.originalWidth} x {item.originalHeight} ·{" "}
+                                                        {formatFileSize(item.originalFile.size)}
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8"
+                                                    onClick={() => removeItem(item.id)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+
+                                            <div className="flex min-h-[220px] items-center justify-center overflow-hidden rounded-[28px] bg-transparent">
+                                                {item.resultPreviewUrl ? (
+                                                    <img
+                                                        src={item.resultPreviewUrl}
+                                                        alt={`${item.name} result`}
+                                                        className="max-h-[320px] w-full object-contain"
+                                                    />
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">等待处理中</span>
+                                                )}
+                                            </div>
+
+                                            {item.error && (
+                                                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                                                    {item.error}
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        </div>} settings={<div className="space-y-4">
+                            <Card className="border-border/80 shadow-none">
                                 <CardHeader className="pb-3">
                                     <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                                         <RotateCw className="h-4 w-4" />
@@ -892,7 +945,7 @@ export default function BatchWorkbenchPage() {
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between gap-3">
                                                 <Label>旋转矫正</Label>
-                                                <span className="text-xs text-slate-500">
+                                                <span className="text-xs text-muted-foreground">
                                                     {rotationOptions.find((option) => option.value === settings.rotation)
                                                         ?.label ?? "不旋转"}
                                                 </span>
@@ -906,8 +959,8 @@ export default function BatchWorkbenchPage() {
                                                         aria-label={option.label}
                                                         className={`relative flex h-10 w-10 items-center justify-center rounded-xl border transition ${
                                                             settings.rotation === option.value
-                                                                ? "border-slate-900 bg-slate-900 text-white shadow-sm"
-                                                                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                                                                ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                                                : "border-border bg-card text-muted-foreground hover:border-ring hover:text-foreground"
                                                         }`}
                                                         onClick={() => {
                                                             if (settingsRef.current.rotation === option.value) {
@@ -923,7 +976,7 @@ export default function BatchWorkbenchPage() {
                                                     >
                                                         <option.icon className="h-4 w-4" />
                                                         {option.badge && (
-                                                            <span className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-semibold leading-none text-slate-900 shadow-sm">
+                                                            <span className="pointer-events-none absolute -right-1 -top-1 rounded-full bg-card px-1.5 py-0.5 text-[9px] font-semibold leading-none text-foreground shadow-sm">
                                                                 {option.badge}
                                                             </span>
                                                         )}
@@ -935,7 +988,7 @@ export default function BatchWorkbenchPage() {
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between gap-3">
                                                 <Label>裁切模式</Label>
-                                                <span className="text-xs text-slate-500">
+                                                <span className="text-xs text-muted-foreground">
                                                     {cropModeOptions.find((option) => option.value === settings.cropMode)
                                                         ?.label ?? "按比例裁切"}
                                                 </span>
@@ -949,8 +1002,8 @@ export default function BatchWorkbenchPage() {
                                                         aria-label={option.label}
                                                         className={`flex h-10 w-10 items-center justify-center rounded-xl border transition ${
                                                             settings.cropMode === option.value
-                                                                ? "border-slate-900 bg-slate-900 text-white shadow-sm"
-                                                                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                                                                ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                                                                : "border-border bg-card text-muted-foreground hover:border-ring hover:text-foreground"
                                                         }`}
                                                         onClick={() => {
                                                             if (settingsRef.current.cropMode === option.value) {
@@ -1050,13 +1103,13 @@ export default function BatchWorkbenchPage() {
                                         )}
                                     </div>
 
-                                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs leading-5 text-slate-600">
-                                        这版是统一规则的批量裁切。你一改参数，右侧结果会自动刷新；不用再点开始处理。
+                                    <div className="rounded-xl border border-border bg-muted p-3 text-xs leading-5 text-muted-foreground">
+                                        这版是统一规则的批量裁切。你一改参数，预览结果会自动刷新；不用再点开始处理。
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <Card className="border-slate-200/80 shadow-none">
+                            <Card className="border-border/80 shadow-none">
                                 <CardHeader className="pb-3">
                                     <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                                         <Zap className="h-4 w-4" />
@@ -1064,7 +1117,7 @@ export default function BatchWorkbenchPage() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                    <label className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                    <label className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-sm">
                                         <span>启用压缩</span>
                                         <input
                                             type="checkbox"
@@ -1105,7 +1158,7 @@ export default function BatchWorkbenchPage() {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between text-sm">
                                             <Label>保留尺寸</Label>
-                                            <span className="text-slate-500">{settings.resizePercent}%</span>
+                                            <span className="text-muted-foreground">{settings.resizePercent}%</span>
                                         </div>
                                         <Slider
                                             min={10}
@@ -1126,7 +1179,7 @@ export default function BatchWorkbenchPage() {
                                         />
                                     </div>
 
-                                    <label className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-sm">
+                                    <label className="flex items-center justify-between rounded-xl border border-border px-3 py-2 text-sm">
                                         <span>强制压到目标体积</span>
                                         <input
                                             type="checkbox"
@@ -1149,35 +1202,35 @@ export default function BatchWorkbenchPage() {
                                 </CardContent>
                             </Card>
 
-                            <Card className="border-slate-200/80 shadow-none">
+                            <Card className="border-border/80 shadow-none">
                                 <CardHeader className="pb-3">
                                     <CardTitle className="text-sm font-semibold">批次概览</CardTitle>
                                 </CardHeader>
                                 <CardContent className="grid grid-cols-2 gap-3 text-sm">
-                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                        <div className="text-slate-500">图片数</div>
+                                    <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                        <div className="text-muted-foreground">图片数</div>
                                         <div className="mt-1 text-lg font-semibold">{items.length}</div>
                                     </div>
-                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                        <div className="text-slate-500">已完成</div>
+                                    <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                        <div className="text-muted-foreground">已完成</div>
                                         <div className="mt-1 text-lg font-semibold">{processedCount}</div>
                                     </div>
-                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                        <div className="text-slate-500">原始体积</div>
+                                    <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                        <div className="text-muted-foreground">原始体积</div>
                                         <div className="mt-1 text-sm font-semibold">{formatFileSize(totalOriginalSize)}</div>
                                     </div>
-                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                        <div className="text-slate-500">结果体积</div>
+                                    <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                        <div className="text-muted-foreground">结果体积</div>
                                         <div className="mt-1 text-sm font-semibold">
                                             {totalResultSize ? formatFileSize(totalResultSize) : "--"}
                                         </div>
                                     </div>
-                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                        <div className="text-slate-500">失败</div>
+                                    <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                        <div className="text-muted-foreground">失败</div>
                                         <div className="mt-1 text-lg font-semibold">{failedCount}</div>
                                     </div>
-                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                        <div className="text-slate-500">状态</div>
+                                    <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                        <div className="text-muted-foreground">状态</div>
                                         <div className="mt-1 text-sm font-semibold">
                                             {isProcessing ? "实时处理中" : items.length ? "已同步" : "--"}
                                         </div>
@@ -1185,81 +1238,7 @@ export default function BatchWorkbenchPage() {
                                 </CardContent>
                             </Card>
 
-                        </div>
-
-                        <div className="space-y-4">
-                            <Card className="border-slate-200/80 shadow-none">
-                                <CardContent className="pt-6">
-                                    <div
-                                        {...getRootProps()}
-                                        className={`rounded-2xl border border-dashed p-5 transition ${
-                                            isDragActive
-                                                ? "border-slate-900 bg-slate-100"
-                                                : "border-slate-300 bg-slate-50/70"
-                                        }`}
-                                    >
-                                        <input {...getInputProps()} />
-                                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-2 text-sm font-medium">
-                                                    <Upload className="h-4 w-4" />
-                                                    拖入图片后自动处理
-                                                </div>
-                                                <p className="text-sm text-slate-500">
-                                                    支持 JPG、PNG、WEBP、BMP。参数变化后会自动重算预览。
-                                                </p>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-                                {items.map((item) => (
-                                    <Card key={item.id} className="overflow-hidden border-slate-200/80 shadow-none">
-                                        <CardContent className="space-y-3 p-4">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <div className="truncate text-sm font-medium">{item.name}</div>
-                                                    <div className="mt-1 text-xs text-slate-500">
-                                                        {item.originalWidth} x {item.originalHeight} ·{" "}
-                                                        {formatFileSize(item.originalFile.size)}
-                                                    </div>
-                                                </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8"
-                                                    onClick={() => removeItem(item.id)}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-
-                                            <div className="flex min-h-[220px] items-center justify-center overflow-hidden rounded-[28px] bg-transparent">
-                                                {item.resultPreviewUrl ? (
-                                                    <img
-                                                        src={item.resultPreviewUrl}
-                                                        alt={`${item.name} result`}
-                                                        className="max-h-[320px] w-full object-contain"
-                                                    />
-                                                ) : (
-                                                    <span className="text-xs text-slate-400">等待处理中</span>
-                                                )}
-                                            </div>
-
-                                            {item.error && (
-                                                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                                                    {item.error}
-                                                </div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                            </div>
-                        </div>
-                        </div>
+                        </div>} gridClassName="lg:grid-cols-[minmax(0,1fr)_360px]" />
                     </CardContent>
                 </Card>
             </div>

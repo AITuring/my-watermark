@@ -193,22 +193,6 @@
 .wm-bottom-actions{display:flex;align-items:center;gap:16px;margin-left:auto;padding-left:20px;border-left:1px solid var(--wm-border);flex-shrink:0}
 .wm-unified-settings{display:flex;align-items:center;justify-content:center;gap:8px;height:36px;width:84px;border:1px solid var(--wm-border);border-radius:7px;font-size:12px;color:var(--wm-text);background:var(--wm-panel)}
 .wm-unified-settings:hover,.wm-unified-settings[aria-expanded=true]{border-color:var(--wm-accent);color:var(--wm-accent)}
-.wm-export-menu{position:relative;display:inline-flex;z-index:30}
-.wm-export-menu-trigger{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;min-width:124px;padding:0 16px;border:1px solid #92682f;border-radius:7px;background:#9a7038;color:white;box-shadow:0 2px 5px #0000000b;font-size:12px;font-weight:600;line-height:20px;white-space:nowrap}
-.wm-export-menu-trigger:hover{background:#855d2b}
-.wm-export-menu-trigger:focus-visible{outline:2px solid var(--wm-accent,#987444);outline-offset:2px}
-.wm-export-menu-trigger:disabled{cursor:not-allowed;opacity:.55}
-.wm-export-menu-progress{font-variant-numeric:tabular-nums}
-.wm-export-menu-list{position:absolute;right:0;bottom:calc(100% + 7px);display:grid;min-width:148px;padding:5px;border:1px solid var(--wm-border,#dedad3);border-radius:8px;background:var(--wm-bg,#fffefa);box-shadow:0 10px 25px #221b1226;opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .15s ease,transform .15s ease,visibility .15s ease}
-.wm-export-menu--bottom .wm-export-menu-list{top:calc(100% + 7px);bottom:auto;transform:translateY(-4px)}
-.wm-export-menu:hover .wm-export-menu-list,.wm-export-menu.is-open .wm-export-menu-list,.wm-export-menu:focus-within .wm-export-menu-list{opacity:1;visibility:visible;transform:translateY(0)}
-.wm-export-menu-list button{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;height:32px;padding:0 10px;border-radius:5px;color:var(--wm-text,#39352e);font-size:12px;white-space:nowrap;text-align:left}
-.wm-export-menu-list button:hover:not(:disabled),.wm-export-menu-list button:focus-visible{background:var(--wm-selected,#eee7db);outline:none}
-.wm-export-menu-list button:disabled{cursor:not-allowed;opacity:.45}
-.wm-export-menu-list button span{color:var(--wm-muted,#777066);font-size:11px}
-.dark .wm-export-menu-trigger{background:#d6b17a;color:#221b12;border-color:#d6b17a}
-.dark .wm-export-menu-trigger:hover{background:#e4c592}
-.dark .wm-export-menu-list{--wm-bg:#151922;--wm-border:#2e3441;--wm-text:#e8e8e5;--wm-selected:#3a3020;--wm-muted:#939ba9}
 .wm-compact-toolbar .wm-export-menu-trigger{height:36px}
 .wm-export-menu--mobile .wm-export-menu-trigger{height:32px;min-width:82px;padding:0 12px;border-color:#2563eb;background:#2563eb;border-radius:999px;font-size:12px}
 .wm-export-menu--mobile .wm-export-menu-trigger:hover{background:#1d4ed8}

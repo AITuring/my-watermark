@@ -1,3 +1,4 @@
+import SliderNumberField from "@/components/SliderNumberField";
 import { useId, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, Plus, Download } from "lucide-react";
@@ -24,11 +25,7 @@ type PuzzleSettingsCardProps = {
 };
 
 function RangeSetting({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
-    const id = useId();
-    return <div className="grid gap-1.5">
-        <div className="flex items-center justify-between gap-2 text-xs text-slate-500"><label htmlFor={id}>{label}</label><output htmlFor={id} className="min-w-6 text-right font-medium tabular-nums text-foreground">{value}</output></div>
-        <div className="flex h-9 items-center px-1"><input id={id} type="range" aria-label={label} value={value} min={min} max={max} step={1} className="h-9 w-full cursor-pointer accent-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 dark:accent-slate-200" onChange={(event) => onChange(Number(event.target.value))} /></div>
-    </div>;
+    return <SliderNumberField label={label} value={value} min={min} max={max} step={1} onChange={onChange} />;
 }
 
 function SelectSetting({ label, value, onChange, children, disabled = false }: { label: string; value: string; onChange: (value: string) => void; children: ReactNode; disabled?: boolean }) {

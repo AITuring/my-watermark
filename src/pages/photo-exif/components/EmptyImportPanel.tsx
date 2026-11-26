@@ -1,4 +1,5 @@
-import { ArrowRight, Check, FolderOpen, ImagePlus, ScanLine, ShieldCheck } from "lucide-react";
+import UploadEmptyState from "@/components/image-workbench/UploadEmptyState";
+import { ArrowRight, Check, FolderOpen, ImagePlus, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface EmptyImportPanelProps {
@@ -7,12 +8,6 @@ interface EmptyImportPanelProps {
     openFilePicker: () => void;
     onSelectDirectory: () => void;
 }
-
-const steps = [
-    { number: "01", title: "载入照片", text: "打开文件夹，或直接拖入一组照片。", icon: FolderOpen },
-    { number: "02", title: "筛选与补齐", text: "找到缺失信息的照片，选择来源图补齐。", icon: ScanLine },
-    { number: "03", title: "确认后保存", text: "检查预览，再写回原文件或导出副本。", icon: ShieldCheck },
-];
 
 /** Decorative, code-native illustration: photo prints and a metadata label. */
 const PhotoIllustration = () => (
@@ -49,30 +44,10 @@ const PhotoIllustration = () => (
 );
 
 export default function EmptyImportPanel({ isDragActive, isImportingDirectory, openFilePicker, onSelectDirectory }: EmptyImportPanelProps) {
-    return (
-        <div className="mx-auto max-w-6xl py-6 sm:py-10 lg:py-6">
-            <section className={`relative overflow-hidden rounded-3xl border bg-white/60 dark:bg-slate-900/60 ${isDragActive ? "border-emerald-500 ring-2 ring-emerald-500/20" : "border-stone-200 dark:border-slate-800"}`}>
-                <div className="pointer-events-none absolute inset-0 opacity-50 dark:opacity-20" style={{ backgroundImage: "radial-gradient(circle at 80% 30%, #d4e5da 0, transparent 50%), radial-gradient(#899b8b 0.6px, transparent 0.6px)", backgroundSize: "100% 100%, 20px 20px" }} aria-hidden="true" />
-                <div className="relative grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-2 lg:gap-6 lg:px-14 lg:py-8">
-                    <div className="max-w-lg">
-                        <div className="mb-6 flex items-center gap-2 text-xs font-medium tracking-[0.18em] text-emerald-800 dark:text-emerald-300"><span className="h-px w-7 bg-current" />每一张照片，都有来处</div>
-                        <h2 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl lg:text-[42px]">留住画面，<br /><span className="text-emerald-800 dark:text-emerald-300">也补全它的故事。</span></h2>
-                        <p className="mt-5 max-w-sm text-sm leading-7 text-slate-600 dark:text-slate-400">整理拍摄时间、相机参数与 GPS 位置。<br className="hidden sm:block" />只补缺失信息，让已有记录好好保留。</p>
-                        <div className="mt-7 flex flex-wrap gap-3">
-                            <Button className="h-12 rounded-xl bg-emerald-900 px-5 text-white hover:bg-emerald-800 dark:bg-emerald-300 dark:text-slate-950 dark:hover:bg-emerald-200" onClick={onSelectDirectory} disabled={isImportingDirectory}><FolderOpen className="mr-2 h-4 w-4" />{isImportingDirectory ? "读取文件夹中…" : "打开照片文件夹"}<ArrowRight className="ml-3 h-4 w-4" /></Button>
-                            <Button variant="outline" className="h-12 rounded-xl bg-white/70 px-5 dark:bg-slate-900" onClick={openFilePicker}><ImagePlus className="mr-2 h-4 w-4" />选择照片</Button>
-                        </div>
-                        <p className={`mt-4 text-xs ${isDragActive ? "font-medium text-emerald-700 dark:text-emerald-300" : "text-slate-500"}`}>{isDragActive ? "松开鼠标，开始读取照片" : "也可以将照片直接拖到这里"}</p>
-                    </div>
-                    <PhotoIllustration />
-                </div>
-                <div className="relative flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-stone-200/70 bg-white/50 px-6 py-4 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950/20 sm:px-10 lg:px-14">
-                    <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4" />照片在本地读取</span><span>JPEG / PNG 支持写回原文件</span><span>预览确认后再保存</span>
-                </div>
-            </section>
-            <ol className="mt-7 grid gap-5 sm:grid-cols-3 sm:gap-8 lg:mt-9">
-                {steps.map(({ number, title, text, icon: Icon }) => <li key={number} className="flex gap-3 px-2"><span className="mt-0.5 font-mono text-xs text-emerald-700/70 dark:text-emerald-300/70">{number}</span><div><h3 className="flex items-center gap-2 text-sm font-medium"><Icon className="h-4 w-4 text-slate-500" />{title}</h3><p className="mt-2 text-xs leading-6 text-slate-500">{text}</p></div></li>)}
-            </ol>
-        </div>
-    );
+    return <section className={`overflow-hidden rounded-3xl border bg-card/70 ${isDragActive ? "border-emerald-500 ring-2 ring-emerald-500/20" : "border-border/70"}`}>
+        <UploadEmptyState isDragActive={isDragActive} illustration={<PhotoIllustration />} title="整理照片的拍摄信息"
+            description="查看拍摄时间、相机参数与 GPS 位置，补齐缺失的记录。"
+            actions={<><Button className="h-11 rounded-xl px-5" onClick={onSelectDirectory} disabled={isImportingDirectory}><FolderOpen className="h-4 w-4" />{isImportingDirectory ? "读取文件夹中…" : "打开照片文件夹"}<ArrowRight className="h-4 w-4" /></Button><Button variant="outline" className="h-11 rounded-xl px-5" onClick={openFilePicker}><ImagePlus className="h-4 w-4" />选择照片</Button></>}
+            footer="照片在本地读取 · 预览确认后再保存" />
+    </section>;
 }

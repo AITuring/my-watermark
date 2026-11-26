@@ -4,7 +4,7 @@ import test from 'node:test';
 import ts from 'typescript';
 import vm from 'node:vm';
 
-const source = await readFile(new URL('../src/pages/watermark/preview-zoom.ts', import.meta.url), 'utf8');
+const source = await readFile(new URL('../src/components/image-workbench/preview-zoom.ts', import.meta.url), 'utf8');
 const code = ts.transpileModule(source, {compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS}}).outputText;
 const api = {}; vm.runInNewContext(code, {exports: api});
 

@@ -1,0 +1,15 @@
+.mosaic-controls { --mosaic-accent: #3f7a69; }
+.dark .mosaic-controls { --mosaic-accent: #9bceb7; }
+.mosaic-slider { min-height: 24px; }
+.mosaic-slider > [data-orientation="horizontal"] { height: 4px; background: hsl(var(--border)); }
+.mosaic-slider > [data-orientation="horizontal"] > span { background: var(--mosaic-accent); }
+.mosaic-slider [role="slider"] { width: 14px; height: 14px; border: 2px solid var(--mosaic-accent); background: hsl(var(--card)); box-shadow: none; }
+.mosaic-controls [role="switch"] { min-height: 20px; height: 20px; width: 36px; }
+.mosaic-controls [role="switch"][data-state="checked"] { background: var(--mosaic-accent); }
+.mosaic-export { display: flex; width: 100%; }
+.mosaic-export .wm-export-menu-trigger { width: 100%; }
+@media (max-width: 1023px) {
+    .mosaic-controls button:not([role="switch"]):not([role="slider"]) { min-height: 40px; }
+}
+.mosaic-viewport-shell { --wm-text: hsl(var(--foreground)); --wm-muted: hsl(var(--muted-foreground)); --wm-border: hsl(var(--border)); --wm-accent: #3f7a69; }
+.dark .mosaic-viewport-shell { --wm-accent: #9bceb7; }

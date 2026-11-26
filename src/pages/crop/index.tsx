@@ -1,3 +1,4 @@
+import { ImageWorkbenchPanels } from "@/components/image-workbench/ImageWorkbench";
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -183,6 +184,8 @@ export default function ImageCropper() {
             return;
         }
 
+        // Hidden responsive panels must not overwrite the last visible camera.
+        if (!viewport.clientWidth || !viewport.clientHeight || !stage.offsetWidth || !stage.offsetHeight) return;
         const stageWidth = stage.offsetWidth || 1;
         const stageHeight = stage.offsetHeight || 1;
         const left = clamp((viewport.scrollLeft - stage.offsetLeft) / stageWidth, 0, 1);
@@ -226,10 +229,9 @@ export default function ImageCropper() {
         if (!viewport) return;
 
         const updateViewportSize = () => {
-            setViewportSize({
-                width: viewport.clientWidth,
-                height: viewport.clientHeight,
-            });
+            const width = viewport.clientWidth, height = viewport.clientHeight;
+            if (!width || !height) return;
+            setViewportSize(previous => previous.width === width && previous.height === height ? previous : { width, height });
         };
 
         updateViewportSize();
@@ -784,13 +786,7 @@ export default function ImageCropper() {
         });
     };
 
-    const handleMinimapPointer = (event: React.PointerEvent<HTMLDivElement>) => {
-        if (!activeImage) return;
-        const rect = event.currentTarget.getBoundingClientRect();
-        const xRatio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
-        const yRatio = clamp((event.clientY - rect.top) / rect.height, 0, 1);
-        centerViewportOnImagePoint(xRatio, yRatio);
-    };
+    const [workbenchPanel, setWorkbenchPanel] = useState<"images" | "editor" | "settings">("editor");
 
     return (
         <div
@@ -826,9 +822,8 @@ export default function ImageCropper() {
                 </div>
             )}
             <div className="mx-auto flex h-full max-w-[1520px] min-h-0 flex-col">
-                <div className="flex min-h-0 flex-1 flex-col gap-3">
-                    <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(220px,auto)_minmax(0,1fr)] gap-3 lg:grid-cols-[220px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]">
-                    <div className="flex min-h-0">
+                <ImageWorkbenchPanels activePanel={workbenchPanel} onPanelChange={setWorkbenchPanel} imageCount={images.length} className="h-full" gridClassName="lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)]"
+                    images={<div className="flex min-h-0 flex-1">
                         <LeftPanel
                             className="w-full"
                             images={images}
@@ -849,7 +844,7 @@ export default function ImageCropper() {
                             onResetAllCrop={resetAllCrop}
                             onClearAllImages={clearAllImages}
                             onRemoveSelectedImages={removeSelectedImages}
-                            onSelectImage={setActiveId}
+                            onSelectImage={id => { setActiveId(id); setWorkbenchPanel("editor"); }}
                             onRemoveImage={removeImage}
                             onSwapAspect={swapAspect}
                             selectedImageIds={selectedImageIds}
@@ -862,9 +857,8 @@ export default function ImageCropper() {
                             onCancelBatch={cancelBatchCrops}
                             onRetryFailed={retryFailedCrops}
                         />
-                    </div>
-
-                    <div className="flex h-full min-h-0 flex-col gap-3">
+                    </div>}
+                    editor={<div className="flex h-full min-h-0 flex-col gap-3">
                         <CropEditor
                             activeImage={activeImage}
                             cropPercent={cropPercent}
@@ -890,43 +884,41 @@ export default function ImageCropper() {
                             canRedo={canRedo}
                             onZoomChange={setZoom}
                             onStartDrag={startDrag}
-                            onMinimapPointer={handleMinimapPointer}
+                            onMinimapCenter={center => centerViewportOnImagePoint(center.x, center.y)}
                         />
-                    </div>
-
-                    </div>
-                    {savedCrops.length > 0 && (
-                        <details className="shrink-0 rounded-lg border border-border/60 bg-background/90 shadow-sm">
-                            <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
-                                <span className="flex items-center justify-between gap-2">
-                                    <span>暂存结果</span>
-                                    <span className="text-xs font-normal text-muted-foreground">{savedCrops.length} 张 · 点击展开</span>
-                                </span>
-                            </summary>
-                            <div className="h-[min(36vh,420px)] min-h-[220px] border-t border-border/60 p-3">
-                                <RightPanel
-                                    compact
-                                    className="w-full"
-                                    savedCropCount={savedCrops.length}
-                                    groupedSavedCrops={groupedSavedCrops}
-                                    selectedSavedCropIds={selectedSavedCropIds}
-                                    selectedSavedCropCount={selectedSavedCrops.length}
-                                    isBatchDownloading={isBatchDownloading}
-                                    isBatchExporting={isBatchExporting}
-                                    isRoutingExporting={isRoutingExporting}
-                                    onExportBatch={() => void exportBatch(selectedSavedCrops)}
-                                    onDownloadBatch={() => void downloadBatch(selectedSavedCrops)}
-                                    onRouteWithCrops={(target) => void routeWithCrops(target, selectedSavedCrops)}
-                                    onClearSavedCrops={clearSavedCrops}
-                                    onRemoveSavedCrop={removeSavedCrop}
-                                    onToggleSavedCrop={toggleSavedCropSelection}
-                                    onToggleAllSavedCrops={toggleAllSavedCrops}
-                                    onRemoveSelectedSavedCrops={removeSelectedSavedCrops}
-                                />
-                            </div>
-                        </details>
-                    )}
-                </div>
+                        {savedCrops.length > 0 && (
+                            <details className="shrink-0 rounded-lg border border-border/60 bg-background/90 shadow-sm">
+                                <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden">
+                                    <span className="flex items-center justify-between gap-2">
+                                        <span>暂存结果</span>
+                                        <span className="text-xs font-normal text-muted-foreground">{savedCrops.length} 张 · 点击展开</span>
+                                    </span>
+                                </summary>
+                                <div className="h-[min(36vh,420px)] min-h-[220px] border-t border-border/60 p-3">
+                                    <RightPanel
+                                        compact
+                                        className="w-full"
+                                        savedCropCount={savedCrops.length}
+                                        groupedSavedCrops={groupedSavedCrops}
+                                        selectedSavedCropIds={selectedSavedCropIds}
+                                        selectedSavedCropCount={selectedSavedCrops.length}
+                                        isBatchDownloading={isBatchDownloading}
+                                        isBatchExporting={isBatchExporting}
+                                        isRoutingExporting={isRoutingExporting}
+                                        onExportBatch={() => void exportBatch(selectedSavedCrops)}
+                                        onDownloadBatch={() => void downloadBatch(selectedSavedCrops)}
+                                        onRouteWithCrops={(target) => void routeWithCrops(target, selectedSavedCrops)}
+                                        onClearSavedCrops={clearSavedCrops}
+                                        onRemoveSavedCrop={removeSavedCrop}
+                                        onToggleSavedCrop={toggleSavedCropSelection}
+                                        onToggleAllSavedCrops={toggleAllSavedCrops}
+                                        onRemoveSelectedSavedCrops={removeSelectedSavedCrops}
+                                    />
+                                </div>
+                            </details>
+                        )}
+                    </div>}
+                />
             </div>
         </div>
     );

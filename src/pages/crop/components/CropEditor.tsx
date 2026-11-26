@@ -1,3 +1,5 @@
+import PreviewMinimap from "@/components/image-workbench/PreviewMinimap";
+import { usePreviewImage } from "@/components/image-workbench/usePreviewImage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,7 +39,7 @@ type CropEditorProps = {
     canRedo: boolean;
     onZoomChange: React.Dispatch<React.SetStateAction<number>>;
     onStartDrag: (mode: DragMode, event: React.PointerEvent) => void;
-    onMinimapPointer: (event: React.PointerEvent<HTMLDivElement>) => void;
+    onMinimapCenter: (center: { x: number; y: number }) => void;
 };
 
 const handleClassMap: Record<Exclude<DragMode, "new" | "move">, string> = {
@@ -72,8 +74,9 @@ export default function CropEditor({
     canRedo,
     onZoomChange,
     onStartDrag,
-    onMinimapPointer,
+    onMinimapCenter,
 }: CropEditorProps) {
+    const minimapImage = usePreviewImage(activeImage?.previewUrl ?? "");
     return (
         <Card className="flex min-h-0 flex-1 flex-col rounded-lg border-border/60 bg-background/95 shadow-sm">
             <CardHeader className="px-4 py-3">
@@ -91,7 +94,7 @@ export default function CropEditor({
                         <Button
                             size="sm"
                             className="px-2.5 sm:px-3"
-                            onClick={onSaveCurrentCrop}
+                            aria-label="暂存当前裁切" onClick={onSaveCurrentCrop}
                             disabled={!activeImage}
                         >
                             <Scissors className="h-4 w-4" />
@@ -101,7 +104,7 @@ export default function CropEditor({
                             variant="secondary"
                             size="sm"
                             className="px-2.5 sm:px-3"
-                            onClick={onExportCurrent}
+                            aria-label="单独导出" onClick={onExportCurrent}
                             disabled={!activeImage}
                         >
                             <Download className="h-4 w-4" />
@@ -124,11 +127,11 @@ export default function CropEditor({
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col gap-3">
                             <div className="relative flex flex-wrap items-center gap-1.5">
-                                    <Button variant="secondary" size="sm" onClick={onUndo} disabled={!canUndo} title="撤销">
+                                    <Button variant="secondary" size="sm" onClick={onUndo} disabled={!canUndo} aria-label="撤销">
                                         <Undo2 className="h-4 w-4" />
                                         <span className="hidden sm:inline">撤销</span>
                                     </Button>
-                                    <Button variant="secondary" size="sm" onClick={onRedo} disabled={!canRedo} title="重做">
+                                    <Button variant="secondary" size="sm" onClick={onRedo} disabled={!canRedo} aria-label="重做">
                                         <Redo2 className="h-4 w-4" />
                                         <span className="hidden sm:inline">重做</span>
                                     </Button>
@@ -298,50 +301,10 @@ export default function CropEditor({
                                         </div>
                                     </div>
                                 </div>
-                                {shouldShowMinimap && (
-                                    <div className="pointer-events-none absolute bottom-4 right-4 z-10">
-                                        <div className="pointer-events-auto w-[168px] rounded-lg border border-border/70 bg-background/92 p-3 shadow-lg backdrop-blur-sm">
-                                            <div className="mb-2 text-sm font-medium">Minimap</div>
-                                            <div
-                                                className="relative overflow-hidden rounded-lg border bg-background"
-                                                style={{
-                                                    aspectRatio: `${activeImage.width} / ${activeImage.height}`,
-                                                }}
-                                                onPointerDown={onMinimapPointer}
-                                            >
-                                                <img
-                                                    src={activeImage.previewUrl}
-                                                    alt={`${activeImage.name}-minimap`}
-                                                    className="h-full w-full object-contain"
-                                                    draggable={false}
-                                                />
-                                                {cropPercent && (
-                                                    <div
-                                                        className="absolute border border-white/90 bg-white/10"
-                                                        style={{
-                                                            left: `${cropPercent.left}%`,
-                                                            top: `${cropPercent.top}%`,
-                                                            width: `${cropPercent.width}%`,
-                                                            height: `${cropPercent.height}%`,
-                                                        }}
-                                                    />
-                                                )}
-                                                <div
-                                                    className="absolute border border-primary bg-primary/10"
-                                                    style={{
-                                                        left: `${viewportRect.left * 100}%`,
-                                                        top: `${viewportRect.top * 100}%`,
-                                                        width: `${viewportRect.width * 100}%`,
-                                                        height: `${viewportRect.height * 100}%`,
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="mt-2 text-[11px] text-muted-foreground">
-                                                已放大时显示，点击可快速定位视口
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                                {shouldShowMinimap && minimapImage && <PreviewMinimap image={minimapImage}
+                                    imageWidth={displayWidth} imageHeight={displayHeight} viewportWidth={viewportSize.width} viewportHeight={viewportSize.height}
+                                    zoom={1} center={{ x: viewportRect.left + viewportRect.width / 2, y: viewportRect.top + viewportRect.height / 2 }} onCenterChange={onMinimapCenter} />}
+
                             </div>
                         </div>
                     </div>

@@ -1,4 +1,4 @@
-import WatermarkExportMenu from './WatermarkExportMenu';
+import WatermarkExportMenu from "@/components/image-workbench/ImageExportMenu";
 import WatermarkFontPicker from "./WatermarkFontPicker";
 import WatermarkLayoutControl from "./WatermarkLayoutControl";
 import WatermarkBlurPreview from "./WatermarkBlurPreview";

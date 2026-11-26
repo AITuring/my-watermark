@@ -1,6 +1,8 @@
+import UploadEmptyState from "@/components/image-workbench/UploadEmptyState";
+import { Button } from "@/components/ui/button";
+import { ImagePlus } from "lucide-react";
 import React from "react";
 import { Icon } from "@iconify/react";
-import ChineseWaveBackground from "@/components/ChineseWaveBackground";
 import ImageUploader from "@/components/ImageUploader";
 
 interface WatermarkUploadHeroProps {
@@ -149,46 +151,14 @@ const WatermarkUploadHero: React.FC<WatermarkUploadHeroProps> = ({
     dropzoneRef,
     onUpload,
 }) => {
-    const wrapperClass = mobile
-        ? "group p-6 md:p-8 rounded-3xl text-slate-700 dark:text-slate-200 bg-white/20 dark:bg-black/40 backdrop-blur-xl cursor-pointer flex flex-col items-center hover:bg-white/30 dark:hover:bg-white/10 transition-all duration-500 shadow-2xl border border-white/30 hover:border-white/50 hover:shadow-3xl hover:scale-105 transform"
-        : "group p-6 md:p-8 rounded-3xl text-slate-700 bg-white/20 backdrop-blur-xl cursor-pointer flex flex-col items-center hover:bg-white/30 transition-all duration-500 shadow-2xl border border-white/30 hover:border-white/50 hover:shadow-3xl hover:scale-105 transform";
-    const titleClass = mobile
-        ? "text-base md:text-lg font-light tracking-wide text-slate-700/90 dark:text-slate-200/90 text-center group-hover:text-slate-800 dark:group-hover:text-white transition-colors duration-300"
-        : "text-base md:text-lg font-light tracking-wide text-slate-700/90 text-center group-hover:text-slate-800 transition-colors duration-300";
-    const subtitleClass = mobile
-        ? "text-xs md:text-sm text-slate-600/70 dark:text-slate-400/70 mt-1 md:mt-2 text-center group-hover:text-slate-700/80 dark:group-hover:text-slate-300/80 transition-colors duration-300"
-        : "text-xs md:text-sm text-slate-600/70 mt-1 md:mt-2 text-center group-hover:text-slate-700/80 transition-colors duration-300";
-
-    return (
-        <ChineseWaveBackground>
-            <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
-                <ImageUploader
-                    ref={dropzoneRef}
-                    onUpload={onUpload}
-                    fileType="背景"
-                >
-                    <div className={wrapperClass}>
-                        {mobile ? <MobileIllustration /> : <DesktopIllustration />}
-
-                        <span className={titleClass}>
-                            上传背景图片
-                        </span>
-                        <span className={subtitleClass}>
-                            支持 JPG、PNG、TIFF 格式
-                        </span>
-
-                        {mobile && (
-                            <div className="mt-2 md:hidden">
-                                <span className="text-xs text-slate-500/60 group-hover:text-slate-600/80 transition-colors duration-300">
-                                    轻触上传
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                </ImageUploader>
-            </div>
-        </ChineseWaveBackground>
-    );
+    return <div className="flex min-h-[100dvh] items-center justify-center bg-background p-4 sm:p-8">
+            <ImageUploader ref={dropzoneRef} onUpload={onUpload} fileType="背景" className="group w-full max-w-4xl overflow-hidden rounded-3xl border border-border/70 bg-card/90 shadow-xl backdrop-blur-sm">
+                <UploadEmptyState title="给照片添加水印" description="添加文字或图标水印，预览后批量导出。"
+                    illustration={<div className="flex h-36 items-center justify-center"><div className="scale-[2]">{mobile ? <MobileIllustration /> : <DesktopIllustration />}</div></div>}
+                    actions={<Button type="button" className="h-11 rounded-xl px-6"><ImagePlus className="h-4 w-4" />选择照片</Button>}
+                    hint="支持 JPG、PNG、TIFF · 可拖入多张图片" />
+            </ImageUploader>
+    </div>;
 };
 
 export default WatermarkUploadHero;

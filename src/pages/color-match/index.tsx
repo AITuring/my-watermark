@@ -21,8 +21,7 @@ import {
     X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { loadSaveAs } from "@/utils/lazy-deps";
-import { downloadWatermarkOutputs } from "@/pages/watermark/export-downloads";
+import { downloadExportFiles } from "@/utils/image-export";
 import { applyColorMatch, deriveColorMatch, type ColorMatchAdjustment } from "./color-match";
 import "./color-match.css";
 
@@ -356,17 +355,10 @@ const ColorMatchPage = () => {
         setExportProgress(0);
         try {
             const files = await renderExportFiles(targets);
-            const saveAs = await loadSaveAs();
-            if (mode === "single") {
-                saveAs(files[0], files[0].name);
-            } else {
-                await downloadWatermarkOutputs(
-                    files,
-                    mode === "zip" ? "zip" : "files",
-                    (file) => saveAs(file, file.name),
-                    (percent) => setExportProgress(percent),
-                );
-            }
+            await downloadExportFiles(files.map(file => ({ data: file, name: file.name })), {
+                mode: mode === "single" ? "current" : mode === "zip" ? "zip" : "files",
+                archiveName: `color-match-${files.length}.zip`, onProgress: setExportProgress,
+            });
             toast.success(mode === "single" ? "已导出当前图片" : "已导出 " + files.length + " 张图片");
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "导出失败，请重试");

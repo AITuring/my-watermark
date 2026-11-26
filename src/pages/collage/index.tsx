@@ -1,3 +1,4 @@
+import { downloadExportFiles } from "@/utils/image-export";
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, CSSProperties, DragEvent } from 'react'
 import { ArrowDown, ArrowLeft, ArrowUp, Check, Download, GripVertical, ImagePlus, RotateCcw, Shuffle, Trash2, Upload, X } from 'lucide-react'
@@ -221,12 +222,7 @@ export default function ImageCollage() {
       const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
         value => value ? resolve(value) : reject(new Error('生成失败')), `image/${format}`, .95))
       if (controller.signal.aborted) return
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.download = `${title.trim().replace(/[\\/:*?"<>|]/g, '-').slice(0, 60) || '图片拼贴'}-${activeTemplate.name}-${width}x${height}.${format === 'jpeg' ? 'jpg' : 'png'}`
-      link.href = url
-      link.click()
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+      await downloadExportFiles([{ data: blob, name: `${title.trim().replace(/[\\/:*?"<>|]/g, '-').slice(0, 60) || '图片拼贴'}-${activeTemplate.name}-${width}x${height}.${format === 'jpeg' ? 'jpg' : 'png'}` }], { mode: "current" })
       toast.success(`已导出 ${width} × ${height} 图片`)
     } catch { if (!controller.signal.aborted) toast.error('导出失败，请减小尺寸后重试') }
     finally { canvas.width = canvas.height = 0; exportControllerRef.current = null; setIsExporting(false) }
