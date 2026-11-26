@@ -228,8 +228,56 @@ test("deployed worker and document headers preserve fresh routes and split isola
         assert.equal(headersFor(pathname)["Cross-Origin-Opener-Policy"], "same-origin", pathname);
         assert.equal(headersFor(pathname)["Cross-Origin-Embedder-Policy"], "require-corp", pathname);
     }
+    for (const pathname of ["/", "/photo-exif", "/museum-events", "/wenwu", "/app.html"]) {
+        assert.equal(headersFor(pathname)["Cross-Origin-Opener-Policy"], undefined, pathname);
+        assert.equal(headersFor(pathname)["Cross-Origin-Embedder-Policy"], undefined, pathname);
+    }
     for (const file of manifest["/split"].scripts) {
         assert.equal(headersFor(`/${file}`)["Cross-Origin-Resource-Policy"], "same-origin");
         assert.match(headersFor(`/${file}`)["Cache-Control"], /immutable/);
+    }
+});
+
+test("local dev and preview isolation headers only apply to /split routes and CORP assets", async () => {
+    const source = await readFile(new URL("../plugins/splitIsolationHeaders.ts", import.meta.url), "utf8");
+    const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+    const exports = {};
+    vm.runInNewContext(code, { exports });
+    const middlewares = [];
+    const plugin = exports.splitIsolationHeaders();
+    plugin.configureServer({ middlewares: { use(handler) { middlewares.push(handler); } } });
+    plugin.configurePreviewServer({ middlewares: { use(handler) { middlewares.push(handler); } } });
+    assert.equal(middlewares.length, 2);
+
+    for (const middleware of middlewares) {
+        for (const url of ["/split", "/split/", "/split.html", "/split/index.html", "/split?mode=grid"]) {
+            const req = { url, headers: { accept: "text/html", "if-none-match": 'W/"abc"' } };
+            const headers = {};
+            let continued = false;
+            middleware(req, { setHeader(name, value) { headers[name] = value; } }, () => { continued = true; });
+            assert.equal(headers["Cross-Origin-Opener-Policy"], "same-origin", url);
+            assert.equal(headers["Cross-Origin-Embedder-Policy"], "require-corp", url);
+            assert.equal(req.headers["if-none-match"], undefined, url);
+            assert(continued);
+        }
+        for (const url of ["/", "/photo-exif", "/photo-exif?tab=batch", "/museum-events", "/wenwu", "/app.html"]) {
+            const req = { url, headers: { accept: "text/html", "if-none-match": 'W/"abc"', "if-modified-since": "Wed, 25 Nov 2026 00:00:00 GMT" } };
+            const headers = {};
+            let continued = false;
+            middleware(req, { setHeader(name, value) { headers[name] = value; } }, () => { continued = true; });
+            assert.equal(headers["Cross-Origin-Opener-Policy"], "unsafe-none", url);
+            assert.equal(headers["Cross-Origin-Embedder-Policy"], "unsafe-none", url);
+            assert.equal(req.headers["if-none-match"], undefined, url);
+            assert.equal(req.headers["if-modified-since"], undefined, url);
+            assert(continued);
+        }
+        for (const url of ["/wasm-vips/vips-es6.js?coep=1", "/assets/index-abc12345.js", "/src/workers/jpeg-vips.worker.ts?worker_file"]) {
+            const headers = {};
+            let continued = false;
+            middleware({ url, headers: {} }, { setHeader(name, value) { headers[name] = value; } }, () => { continued = true; });
+            assert.equal(headers["Cross-Origin-Resource-Policy"], "same-origin", url);
+            assert.equal(headers["Cross-Origin-Embedder-Policy"], undefined, url);
+            assert(continued);
+        }
     }
 });

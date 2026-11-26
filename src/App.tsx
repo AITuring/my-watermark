@@ -63,33 +63,56 @@ const Landing = lazyWithImportRecovery(
     "route:landing"
 );
 
+const SPLIT_ISOLATION_ROUTE = /^\/split(?:\/|\.html|\/index\.html)?$/;
+const SPLIT_ENTER_RELOAD_KEY = "split-coop-coep-reload";
+const SPLIT_EXIT_RELOAD_KEY = "split-coop-coep-exit-reload";
+
 const SplitIsolationGuard = () => {
     const location = useLocation();
 
     useEffect(() => {
-        if (location.pathname !== "/split" || typeof window === "undefined" || window.crossOriginIsolated) {
+        if (typeof window === "undefined") {
+            return;
+        }
+        const isSplitRoute = SPLIT_ISOLATION_ROUTE.test(location.pathname);
+
+        if (isSplitRoute) {
+            if (window.crossOriginIsolated) {
+                try {
+                    window.sessionStorage.removeItem(SPLIT_ENTER_RELOAD_KEY);
+                } catch { /* Isolation is already active; storage is optional. */ }
+                return;
+            }
+            try {
+                if (window.sessionStorage.getItem(SPLIT_ENTER_RELOAD_KEY) === "1") return;
+                window.sessionStorage.setItem(SPLIT_ENTER_RELOAD_KEY, "1");
+            } catch {
+                // Without a reload marker, a browser that denies storage could loop.
+                return;
+            }
+            // A document navigation applies the isolation headers. The worker
+            // preserves these headers, so removing registrations is unnecessary.
+            window.location.replace(window.location.href);
             return;
         }
 
-        const reloadKey = "split-coop-coep-reload";
+        if (!window.crossOriginIsolated) {
+            try {
+                window.sessionStorage.removeItem(SPLIT_EXIT_RELOAD_KEY);
+            } catch { /* Non-isolated mode is already active; storage is optional. */ }
+            return;
+        }
+
         try {
-            if (window.sessionStorage.getItem(reloadKey) === "1") return;
-            window.sessionStorage.setItem(reloadKey, "1");
+            if (window.sessionStorage.getItem(SPLIT_EXIT_RELOAD_KEY) === "1") return;
+            window.sessionStorage.setItem(SPLIT_EXIT_RELOAD_KEY, "1");
         } catch {
             // Without a reload marker, a browser that denies storage could loop.
             return;
         }
-        // A document navigation applies the isolation headers. The worker
-        // preserves these headers, so removing registrations is unnecessary.
+        // Leaving /split via SPA navigation keeps the document's COEP header,
+        // which blocks cross-origin scripts (such as AMap on /photo-exif).
         window.location.replace(window.location.href);
-    }, [location.pathname]);
-
-    useEffect(() => {
-        if (location.pathname === "/split" && typeof window !== "undefined" && window.crossOriginIsolated) {
-            try {
-                window.sessionStorage.removeItem("split-coop-coep-reload");
-            } catch { /* Isolation is already active; storage is optional. */ }
-        }
     }, [location.pathname]);
 
     return null;

@@ -8,6 +8,7 @@ import { localSplitPlugin } from './plugins/localSplit';
 import { localSongCatalogPlugin } from './plugins/songCatalog';
 import { routeChunks } from './plugins/routeChunks';
 import { prerenderPreview } from './plugins/prerenderPreview';
+import { splitIsolationHeaders } from './plugins/splitIsolationHeaders';
 import { inlineCriticalAssets } from './plugins/inlineCriticalAssets.mjs';
 
 const enableLegacy = process.env.LEGACY_BUILD === "true";
@@ -19,6 +20,7 @@ export default defineConfig({
         localSplitPlugin(),
         localSongCatalogPlugin(),
         enableLegacy ? legacy() : null,
+        splitIsolationHeaders(),
         prerenderPreview(),
         viteCompression({
             verbose: true,
@@ -38,17 +40,9 @@ export default defineConfig({
     server: {
         proxy: { "/api/people-sort": { target: "http://127.0.0.1:8131", rewrite: path => path.replace(/^\/api\/people-sort/, "") } },
         port: 8123,
-        headers: {
-            "Cross-Origin-Opener-Policy": "same-origin",
-            "Cross-Origin-Embedder-Policy": "require-corp",
-        },
     },
     preview: {
         proxy: { "/api/people-sort": { target: "http://127.0.0.1:8131", rewrite: path => path.replace(/^\/api\/people-sort/, "") } },
-        headers: {
-            "Cross-Origin-Opener-Policy": "same-origin",
-            "Cross-Origin-Embedder-Policy": "require-corp",
-        },
     },
     worker: {
         format: "iife",

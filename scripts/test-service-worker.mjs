@@ -449,6 +449,21 @@ test("split navigation preserves required isolation even in offline fallback", a
     assert.equal(uncachedHtml.headers.get("Cross-Origin-Embedder-Policy"), "require-corp");
 });
 
+test("non-split navigation strips stale COOP/COEP headers from cached pages", async () => {
+    const environment = workerEnvironment(async () => { throw new TypeError("offline"); });
+    await (await environment.caches.open("mytools-pages-v1")).put(
+        `${origin}/photo-exif`,
+        html("cached exif", {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+        }),
+    );
+    const response = await environment.dispatch("fetch", navigate("/photo-exif"));
+    assert.equal(response.headers.get("Cross-Origin-Opener-Policy"), null);
+    assert.equal(response.headers.get("Cross-Origin-Embedder-Policy"), null);
+    assert.equal(await response.text(), "cached exif");
+});
+
 test("hashed code is reused but a server HTML fallback never poisons the code cache", async () => {
     let valid = false;
     const environment = workerEnvironment(async () => valid

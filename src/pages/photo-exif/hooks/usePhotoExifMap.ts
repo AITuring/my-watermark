@@ -11,11 +11,15 @@ const loadAmapSdk = async (): Promise<MapSdkLike> => {
         (window as Window & { _AMapSecurityConfig?: Record<string, string> })._AMapSecurityConfig = {
             securityJsCode: "8d5961ba4c131a09904cab742029ca42",
         };
-        amapSdkPromise = AMapLoader.load({
+        amapSdkPromise = (AMapLoader.load({
             key: "55b6c2fbb0875490d011d74ad99aac31",
             version: "2.0",
             plugins: ["AMap.Geocoder", "AMap.PlaceSearch"],
-        }) as Promise<MapSdkLike>;
+        }) as Promise<MapSdkLike>).catch((error) => {
+            amapSdkPromise = null;
+            (AMapLoader as typeof AMapLoader & { reset?: () => void }).reset?.();
+            throw error;
+        });
     }
     return amapSdkPromise;
 };

@@ -17,7 +17,20 @@ function pageKey(url) {
 function splitResponse(response, url) {
     // Navigation redirects are opaque to the worker (status 0); the browser
     // must follow them, and they cannot be reconstructed with new Response.
-    if (response.type === "opaqueredirect" || response.status === 0 || !/^\/split(?:\/|\.html$|$)/.test(url.pathname)) return response;
+    if (response.type === "opaqueredirect" || response.status === 0) return response;
+    if (!/^\/split(?:\/|\.html$|$)/.test(url.pathname)) {
+        if (!response.headers.has("Cross-Origin-Opener-Policy") && !response.headers.has("Cross-Origin-Embedder-Policy")) {
+            return response;
+        }
+        const headers = new Headers(response.headers);
+        headers.delete("Cross-Origin-Opener-Policy");
+        headers.delete("Cross-Origin-Embedder-Policy");
+        return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+        });
+    }
     const headers = new Headers(response.headers);
     headers.set("Cross-Origin-Opener-Policy", "same-origin");
     headers.set("Cross-Origin-Embedder-Policy", "require-corp");
